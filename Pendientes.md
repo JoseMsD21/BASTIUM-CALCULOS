@@ -98,7 +98,8 @@ C.Co. — `CompoundInterest` (`app/engine/interest/compound_interest.py`) sigue 
 modelar si hubo demanda judicial o acuerdo posterior de capitalización, campos que no existen hoy en
 `Obligacion`. También queda documentado como limitación conocida (heredada de Civil, no introducida
 aquí): `MemoryRateProvider` da resultados correctos por obligación solo cuando el expediente tiene una
-obligación comercial o cuando los tramos de fecha de las obligaciones no se solapan con tasas distintas.
+sola obligación comercial, o cuando (con varias) los tramos de fecha de las obligaciones no se solapan
+con tasas distintas — la tasa se busca por fecha calendario, no por obligación.
 
 **Definición de Hecho:**
 - `ComercialStrategy` liquida obligaciones comerciales reales (con y sin abonos) con TDD siguiendo el

@@ -216,31 +216,6 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
 El programa genera automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de
 corte del expediente.
 
-### 5.7. Agregar una obligación comercial
-
-Cuando el expediente tiene **Área del derecho = Comercial**, el formulario de "Agregar obligación"
-muestra tres campos adicionales, específicos de esta área:
-
-1. Dentro del Detalle de un expediente Comercial, haz clic en **"Agregar obligación"**.
-2. Llena los campos comunes (Tipo, Categoría, Concepto, Valor, Tasa efectiva anual, Fecha de origen)
-   igual que en Civil/Familia — ver [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez).
-   La "Tasa efectiva anual (%)" aquí representa la **tasa remuneratoria** pactada.
-3. Llena además:
-   - **Tasa moratoria anual (%)**: la tasa que aplica después de que la obligación vence y no se paga.
-     Si no se pactó una distinta, la ley comercial (Art. 884 C.Co.) sugiere 1.5× el IBC vigente, pero el
-     campo siempre se diligencia manualmente — no hay cálculo automático todavía (ver `Pendientes.md`,
-     Sprint 5).
-   - **Fecha de vencimiento**: la fecha en que la obligación se hace exigible. Antes de esta fecha se
-     usa la tasa remuneratoria; después, la moratoria.
-   - **IBC vigente aplicable (%)**: el Interés Bancario Corriente certificado por la Superintendencia
-     Financiera para la fecha del caso. Se usa únicamente para validar que ninguna de las dos tasas
-     pactadas supere el tope legal de usura (1.5× este valor).
-4. Haz clic en **"Guardar"**.
-
-Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingresaste, el programa no
-deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
-guardar la obligación (la validación ocurre al calcular, no al capturar el dato).
-
 ### 5.5. Agregar un abono (registrar un pago)
 
 1. Dentro del Detalle de un expediente, **selecciona primero la fila de la obligación** a la que se le
@@ -269,6 +244,34 @@ Si el monto es cero o negativo, el programa avisa "Datos inválidos".
 
 Si el expediente no tiene ninguna obligación cargada, el botón "Liquidar" te muestra el mensaje
 "No se pudo liquidar" en vez de calcular.
+
+### 5.7. Agregar una obligación comercial
+
+Cuando el expediente tiene **Área del derecho = Comercial**, el formulario de "Agregar obligación"
+muestra tres campos adicionales, específicos de esta área:
+
+1. Dentro del Detalle de un expediente Comercial, haz clic en **"Agregar obligación"**.
+2. Llena los campos comunes (Tipo, Categoría, Concepto, Valor, Tasa efectiva anual, Fecha de origen)
+   igual que en Civil/Familia — ver [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez).
+   La "Tasa efectiva anual (%)" aquí representa la **tasa remuneratoria** pactada.
+3. Llena además:
+   - **Tasa moratoria anual (%)**: la tasa que aplica después de que la obligación vence y no se paga.
+     Si no se pactó una distinta, la ley comercial (Art. 884 C.Co.) sugiere 1.5× el IBC vigente, pero el
+     campo siempre se diligencia manualmente — no hay cálculo automático todavía (ver `Pendientes.md`,
+     Sprint 5).
+   - **Fecha de vencimiento**: la fecha en que la obligación se hace exigible. Para obligaciones
+     **Puntuales**, antes de esta fecha se usa la tasa remuneratoria y después la moratoria. Para
+     obligaciones **Recurrentes**, este split todavía no aplica por cuota — se usa la tasa moratoria
+     durante todo el período (alcance reducido de este sprint, ver `Pendientes.md`, Sprint 2). El campo
+     igual es obligatorio para ambos tipos.
+   - **IBC vigente aplicable (%)**: el Interés Bancario Corriente certificado por la Superintendencia
+     Financiera para la fecha del caso. Se usa únicamente para validar que ninguna de las dos tasas
+     pactadas supere el tope legal de usura (1.5× este valor).
+4. Haz clic en **"Guardar"**.
+
+Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingresaste, el programa no
+deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
+guardar la obligación (la validación ocurre al calcular, no al capturar el dato).
 
 ---
 
