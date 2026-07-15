@@ -63,6 +63,8 @@ def test_dialogo_deshabilita_areas_no_implementadas(qtbot, monkeypatch):
     qtbot.addWidget(dialog)
 
     modelo = dialog.combo_area.model()
-    # Indice 0 = Civil/Familia (habilitada), el resto deshabilitadas.
+    # Indice 0 = Civil/Familia (habilitada), indice 1 = Comercial (habilitada
+    # desde Sprint 2), indice 2 = Laboral (todavia deshabilitada).
     assert modelo.item(0).isEnabled() is True
-    assert modelo.item(1).isEnabled() is False
+    assert modelo.item(1).isEnabled() is True
+    assert modelo.item(2).isEnabled() is False
