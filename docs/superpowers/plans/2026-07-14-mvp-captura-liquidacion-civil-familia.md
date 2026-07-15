@@ -394,7 +394,7 @@ git commit -m "feat: add SQLAlchemy models for Expediente, Obligacion and Abono"
 
 ---
 
-### Task 3: Database engine and session helpers
+### Task 3: Database engine and session helpers ✅ COMPLETADA (subagente en worktree, merge a main OK)
 
 **Files:**
 - Create: `database/database.py` (currently empty)
@@ -766,7 +766,7 @@ git commit -m "feat: add AreaStrategy registry with 4 not-implemented-yet strate
 
 ---
 
-### Task 6: CivilFamiliaStrategy — the real calculation path
+### Task 6: CivilFamiliaStrategy — the real calculation path ✅ COMPLETADA (subagente en worktree, merge a main OK)
 
 **Files:**
 - Modify: `app/services/area_strategy.py` (implement `CivilFamiliaStrategy.liquidar`)
