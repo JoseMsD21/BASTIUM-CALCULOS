@@ -5,7 +5,7 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-15 — refleja el estado del MVP de Civil/Familia. Cada vez que se
+> **Última actualización:** 2026-07-15 — refleja el estado de Civil/Familia y Comercial. Cada vez que se
 > complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca
 > quede desactualizada respecto al programa real.
 
@@ -33,9 +33,10 @@ los intereses que se acumulan con el tiempo.
 En vez de calcular esto a mano con calculadora (algo lento y donde es fácil equivocarse), BASTIUM lo hace
 de forma automática, siguiendo exactamente las reglas que dicta la ley colombiana.
 
-Hoy en día, BASTIUM sabe calcular liquidaciones del área **Civil y de Familia** (por ejemplo: cuotas de
-alimentos, gastos médicos, deudas civiles con interés). Otras áreas del derecho (Comercial, Laboral,
-Sancionatorio, Honorarios) están planeadas pero **todavía no calculan** — más detalle en la
+Hoy en día, BASTIUM sabe calcular liquidaciones de las áreas **Civil y de Familia** (por ejemplo: cuotas
+de alimentos, gastos médicos, deudas civiles con interés) y **Comercial** (pagarés, letras de cambio,
+cheques y facturas, con tasa remuneratoria y moratoria). Otras áreas del derecho (Laboral, Sancionatorio,
+Honorarios) están planeadas pero **todavía no calculan** — más detalle en la
 [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
 
 ---
@@ -161,9 +162,10 @@ el programa (esto es una limitación conocida, ver [sección 8](#8-funciones-pen
    - **Radicado**: el número o referencia interna del caso (ej. `2026-00123`). Es obligatorio.
    - **Demandante**: nombre de quien reclama.
    - **Demandado**: nombre de quien debe.
-   - **Área del derecho**: por ahora deja seleccionada **"Civil / Familia"** (es la única opción activa;
+   - **Área del derecho**: elige **"Civil / Familia"** o **"Comercial"** (las dos opciones activas hoy;
      las demás aparecen "grises" con la nota "Próximamente" porque todavía no calculan, ver
-     [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)).
+     [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)). Si eliges Comercial, el formulario de
+     "Agregar obligación" muestra campos adicionales — ver [sección 5.7](#57-agregar-una-obligación-comercial).
    - **Juzgado**: opcional, el juzgado donde está el proceso, si aplica.
    - **Fecha de corte**: la fecha hasta la cual se va a calcular el interés (normalmente, hoy o la fecha
      en que se necesita presentar la liquidación).
@@ -214,6 +216,31 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
 El programa genera automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de
 corte del expediente.
 
+### 5.7. Agregar una obligación comercial
+
+Cuando el expediente tiene **Área del derecho = Comercial**, el formulario de "Agregar obligación"
+muestra tres campos adicionales, específicos de esta área:
+
+1. Dentro del Detalle de un expediente Comercial, haz clic en **"Agregar obligación"**.
+2. Llena los campos comunes (Tipo, Categoría, Concepto, Valor, Tasa efectiva anual, Fecha de origen)
+   igual que en Civil/Familia — ver [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez).
+   La "Tasa efectiva anual (%)" aquí representa la **tasa remuneratoria** pactada.
+3. Llena además:
+   - **Tasa moratoria anual (%)**: la tasa que aplica después de que la obligación vence y no se paga.
+     Si no se pactó una distinta, la ley comercial (Art. 884 C.Co.) sugiere 1.5× el IBC vigente, pero el
+     campo siempre se diligencia manualmente — no hay cálculo automático todavía (ver `Pendientes.md`,
+     Sprint 5).
+   - **Fecha de vencimiento**: la fecha en que la obligación se hace exigible. Antes de esta fecha se
+     usa la tasa remuneratoria; después, la moratoria.
+   - **IBC vigente aplicable (%)**: el Interés Bancario Corriente certificado por la Superintendencia
+     Financiera para la fecha del caso. Se usa únicamente para validar que ninguna de las dos tasas
+     pactadas supere el tope legal de usura (1.5× este valor).
+4. Haz clic en **"Guardar"**.
+
+Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingresaste, el programa no
+deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
+guardar la obligación (la validación ocurre al calcular, no al capturar el dato).
+
 ### 5.5. Agregar un abono (registrar un pago)
 
 1. Dentro del Detalle de un expediente, **selecciona primero la fila de la obligación** a la que se le
@@ -247,13 +274,13 @@ Si el expediente no tiene ninguna obligación cargada, el botón "Liquidar" te m
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
 
-Al crear un expediente, el campo "Área del derecho" muestra 5 opciones, pero **solo una calcula de
+Al crear un expediente, el campo "Área del derecho" muestra 5 opciones, pero **solo dos calculan de
 verdad hoy**:
 
 | Área | ¿Funciona? |
 |---|---|
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
-| Comercial | 🚧 No todavía — aparece "gris" en el formulario, no se puede seleccionar. Planeado en `Pendientes.md`, Sprint 2. |
+| Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después, validación de tope de usura (1.5× el IBC que ingreses). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
 | Laboral | 🚧 No todavía. Planeado en `Pendientes.md`, Sprint 3. |
 | Sancionatorio | 🚧 No todavía. Planeado en `Pendientes.md`, Sprint 4. |
 | Honorarios / Litigio | 🚧 No todavía. Planeado en `Pendientes.md`, Sprint 4. |
@@ -279,6 +306,17 @@ exactamente dónde encontrarlos y qué significa cada uno:
   `self.campo_tasa = QLineEdit("6.00")`.
 - **Cómo se convierte esa tasa anual a diaria**: `app/engine/interest/rate_conversion.py`, clase
   `EffectiveRateConverter`, usando la fórmula `i_diario = (1 + i_anual)^(1/365) - 1`.
+
+### 7.1.1. Tope de usura comercial (1.5x IBC, Ley 45/1990 art. 72)
+
+- **Dónde se ve/edita en la app**: en el formulario de "Agregar obligación" de un expediente Comercial,
+  el campo **"IBC vigente aplicable (%)"** — lo diligencias tú con el IBC certificado por la
+  Superfinanciera para la fecha del caso, no hay un valor por defecto.
+- **Dónde vive la lógica en el código**: `app/engine/interest/usury_validator.py`, función
+  `validar_tasa_usura`. Se invoca automáticamente al liquidar (`ComercialStrategy.liquidar()` en
+  `app/services/area_strategy.py`), tanto para la tasa remuneratoria como para la moratoria.
+- **Qué pasa si se excede el tope**: el programa lanza el error "Tasa usuraria" y no calcula nada —
+  nunca trunca la tasa silenciosamente.
 
 ### 7.2. Categorías de obligación disponibles (área Civil/Familia)
 
@@ -312,8 +350,12 @@ Estas funciones están planeadas pero **todavía no existen o no están conectad
 completo de cada una (qué construir, qué documentos consultar, en qué orden) está en
 [`Pendientes.md`](../Pendientes.md), organizado en sprints. Aquí un resumen en lenguaje simple:
 
-- 🚧 **Cálculo en las áreas Comercial, Laboral, Sancionatorio y Honorarios** — hoy solo funciona Civil/
-  Familia (`Pendientes.md`, Sprints 2, 3 y 4).
+- 🚧 **Cálculo en las áreas Laboral, Sancionatorio y Honorarios** — hoy funcionan Civil/Familia y
+  Comercial (`Pendientes.md`, Sprints 3 y 4).
+- 🚧 **Anatocismo comercial condicionado (Art. 886 C.Co.)** — el motor de interés compuesto
+  (`CompoundInterest`) existe pero no está conectado; requiere modelar si hubo demanda judicial o
+  acuerdo posterior de capitalización, algo que el modelo de datos todavía no captura (`Pendientes.md`,
+  Sprint 2, nota de alcance diferido).
 - 🚧 **Indexación por IPC** (ajustar un monto histórico por inflación) — el motor matemático ya existe y
   está probado, pero todavía no está conectado a la pantalla de liquidación (`Pendientes.md`, Sprint 8,
   depende del Sprint 5 de datos históricos).
@@ -340,9 +382,9 @@ Ver [sección 2.5](#25-problema-conocido-rutas-largas-en-windows).
 Corre `.venv\Scripts\python.exe -m pytest -q` (ver [sección 2.6](#26-verificar-que-todo-quedó-instalado-correctamente-opcional-recomendado)).
 Si todo termina en "N passed" sin "failed", está bien.
 
-**"Seleccioné Comercial/Laboral/Sancionatorio/Honorarios y no me deja."**
-Es esperado — esas áreas todavía no calculan, por eso aparecen deshabilitadas en el formulario. Ver
-[sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
+**"Seleccioné Laboral/Sancionatorio/Honorarios y no me deja."**
+Es esperado — esas áreas todavía no calculan, por eso aparecen deshabilitadas en el formulario. Comercial
+sí está habilitada. Ver [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
 
 **"Presioné Liquidar y no pasó nada / me salió un mensaje de error."**
 Revisa que el expediente tenga al menos una obligación cargada. Si el mensaje dice "Área no

@@ -11,14 +11,16 @@ están los valores legales (como la tasa de interés) por si necesitas consultar
 
 ## Estado actual (2026-07-15)
 
-✅ **Funcional hoy:** captura manual de expedientes y liquidación real del área **Civil / Familia**
+✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
-abonos).
+abonos) y **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
+split real antes/después del vencimiento, validación de tope de usura 1.5×IBC).
 
-🚧 **En desarrollo:** las áreas Comercial, Laboral, Sancionatorio y Honorarios están registradas en el
-sistema pero todavía no calculan (el programa avisa "Área no implementada" si se intentan usar).
-Indexación por IPC, exportación a PDF/Word, prescripción/caducidad y varios módulos más también están
-pendientes. El plan completo, sprint por sprint, está en **[Pendientes.md](Pendientes.md)**.
+🚧 **En desarrollo:** las áreas Laboral, Sancionatorio y Honorarios están registradas en el sistema pero
+todavía no calculan (el programa avisa "Área no implementada" si se intentan usar). Indexación por IPC,
+exportación a PDF/Word, prescripción/caducidad, anatocismo comercial condicionado (Art. 886 C.Co.) y
+varios módulos más también están pendientes. El plan completo, sprint por sprint, está en
+**[Pendientes.md](Pendientes.md)**.
 
 ## Instalación rápida
 
