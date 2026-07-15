@@ -113,7 +113,12 @@ git commit -m "chore: add PySide6, pytest and pytest-qt dependencies"
 
 ---
 
-### Task 2: Database models (Expediente, Obligacion, Abono)
+### Task 2: Database models (Expediente, Obligacion, Abono) ✅ COMPLETADA (subagente en worktree, merge a main OK)
+
+> Nota de ejecución: se descubrió una colisión de nombre de paquete entre `tests/database/` y el paquete raíz
+> `database/` bajo el modo de importación por defecto de pytest (`prepend`). Se resolvió agregando a
+> `pytest.ini`: `addopts = --import-mode=importlib` y `consider_namespace_packages = true`. Verificado que no
+> rompe ningún test preexistente.
 
 **Files:**
 - Create: `database/models.py` (currently empty)
