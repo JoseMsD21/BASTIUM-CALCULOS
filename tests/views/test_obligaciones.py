@@ -114,7 +114,23 @@ def test_campos_comerciales_ocultos_para_area_civil_familia(qtbot, monkeypatch):
 
     dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
     qtbot.addWidget(dialog)
+    dialog.show()
 
+    # isVisible() solo refleja la visibilidad real (heredada de los ancestros) si
+    # el dialogo fue mostrado -- sin dialog.show(), toda esta asercion pasaria sin
+    # importar el valor real de setVisible() en los campos.
     assert dialog.campo_tasa_moratoria.isVisible() is False
     assert dialog.campo_fecha_vencimiento.isVisible() is False
     assert dialog.campo_ibc_vigente.isVisible() is False
+
+
+def test_campos_comerciales_visibles_para_area_comercial(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_tasa_moratoria.isVisible() is True
+    assert dialog.campo_fecha_vencimiento.isVisible() is True
+    assert dialog.campo_ibc_vigente.isVisible() is True
