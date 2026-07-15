@@ -119,3 +119,13 @@ def test_civil_familia_expande_obligacion_recurrente_en_cuotas_mensuales():
 
     # 3 cuotas de 500000 causadas: enero, febrero, marzo
     assert resultado.final_balance().principal == Decimal("1500000.00")
+
+
+from app.engine.liquidation.engine import LiquidationCore
+
+
+def test_capital_concepts_incluye_los_codigos_comerciales_nuevos():
+    core = LiquidationCore()
+    assert "CAPITAL_LETRA_CAMBIO" in core._capital_concepts
+    assert "CAPITAL_CHEQUE" in core._capital_concepts
+    assert "CAPITAL_FACTURA" in core._capital_concepts
