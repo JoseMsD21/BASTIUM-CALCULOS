@@ -150,6 +150,12 @@ class ComercialStrategy(AreaStrategy):
                     f"'{nombre_campo}' para liquidar."
                 )
 
+        if obligacion.fecha_vencimiento < obligacion.fecha_origen:
+            raise ValueError(
+                f"La obligacion comercial '{obligacion.concepto}' tiene fecha_vencimiento "
+                f"({obligacion.fecha_vencimiento}) anterior a fecha_origen ({obligacion.fecha_origen})."
+            )
+
         validar_tasa_usura(obligacion.tasa_efectiva_anual, obligacion.ibc_vigente_anual, "remuneratoria")
         validar_tasa_usura(obligacion.tasa_moratoria_anual, obligacion.ibc_vigente_anual, "moratoria")
 
