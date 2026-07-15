@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+pandas
+numpy
+python-docx
+reportlab
+openpyxl
+pydantic
+alembic
+rich
+matplotlib
