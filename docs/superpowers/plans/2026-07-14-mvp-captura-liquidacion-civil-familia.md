@@ -68,12 +68,12 @@ All new test directories need an `__init__.py` (the project's existing test pack
 
 ---
 
-### Task 1: Add GUI and test dependencies
+### Task 1: Add GUI and test dependencies ✅ COMPLETADA
 
 **Files:**
 - Modify: `requirements.txt`
 
-- [ ] **Step 1: Add the new dependencies**
+- [x] **Step 1: Add the new dependencies**
 
 Replace the contents of `requirements.txt` with:
 
@@ -95,12 +95,16 @@ pytest
 pytest-qt
 ```
 
-- [ ] **Step 2: Install and verify**
+- [x] **Step 2: Install and verify**
 
 Run: `.venv/Scripts/python.exe -m pip install -r requirements.txt`
 Expected: all packages install without error (PySide6 6.11.x, pytest-qt visible in `pip list`).
 
-- [ ] **Step 3: Commit**
+Nota: la instalación falló inicialmente por el límite de rutas largas de Windows (proyecto dentro de
+OneDrive). Se resolvió habilitando `LongPathsEnabled=1` en el registro (con confirmación del usuario). Ver
+`Pendientes.md`.
+
+- [x] **Step 3: Commit**
 
 ```bash
 git add requirements.txt
@@ -957,7 +961,7 @@ git commit -m "feat: implement CivilFamiliaStrategy wiring obligaciones/abonos i
 
 ---
 
-### Task 7: GUI constants (categorias y areas)
+### Task 7: GUI constants (categorias y areas) ✅ COMPLETADA
 
 **Files:**
 - Modify: `app/core/constants.py` (currently empty)
@@ -996,7 +1000,7 @@ AREAS_DERECHO = [
 This is a plain constants module with no branching logic — no test is written for it (nothing to assert
 beyond "the list exists", which the GUI tests in Tasks 9 and 11 already exercise indirectly by using it).
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add app/core/constants.py
@@ -2221,7 +2225,7 @@ git commit -m "feat: launch the PySide6 GUI from main.py instead of the console 
 
 ---
 
-### Task 15: Fill in specifications/*.md
+### Task 15: Fill in specifications/*.md ✅ COMPLETADA (todos los Steps 1-8)
 
 **Files:**
 - Modify: `specifications/01_motor_temporal.md`
@@ -2460,7 +2464,7 @@ Las 4 areas restantes (Comercial, Laboral, Sancionatorio, Honorarios) — ver `P
 de los proximos sprints.
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add specifications/
@@ -2469,12 +2473,12 @@ git commit -m "docs: fill in specifications for all 7 engine modules"
 
 ---
 
-### Task 16: Pendientes.md
+### Task 16: Pendientes.md ✅ COMPLETADA
 
 **Files:**
 - Create: `Pendientes.md` (project root, new file)
 
-- [ ] **Step 1: Write the backlog**
+- [x] **Step 1: Write the backlog**
 
 ```markdown
 # Pendientes de BASTIUM
@@ -2527,7 +2531,7 @@ completo de lo que SI se construyo.
   OneDrive igual intenta sincronizar carpetas no versionadas dentro de la carpeta del proyecto).
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add Pendientes.md
