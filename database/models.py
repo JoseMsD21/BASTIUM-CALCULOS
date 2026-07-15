@@ -57,6 +57,9 @@ class Obligacion(Base):
     dia_pago: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fecha_inicio: Mapped[date | None] = mapped_column(Date, nullable=True)
     fecha_fin: Mapped[date | None] = mapped_column(Date, nullable=True)
+    tasa_moratoria_anual: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
+    fecha_vencimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ibc_vigente_anual: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
 
     expediente: Mapped["Expediente"] = relationship(back_populates="obligaciones")
     abonos: Mapped[list["Abono"]] = relationship(
