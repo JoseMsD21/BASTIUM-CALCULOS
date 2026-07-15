@@ -9,6 +9,12 @@ sprint, y ponerse a trabajar sin tener que releer todo el proyecto desde cero.
 **Cómo usar este archivo:** copia el nombre del sprint (ej. "Sprint 2 — Área Comercial") y pide "trabaja en
 el Sprint 2 de Pendientes.md". Cada sprint dice explícitamente qué leer antes de tocar código.
 
+**Regla obligatoria al cerrar cualquier sprint:** además de la "Definición de Hecho" propia de cada
+sprint, hay que actualizar `README.md` y `docs/GUIA_USUARIO.md` para reflejar el nuevo estado —
+sacar el módulo correspondiente de la lista "🚧 en desarrollo"/"🚧 no todavía" y describir cómo usarlo
+igual que se documentó Civil/Familia. Estos dos documentos nunca deben quedar desactualizados respecto
+al código real.
+
 **Contexto ya construido (no repetir):**
 - `docs/superpowers/specs/2026-07-14-mvp-captura-liquidacion-civil-familia-design.md` — diseño del MVP.
 - `docs/superpowers/plans/2026-07-14-mvp-captura-liquidacion-civil-familia.md` — plan TDD tarea por tarea,
