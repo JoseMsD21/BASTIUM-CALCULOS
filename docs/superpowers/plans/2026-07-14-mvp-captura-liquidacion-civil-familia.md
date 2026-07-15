@@ -1946,7 +1946,7 @@ git commit -m "feat: add Resultado de Liquidacion view with itemized table and t
 
 ---
 
-### Task 13: Expediente Detalle page — wiring obligaciones, abonos and Liquidar
+### Task 13: Expediente Detalle page — wiring obligaciones, abonos and Liquidar ✅ COMPLETADA
 
 **Files:**
 - Modify: `app/views/expediente_detalle.py` (replace placeholder from Task 8)
@@ -2189,7 +2189,7 @@ git commit -m "feat: wire Expediente Detalle page to obligaciones, abonos and Li
 
 ---
 
-### Task 14: main.py launches the GUI
+### Task 14: main.py launches the GUI ✅ COMPLETADA (verificado: `main.py` arranca, `init_db()` crea las 3 tablas, sin traceback)
 
 **Files:**
 - Modify: `main.py` (replace the console demo entirely)
