@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
-from app.core.exceptions import AreaNoImplementadaError
+from app.core.exceptions import AreaNoImplementadaError, TasaUsurariaError
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
 from app.views.obligaciones import ObligacionFormDialog
@@ -90,7 +90,12 @@ class ExpedienteDetallePage(QWidget):
         session.close()
 
     def _abrir_dialogo_obligacion(self) -> None:
-        dialogo = ObligacionFormDialog(expediente_id=self._expediente_id, parent=self)
+        session = session_module.get_session()
+        expediente = session.get(Expediente, self._expediente_id)
+        area = expediente.area_derecho.value
+        session.close()
+
+        dialogo = ObligacionFormDialog(expediente_id=self._expediente_id, area=area, parent=self)
         if dialogo.exec():
             self._refrescar_obligaciones()
 
@@ -119,6 +124,9 @@ class ExpedienteDetallePage(QWidget):
             resultado = estrategia.liquidar(obligaciones=obligaciones, abonos=abonos, fecha_corte=fecha_corte)
         except AreaNoImplementadaError as error:
             QMessageBox.warning(self, "Area no implementada", str(error))
+            return
+        except TasaUsurariaError as error:
+            QMessageBox.warning(self, "Tasa usuraria", str(error))
             return
         except ValueError as error:
             QMessageBox.warning(self, "No se pudo liquidar", str(error))
