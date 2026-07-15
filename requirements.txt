@@ -10,3 +10,6 @@ pydantic
 alembic
 rich
 matplotlib
+PySide6
+pytest
+pytest-qt
