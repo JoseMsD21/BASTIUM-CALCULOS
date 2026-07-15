@@ -497,7 +497,7 @@ git commit -m "feat: add SQLite engine and session factory for the database laye
 
 ---
 
-### Task 4: EA to daily Rate converter
+### Task 4: EA to daily Rate converter ✅ COMPLETADA (subagente en worktree, merge a main OK)
 
 **Files:**
 - Create: `app/engine/interest/rate_conversion.py`
@@ -567,7 +567,7 @@ git commit -m "feat: add EA-to-daily interest rate converter"
 
 ---
 
-### Task 5: Area strategy interface, exception, and registry rewrite
+### Task 5: Area strategy interface, exception, and registry rewrite ✅ COMPLETADA (subagente en worktree, merge a main OK)
 
 **Files:**
 - Modify: `app/core/exceptions.py` (currently empty)
@@ -1009,7 +1009,7 @@ git commit -m "feat: add category and area dropdown constants for the GUI"
 
 ---
 
-### Task 8: GUI shell — MainWindow with page navigation
+### Task 8: GUI shell — MainWindow with page navigation ✅ COMPLETADA (subagente en worktree, merge a main OK)
 
 **Files:**
 - Create: `app/views/main_window.py` (currently empty)
