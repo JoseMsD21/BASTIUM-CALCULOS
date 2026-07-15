@@ -91,6 +91,15 @@ igual que hace `CivilFamiliaStrategy` hoy y luego mejorarse.
 - Los datos de IBC/usura reales desde 1997 hasta 2026 ya están transcritos en el PDF (páginas 58-61) por
   si se necesitan para tests con escenarios históricos reales.
 
+**Estado:** Implementado (2026-07-15) — ver `docs/superpowers/plans/2026-07-15-area-comercial.md` y
+`docs/superpowers/specs/2026-07-15-area-comercial-design.md`. Pendiente explícito que quedó fuera de
+este sprint (decisión tomada con el usuario, no un olvido): el anatocismo condicionado del Art. 886
+C.Co. — `CompoundInterest` (`app/engine/interest/compound_interest.py`) sigue huérfano porque requiere
+modelar si hubo demanda judicial o acuerdo posterior de capitalización, campos que no existen hoy en
+`Obligacion`. También queda documentado como limitación conocida (heredada de Civil, no introducida
+aquí): `MemoryRateProvider` da resultados correctos por obligación solo cuando el expediente tiene una
+obligación comercial o cuando los tramos de fecha de las obligaciones no se solapan con tasas distintas.
+
 **Definición de Hecho:**
 - `ComercialStrategy` liquida obligaciones comerciales reales (con y sin abonos) con TDD siguiendo el
   mismo patrón que `tests/services/test_area_strategy.py` para `CivilFamiliaStrategy`.
@@ -670,3 +679,9 @@ backlog.
   profunda de OneDrive, con confirmación previa del usuario.
 - Confirmar si conviene excluir `.venv/` de la sincronización de OneDrive (hoy está en `.gitignore` pero
   OneDrive igual intenta sincronizar carpetas no versionadas dentro de la carpeta del proyecto).
+- **Duplicación de `_eventos_de_obligacion` entre `CivilFamiliaStrategy` y `ComercialStrategy`**: el
+  método que mapea una `Obligacion` PUNTUAL/RECURRENTE a `Event`(s) es idéntico byte a byte en las dos
+  clases (`app/services/area_strategy.py`) — no tiene nada específico del área, solo depende de `tipo`.
+  Vale la pena subirlo a `AreaStrategy` (o extraerlo a una función compartida) antes de escribir la
+  tercera estrategia real (`LaboralStrategy`, Sprint 3), para no triplicar el copy-paste. Detectado en
+  code review del Sprint 2 (`docs/superpowers/plans/2026-07-15-area-comercial.md`).
