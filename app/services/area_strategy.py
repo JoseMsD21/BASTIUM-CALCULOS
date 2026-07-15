@@ -11,11 +11,14 @@ from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
+from app.engine.interest.usury_validator import validar_tasa_usura
 from app.services.motor_universal import UniversalLiquidationService
 
 
 class AreaStrategy(ABC):
     """Contrato comun para el calculo de liquidacion por area del derecho."""
+
+    soporta_indexacion_ipc: bool = True
 
     @abstractmethod
     def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
@@ -90,10 +93,111 @@ class CivilFamiliaStrategy(AreaStrategy):
 
 
 class ComercialStrategy(AreaStrategy):
+    """
+    Area Comercial (Art. 884 C.Co.). Cada obligacion debe traer su propia tasa
+    remuneratoria (tasa_efectiva_anual), tasa moratoria (tasa_moratoria_anual),
+    fecha de vencimiento y el IBC vigente aplicable (ibc_vigente_anual) -- no hay
+    fallback automatico a un IBC de referencia en este sprint (ver Pendientes.md,
+    Sprint 2 y Sprint 5).
+
+    Split real de tasa remuneratoria (antes del vencimiento) / moratoria (despues)
+    solo aplica a obligaciones PUNTUAL. RECURRENTE usa una sola tasa moratoria para
+    todo el periodo, igual que CivilFamiliaStrategy, porque el vencimiento de cada
+    cuota individual no esta modelado (ver docs/superpowers/specs/2026-07-15-area-comercial-design.md).
+
+    No es compatible con indexacion IPC (soporta_indexacion_ipc = False).
+    """
+
+    soporta_indexacion_ipc = False
+
     def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
-        raise AreaNoImplementadaError(
-            "El area Comercial (interes 1.5x IBC + validacion de usura) esta pendiente. Ver Pendientes.md."
+        if not obligaciones:
+            raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
+
+        for obligacion in obligaciones:
+            self._validar_obligacion_comercial(obligacion)
+
+        eventos_causacion: List[Event] = []
+        for obligacion in obligaciones:
+            eventos_causacion.extend(self._eventos_de_obligacion(obligacion, fecha_corte))
+
+        pagos = [
+            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
+            for abono in abonos
+        ]
+
+        rate_provider = self._construir_rate_provider(obligaciones, fecha_corte)
+
+        service = UniversalLiquidationService()
+        return service.liquidar(
+            eventos_causacion=eventos_causacion,
+            pagos=pagos,
+            fecha_corte=fecha_corte,
+            rate_provider=rate_provider,
         )
+
+    def _validar_obligacion_comercial(self, obligacion) -> None:
+        campos_requeridos = {
+            "tasa_efectiva_anual": obligacion.tasa_efectiva_anual,
+            "tasa_moratoria_anual": obligacion.tasa_moratoria_anual,
+            "fecha_vencimiento": obligacion.fecha_vencimiento,
+            "ibc_vigente_anual": obligacion.ibc_vigente_anual,
+        }
+        for nombre_campo, valor in campos_requeridos.items():
+            if valor is None:
+                raise ValueError(
+                    f"La obligacion comercial '{obligacion.concepto}' necesita el campo "
+                    f"'{nombre_campo}' para liquidar."
+                )
+
+        validar_tasa_usura(obligacion.tasa_efectiva_anual, obligacion.ibc_vigente_anual, "remuneratoria")
+        validar_tasa_usura(obligacion.tasa_moratoria_anual, obligacion.ibc_vigente_anual, "moratoria")
+
+    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
+        if obligacion.tipo.value == "PUNTUAL":
+            return [
+                Event(
+                    date=obligacion.fecha_origen,
+                    payload={"amount": obligacion.valor, "label": obligacion.concepto},
+                    event_type=obligacion.categoria,
+                )
+            ]
+
+        # RECURRENTE
+        scheduler = FamilyScheduler()
+        scheduler.add_monthly_obligation(
+            amount=obligacion.valor,
+            concept=obligacion.concepto,
+            due_day=obligacion.dia_pago,
+            category=obligacion.categoria,
+        )
+        fin = obligacion.fecha_fin or fecha_corte
+        return scheduler.generate(start=obligacion.fecha_inicio, end=fin)
+
+    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
+        provider = MemoryRateProvider()
+
+        for obligacion in obligaciones:
+            tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_moratoria_anual)
+
+            if obligacion.tipo.value == "PUNTUAL":
+                tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
+                inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
+                fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
+                provider.add_rate_period(
+                    start=inicio_remuneratorio, end=fin_remuneratorio, rate=tasa_remuneratoria_diaria
+                )
+                if obligacion.fecha_vencimiento < fecha_corte:
+                    inicio_moratorio = obligacion.fecha_vencimiento + timedelta(days=1)
+                    provider.add_rate_period(
+                        start=inicio_moratorio, end=fecha_corte, rate=tasa_moratoria_diaria
+                    )
+            else:
+                # RECURRENTE: sin split por cuota individual (alcance reducido, ver spec).
+                inicio = obligacion.fecha_inicio - timedelta(days=1)
+                provider.add_rate_period(start=inicio, end=fecha_corte, rate=tasa_moratoria_diaria)
+
+        return provider
 
 
 class LaboralStrategy(AreaStrategy):
