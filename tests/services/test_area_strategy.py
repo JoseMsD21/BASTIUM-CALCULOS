@@ -231,6 +231,14 @@ class TestComercialStrategy:
         with pytest.raises(TasaUsurariaError):
             ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
 
+    def test_fecha_vencimiento_anterior_a_fecha_origen_lanza_value_error(self):
+        obligacion = _obligacion_comercial(
+            fecha_origen=date(2025, 2, 1), fecha_vencimiento=date(2025, 1, 1)
+        )
+
+        with pytest.raises(ValueError):
+            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+
     @pytest.mark.parametrize(
         "campo", ["tasa_moratoria_anual", "fecha_vencimiento", "ibc_vigente_anual", "tasa_efectiva_anual"]
     )
