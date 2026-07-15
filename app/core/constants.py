@@ -13,9 +13,18 @@ CATEGORIAS_CIVIL_FAMILIA = [
 # app.engine.liquidation.engine.LiquidationCore._capital_concepts pertinente
 # al area Civil/Familia. Si se agrega un concepto nuevo alla, agregarlo aqui tambien.
 
+CATEGORIAS_COMERCIAL = [
+    ("CAPITAL_PAGARE", "Capital de pagare"),
+    ("CAPITAL_LETRA_CAMBIO", "Capital de letra de cambio"),
+    ("CAPITAL_CHEQUE", "Capital de cheque"),
+    ("CAPITAL_FACTURA", "Capital de factura"),
+]
+# Nota: igual que CATEGORIAS_CIVIL_FAMILIA, cada codigo debe existir en
+# app.engine.liquidation.engine.LiquidationCore._capital_concepts.
+
 AREAS_DERECHO = [
     ("CIVIL_FAMILIA", "Civil / Familia", True),
-    ("COMERCIAL", "Comercial", False),
+    ("COMERCIAL", "Comercial", True),
     ("LABORAL", "Laboral", False),
     ("SANCIONATORIO", "Sancionatorio", False),
     ("HONORARIOS", "Honorarios / Litigio", False),
