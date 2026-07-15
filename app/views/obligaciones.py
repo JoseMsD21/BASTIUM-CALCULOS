@@ -14,15 +14,16 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
-from app.core.constants import CATEGORIAS_CIVIL_FAMILIA
+from app.core.constants import CATEGORIAS_CIVIL_FAMILIA, CATEGORIAS_COMERCIAL
 from database.models import Obligacion, TipoObligacion
 
 
 class ObligacionFormDialog(QDialog):
-    def __init__(self, expediente_id: int, parent=None):
+    def __init__(self, expediente_id: int, area: str = "CIVIL_FAMILIA", parent=None):
         super().__init__(parent)
         self.setWindowTitle("Agregar obligacion")
         self._expediente_id = expediente_id
+        self._area = area
 
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("Puntual", userData="PUNTUAL")
@@ -30,7 +31,8 @@ class ObligacionFormDialog(QDialog):
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
 
         self.combo_categoria = QComboBox()
-        for codigo, etiqueta in CATEGORIAS_CIVIL_FAMILIA:
+        categorias = CATEGORIAS_COMERCIAL if self._area == "COMERCIAL" else CATEGORIAS_CIVIL_FAMILIA
+        for codigo, etiqueta in categorias:
             self.combo_categoria.addItem(etiqueta, userData=codigo)
 
         self.campo_concepto = QLineEdit()
@@ -46,6 +48,11 @@ class ObligacionFormDialog(QDialog):
         self.campo_dia_pago.setRange(1, 28)
         self.campo_dia_pago.setValue(5)
 
+        self.campo_tasa_moratoria = QLineEdit("24.00")
+        self.campo_fecha_vencimiento = QDateEdit(QDate.currentDate())
+        self.campo_fecha_vencimiento.setCalendarPopup(True)
+        self.campo_ibc_vigente = QLineEdit()
+
         boton_guardar = QPushButton("Guardar")
         boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
@@ -58,8 +65,16 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Fecha de origen (Puntual)", self.campo_fecha_origen)
         self.layout_formulario.addRow("Fecha de inicio (Recurrente)", self.campo_fecha_inicio)
         self.layout_formulario.addRow("Dia de pago (Recurrente)", self.campo_dia_pago)
+        self.layout_formulario.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
+        self.layout_formulario.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
+        self.layout_formulario.addRow("IBC vigente aplicable (%)", self.campo_ibc_vigente)
         self.layout_formulario.addRow(boton_guardar)
         self.setLayout(self.layout_formulario)
+
+        es_comercial = self._area == "COMERCIAL"
+        self.campo_tasa_moratoria.setVisible(es_comercial)
+        self.campo_fecha_vencimiento.setVisible(es_comercial)
+        self.campo_ibc_vigente.setVisible(es_comercial)
 
         self._actualizar_campos_visibles()
 
@@ -79,6 +94,20 @@ class ObligacionFormDialog(QDialog):
         if valor <= Decimal("0"):
             raise ValueError("El valor de la obligacion debe ser mayor que cero.")
 
+        tasa_moratoria = None
+        fecha_vencimiento = None
+        ibc_vigente = None
+        if self._area == "COMERCIAL":
+            try:
+                tasa_moratoria = Decimal(self.campo_tasa_moratoria.text())
+                ibc_vigente = Decimal(self.campo_ibc_vigente.text())
+            except InvalidOperation as error:
+                raise ValueError("Tasa moratoria e IBC vigente deben ser numeros validos.") from error
+            qdate_vencimiento = self.campo_fecha_vencimiento.date()
+            fecha_vencimiento = date(
+                qdate_vencimiento.year(), qdate_vencimiento.month(), qdate_vencimiento.day()
+            )
+
         tipo = TipoObligacion(self.combo_tipo.currentData())
         qdate_origen = self.campo_fecha_origen.date()
         fecha_origen = date(qdate_origen.year(), qdate_origen.month(), qdate_origen.day())
@@ -94,6 +123,9 @@ class ObligacionFormDialog(QDialog):
             fecha_origen=fecha_origen if tipo == TipoObligacion.PUNTUAL else fecha_inicio,
             valor=valor,
             tasa_efectiva_anual=tasa,
+            tasa_moratoria_anual=tasa_moratoria,
+            fecha_vencimiento=fecha_vencimiento,
+            ibc_vigente_anual=ibc_vigente,
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
             fecha_fin=None,
