@@ -2555,16 +2555,26 @@ git commit -m "docs: add phased backlog (Pendientes.md)"
 
 ---
 
-### Task 17: Full verification pass
+### Task 17: Full verification pass ✅ COMPLETADA
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `.venv/Scripts/python.exe -m pytest -q`
 Expected: all tests pass — the 48 pre-existing tests plus every test added in Tasks 2–13.
 
-- [ ] **Step 2: Manual smoke test of the real flow**
+Resultado real: **81 passed** (48 preexistentes + 33 agregados en este MVP), 0 failed.
+
+- [x] **Step 2: Manual smoke test of the real flow**
+
+Ejecutado programáticamente (llamando a las mismas clases de la GUI: `NuevoExpedienteDialog`,
+`ObligacionFormDialog`, `AbonoFormDialog`, `ExpedienteDetallePage`) contra `bastium.db` real inicializada
+por `init_db()`. Flujo: crear expediente → agregar obligación puntual (Gastos médicos, $427.900,00 al 6%
+EA desde 2025-11-20) → agregar abono de $100.000,00 → cargar detalle (1 obligación, 1 abono en tabla) →
+Liquidar. Resultado: saldo final $341.311,68 (capital $331.725,92 + interés $9.585,76), pagos aplicados
+$100.000,00 — menor al valor original, sin traceback ni error no manejado. Expediente de prueba eliminado
+al final (cleanup).
 
 Run: `.venv/Scripts/python.exe main.py` and manually:
 1. Click "Nuevo expediente", fill radicado/demandante/demandado/fecha de corte, leave area on
