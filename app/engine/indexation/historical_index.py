@@ -1,6 +1,6 @@
 """
 Series historicas de indicadores economicos colombianos, transcritas y verificadas
-contra REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf (paginas 55-61).
+contra REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf (paginas 55-62).
 
 Ver docs/superpowers/specs/2026-07-15-carga-datos-historicos-design.md para el
 detalle de como se extrajo y verifico cada serie (en particular, por que la tabla
