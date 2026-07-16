@@ -1,10 +1,12 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
 
 from app.engine.indexation.historical_index import (
     _IPC_VARIACION_ANUAL,
+    _TRAMOS_IBC_USURA,
+    get_ibc_usura_for_date,
     get_ipc_for_date,
     get_smlmv_for_year,
 )
@@ -68,3 +70,52 @@ def test_ipc_fuera_de_rango_lanza_value_error():
         get_ipc_for_date(date(1966, 12, 31))
     with pytest.raises(ValueError):
         get_ipc_for_date(date(2026, 1, 1))
+
+
+def test_ibc_usura_primer_tramo_1997():
+    ibc, usura = get_ibc_usura_for_date(date(1997, 7, 1))
+    assert ibc == Decimal("36.50")
+    assert usura == Decimal("54.75")
+
+
+def test_ibc_usura_ultimo_tramo_2026():
+    ibc, usura = get_ibc_usura_for_date(date(2026, 7, 31))
+    assert ibc == Decimal("19.19")
+    assert usura == Decimal("28.79")
+
+
+def test_ibc_usura_limite_solape_septiembre_2017():
+    # La SFC transiciono de certificacion trimestral a mensual en sep-2017; la
+    # fuente trae un tramo trimestral (jul-sep, 21.98%) y uno mensual nuevo
+    # (solo sep, 21.48%) que se solapan en la tabla original. Se resolvio
+    # truncando el tramo trimestral al 31-ago y dejando el mensual como
+    # autoritativo para septiembre (ver spec, seccion "Hallazgo relevante").
+    ibc_agosto, _ = get_ibc_usura_for_date(date(2017, 8, 31))
+    assert ibc_agosto == Decimal("21.98")
+
+    ibc_septiembre, _ = get_ibc_usura_for_date(date(2017, 9, 1))
+    assert ibc_septiembre == Decimal("21.48")
+
+
+def test_ibc_usura_fuera_de_rango_lanza_value_error():
+    with pytest.raises(ValueError):
+        get_ibc_usura_for_date(date(1997, 6, 30))
+    with pytest.raises(ValueError):
+        get_ibc_usura_for_date(date(2026, 8, 1))
+
+
+def test_tramos_ibc_usura_sin_vacios_ni_solapes():
+    tramos = sorted(_TRAMOS_IBC_USURA, key=lambda t: t.inicio)
+    for anterior, actual in zip(tramos, tramos[1:]):
+        assert actual.inicio == anterior.fin + timedelta(days=1), (
+            f"Vacio o solape entre {anterior} y {actual}"
+        )
+
+
+def test_usura_es_1_5_veces_ibc_en_todos_los_tramos():
+    for tramo in _TRAMOS_IBC_USURA:
+        esperado = tramo.ibc_anual * Decimal("1.5")
+        assert abs(tramo.usura_anual - esperado) <= Decimal("0.01"), (
+            f"{tramo}: usura {tramo.usura_anual} no es ~1.5x ibc {tramo.ibc_anual} "
+            f"(esperado {esperado})"
+        )
