@@ -7,6 +7,9 @@ class ResultadoLiquidacionView(QWidget):
     def __init__(self):
         super().__init__()
 
+        self._resultado = None
+        self._expediente_id = None
+
         self.tabla = QTableWidget(0, 7)
         self.tabla.setHorizontalHeaderLabels(
             ["Fecha", "Concepto", "Capital base", "Tasa %", "Interes", "Pago", "Saldo"]
@@ -23,7 +26,10 @@ class ResultadoLiquidacionView(QWidget):
         layout.addWidget(self.etiqueta_saldo_final)
         self.setLayout(layout)
 
-    def mostrar(self, resultado: LiquidationResult) -> None:
+    def mostrar(self, resultado: LiquidationResult, expediente_id: int) -> None:
+        self._resultado = resultado
+        self._expediente_id = expediente_id
+
         self.tabla.setRowCount(len(resultado.items))
         for fila, item in enumerate(resultado.items):
             self.tabla.setItem(fila, 0, QTableWidgetItem(item.date.isoformat()))
