@@ -488,5 +488,6 @@ def get_ibc_usura_for_date(fecha: date) -> Tuple[Decimal, Decimal]:
             return (tramo.ibc_anual, tramo.usura_anual)
     raise ValueError(
         f"No hay tramo de IBC/Usura configurado para la fecha {fecha}. "
-        f"Datos disponibles: {_TRAMOS_IBC_USURA[0].inicio} a {_TRAMOS_IBC_USURA[-1].fin}."
+        f"Datos disponibles: {min(t.inicio for t in _TRAMOS_IBC_USURA)} a "
+        f"{max(t.fin for t in _TRAMOS_IBC_USURA)}."
     )

@@ -84,6 +84,17 @@ def test_ibc_usura_ultimo_tramo_2026():
     assert usura == Decimal("28.79")
 
 
+def test_ibc_usura_limite_tramo_ordinario_fin_de_2016():
+    # Frontera comun entre dos tramos con tasas distintas, sin ninguna
+    # anomalia de fuente involucrada -- complementa el test del solape de
+    # septiembre 2017 (que si es un caso especial) con el caso base.
+    ibc_2016, _ = get_ibc_usura_for_date(date(2016, 12, 31))
+    assert ibc_2016 == Decimal("21.99")
+
+    ibc_2017, _ = get_ibc_usura_for_date(date(2017, 1, 1))
+    assert ibc_2017 == Decimal("22.34")
+
+
 def test_ibc_usura_limite_solape_septiembre_2017():
     # La SFC transiciono de certificacion trimestral a mensual en sep-2017; la
     # fuente trae un tramo trimestral (jul-sep, 21.98%) y uno mensual nuevo
