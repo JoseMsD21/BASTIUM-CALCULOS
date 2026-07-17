@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import enum
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, Enum as SAEnum, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -37,6 +37,9 @@ class Expediente(Base):
     fecha_corte_default: Mapped[date] = mapped_column(Date)
 
     obligaciones: Mapped[list["Obligacion"]] = relationship(
+        back_populates="expediente", cascade="all, delete-orphan"
+    )
+    audit_logs: Mapped[list["AuditLog"]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
     )
 
@@ -77,3 +80,17 @@ class Abono(Base):
     referencia: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     obligacion: Mapped["Obligacion"] = relationship(back_populates="abonos")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("expedientes.id"))
+    usuario: Mapped[str] = mapped_column(String(200))
+    fecha_ejecucion: Mapped[datetime] = mapped_column(DateTime)
+    fecha_corte: Mapped[date] = mapped_column(Date)
+    area_derecho: Mapped[str] = mapped_column(String(50))
+    resultado_json: Mapped[str] = mapped_column(Text)
+
+    expediente: Mapped["Expediente"] = relationship(back_populates="audit_logs")
