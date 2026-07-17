@@ -65,3 +65,4 @@ class LiquidationItem:
     indexation_amount: Decimal
     payment_amount: Decimal
     balance: RunningBalance
+    rate_source: str = "N/A"
