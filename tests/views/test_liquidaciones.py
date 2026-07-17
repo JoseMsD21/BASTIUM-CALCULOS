@@ -26,7 +26,7 @@ def test_muestra_una_fila_por_item_de_liquidacion(qtbot):
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
 
-    view.mostrar(_resultado_de_prueba())
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
 
     assert view.tabla.rowCount() == 1
     assert view.tabla.item(0, 1).text() == "Corte final de liquidacion"
@@ -36,7 +36,7 @@ def test_muestra_los_totales(qtbot):
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
 
-    view.mostrar(_resultado_de_prueba())
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
 
     assert "1200.50" in view.etiqueta_interes_total.text()
     # NOTA (bug detectado durante implementación): el plan original esperaba "427900.00"
