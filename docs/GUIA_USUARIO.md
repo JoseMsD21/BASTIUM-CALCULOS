@@ -360,8 +360,8 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   acuerdo posterior de capitalización, algo que el modelo de datos todavía no captura (`Pendientes.md`,
   Sprint 2, nota de alcance diferido).
 - 🚧 **Indexación por IPC** (ajustar un monto histórico por inflación) — el motor matemático ya existe y
-  está probado, pero todavía no está conectado a la pantalla de liquidación (`Pendientes.md`, Sprint 8,
-  depende del Sprint 5 de datos históricos).
+  está probado, y desde el Sprint 5 también existen los datos históricos reales de IPC que necesita, pero
+  todavía no está conectado a la pantalla de liquidación (`Pendientes.md`, Sprint 8).
 - 🚧 **Exportar la liquidación a PDF o Word** — hoy el resultado solo se ve en pantalla, no se puede
   guardar como archivo todavía (`Pendientes.md`, Sprint 10).
 - 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — no

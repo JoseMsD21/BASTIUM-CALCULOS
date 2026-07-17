@@ -302,6 +302,15 @@ y documentarlo):**
   (el PDF lo sugiere como "ideal" pero es un proyecto de integración aparte, no de este sprint).
 - Tabla UVT histórica completa si no se consigue la fuente (documentar como pendiente).
 
+**Estado:** Implementado (2026-07-15) para SMLMV, IPC e IBC/Tasa de Usura — ver
+`docs/superpowers/plans/2026-07-15-carga-datos-historicos.md` y
+`docs/superpowers/specs/2026-07-15-carga-datos-historicos-design.md`. La serie de IBC/Usura modela
+únicamente la línea "Consumo y Ordinario" (sucesora de "Comercial" desde 2007) — Microcrédito y Crédito
+Popular Productivo Rural quedan fuera de alcance, documentado, no omitido por descuido. UVT sigue
+pendiente: el PDF no trae una tabla histórica completa, solo menciones dispersas (confirmado por
+búsqueda de texto en las 80 páginas del documento) — bloquea parcialmente el Sprint 4 hasta conseguir la
+fuente real.
+
 **Definición de Hecho:**
 - `historical_index.py` deja de estar vacío, con datos verificables contra el PDF.
 - `IPCIndexation` puede recibir índices reales desde esta fuente en vez de valores hardcodeados de test.

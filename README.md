@@ -19,7 +19,10 @@ split real antes/después del vencimiento, validación de tope de usura 1.5×IBC
 🚧 **En desarrollo:** las áreas Laboral, Sancionatorio y Honorarios están registradas en el sistema pero
 todavía no calculan (el programa avisa "Área no implementada" si se intentan usar). Indexación por IPC,
 exportación a PDF/Word, prescripción/caducidad, anatocismo comercial condicionado (Art. 886 C.Co.) y
-varios módulos más también están pendientes. El plan completo, sprint por sprint, está en
+varios módulos más también están pendientes. Las series históricas de SMLMV, IPC e IBC/Tasa de Usura
+(1984-2026, 1967-2025 y 1997-2026 respectivamente) ya están cargadas en
+`app/engine/indexation/historical_index.py`, aunque todavía no están conectadas a ningún cálculo — esa
+conexión es trabajo de otros sprints. El plan completo, sprint por sprint, está en
 **[Pendientes.md](Pendientes.md)**.
 
 ## Instalación rápida
