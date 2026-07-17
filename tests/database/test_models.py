@@ -1,11 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from database.models import Base, Expediente, Obligacion, Abono, AreaDerecho, TipoObligacion
+from database.models import Base, Expediente, Obligacion, Abono, AuditLog, AreaDerecho, TipoObligacion
 
 
 @pytest.fixture
@@ -156,3 +156,57 @@ def test_borrar_expediente_borra_en_cascada_obligaciones_y_abonos(session):
 
     assert session.query(Obligacion).count() == 0
     assert session.query(Abono).count() == 0
+
+
+def test_audit_log_asociado_a_expediente(session):
+    expediente = Expediente(
+        radicado="2026-00128",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    log = AuditLog(
+        expediente_id=expediente.id,
+        usuario="jsilva",
+        fecha_ejecucion=datetime(2026, 7, 17, 10, 30, 0),
+        fecha_corte=date(2026, 7, 14),
+        area_derecho="CIVIL_FAMILIA",
+        resultado_json="{}",
+    )
+    session.add(log)
+    session.commit()
+
+    assert expediente.audit_logs[0].usuario == "jsilva"
+    assert expediente.audit_logs[0].area_derecho == "CIVIL_FAMILIA"
+
+
+def test_borrar_expediente_borra_en_cascada_audit_logs(session):
+    expediente = Expediente(
+        radicado="2026-00129",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+    session.add(
+        AuditLog(
+            expediente_id=expediente.id,
+            usuario="jsilva",
+            fecha_ejecucion=datetime(2026, 7, 17, 10, 30, 0),
+            fecha_corte=date(2026, 7, 14),
+            area_derecho="CIVIL_FAMILIA",
+            resultado_json="{}",
+        )
+    )
+    session.commit()
+
+    session.delete(expediente)
+    session.commit()
+
+    assert session.query(AuditLog).count() == 0
