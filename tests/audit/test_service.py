@@ -138,3 +138,11 @@ def test_historial_de_expediente_ordena_mas_reciente_primero_y_es_append_only(se
     assert len(historial) == 2
     assert historial[0].fecha_corte == date(2026, 7, 14)
     assert historial[1].fecha_corte == date(2026, 6, 1)
+
+
+def test_historial_de_expediente_sin_liquidaciones_devuelve_lista_vacia(session):
+    expediente_id = _expediente(session)
+
+    historial = historial_de_expediente(session, expediente_id)
+
+    assert historial == []
