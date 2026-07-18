@@ -280,3 +280,17 @@ class TestComercialStrategy:
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True
+
+
+def test_civil_familia_items_tienen_rate_source_poblado():
+    strategy = CivilFamiliaStrategy()
+    obligacion = _obligacion_puntual()
+
+    resultado = strategy.liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+    )
+
+    assert all(
+        item.rate_source == "Tasa pactada en la obligación (Art. 1617 C.C.)"
+        for item in resultado.items
+    )

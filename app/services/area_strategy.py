@@ -87,7 +87,10 @@ class CivilFamiliaStrategy(AreaStrategy):
 
         provider = MemoryRateProvider()
         provider.add_rate_period(
-            start=fecha_mas_antigua - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
+            start=fecha_mas_antigua - timedelta(days=1),
+            end=fecha_corte,
+            rate=tasa_diaria,
+            source="Tasa pactada en la obligación (Art. 1617 C.C.)",
         )
         return provider
 
