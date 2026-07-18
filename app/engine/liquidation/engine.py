@@ -60,7 +60,8 @@ class LiquidationCore:
                  interest_amount=Decimal("0.00"),
                  indexation_amount=Decimal("0.00"),
                  payment_amount=Decimal("0.00"),
-                 balance=closing_rb
+                 balance=closing_rb,
+                 rate_source=self._get_rate_source_for_date(cutoff_date),
              )
              self._history.append(closing_item)
 
@@ -70,6 +71,11 @@ class LiquidationCore:
         if self._rate_provider:
             return self._rate_provider.get_rate(target_date)
         return self._default_rate
+
+    def _get_rate_source_for_date(self, target_date: date) -> str:
+        if self._rate_provider:
+            return self._rate_provider.get_rate_source(target_date)
+        return "N/A"
 
     def _accrue_time_passage(self, target_date: date):
         if not self._last_event_date or target_date <= self._last_event_date:
@@ -138,5 +144,6 @@ class LiquidationCore:
             interest_amount=interest_amount,
             indexation_amount=indexation_amount,
             payment_amount=payment_amount,
-            balance=rb
+            balance=rb,
+            rate_source=self._get_rate_source_for_date(event.date),
         )
