@@ -277,6 +277,17 @@ class TestComercialStrategy:
     def test_soporta_indexacion_ipc_es_false(self):
         assert ComercialStrategy().soporta_indexacion_ipc is False
 
+    def test_items_tienen_rate_source_por_tramo(self):
+        obligacion = _obligacion_comercial()
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+        )
+
+        fuentes = {item.rate_source for item in resultado.items}
+        assert "Tasa remuneratoria pactada (Art. 884 C.Co.)" in fuentes
+        assert "Tasa moratoria pactada (Art. 884 C.Co.)" in fuentes
+
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True
