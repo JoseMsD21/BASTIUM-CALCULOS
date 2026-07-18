@@ -194,17 +194,28 @@ class ComercialStrategy(AreaStrategy):
                 inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
                 fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
                 provider.add_rate_period(
-                    start=inicio_remuneratorio, end=fin_remuneratorio, rate=tasa_remuneratoria_diaria
+                    start=inicio_remuneratorio,
+                    end=fin_remuneratorio,
+                    rate=tasa_remuneratoria_diaria,
+                    source="Tasa remuneratoria pactada (Art. 884 C.Co.)",
                 )
                 if obligacion.fecha_vencimiento < fecha_corte:
                     inicio_moratorio = obligacion.fecha_vencimiento + timedelta(days=1)
                     provider.add_rate_period(
-                        start=inicio_moratorio, end=fecha_corte, rate=tasa_moratoria_diaria
+                        start=inicio_moratorio,
+                        end=fecha_corte,
+                        rate=tasa_moratoria_diaria,
+                        source="Tasa moratoria pactada (Art. 884 C.Co.)",
                     )
             else:
                 # RECURRENTE: sin split por cuota individual (alcance reducido, ver spec).
                 inicio = obligacion.fecha_inicio - timedelta(days=1)
-                provider.add_rate_period(start=inicio, end=fecha_corte, rate=tasa_moratoria_diaria)
+                provider.add_rate_period(
+                    start=inicio,
+                    end=fecha_corte,
+                    rate=tasa_moratoria_diaria,
+                    source="Tasa moratoria pactada (Art. 884 C.Co.)",
+                )
 
         return provider
 
