@@ -282,9 +282,10 @@ botones: **"Exportar a PDF"** y **"Exportar a Word"**.
 2. Se abre un diálogo de "Guardar como" con un nombre sugerido (ej. `Liquidacion_2026-030.pdf`) — puedes
    cambiar el nombre y la carpeta antes de guardar.
 3. El documento generado incluye: el radicado del expediente, las partes (demandante vs. demandado) y el
-   juzgado (si se registró), la tabla resumen (abonos aplicados, intereses generados, saldo final) y la
-   tabla cronológica completa con la misma información que ves en pantalla (fecha, concepto, capital
-   base, tasa, interés, pago y saldos).
+   juzgado (si se registró), la tabla resumen (total de abonos aplicados, intereses generados, saldo
+   final desglosado en capital e intereses, y el gran total adeudado) y la tabla cronológica completa con
+   la misma información que ves en pantalla, más el desglose del saldo en capital, interés y total (fecha,
+   concepto, capital base, tasa, interés, pago, saldo de capital, saldo de interés y saldo total).
 4. Si el archivo no se pudo guardar (ej. ya está abierto en otro programa, o no tienes permiso de
    escritura en esa carpeta), el programa muestra el mensaje "No se pudo exportar" con el motivo, en vez
    de fallar sin explicación.
