@@ -18,7 +18,7 @@ def _encode(value):
 def serializar_resultado(resultado: LiquidationResult) -> str:
     """Snapshot JSON exacto de un LiquidationResult, para reconstrucción sin recalcular."""
     items = [asdict(item) for item in resultado.items]
-    return json.dumps({"items": items}, default=_encode)
+    return json.dumps({"items": items}, default=_encode, ensure_ascii=False)
 
 
 def deserializar_resultado(json_str: str) -> LiquidationResult:
