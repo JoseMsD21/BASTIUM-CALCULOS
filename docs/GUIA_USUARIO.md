@@ -5,7 +5,7 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-17 — refleja el estado de Civil/Familia, Comercial, Sancionatorio y
+> **Última actualización:** 2026-07-19 — refleja el estado de Civil/Familia, Comercial, Sancionatorio y
 > Honorarios/Litigio. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md),
 > esta guía se actualiza para que nunca quede desactualizada respecto al programa real.
 
