@@ -30,7 +30,6 @@ def test_civil_familia_es_la_unica_area_operable():
 @pytest.mark.parametrize(
     "area_name,strategy_cls",
     [
-        ("LABORAL", LaboralStrategy),
     ],
 )
 def test_areas_no_implementadas_lanzan_error_claro_al_liquidar(area_name, strategy_cls):
@@ -40,7 +39,7 @@ def test_areas_no_implementadas_lanzan_error_claro_al_liquidar(area_name, strate
         strategy.liquidar(obligaciones=[], abonos=[], fecha_corte=None)
 
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from database.models import AreaDerecho, Abono, Expediente, Obligacion, TipoObligacion
@@ -488,3 +487,116 @@ class TestHonorariosStrategy:
 
     def test_soporta_indexacion_ipc_es_false(self):
         assert HonorariosStrategy().soporta_indexacion_ipc is False
+
+
+from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+
+
+def _obligacion_laboral(
+    expediente_id=1,
+    salario=Decimal("3000000.00"),
+    fecha_inicio=date(2020, 1, 1),
+    fecha_fin=date(2020, 12, 31),
+    pagada=False,
+    fecha_pago_total=None,
+    tipo=TipoObligacion.PUNTUAL,
+):
+    return Obligacion(
+        id=1,
+        expediente_id=expediente_id,
+        tipo=tipo,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=fecha_inicio,
+        valor=salario,
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        pagada=pagada,
+        fecha_pago_total=fecha_pago_total,
+    )
+
+
+class TestLaboralStrategy:
+    def test_liquida_sin_mora_si_se_pago_el_mismo_dia_de_terminacion(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SANCION_MORATORIA" not in tipos_evento
+        # dias_trabajados = 365 (2020-01-01 a 2020-12-31): cesantias 3041666.67 +
+        # intereses 370069.44 + prima x2 1520833.33 + vacaciones 1520833.33
+        assert resultado.final_balance().principal == Decimal("7974236.10")
+
+    def test_liquida_con_mora_solo_fase1(self):
+        # Pagado 30 dias despues de terminar el contrato -- solo fase 1.
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2021, 1, 30))
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SANCION_MORATORIA" in tipos_evento
+        # salario_diario = 3M/30 = 100000; 30 dias de retardo = 3000000.00
+        assert resultado.final_balance().principal == Decimal("10974236.10")  # 7974236.10 + 3000000.00
+
+    def test_liquida_con_mora_cruzando_a_fase2(self):
+        # Sin pagar: fecha_corte muy posterior a la terminacion del contrato,
+        # suficiente para cruzar a fase 2 (mas de 720 dias de retardo).
+        obligacion = _obligacion_laboral()
+        fecha_corte = obligacion.fecha_fin + timedelta(days=800)
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        monto_prestaciones = Decimal("7974236.10")
+        mora_esperada = MoratoryIndemnityCalculator.calcular(
+            salario_mensual=obligacion.valor,
+            monto_adeudado=monto_prestaciones,
+            fecha_terminacion=obligacion.fecha_fin,
+            fecha_pago_o_corte=fecha_corte,
+        )
+        assert mora_esperada.dias_fase2 > 0
+        assert resultado.final_balance().principal == monto_prestaciones + mora_esperada.total
+
+    def test_aplica_un_abono_reduciendo_el_saldo(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        abono = Abono(
+            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("1000000.00"), referencia="ref-1"
+        )
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[abono], fecha_corte=date(2021, 6, 1)
+        )
+
+        assert resultado.total_payments_applied() == Decimal("1000000.00")
+        assert resultado.final_balance().total() < Decimal("7974236.10")
+
+    def test_mas_de_una_obligacion_lanza_value_error(self):
+        obligacion_1 = _obligacion_laboral(expediente_id=1)
+        obligacion_2 = _obligacion_laboral(expediente_id=1)
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion_1, obligacion_2], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_tipo_recurrente_lanza_value_error(self):
+        obligacion = _obligacion_laboral(tipo=TipoObligacion.RECURRENTE)
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1))
+
+    def test_fecha_fin_anterior_a_fecha_inicio_lanza_value_error(self):
+        obligacion = _obligacion_laboral(fecha_inicio=date(2020, 12, 31), fecha_fin=date(2020, 1, 1))
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1))
+
+    def test_soporta_indexacion_ipc_es_false(self):
+        assert LaboralStrategy().soporta_indexacion_ipc is False
