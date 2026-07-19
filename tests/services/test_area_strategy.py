@@ -31,7 +31,6 @@ def test_civil_familia_es_la_unica_area_operable():
     "area_name,strategy_cls",
     [
         ("LABORAL", LaboralStrategy),
-        ("SANCIONATORIO", SancionatorioStrategy),
         ("HONORARIOS", HonorariosStrategy),
     ],
 )
@@ -287,3 +286,74 @@ class TestComercialStrategy:
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True
+
+
+from app.core.exceptions import UVTNoDisponibleError
+
+
+def _obligacion_sancionatoria(
+    expediente_id=1,
+    cantidad_smlmv_uvt=Decimal("2"),
+    fecha_origen=date(2019, 6, 1),
+    tasa_efectiva_anual=Decimal("0.00"),
+):
+    return Obligacion(
+        id=1,
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Multa SIC",
+        categoria="MULTA_SANCIONATORIA",
+        fecha_origen=fecha_origen,
+        valor=Decimal("0.00"),
+        tasa_efectiva_anual=tasa_efectiva_anual,
+        cantidad_smlmv_uvt=cantidad_smlmv_uvt,
+    )
+
+
+class TestSancionatorioStrategy:
+    def test_liquida_multa_pre_2020_convirtiendo_smlmv_a_pesos(self):
+        obligacion = _obligacion_sancionatoria()
+
+        resultado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2019, 6, 1)
+        )
+
+        # SMLMV 2019 = 828116.00 (ver historical_index.py); 2 SMLMV = 1656232.00.
+        assert resultado.final_balance().principal == Decimal("1656232.00")
+
+    def test_liquida_multa_posterior_a_2020_lanza_uvt_no_disponible_error(self):
+        obligacion = _obligacion_sancionatoria(fecha_origen=date(2021, 1, 1))
+
+        with pytest.raises(UVTNoDisponibleError):
+            SancionatorioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_falta_cantidad_smlmv_uvt_lanza_value_error(self):
+        obligacion = _obligacion_sancionatoria(cantidad_smlmv_uvt=None)
+
+        with pytest.raises(ValueError):
+            SancionatorioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2019, 6, 1)
+            )
+
+    def test_obligacion_recurrente_lanza_value_error(self):
+        obligacion = _obligacion_sancionatoria()
+        obligacion.tipo = TipoObligacion.RECURRENTE
+
+        with pytest.raises(ValueError):
+            SancionatorioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2019, 6, 1)
+            )
+
+    def test_multa_impaga_acumula_interes_moratorio_si_se_pacto_tasa(self):
+        obligacion = _obligacion_sancionatoria(tasa_efectiva_anual=Decimal("24.00"))
+
+        resultado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2020, 6, 1)
+        )
+
+        assert resultado.final_balance().interest > Decimal("0.00")
+
+    def test_soporta_indexacion_ipc_es_false(self):
+        assert SancionatorioStrategy().soporta_indexacion_ipc is False
