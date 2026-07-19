@@ -22,3 +22,26 @@ def test_es_dia_habil_ley_emiliani():
     # la fecha observada (lunes 12) queda inhábil.
     assert CalendarUtils.es_dia_habil(date(2026, 1, 6)) is True
     assert CalendarUtils.es_dia_habil(date(2026, 1, 12)) is False
+
+
+def test_sumar_dias_habiles_no_cuenta_fecha_inicio():
+    # fecha_inicio es lunes hábil, sin festivos cerca. sumar 1 día hábil debe
+    # devolver el martes, NUNCA el mismo lunes (fecha_inicio no cuenta como día 1).
+    lunes = date(2026, 1, 13)
+    assert CalendarUtils.sumar_dias_habiles(lunes, 1) == date(2026, 1, 14)
+
+
+def test_sumar_dias_habiles_cruza_fin_de_semana_y_festivo():
+    # Verificado independientemente: 10 días hábiles desde el lunes 2025-12-22
+    # (sin contar ese día) caen en miércoles 2026-01-07, cruzando Navidad
+    # (2025-12-25), un fin de semana (27-28 dic), Año Nuevo (2026-01-01) y
+    # otro fin de semana (3-4 ene).
+    inicio = date(2025, 12, 22)
+    assert CalendarUtils.sumar_dias_habiles(inicio, 10) == date(2026, 1, 7)
+
+
+def test_sumar_dias_habiles_rechaza_n_negativo():
+    import pytest
+
+    with pytest.raises(ValueError):
+        CalendarUtils.sumar_dias_habiles(date(2026, 1, 13), -1)

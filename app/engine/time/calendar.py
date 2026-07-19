@@ -1,5 +1,5 @@
 import calendar
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 
 import holidays
@@ -33,3 +33,16 @@ class CalendarUtils:
         if fecha.weekday() >= 5:  # 5=sábado, 6=domingo
             return False
         return fecha not in CalendarUtils._festivos_colombia(fecha.year)
+
+    @staticmethod
+    def sumar_dias_habiles(fecha_inicio: date, n: int) -> date:
+        if n < 0:
+            raise ValueError("sumar_dias_habiles no admite n negativo")
+
+        fecha = fecha_inicio
+        dias_contados = 0
+        while dias_contados < n:
+            fecha += timedelta(days=1)
+            if CalendarUtils.es_dia_habil(fecha):
+                dias_contados += 1
+        return fecha
