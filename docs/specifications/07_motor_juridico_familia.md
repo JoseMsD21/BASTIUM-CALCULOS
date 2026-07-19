@@ -18,7 +18,7 @@ tasa que el usuario pacte/certifique, convertida a diaria).
     `UniversalLiquidationService.liquidar(...)`.
   - `ComercialStrategy`, `LaboralStrategy`, `SancionatorioStrategy`, `HonorariosStrategy`: registradas pero
     lanzan `AreaNoImplementadaError` (`app/core/exceptions.py`) si se invocan. La GUI nunca las llama
-    porque el selector de area en `NuevoExpedienteDialog` (`app/views/expedientes.py`) las deshabilita.
+    porque el selector de area en `ExpedienteFormDialog` (`app/views/expedientes.py`) las deshabilita.
 
 ## Flujo end-to-end
 `ExpedienteDetallePage._liquidar()` (`app/views/expediente_detalle.py`) lee las Obligaciones/Abonos del
