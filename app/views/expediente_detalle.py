@@ -16,7 +16,7 @@ from app.core.exceptions import (
     TasaUsurariaError,
     UVTNoDisponibleError,
 )
-from app.engine.audit.service import historial_de_expediente
+from app.engine.audit.service import historial_de_expediente, registrar_liquidacion
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
 from app.views.obligaciones import ObligacionFormDialog
@@ -172,6 +172,17 @@ class ExpedienteDetallePage(QWidget):
         except ValueError as error:
             QMessageBox.warning(self, "No se pudo liquidar", str(error))
             return
+
+        session = session_module.get_session()
+        registrar_liquidacion(
+            session,
+            expediente_id=self._expediente_id,
+            area_derecho=area,
+            fecha_corte=fecha_corte,
+            resultado=resultado,
+        )
+        session.close()
+        self._refrescar_historial()
 
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)

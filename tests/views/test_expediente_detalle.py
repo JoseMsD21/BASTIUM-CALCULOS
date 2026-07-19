@@ -266,6 +266,20 @@ def test_liquidar_area_sancionatorio_con_hecho_posterior_a_2020_muestra_adverten
     assert avisos[0][0] == "UVT no disponible"
 
 
+def test_liquidar_registra_auditoria_y_refresca_historial(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._liquidar()
+
+    assert page.tabla_historial.rowCount() == 1
+    assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
+    assert page.tabla_historial.item(0, 3).text() == "2026-06-01"
+
+
 def test_abrir_dialogo_obligacion_pasa_el_area_del_expediente(qtbot, monkeypatch):
     expediente_id = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
 
