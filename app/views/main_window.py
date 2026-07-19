@@ -28,10 +28,27 @@ class MainWindow(QMainWindow):
             "detalle": self.detalle_page,
             "resultado": self.resultado_page,
         }
+
+        self._history: list[str] = []
+        self._current_page_name = "expedientes"
+
         self.show_page("expedientes")
 
-    def show_page(self, name: str) -> None:
+    def show_page(self, name: str, add_to_history: bool = True) -> None:
+        if add_to_history and self._current_page_name != name:
+            self._history.append(self._current_page_name)
         self.stacked_widget.setCurrentWidget(self._pages[name])
+        self._current_page_name = name
+
+    def _volver(self) -> None:
+        if not self._history:
+            return
+        pagina_anterior = self._history.pop()
+        self.show_page(pagina_anterior, add_to_history=False)
+
+    def _ir_inicio(self) -> None:
+        self._history.clear()
+        self.show_page("expedientes", add_to_history=False)
 
     def _abrir_detalle(self, expediente_id: int) -> None:
         self.detalle_page.cargar_expediente(expediente_id)
