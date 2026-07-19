@@ -125,7 +125,6 @@ class ExpedienteDetallePage(QWidget):
             self._audit_log_ids_por_fila.append(registro.id)
         session.close()
 
-
     def _reconstruir_desde_historial(self, fila: int, columna: int) -> None:
         audit_log_id = self._audit_log_ids_por_fila[fila]
         session = session_module.get_session()
