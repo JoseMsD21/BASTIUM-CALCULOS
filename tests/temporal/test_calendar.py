@@ -73,3 +73,32 @@ def test_notificacion_surtida_el_cruza_festivo():
     # segundo es lunes 2025-12-29 (fin de semana 27-28 no cuenta).
     envio = date(2025, 12, 24)
     assert CalendarUtils.notificacion_surtida_el(envio) == date(2025, 12, 29)
+
+
+def test_vencimiento_calendario_desborde_fin_de_mes():
+    # 30 de enero + 1 mes: febrero de 2025 (no bisiesto) solo tiene 28 días.
+    # El 28 de febrero de 2025 es viernes hábil, no requiere corrimiento.
+    inicio = date(2025, 1, 30)
+    assert CalendarUtils.vencimiento_calendario(inicio, 1) == date(2025, 2, 28)
+
+
+def test_vencimiento_calendario_corre_a_dia_habil_por_fin_de_semana():
+    # 28 de febrero de 2026 + 1 mes -> 28 de marzo de 2026, que es sábado.
+    # Corre al siguiente hábil: domingo 29 también inhábil, lunes 30 sí.
+    inicio = date(2026, 2, 28)
+    assert CalendarUtils.vencimiento_calendario(inicio, 1) == date(2026, 3, 30)
+
+
+def test_vencimiento_calendario_corre_a_dia_habil_por_festivo():
+    # 1 de abril de 2026 + 1 mes -> 1 de mayo de 2026 (Día del Trabajo,
+    # viernes, festivo). Corre al siguiente hábil: fin de semana 2-3 mayo
+    # inhábil, lunes 4 de mayo sí.
+    inicio = date(2026, 4, 1)
+    assert CalendarUtils.vencimiento_calendario(inicio, 1) == date(2026, 5, 4)
+
+
+def test_vencimiento_calendario_rechaza_meses_menor_a_uno():
+    import pytest
+
+    with pytest.raises(ValueError):
+        CalendarUtils.vencimiento_calendario(date(2026, 1, 1), 0)

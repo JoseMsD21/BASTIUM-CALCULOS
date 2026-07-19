@@ -65,3 +65,21 @@ class CalendarUtils:
         # Regla pág. 4 del PDF: la notificación digital se entiende surtida
         # 2 días hábiles después del envío.
         return CalendarUtils.sumar_dias_habiles(fecha_envio, 2)
+
+    @staticmethod
+    def vencimiento_calendario(fecha_inicio: date, meses: int) -> date:
+        if meses < 1:
+            raise ValueError("meses debe ser al menos 1")
+
+        total_meses = fecha_inicio.month - 1 + meses
+        anio_destino = fecha_inicio.year + total_meses // 12
+        mes_destino = total_meses % 12 + 1
+
+        fecha_objetivo = CalendarUtils.safe_create_date(
+            anio_destino, mes_destino, fecha_inicio.day
+        )
+
+        while not CalendarUtils.es_dia_habil(fecha_objetivo):
+            fecha_objetivo += timedelta(days=1)
+
+        return fecha_objetivo
