@@ -32,7 +32,11 @@ class ObligacionFormDialog(QDialog):
 
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("Puntual", userData="PUNTUAL")
-        self.combo_tipo.addItem("Recurrente", userData="RECURRENTE")
+        if self._area not in ("SANCIONATORIO", "HONORARIOS"):
+            # Una multa o un cobro de honorarios es siempre un hecho puntual (ver
+            # SancionatorioStrategy/HonorariosStrategy en area_strategy.py, que rechazan
+            # RECURRENTE con ValueError) -- no se ofrece la opcion en estas dos areas.
+            self.combo_tipo.addItem("Recurrente", userData="RECURRENTE")
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
 
         self.combo_categoria = QComboBox()
