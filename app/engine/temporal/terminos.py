@@ -67,3 +67,10 @@ def suspender(estado: EstadoTermino, fecha: date) -> EstadoTermino:
         checkpoint=fecha,
         suspendido=True,
     )
+
+
+def reanudar(estado: EstadoTermino, fecha: date) -> EstadoTermino:
+    if not estado.suspendido:
+        raise ValueError("el término no está suspendido")
+
+    return replace(estado, checkpoint=fecha, suspendido=False)

@@ -7,6 +7,7 @@ from app.engine.temporal.terminos import (
     esta_vencido,
     interrumpir,
     suspender,
+    reanudar,
 )
 
 
@@ -92,3 +93,39 @@ def test_suspender_rechaza_termino_ya_suspendido():
 
     with pytest.raises(ValueError):
         suspender(suspendido, date(2026, 1, 5))
+
+
+def test_reanudar_retoma_el_conteo_sin_perder_lo_congelado():
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    suspendido = suspender(estado, date(2025, 12, 26))  # 3 días congelados
+    reanudado = reanudar(suspendido, date(2026, 1, 5))
+
+    assert reanudado.suspendido is False
+    assert reanudado.dias_consumidos == 3  # lo congelado no se toca
+    assert reanudado.checkpoint == date(2026, 1, 5)
+
+    # Desde el 2026-01-05, 2 días hábiles más son 2026-01-06 y 2026-01-07.
+    assert dias_restantes(reanudado, date(2026, 1, 7)) == 10 - (3 + 2)
+
+
+def test_reanudar_rechaza_termino_no_suspendido():
+    import pytest
+
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+
+    with pytest.raises(ValueError):
+        reanudar(estado, date(2026, 1, 5))
+
+
+def test_ciclo_completo_suspender_reanudar_hasta_vencer():
+    # Verificado independientemente: reanudado con checkpoint 2026-01-05 y
+    # 3 días ya congelados (de 10 totales) necesita 7 días hábiles más para
+    # vencer. 7 días hábiles después de 2026-01-05 caen en 2026-01-15;
+    # 6 días hábiles después caen en 2026-01-14 (un día antes de vencer).
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    suspendido = suspender(estado, date(2025, 12, 26))  # 3 congelados
+    reanudado = reanudar(suspendido, date(2026, 1, 5))
+
+    assert esta_vencido(reanudado, date(2026, 1, 14)) is False
+    assert dias_restantes(reanudado, date(2026, 1, 14)) == 1
+    assert esta_vencido(reanudado, date(2026, 1, 15)) is True
