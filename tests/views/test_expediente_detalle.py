@@ -287,3 +287,37 @@ def test_abrir_dialogo_obligacion_pasa_el_area_del_expediente(qtbot, monkeypatch
 class _DialogStub:
     def exec(self):
         return False
+
+
+from app.engine.audit.service import registrar_liquidacion
+from app.engine.liquidation.registry import AreaRegistry
+
+
+def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    obligaciones = list(expediente.obligaciones)
+    estrategia = AreaRegistry.get_strategy(expediente.area_derecho.value)
+    resultado = estrategia.liquidar(
+        obligaciones=obligaciones, abonos=[], fecha_corte=expediente.fecha_corte_default
+    )
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_id,
+        area_derecho=expediente.area_derecho.value,
+        fecha_corte=expediente.fecha_corte_default,
+        resultado=resultado,
+        usuario="jsilva",
+    )
+    session.close()
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    assert page.tabla_historial.rowCount() == 1
+    assert page.tabla_historial.item(0, 1).text() == "jsilva"
+    assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
+    assert page.tabla_historial.item(0, 3).text() == "2026-06-01"
