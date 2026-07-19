@@ -46,3 +46,16 @@ class CalendarUtils:
             if CalendarUtils.es_dia_habil(fecha):
                 dias_contados += 1
         return fecha
+
+    @staticmethod
+    def dias_habiles_entre(fecha_inicio: date, fecha_fin: date) -> int:
+        if fecha_fin < fecha_inicio:
+            raise ValueError("fecha_fin no puede ser anterior a fecha_inicio")
+
+        fecha = fecha_inicio
+        dias = 0
+        while fecha < fecha_fin:
+            fecha += timedelta(days=1)
+            if CalendarUtils.es_dia_habil(fecha):
+                dias += 1
+        return dias

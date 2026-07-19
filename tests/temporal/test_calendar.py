@@ -45,3 +45,23 @@ def test_sumar_dias_habiles_rechaza_n_negativo():
 
     with pytest.raises(ValueError):
         CalendarUtils.sumar_dias_habiles(date(2026, 1, 13), -1)
+
+
+def test_dias_habiles_entre_no_cuenta_fecha_inicio():
+    lunes = date(2026, 1, 13)
+    martes = date(2026, 1, 14)
+    assert CalendarUtils.dias_habiles_entre(lunes, martes) == 1
+    assert CalendarUtils.dias_habiles_entre(lunes, lunes) == 0
+
+
+def test_dias_habiles_entre_es_inverso_de_sumar_dias_habiles():
+    inicio = date(2025, 12, 22)
+    fin = CalendarUtils.sumar_dias_habiles(inicio, 10)
+    assert CalendarUtils.dias_habiles_entre(inicio, fin) == 10
+
+
+def test_dias_habiles_entre_rechaza_fin_anterior_a_inicio():
+    import pytest
+
+    with pytest.raises(ValueError):
+        CalendarUtils.dias_habiles_entre(date(2026, 1, 14), date(2026, 1, 13))
