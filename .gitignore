@@ -10,3 +10,6 @@ __pycache__/
 /Liquidacion_Bastium.pdf
 /distribucion.png
 exports/*.pdf
+
+# Worktrees aislados para desarrollo (superpowers)
+.worktrees/
