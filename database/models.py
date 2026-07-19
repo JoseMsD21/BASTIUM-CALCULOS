@@ -60,6 +60,11 @@ class Obligacion(Base):
     tasa_moratoria_anual: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
     fecha_vencimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     ibc_vigente_anual: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
+    cantidad_smlmv_uvt: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
+    honorarios_fijos_pactados: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    cuota_litis_pactada_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    beneficio_obtenido: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    costas_pct_manual: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
 
     expediente: Mapped["Expediente"] = relationship(back_populates="obligaciones")
     abonos: Mapped[list["Abono"]] = relationship(
