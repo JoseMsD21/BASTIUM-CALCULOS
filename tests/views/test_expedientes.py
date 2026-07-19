@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from database.models import AreaDerecho, Base, Expediente
-from app.views.expedientes import ExpedientesListView, NuevoExpedienteDialog
+from app.views.expedientes import ExpedientesListView, ExpedienteFormDialog
 
 
 def _sesion_en_memoria(monkeypatch):
@@ -40,7 +40,7 @@ def test_lista_muestra_expedientes_existentes(qtbot, monkeypatch):
 def test_dialogo_crea_expediente_civil_familia(qtbot, monkeypatch):
     _sesion_en_memoria(monkeypatch)
 
-    dialog = NuevoExpedienteDialog()
+    dialog = ExpedienteFormDialog()
     qtbot.addWidget(dialog)
     dialog.campo_radicado.setText("2026-002")
     dialog.campo_demandante.setText("Ana")
@@ -59,7 +59,7 @@ def test_dialogo_crea_expediente_civil_familia(qtbot, monkeypatch):
 def test_dialogo_deshabilita_areas_no_implementadas(qtbot, monkeypatch):
     _sesion_en_memoria(monkeypatch)
 
-    dialog = NuevoExpedienteDialog()
+    dialog = ExpedienteFormDialog()
     qtbot.addWidget(dialog)
 
     modelo = dialog.combo_area.model()
@@ -68,3 +68,41 @@ def test_dialogo_deshabilita_areas_no_implementadas(qtbot, monkeypatch):
     assert modelo.item(0).isEnabled() is True
     assert modelo.item(1).isEnabled() is True
     assert modelo.item(2).isEnabled() is False
+
+
+def test_dialogo_edita_expediente_existente(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-003",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        juzgado="Juzgado 5",
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    expediente_a_editar = session.get(Expediente, expediente_id)
+
+    dialog = ExpedienteFormDialog(expediente=expediente_a_editar)
+    qtbot.addWidget(dialog)
+    session.close()
+
+    assert dialog.windowTitle() == "Editar expediente"
+    assert dialog.campo_radicado.text() == "2026-003"
+    assert dialog.campo_juzgado.text() == "Juzgado 5"
+
+    dialog.campo_demandante.setText("Ana Maria")
+    resultado_id = dialog.guardar()
+
+    assert resultado_id == expediente_id
+
+    session = session_module.get_session()
+    assert session.query(Expediente).count() == 1
+    actualizado = session.get(Expediente, expediente_id)
+    assert actualizado.demandante == "Ana Maria"
+    assert actualizado.radicado == "2026-003"
+    session.close()
