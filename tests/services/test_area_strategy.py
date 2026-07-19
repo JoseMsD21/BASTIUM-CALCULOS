@@ -130,6 +130,13 @@ def test_capital_concepts_incluye_los_codigos_comerciales_nuevos():
     assert "CAPITAL_FACTURA" in core._capital_concepts
 
 
+def test_capital_concepts_incluye_los_codigos_sancionatorio_y_honorarios():
+    core = LiquidationCore()
+    assert "MULTA_SANCIONATORIA" in core._capital_concepts
+    assert "HONORARIOS_PROFESIONALES" in core._capital_concepts
+    assert "COSTAS_PROCESALES" in core._capital_concepts
+
+
 from app.core.exceptions import TasaUsurariaError
 
 

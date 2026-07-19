@@ -29,7 +29,8 @@ class LiquidationCore:
             "INSTALLMENT", "CHILD_SUPPORT", "CLOTHING", "MULTA",
             "CESANTIAS", "INTERESES_CESANTIAS", "PRIMA_JUNIO", "PRIMA_DICIEMBRE", "SANCION_MORATORIA",
             "DANO_EMERGENTE", "LUCRO_CESANTE_CONSOLIDADO", "DANOS_MORALES", "CAPITAL_PAGARE",
-            "CAPITAL_LETRA_CAMBIO", "CAPITAL_CHEQUE", "CAPITAL_FACTURA"
+            "CAPITAL_LETRA_CAMBIO", "CAPITAL_CHEQUE", "CAPITAL_FACTURA",
+            "MULTA_SANCIONATORIA", "HONORARIOS_PROFESIONALES", "COSTAS_PROCESALES"
         }
 
     def process(self, chronological_events: List[Event], cutoff_date: date) -> LiquidationResult:
