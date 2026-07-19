@@ -129,3 +129,31 @@ def test_ciclo_completo_suspender_reanudar_hasta_vencer():
     assert esta_vencido(reanudado, date(2026, 1, 14)) is False
     assert dias_restantes(reanudado, date(2026, 1, 14)) == 1
     assert esta_vencido(reanudado, date(2026, 1, 15)) is True
+
+
+def test_dias_restantes_rechaza_fecha_anterior_al_checkpoint():
+    import pytest
+
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+
+    with pytest.raises(ValueError):
+        dias_restantes(estado, date(2025, 12, 20))
+
+
+def test_interrumpir_rechaza_fecha_anterior_al_checkpoint():
+    import pytest
+
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+
+    with pytest.raises(ValueError):
+        interrumpir(estado, date(2025, 12, 20))
+
+
+def test_reanudar_rechaza_fecha_anterior_al_checkpoint_de_suspension():
+    import pytest
+
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    suspendido = suspender(estado, date(2025, 12, 26))
+
+    with pytest.raises(ValueError):
+        reanudar(suspendido, date(2025, 12, 24))
