@@ -695,3 +695,10 @@ backlog.
   Vale la pena subirlo a `AreaStrategy` (o extraerlo a una función compartida) antes de escribir la
   tercera estrategia real (`LaboralStrategy`, Sprint 3), para no triplicar el copy-paste. Detectado en
   code review del Sprint 2 (`docs/superpowers/plans/2026-07-15-area-comercial.md`).
+- **Misma duplicación en `_construir_rate_provider`**: `SancionatorioStrategy` y `HonorariosStrategy`
+  (Sprint 4) repiten, casi byte a byte, el mismo patrón de "un solo tramo de tasa plana desde la
+  obligación más antigua hasta la fecha de corte" que ya existe en `CivilFamiliaStrategy` y
+  `ComercialStrategy`. Es la misma clase de problema que el punto anterior (`_eventos_de_obligacion`) y
+  debería resolverse junto con él la próxima vez que se toque `area_strategy.py`, en vez de seguir
+  copiando el método por cada estrategia nueva. Detectado en code review del Sprint 4
+  (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5).
