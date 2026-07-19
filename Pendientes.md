@@ -31,7 +31,7 @@ al código real.
 
 ---
 
-## Sprint 2 — Área Comercial
+## Sprint 2 — Área Comercial ✅ Completado
 
 **Prioridad sugerida:** Alta (ya tiene entrada en el registry, es el área con más demanda real).
 **Depende de:** Nada estrictamente. Idealmente correr después del Sprint 5 (datos históricos) para tener
@@ -111,7 +111,7 @@ con tasas distintas — la tasa se busca por fecha calendario, no por obligació
 
 ---
 
-## Sprint 3 — Área Laboral
+## Sprint 3 — Área Laboral 🟡 En proceso
 
 **Prioridad sugerida:** Alta.
 **Depende de:** Nada estrictamente. Se beneficia del Sprint 5 (SMLMV histórico) para liquidaciones de años
@@ -180,7 +180,7 @@ anteriores, pero puede arrancar con el SMLMV vigente hardcodeado como parámetro
 
 ---
 
-## Sprint 4 — Área Sancionatorio y Honorarios
+## Sprint 4 — Área Sancionatorio y Honorarios ✅ Completado
 
 **Prioridad sugerida:** Media.
 **Depende de:** Nada estrictamente; se beneficia del Sprint 5 (UVT/SMLMV históricos) pero puede arrancar
@@ -253,7 +253,7 @@ usuario durante el brainstorming previo (no asumidas unilateralmente):
 
 ---
 
-## Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT)
+## Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado
 
 **Prioridad sugerida:** Alta — es la dependencia común de los Sprints 2, 3, 4 y 8 para liquidaciones
 históricamente exactas (aunque ninguno de ellos está estrictamente bloqueado por este, todos mejoran
@@ -333,7 +333,7 @@ fuente real.
 
 ---
 
-## Sprint 6 — Calendario de días hábiles judiciales y términos procesales
+## Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado
 
 **Prioridad sugerida:** Media — es dependencia del Sprint 7 (prescripción/caducidad).
 
@@ -379,9 +379,34 @@ fuente real.
   verificar la fecha de vencimiento exacta).
 - Suite completa en verde.
 
+**Estado:** Implementado (2026-07-19) — `CalendarUtils` (`app/engine/time/calendar.py`) ganó
+`es_dia_habil/sumar_dias_habiles/dias_habiles_entre/notificacion_surtida_el/vencimiento_calendario`
+usando la librería `holidays` (festivos colombianos con Ley Emiliani ya aplicada por la librería, sin
+mantener tabla propia). El modelador de términos (`EstadoTermino` + `iniciar_termino/dias_restantes/
+esta_vencido/interrumpir/suspender/reanudar`) vive en `app/engine/temporal/terminos.py`, nuevo. 30 tests
+nuevos (`tests/temporal/test_calendar.py`, `tests/temporal/test_terminos.py`), suite completa en 226
+verde. Code review encontró y se corrigió en el mismo sprint: `interrumpir`/`reanudar` no validaban que
+`fecha` fuera posterior al `checkpoint` vigente (permitía retroceder el reloj procesal silenciosamente) —
+ahora las cuatro funciones (`dias_restantes`/`interrumpir`/`suspender`/`reanudar`) comparten un guard
+único que rechaza fechas anteriores al checkpoint.
+
+Dos limitaciones conocidas quedan documentadas (no corregidas en este sprint, por ser fuera de alcance
+de lo que Sprint 6 pedía, pero relevantes para quien tome el Sprint 7):
+- `dias_restantes`/`suspender` tienen `CalendarUtils.dias_habiles_entre` (conteo en días hábiles)
+  cableado directamente como unidad de tiempo consumido. El Sprint 7 (prescripción/caducidad) son
+  términos de años calendario (5/10/3/1 años), no de días hábiles judiciales — reusar `EstadoTermino`
+  verbatim como sugiere la nota de este plan subestimaría el tiempo transcurrido (día hábil ≈ 250/año vs.
+  día calendario ≈ 365/año). Antes de que Sprint 7 importe esta máquina de estados, evaluar hacer el
+  contador de días un parámetro inyectable en vez de una llamada fija a `dias_habiles_entre`.
+- `notificacion_surtida_el` (regla nombrada y citada del PDF) quedó como método de la clase genérica
+  `CalendarUtils`, en vez de seguir el patrón ya establecido en `app/engine/interest/` de separar
+  matemática genérica (`rate_conversion.py`) de reglas nombradas con cita legal propia
+  (`usury_validator.py`, `legal_rates.py`). Si Sprint 7 agrega más reglas nombradas de este tipo, vale la
+  pena extraerlas a un módulo propio en vez de seguir creciendo `CalendarUtils`.
+
 ---
 
-## Sprint 7 — Motor de prescripción y caducidad
+## Sprint 7 — Motor de prescripción y caducidad 🔴 Pendiente
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 6 (calendario de días hábiles) para cómputo preciso de plazos.
@@ -431,7 +456,7 @@ fuente real.
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔴 Pendiente
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -474,7 +499,7 @@ automáticamente a partir de una fecha).
 
 ---
 
-## Sprint 9 — Motor de auditoría / bitácora
+## Sprint 9 — Motor de auditoría / bitácora 🟡 En proceso
 
 **Prioridad sugerida:** Baja (solo relevante si el producto pasa a multi-usuario; para uso individual de
 un solo abogado, el valor es menor).
@@ -521,7 +546,7 @@ un solo abogado, el valor es menor).
 
 ---
 
-## Sprint 10 — Exportación de liquidación a PDF/Word
+## Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado
 
 **Prioridad sugerida:** Media (valor visible para el usuario final, útil para presentar en juzgado).
 
@@ -577,7 +602,7 @@ un solo abogado, el valor es menor).
 
 ---
 
-## Sprint 11 — Derecho Tributario (DIAN)
+## Sprint 11 — Derecho Tributario (DIAN) 🔴 Pendiente
 
 **Prioridad sugerida:** Baja / exploratoria — es un dominio jurídico completamente nuevo para BASTIUM
 (hoy 0% implementado, ni un archivo), no una extensión de algo existente. Antes de planificarlo en detalle
@@ -613,7 +638,7 @@ tiempo de planificación fina, hay que confirmar que entra en el roadmap del pro
 
 ---
 
-## Sprint 12 — TRM y obligaciones en moneda extranjera
+## Sprint 12 — TRM y obligaciones en moneda extranjera 🔴 Pendiente
 
 **Prioridad sugerida:** Baja.
 **Depende de:** Nada.
@@ -643,7 +668,7 @@ Confirmar con el usuario si vale la pena antes de planificar en detalle.
 
 ---
 
-## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ)
+## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) 🔴 Pendiente
 
 **Prioridad sugerida:** Decisión arquitectónica, no un sprint de features — leer la nota antes de
 planificar nada.
