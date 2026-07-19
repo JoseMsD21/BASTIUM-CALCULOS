@@ -240,3 +240,33 @@ def test_campos_honorarios_visibles_solo_para_esa_area(qtbot, monkeypatch):
     assert dialog.campo_costas_pct.isVisible() is True
     assert dialog.campo_valor.isVisible() is False
     assert dialog.campo_cantidad_smlmv_uvt.isVisible() is False
+
+
+def test_combo_tipo_no_ofrece_recurrente_para_sancionatorio(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo.count() == 1
+    assert dialog.combo_tipo.itemData(0) == "PUNTUAL"
+
+
+def test_combo_tipo_no_ofrece_recurrente_para_honorarios(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo.count() == 1
+    assert dialog.combo_tipo.itemData(0) == "PUNTUAL"
+
+
+def test_combo_tipo_si_ofrece_recurrente_para_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo.count() == 2
+    assert dialog.combo_tipo.itemData(1) == "RECURRENTE"
