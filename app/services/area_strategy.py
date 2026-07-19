@@ -378,7 +378,7 @@ class HonorariosStrategy(AreaStrategy):
             Event(
                 date=obligacion.fecha_origen,
                 payload={"amount": total_honorarios, "label": obligacion.concepto},
-                event_type="HONORARIOS_PROFESIONALES",
+                event_type=obligacion.categoria,
             )
         ]
         if obligacion.costas_pct_manual is not None:
