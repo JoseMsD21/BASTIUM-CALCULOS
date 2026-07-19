@@ -236,6 +236,21 @@ con los valores vigentes actuales como parámetros.
 - Test de validación de tope de cuota litis con el valor que confirme el usuario.
 - Suite completa en verde.
 
+**Estado:** Implementado (2026-07-19) — ver
+`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md` y
+`docs/superpowers/specs/2026-07-17-sprint4-sancionatorio-honorarios-design.md`. Decisiones tomadas con el
+usuario durante el brainstorming previo (no asumidas unilateralmente):
+- (a) los dos topes de cuota litis (30% individual sobre la cuota litis sola, 50% total sobre honorarios
+  fijos + cuota litis) se aplican **simultáneamente**, no como alternativas — el PDF los menciona en
+  secciones distintas y no como excluyentes entre sí.
+- (b) las costas judiciales se capturan como un **porcentaje manual** por obligación
+  (`costas_pct_manual`), en vez de una tabla estructurada de rangos del Consejo Superior de la
+  Judicatura (Acuerdo PCSJA20-11556), porque no se consiguió una fuente confiable con esos rangos
+  completos.
+- (c) la conversión SMLMV→UVT sigue sin cubrir hechos posteriores al 2020-01-01: al no existir todavía la
+  tabla histórica de UVT (pendiente del Sprint 5), `resolver_base_sancion` lanza `UVTNoDisponibleError`
+  en vez de adivinar un valor.
+
 ---
 
 ## Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT)
@@ -695,3 +710,18 @@ backlog.
   Vale la pena subirlo a `AreaStrategy` (o extraerlo a una función compartida) antes de escribir la
   tercera estrategia real (`LaboralStrategy`, Sprint 3), para no triplicar el copy-paste. Detectado en
   code review del Sprint 2 (`docs/superpowers/plans/2026-07-15-area-comercial.md`).
+- **Misma duplicación en `_construir_rate_provider`**: `SancionatorioStrategy` y `HonorariosStrategy`
+  (Sprint 4) repiten, casi byte a byte, el mismo patrón de "un solo tramo de tasa plana desde la
+  obligación más antigua hasta la fecha de corte" que ya existe en `CivilFamiliaStrategy` y
+  `ComercialStrategy`. Es la misma clase de problema que el punto anterior (`_eventos_de_obligacion`) y
+  debería resolverse junto con él la próxima vez que se toque `area_strategy.py`, en vez de seguir
+  copiando el método por cada estrategia nueva. Detectado en code review del Sprint 4
+  (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5).
+- **`ObligacionFormDialog.guardar()` creciendo hacia "god method"**: cada área nueva (Comercial,
+  Sancionatorio, Honorarios) le agrega su propio bloque `if es_X: try: ... except: raise ValueError(...)`
+  dentro de `app/views/obligaciones.py`. Hoy (después del Sprint 4) tiene 4 ramas implícitas y ~90 líneas;
+  sigue siendo legible, pero cada área nueva lo empeora. Si se agrega Laboral (Sprint 3) u otra área más,
+  vale la pena extraer un `_parse_area_campos()` (o una tabla de specs por campo: nombre, kwarg, mensaje
+  de error, requerido) en vez de seguir apilando ramas, espejando la separación que `area_strategy.py` ya
+  tiene por estrategia. Detectado en code review del Sprint 4
+  (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 7).

@@ -134,3 +134,139 @@ def test_campos_comerciales_visibles_para_area_comercial(qtbot, monkeypatch):
     assert dialog.campo_tasa_moratoria.isVisible() is True
     assert dialog.campo_fecha_vencimiento.isVisible() is True
     assert dialog.campo_ibc_vigente.isVisible() is True
+
+
+def test_guarda_obligacion_sancionatoria(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Multa SIC")
+    dialog.campo_tasa.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2019, 6, 1))
+    dialog.campo_cantidad_smlmv_uvt.setText("2")
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.cantidad_smlmv_uvt == Decimal("2")
+    session.close()
+
+
+def test_guarda_obligacion_honorarios_con_costas(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Honorarios proceso ejecutivo")
+    dialog.campo_tasa.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 1, 1))
+    dialog.campo_honorarios_fijos.setText("1000000.00")
+    dialog.campo_cuota_litis_pct.setText("20.00")
+    dialog.campo_beneficio_obtenido.setText("10000000.00")
+    dialog.campo_costas_pct.setText("5.00")
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.honorarios_fijos_pactados == Decimal("1000000.00")
+    assert guardada.cuota_litis_pactada_pct == Decimal("20.00")
+    assert guardada.beneficio_obtenido == Decimal("10000000.00")
+    assert guardada.costas_pct_manual == Decimal("5.00")
+    session.close()
+
+
+def test_guarda_obligacion_honorarios_sin_costas_queda_en_none(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Honorarios sin costas")
+    dialog.campo_tasa.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 1, 1))
+    dialog.campo_honorarios_fijos.setText("500000.00")
+    dialog.campo_cuota_litis_pct.setText("10.00")
+    dialog.campo_beneficio_obtenido.setText("5000000.00")
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.costas_pct_manual is None
+    session.close()
+
+
+def test_campos_sancionatorio_y_honorarios_ocultos_para_area_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_cantidad_smlmv_uvt.isVisible() is False
+    assert dialog.campo_honorarios_fijos.isVisible() is False
+    assert dialog.campo_cuota_litis_pct.isVisible() is False
+    assert dialog.campo_beneficio_obtenido.isVisible() is False
+    assert dialog.campo_costas_pct.isVisible() is False
+    assert dialog.campo_valor.isVisible() is True
+
+
+def test_campos_sancionatorio_visibles_solo_para_esa_area(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_cantidad_smlmv_uvt.isVisible() is True
+    assert dialog.campo_valor.isVisible() is False
+    assert dialog.campo_honorarios_fijos.isVisible() is False
+
+
+def test_campos_honorarios_visibles_solo_para_esa_area(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_honorarios_fijos.isVisible() is True
+    assert dialog.campo_cuota_litis_pct.isVisible() is True
+    assert dialog.campo_beneficio_obtenido.isVisible() is True
+    assert dialog.campo_costas_pct.isVisible() is True
+    assert dialog.campo_valor.isVisible() is False
+    assert dialog.campo_cantidad_smlmv_uvt.isVisible() is False
+
+
+def test_combo_tipo_no_ofrece_recurrente_para_sancionatorio(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo.count() == 1
+    assert dialog.combo_tipo.itemData(0) == "PUNTUAL"
+
+
+def test_combo_tipo_no_ofrece_recurrente_para_honorarios(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo.count() == 1
+    assert dialog.combo_tipo.itemData(0) == "PUNTUAL"
+
+
+def test_combo_tipo_si_ofrece_recurrente_para_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo.count() == 2
+    assert dialog.combo_tipo.itemData(1) == "RECURRENTE"
