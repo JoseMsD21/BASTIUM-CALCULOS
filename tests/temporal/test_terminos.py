@@ -5,6 +5,7 @@ from app.engine.temporal.terminos import (
     iniciar_termino,
     dias_restantes,
     esta_vencido,
+    interrumpir,
 )
 
 
@@ -37,3 +38,27 @@ def test_esta_vencido_sin_modificadores():
     estado = iniciar_termino(date(2025, 12, 22), 10)
     assert esta_vencido(estado, date(2026, 1, 6)) is False
     assert esta_vencido(estado, date(2026, 1, 7)) is True
+
+
+def test_interrumpir_resetea_el_conteo():
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    # Avanza 3 días hábiles (verificado en Task 3: Dec23, Dec24, Dec26).
+    fecha_interrupcion = date(2025, 12, 26)
+
+    nuevo_estado = interrumpir(estado, fecha_interrupcion)
+
+    assert nuevo_estado == EstadoTermino(
+        dias_totales=10,
+        dias_consumidos=0,
+        checkpoint=fecha_interrupcion,
+        suspendido=False,
+    )
+    # El estado original no se muta.
+    assert estado.checkpoint == date(2025, 12, 22)
+
+
+def test_interrumpir_reinicia_el_plazo_completo():
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    nuevo_estado = interrumpir(estado, date(2025, 12, 26))
+
+    assert dias_restantes(nuevo_estado, date(2025, 12, 26)) == 10

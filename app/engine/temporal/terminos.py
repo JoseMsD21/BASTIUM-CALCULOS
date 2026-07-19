@@ -45,3 +45,12 @@ def dias_restantes(estado: EstadoTermino, fecha_actual: date) -> int:
 
 def esta_vencido(estado: EstadoTermino, fecha_actual: date) -> bool:
     return dias_restantes(estado, fecha_actual) <= 0
+
+
+def interrumpir(estado: EstadoTermino, fecha: date) -> EstadoTermino:
+    return EstadoTermino(
+        dias_totales=estado.dias_totales,
+        dias_consumidos=0,
+        checkpoint=fecha,
+        suspendido=False,
+    )
