@@ -40,7 +40,6 @@ class ObligacionFormDialog(QDialog):
             # LaboralStrategy en area_strategy.py, que rechazan RECURRENTE con ValueError)
             # -- no se ofrece la opcion en estas areas.
             self.combo_tipo.addItem("Recurrente", userData="RECURRENTE")
-        self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
 
         self.combo_categoria = QComboBox()
         categorias_por_area = {
@@ -81,7 +80,6 @@ class ObligacionFormDialog(QDialog):
         self.campo_fecha_fin = QDateEdit(QDate.currentDate())
         self.campo_fecha_fin.setCalendarPopup(True)
         self.check_pagada = QCheckBox("Prestaciones pagadas")
-        self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
         self.campo_fecha_pago_total.setCalendarPopup(True)
 
@@ -95,6 +93,7 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Valor", self.campo_valor)
         self.layout_formulario.addRow("Tasa efectiva anual (%)", self.campo_tasa)
         self.layout_formulario.addRow("Fecha de origen (Puntual)", self.campo_fecha_origen)
+        self.label_fecha_origen = self.layout_formulario.labelForField(self.campo_fecha_origen)
         self.layout_formulario.addRow("Fecha de inicio (Recurrente)", self.campo_fecha_inicio)
         self.layout_formulario.addRow("Dia de pago (Recurrente)", self.campo_dia_pago)
         self.layout_formulario.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
@@ -138,6 +137,21 @@ class ObligacionFormDialog(QDialog):
         self.campo_tasa.setVisible(not es_laboral)
         self.campo_fecha_fin.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
+
+        # campo_fecha_origen se reutiliza en Laboral como "fecha de inicio del contrato"
+        # (ver _actualizar_campos_visibles) -- se ajusta la etiqueta del formulario para
+        # que no diga "(Puntual)" en esa area.
+        if self.label_fecha_origen is not None:
+            self.label_fecha_origen.setText(
+                "Fecha de inicio del contrato" if es_laboral else "Fecha de origen (Puntual)"
+            )
+
+        # Los connect() de señales que disparan _actualizar_campos_visibles se hacen aqui,
+        # al final de __init__, para garantizar que todos los widgets que ese metodo
+        # referencia (incluyendo los de Laboral: check_pagada, campo_fecha_pago_total)
+        # ya existen antes de que la señal pueda dispararse.
+        self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
+        self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
 
         self._actualizar_campos_visibles()
 

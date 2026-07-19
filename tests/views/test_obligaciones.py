@@ -369,3 +369,20 @@ def test_campo_fecha_pago_total_solo_visible_si_pagada_marcada(qtbot, monkeypatc
     assert dialog.campo_fecha_pago_total.isVisible() is True
     dialog.check_pagada.setChecked(False)
     assert dialog.campo_fecha_pago_total.isVisible() is False
+
+
+def test_label_fecha_origen_cambia_para_area_laboral(qtbot, monkeypatch):
+    expediente_id_laboral = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog_laboral = ObligacionFormDialog(expediente_id=expediente_id_laboral, area="LABORAL")
+    qtbot.addWidget(dialog_laboral)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+
+    etiqueta_laboral = dialog_laboral.layout_formulario.labelForField(dialog_laboral.campo_fecha_origen).text()
+    etiqueta_civil = dialog_civil.layout_formulario.labelForField(dialog_civil.campo_fecha_origen).text()
+
+    assert etiqueta_laboral != etiqueta_civil
+    assert etiqueta_laboral == "Fecha de inicio del contrato"
+    assert etiqueta_civil == "Fecha de origen (Puntual)"
