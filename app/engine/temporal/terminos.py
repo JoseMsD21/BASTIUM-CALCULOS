@@ -54,3 +54,16 @@ def interrumpir(estado: EstadoTermino, fecha: date) -> EstadoTermino:
         checkpoint=fecha,
         suspendido=False,
     )
+
+
+def suspender(estado: EstadoTermino, fecha: date) -> EstadoTermino:
+    if estado.suspendido:
+        raise ValueError("el término ya está suspendido")
+
+    dias_corridos = CalendarUtils.dias_habiles_entre(estado.checkpoint, fecha)
+    return replace(
+        estado,
+        dias_consumidos=estado.dias_consumidos + dias_corridos,
+        checkpoint=fecha,
+        suspendido=True,
+    )

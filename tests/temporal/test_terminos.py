@@ -6,6 +6,7 @@ from app.engine.temporal.terminos import (
     dias_restantes,
     esta_vencido,
     interrumpir,
+    suspender,
 )
 
 
@@ -62,3 +63,32 @@ def test_interrumpir_reinicia_el_plazo_completo():
     nuevo_estado = interrumpir(estado, date(2025, 12, 26))
 
     assert dias_restantes(nuevo_estado, date(2025, 12, 26)) == 10
+
+
+def test_suspender_congela_los_dias_consumidos():
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    # 3 días hábiles corridos hasta el 2025-12-26 (Dec23, Dec24, Dec26).
+    suspendido = suspender(estado, date(2025, 12, 26))
+
+    assert suspendido.suspendido is True
+    assert suspendido.dias_consumidos == 3
+    assert suspendido.checkpoint == date(2025, 12, 26)
+
+
+def test_suspender_congela_dias_restantes_pase_el_tiempo_que_pase():
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    suspendido = suspender(estado, date(2025, 12, 26))
+
+    # Aunque pasen muchos días hábiles más, mientras esté suspendido no cambia.
+    assert dias_restantes(suspendido, date(2026, 3, 1)) == 7
+    assert dias_restantes(suspendido, date(2026, 6, 1)) == 7
+
+
+def test_suspender_rechaza_termino_ya_suspendido():
+    import pytest
+
+    estado = iniciar_termino(date(2025, 12, 22), 10)
+    suspendido = suspender(estado, date(2025, 12, 26))
+
+    with pytest.raises(ValueError):
+        suspender(suspendido, date(2026, 1, 5))
