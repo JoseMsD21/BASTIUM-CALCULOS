@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import List
 
-from app.core.exceptions import AreaNoImplementadaError, CuotaLitisExcedeTopeError
+from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import MemoryRateProvider
