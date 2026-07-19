@@ -99,3 +99,48 @@ def test_ir_inicio_limpia_el_historial_y_regresa_a_expedientes(qtbot):
 
     assert window.stacked_widget.currentWidget() is window.expedientes_page
     assert window._history == []
+
+
+def test_botones_navegacion_ocultos_en_pagina_inicial(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    assert window.boton_volver.isVisible() is False
+    assert window.boton_inicio.isVisible() is False
+
+
+def test_botones_navegacion_visibles_al_entrar_a_detalle(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    window.show_page("detalle")
+
+    assert window.boton_volver.isVisible() is True
+    assert window.boton_inicio.isVisible() is True
+
+
+def test_click_en_volver_navega_a_la_pagina_anterior(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    window.show_page("detalle")
+    window.boton_volver.click()
+
+    assert window.stacked_widget.currentWidget() is window.expedientes_page
+
+
+def test_click_en_inicio_regresa_a_expedientes_y_oculta_los_botones(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    window.show_page("detalle")
+    window.show_page("resultado")
+    window.boton_inicio.click()
+
+    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.boton_volver.isVisible() is False
+    assert window.boton_inicio.isVisible() is False

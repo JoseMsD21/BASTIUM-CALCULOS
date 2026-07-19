@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QMainWindow, QStackedWidget
+from PySide6.QtWidgets import QMainWindow, QPushButton, QStackedWidget, QToolBar
 
 from app.views.expedientes import ExpedientesListView
 from app.views.expediente_detalle import ExpedienteDetallePage
@@ -32,13 +32,42 @@ class MainWindow(QMainWindow):
         self._history: list[str] = []
         self._current_page_name = "expedientes"
 
+        self._crear_barra_navegacion()
         self.show_page("expedientes")
+
+    def _crear_barra_navegacion(self) -> None:
+        barra = QToolBar("Navegacion")
+        barra.setMovable(False)
+
+        self.boton_volver = QPushButton("← Volver")
+        self.boton_volver.clicked.connect(self._volver)
+        barra.addWidget(self.boton_volver)
+
+        self.boton_inicio = QPushButton("\U0001F3E0 Inicio")
+        self.boton_inicio.clicked.connect(self._ir_inicio)
+        barra.addWidget(self.boton_inicio)
+
+        self.addToolBar(barra)
+        self._actualizar_botones_navegacion()
 
     def show_page(self, name: str, add_to_history: bool = True) -> None:
         if add_to_history and self._current_page_name != name:
             self._history.append(self._current_page_name)
         self.stacked_widget.setCurrentWidget(self._pages[name])
         self._current_page_name = name
+        self._actualizar_botones_navegacion()
+
+    def _actualizar_botones_navegacion(self) -> None:
+        self.boton_volver.setVisible(bool(self._history))
+        self.boton_inicio.setVisible(self._current_page_name != "expedientes")
+
+    def showEvent(self, event) -> None:
+        # QToolBar resets the visibility of widgets added via addWidget() to True
+        # the first time the toolbar itself becomes visible, overriding any
+        # setVisible(False) applied while the window was not yet shown. Resync
+        # the buttons' visibility once the window is actually shown.
+        super().showEvent(event)
+        self._actualizar_botones_navegacion()
 
     def _volver(self) -> None:
         if not self._history:
