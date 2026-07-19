@@ -9,17 +9,19 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-15)
+## Estado actual (2026-07-17)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
 abonos) y **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
-split real antes/después del vencimiento, validación de tope de usura 1.5×IBC).
+split real antes/después del vencimiento, validación de tope de usura 1.5×IBC). El resultado de
+cualquier liquidación se puede exportar a **PDF** y a **Word** desde la pantalla de Resultado de
+Liquidación.
 
 🚧 **En desarrollo:** las áreas Laboral, Sancionatorio y Honorarios están registradas en el sistema pero
 todavía no calculan (el programa avisa "Área no implementada" si se intentan usar). Indexación por IPC,
-exportación a PDF/Word, prescripción/caducidad, anatocismo comercial condicionado (Art. 886 C.Co.) y
-varios módulos más también están pendientes. Las series históricas de SMLMV, IPC e IBC/Tasa de Usura
+prescripción/caducidad, anatocismo comercial condicionado (Art. 886 C.Co.) y varios módulos más también
+están pendientes. Las series históricas de SMLMV, IPC e IBC/Tasa de Usura
 (1984-2026, 1967-2025 y 1997-2026 respectivamente) ya están cargadas en
 `app/engine/indexation/historical_index.py`, aunque todavía no están conectadas a ningún cálculo — esa
 conexión es trabajo de otros sprints. El plan completo, sprint por sprint, está en

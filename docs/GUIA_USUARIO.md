@@ -5,9 +5,9 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-15 — refleja el estado de Civil/Familia y Comercial. Cada vez que se
-> complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca
-> quede desactualizada respecto al programa real.
+> **Última actualización:** 2026-07-17 — refleja el estado de Civil/Familia, Comercial y exportación de
+> liquidaciones a PDF/Word. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md),
+> esta guía se actualiza para que nunca quede desactualizada respecto al programa real.
 
 ## Índice
 
@@ -273,6 +273,27 @@ Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingre
 deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
 guardar la obligación (la validación ocurre al calcular, no al capturar el dato).
 
+### 5.8. Exportar la liquidación a PDF o Word
+
+Desde la pantalla de **Resultado de Liquidación** (después de hacer clic en "Liquidar"), al final hay dos
+botones: **"Exportar a PDF"** y **"Exportar a Word"**.
+
+1. Haz clic en el botón del formato que necesites.
+2. Se abre un diálogo de "Guardar como" con un nombre sugerido (ej. `Liquidacion_2026-030.pdf`) — puedes
+   cambiar el nombre y la carpeta antes de guardar.
+3. El documento generado incluye: el radicado del expediente, las partes (demandante vs. demandado) y el
+   juzgado (si se registró), la tabla resumen (total de abonos aplicados, intereses generados, saldo
+   final desglosado en capital e intereses, y el gran total adeudado) y la tabla cronológica completa con
+   la misma información que ves en pantalla, más el desglose del saldo en capital, interés y total (fecha,
+   concepto, capital base, tasa, interés, pago, saldo de capital, saldo de interés y saldo total).
+4. Si el archivo no se pudo guardar (ej. ya está abierto en otro programa, o no tienes permiso de
+   escritura en esa carpeta), el programa muestra el mensaje "No se pudo exportar" con el motivo, en vez
+   de fallar sin explicación.
+
+El documento Word tiene la misma información que el PDF, pero con un estilo visual más simple (Word no
+soporta el mismo nivel de personalización de reportlab) — útil cuando necesitas editar el texto antes de
+presentarlo.
+
 ---
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
@@ -362,8 +383,6 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
 - 🚧 **Indexación por IPC** (ajustar un monto histórico por inflación) — el motor matemático ya existe y
   está probado, y desde el Sprint 5 también existen los datos históricos reales de IPC que necesita, pero
   todavía no está conectado a la pantalla de liquidación (`Pendientes.md`, Sprint 8).
-- 🚧 **Exportar la liquidación a PDF o Word** — hoy el resultado solo se ve en pantalla, no se puede
-  guardar como archivo todavía (`Pendientes.md`, Sprint 10).
 - 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — no
   existe ese cálculo todavía (`Pendientes.md`, Sprint 7).
 - 🚧 **Calendario de días hábiles** para contar plazos legales — hoy el programa no distingue días

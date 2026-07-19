@@ -80,13 +80,22 @@ class JudicialPDFGenerator:
         # Compilar el PDF
         doc.build(elementos)
 
-    def generate(self, title: str, summary: dict, table_data: list):
+    def generate(self, title: str, summary: dict, table_data: list, encabezado: dict | None = None):
         """Genera el dictamen a partir de la salida del motor LiquidationCore
         (ReportSummaryBuilder.build_summary + ReportTableBuilder.build_matrix)."""
         doc = SimpleDocTemplate(self.output_path, pagesize=letter)
         elementos = []
 
         elementos.append(Paragraph(f"<b>{title}</b>", self.styles['BastiumTitle']))
+
+        if encabezado:
+            if encabezado.get("radicado"):
+                elementos.append(Paragraph(f"Radicado: {encabezado['radicado']}", self.styles['Normal']))
+            if encabezado.get("partes"):
+                elementos.append(Paragraph(encabezado["partes"], self.styles['Normal']))
+            if encabezado.get("juzgado"):
+                elementos.append(Paragraph(f"Juzgado: {encabezado['juzgado']}", self.styles['Normal']))
+            elementos.append(Spacer(1, 12))
 
         # Tabla de resumen ejecutivo
         filas_resumen = [
@@ -116,13 +125,17 @@ class JudicialPDFGenerator:
         # Tabla de cronología detallada
         elementos.append(Paragraph("<b>Cronología Detallada de Imputaciones y Saldos</b>", self.styles['BastiumTitle']))
 
-        datos_cronologia = [["Fecha", "Concepto", "Base Capital", "Tasa", "Pago", "Saldo Capital", "Saldo Interés", "Saldo Total"]]
+        datos_cronologia = [[
+            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Pago",
+            "Saldo Capital", "Saldo Interés", "Saldo Total",
+        ]]
         for fila in table_data:
             datos_cronologia.append([
                 fila["fecha"],
                 fila["concepto"],
                 fila["base_capital"],
                 fila["tasa"],
+                fila["interes"],
                 fila["pago"],
                 fila["saldo_capital"],
                 fila["saldo_interes"],

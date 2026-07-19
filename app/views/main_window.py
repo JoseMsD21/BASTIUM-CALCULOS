@@ -38,5 +38,5 @@ class MainWindow(QMainWindow):
         self.show_page("detalle")
 
     def _mostrar_resultado(self, resultado, expediente_id: int) -> None:
-        self.resultado_page.mostrar(resultado)
+        self.resultado_page.mostrar(resultado, expediente_id)
         self.show_page("resultado")
