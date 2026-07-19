@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -18,6 +19,7 @@ from app.core.constants import (
     CATEGORIAS_CIVIL_FAMILIA,
     CATEGORIAS_COMERCIAL,
     CATEGORIAS_HONORARIOS,
+    CATEGORIAS_LABORAL,
     CATEGORIAS_SANCIONATORIO,
 )
 from database.models import Obligacion, TipoObligacion
@@ -32,10 +34,11 @@ class ObligacionFormDialog(QDialog):
 
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("Puntual", userData="PUNTUAL")
-        if self._area not in ("SANCIONATORIO", "HONORARIOS"):
-            # Una multa o un cobro de honorarios es siempre un hecho puntual (ver
-            # SancionatorioStrategy/HonorariosStrategy en area_strategy.py, que rechazan
-            # RECURRENTE con ValueError) -- no se ofrece la opcion en estas dos areas.
+        if self._area not in ("SANCIONATORIO", "HONORARIOS", "LABORAL"):
+            # Una multa, un cobro de honorarios o una liquidacion de contrato laboral
+            # es siempre un hecho puntual (ver SancionatorioStrategy/HonorariosStrategy/
+            # LaboralStrategy en area_strategy.py, que rechazan RECURRENTE con ValueError)
+            # -- no se ofrece la opcion en estas areas.
             self.combo_tipo.addItem("Recurrente", userData="RECURRENTE")
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
 
@@ -44,6 +47,7 @@ class ObligacionFormDialog(QDialog):
             "COMERCIAL": CATEGORIAS_COMERCIAL,
             "SANCIONATORIO": CATEGORIAS_SANCIONATORIO,
             "HONORARIOS": CATEGORIAS_HONORARIOS,
+            "LABORAL": CATEGORIAS_LABORAL,
         }
         categorias = categorias_por_area.get(self._area, CATEGORIAS_CIVIL_FAMILIA)
         for codigo, etiqueta in categorias:
@@ -74,6 +78,13 @@ class ObligacionFormDialog(QDialog):
         self.campo_beneficio_obtenido = QLineEdit()
         self.campo_costas_pct = QLineEdit()
 
+        self.campo_fecha_fin = QDateEdit(QDate.currentDate())
+        self.campo_fecha_fin.setCalendarPopup(True)
+        self.check_pagada = QCheckBox("Prestaciones pagadas")
+        self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
+        self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
+        self.campo_fecha_pago_total.setCalendarPopup(True)
+
         boton_guardar = QPushButton("Guardar")
         boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
@@ -94,12 +105,16 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("% Cuota litis pactada", self.campo_cuota_litis_pct)
         self.layout_formulario.addRow("Beneficio obtenido por el cliente", self.campo_beneficio_obtenido)
         self.layout_formulario.addRow("% Costas judiciales (opcional)", self.campo_costas_pct)
+        self.layout_formulario.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
+        self.layout_formulario.addRow(self.check_pagada)
+        self.layout_formulario.addRow("Fecha de pago real", self.campo_fecha_pago_total)
         self.layout_formulario.addRow(boton_guardar)
         self.setLayout(self.layout_formulario)
 
         es_comercial = self._area == "COMERCIAL"
         es_sancionatorio = self._area == "SANCIONATORIO"
         es_honorarios = self._area == "HONORARIOS"
+        es_laboral = self._area == "LABORAL"
 
         self.campo_tasa_moratoria.setVisible(es_comercial)
         self.campo_fecha_vencimiento.setVisible(es_comercial)
@@ -116,15 +131,34 @@ class ObligacionFormDialog(QDialog):
         # los campos de arriba (cantidad_smlmv_uvt, o honorarios+cuota litis+costas).
         self.campo_valor.setVisible(not es_sancionatorio and not es_honorarios)
 
+        # Laboral es siempre PUNTUAL (ver combo_tipo arriba) y no usa tasa efectiva
+        # anual (la liquidacion no es un interes compuesto) -- se ocultan combo_tipo
+        # y campo_tasa, y se muestran los campos propios de contrato laboral.
+        self.combo_tipo.setVisible(not es_laboral)
+        self.campo_tasa.setVisible(not es_laboral)
+        self.campo_fecha_fin.setVisible(es_laboral)
+        self.check_pagada.setVisible(es_laboral)
+
         self._actualizar_campos_visibles()
 
     def _actualizar_campos_visibles(self) -> None:
+        if self._area == "LABORAL":
+            self.campo_fecha_origen.setVisible(True)  # reutilizado como "fecha de inicio del contrato"
+            self.campo_fecha_inicio.setVisible(False)
+            self.campo_dia_pago.setVisible(False)
+            self.campo_fecha_pago_total.setVisible(self.check_pagada.isChecked())
+            return
+
+        self.campo_fecha_pago_total.setVisible(False)
         es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
         self.campo_fecha_origen.setVisible(not es_recurrente)
         self.campo_fecha_inicio.setVisible(es_recurrente)
         self.campo_dia_pago.setVisible(es_recurrente)
 
     def guardar(self) -> int:
+        if self._area == "LABORAL":
+            return self._guardar_laboral()
+
         es_sancionatorio = self._area == "SANCIONATORIO"
         es_honorarios = self._area == "HONORARIOS"
 
@@ -209,6 +243,46 @@ class ObligacionFormDialog(QDialog):
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
             fecha_fin=None,
+        )
+        session.add(obligacion)
+        session.commit()
+        obligacion_id = obligacion.id
+        session.close()
+        return obligacion_id
+
+    def _guardar_laboral(self) -> int:
+        try:
+            valor = Decimal(self.campo_valor.text())
+        except InvalidOperation as error:
+            raise ValueError("El valor (salario base) debe ser un numero valido.") from error
+        if valor <= Decimal("0"):
+            raise ValueError("El valor de la obligacion debe ser mayor que cero.")
+
+        qdate_inicio = self.campo_fecha_origen.date()
+        fecha_inicio = date(qdate_inicio.year(), qdate_inicio.month(), qdate_inicio.day())
+        qdate_fin = self.campo_fecha_fin.date()
+        fecha_fin = date(qdate_fin.year(), qdate_fin.month(), qdate_fin.day())
+
+        fecha_pago_total = None
+        pagada = False
+        if self.check_pagada.isChecked():
+            qdate_pago = self.campo_fecha_pago_total.date()
+            fecha_pago_total = date(qdate_pago.year(), qdate_pago.month(), qdate_pago.day())
+            pagada = True
+
+        session = session_module.get_session()
+        obligacion = Obligacion(
+            expediente_id=self._expediente_id,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto=self.campo_concepto.text().strip(),
+            categoria=self.combo_categoria.currentData(),
+            fecha_origen=fecha_inicio,
+            valor=valor,
+            tasa_efectiva_anual=Decimal("0.00"),
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            pagada=pagada,
+            fecha_pago_total=fecha_pago_total,
         )
         session.add(obligacion)
         session.commit()

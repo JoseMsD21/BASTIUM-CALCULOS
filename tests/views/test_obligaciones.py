@@ -270,3 +270,102 @@ def test_combo_tipo_si_ofrece_recurrente_para_civil_familia(qtbot, monkeypatch):
 
     assert dialog.combo_tipo.count() == 2
     assert dialog.combo_tipo.itemData(1) == "RECURRENTE"
+
+
+def test_guarda_obligacion_laboral_con_fechas_de_contrato(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo == TipoObligacion.PUNTUAL
+    assert guardada.fecha_inicio == date(2020, 1, 1)
+    assert guardada.fecha_fin == date(2020, 12, 31)
+    assert guardada.tasa_efectiva_anual == Decimal("0.00")
+    assert guardada.pagada is False
+    assert guardada.fecha_pago_total is None
+    session.close()
+
+
+def test_guarda_obligacion_laboral_marcada_como_pagada(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+    dialog.check_pagada.setChecked(True)
+    dialog.campo_fecha_pago_total.setDate(date(2021, 1, 15))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.pagada is True
+    assert guardada.fecha_pago_total == date(2021, 1, 15)
+    session.close()
+
+
+def test_valor_cero_o_negativo_en_laboral_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_campos_laborales_ocultos_para_area_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_fecha_fin.isVisible() is False
+    assert dialog.check_pagada.isVisible() is False
+    assert dialog.campo_fecha_pago_total.isVisible() is False
+
+
+def test_campos_laborales_visibles_para_area_laboral(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_fecha_fin.isVisible() is True
+    assert dialog.check_pagada.isVisible() is True
+    assert dialog.combo_tipo.isVisible() is False
+    assert dialog.campo_tasa.isVisible() is False
+    assert dialog.campo_valor.isVisible() is True
+
+
+def test_campo_fecha_pago_total_solo_visible_si_pagada_marcada(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_fecha_pago_total.isVisible() is False
+    dialog.check_pagada.setChecked(True)
+    assert dialog.campo_fecha_pago_total.isVisible() is True
+    dialog.check_pagada.setChecked(False)
+    assert dialog.campo_fecha_pago_total.isVisible() is False
