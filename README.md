@@ -22,7 +22,9 @@ profesionales y cuota litis, validando simultáneamente el tope del 30% del bene
 cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
 se ingresan como un porcentaje manual, porque no existe una tabla estructurada confiable de los rangos
 del Consejo Superior de la Judicatura). El resultado de cualquier liquidación se puede exportar a **PDF**
-y a **Word** desde la pantalla de Resultado de Liquidación.
+y a **Word** desde la pantalla de Resultado de Liquidación. Cada liquidación ejecutada queda registrada en
+un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de corte), con reconstrucción
+exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
 
 🚧 **En desarrollo:** el área Laboral está registrada en el sistema pero todavía no calcula (el programa
 avisa "Área no implementada" si se intenta usar). Indexación por IPC, prescripción/caducidad, anatocismo

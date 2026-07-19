@@ -390,6 +390,25 @@ asociados, de forma permanente — por eso el programa pide confirmación en dos
    ventana sin escribir nada), el programa avisa "Eliminación cancelada" y **no borra nada**.
 4. Si el radicado coincide, el expediente se elimina de inmediato y desaparece de la tabla.
 
+### 5.12. Ver el historial de auditoría y reconstruir una liquidación pasada
+
+Cada vez que liquidas un expediente, el programa guarda automáticamente un
+registro: quién lo hizo, cuándo, con qué área del derecho y con qué fecha de
+corte. Esto queda visible en la pantalla de Detalle, debajo del botón
+"Liquidar", en la sección **"Historial de auditoría"**.
+
+1. Cada fila muestra: fecha y hora de ejecución, usuario del computador que
+   liquidó, área del derecho, y fecha de corte usada.
+2. Las liquidaciones más recientes aparecen primero.
+3. Para volver a ver el resultado exacto de una liquidación anterior (aunque
+   las tasas hayan cambiado desde entonces), haz **doble clic** en esa fila:
+   el programa te lleva a la pantalla de Resultado de Liquidación mostrando
+   ese cálculo tal como quedó guardado, sin recalcularlo.
+
+El historial de auditoría es de solo lectura: no se puede editar ni borrar
+una fila individualmente (solo desaparece si se elimina el expediente
+completo, ver [sección 5.11](#511-editar-o-eliminar-un-expediente)).
+
 ---
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
@@ -520,7 +539,6 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   interrupción/suspensión/reanudación en `app/engine/temporal/terminos.py`), pero todavía no está
   conectado a ninguna pantalla — hoy sirve como base interna para el Sprint 7 de prescripción y
   caducidad (`Pendientes.md`, Sprint 6).
-- 🚧 **Auditoría** (quién liquidó cada expediente y cuándo) — no existe todavía (`Pendientes.md`, Sprint 9).
 - 🚧 **Derecho Tributario, TRM/moneda extranjera, motor de reglas configurable** — dominios nuevos, de
   menor prioridad, ver `Pendientes.md`, Sprints 11, 12 y 13.
 
