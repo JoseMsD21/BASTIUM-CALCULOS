@@ -135,6 +135,11 @@ def test_capital_concepts_incluye_los_codigos_sancionatorio_y_honorarios():
     assert "COSTAS_PROCESALES" in core._capital_concepts
 
 
+def test_capital_concepts_incluye_vacaciones():
+    core = LiquidationCore()
+    assert "VACACIONES" in core._capital_concepts
+
+
 from app.core.exceptions import TasaUsurariaError
 
 
