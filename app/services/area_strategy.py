@@ -317,6 +317,10 @@ class LaboralStrategy(AreaStrategy):
                 f"La fecha de terminacion ({obligacion.fecha_fin}) debe ser posterior a la "
                 f"fecha de inicio del contrato ({obligacion.fecha_inicio})."
             )
+        if obligacion.pagada and obligacion.fecha_pago_total is None:
+            raise ValueError(
+                "Una obligacion marcada como pagada debe tener 'fecha_pago_total'."
+            )
 
 
 class SancionatorioStrategy(AreaStrategy):

@@ -598,5 +598,35 @@ class TestLaboralStrategy:
         with pytest.raises(ValueError):
             LaboralStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1))
 
+    def test_pagada_true_sin_fecha_pago_total_lanza_value_error(self):
+        # pagada=True sin fecha_pago_total es un estado inconsistente: si se
+        # dejara pasar, liquidar() trataria la obligacion como no pagada y
+        # correria la mora hasta fecha_corte, sobrestimandola silenciosamente.
+        obligacion = _obligacion_laboral(pagada=True, fecha_pago_total=None)
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1))
+
+    def test_fecha_pago_total_posterior_a_fecha_corte_se_recorta_al_corte(self):
+        # "Foto historica": si el pago real ocurrio despues del corte elegido
+        # para este reporte, la mora se calcula solo hasta fecha_corte, no
+        # hasta la fecha de pago real (que todavia esta en el futuro respecto
+        # al corte).
+        fecha_corte = date(2021, 3, 1)
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2022, 1, 1))
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        monto_prestaciones = Decimal("7974236.10")
+        mora_esperada = MoratoryIndemnityCalculator.calcular(
+            salario_mensual=obligacion.valor,
+            monto_adeudado=monto_prestaciones,
+            fecha_terminacion=obligacion.fecha_fin,
+            fecha_pago_o_corte=fecha_corte,
+        )
+        assert resultado.final_balance().principal == monto_prestaciones + mora_esperada.total
+
     def test_soporta_indexacion_ipc_es_false(self):
         assert LaboralStrategy().soporta_indexacion_ipc is False
