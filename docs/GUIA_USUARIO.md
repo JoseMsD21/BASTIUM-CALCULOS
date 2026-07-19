@@ -514,8 +514,12 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   todavía no está conectado a la pantalla de liquidación (`Pendientes.md`, Sprint 8).
 - 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — no
   existe ese cálculo todavía (`Pendientes.md`, Sprint 7).
-- 🚧 **Calendario de días hábiles** para contar plazos legales — hoy el programa no distingue días
-  hábiles de festivos (`Pendientes.md`, Sprint 6).
+- 🚧 **Calendario de días hábiles y términos procesales** — el motor ya existe y está probado
+  (`CalendarUtils.es_dia_habil/sumar_dias_habiles/dias_habiles_entre/notificacion_surtida_el/
+  vencimiento_calendario` en `app/engine/time/calendar.py`, y el modelador de términos con
+  interrupción/suspensión/reanudación en `app/engine/temporal/terminos.py`), pero todavía no está
+  conectado a ninguna pantalla — hoy sirve como base interna para el Sprint 7 de prescripción y
+  caducidad (`Pendientes.md`, Sprint 6).
 - 🚧 **Auditoría** (quién liquidó cada expediente y cuándo) — no existe todavía (`Pendientes.md`, Sprint 9).
 - 🚧 **Derecho Tributario, TRM/moneda extranjera, motor de reglas configurable** — dominios nuevos, de
   menor prioridad, ver `Pendientes.md`, Sprints 11, 12 y 13.
