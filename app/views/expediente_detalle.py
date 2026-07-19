@@ -10,7 +10,12 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
-from app.core.exceptions import AreaNoImplementadaError, TasaUsurariaError
+from app.core.exceptions import (
+    AreaNoImplementadaError,
+    CuotaLitisExcedeTopeError,
+    TasaUsurariaError,
+    UVTNoDisponibleError,
+)
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
 from app.views.obligaciones import ObligacionFormDialog
@@ -127,6 +132,12 @@ class ExpedienteDetallePage(QWidget):
             return
         except TasaUsurariaError as error:
             QMessageBox.warning(self, "Tasa usuraria", str(error))
+            return
+        except CuotaLitisExcedeTopeError as error:
+            QMessageBox.warning(self, "Cuota litis excede el tope", str(error))
+            return
+        except UVTNoDisponibleError as error:
+            QMessageBox.warning(self, "UVT no disponible", str(error))
             return
         except ValueError as error:
             QMessageBox.warning(self, "No se pudo liquidar", str(error))
