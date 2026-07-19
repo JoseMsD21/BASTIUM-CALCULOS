@@ -31,9 +31,10 @@ pensional) en el área Laboral, indexación por IPC, prescripción/caducidad, an
 condicionado (Art. 886 C.Co.) y varios módulos más también están pendientes. Las series históricas de
 SMLMV, IPC e IBC/Tasa de Usura (1984-2026, 1967-2025 y 1997-2026 respectivamente) ya están cargadas en
 `app/engine/indexation/historical_index.py` — la de IBC/Usura ya se usa tanto en Comercial como en la
-fase 2 de la indemnización moratoria laboral; las otras dos todavía no están conectadas a todos los
-cálculos que las necesitan (ej. IPC, y la tabla de UVT histórica) — esa conexión es trabajo de otros
-sprints. El plan completo, sprint por sprint, está en
+fase 2 de la indemnización moratoria laboral; SMLMV e IPC todavía no están conectadas a los cálculos que
+las necesitan (ej. indexación IPC). La tabla histórica de UVT es un caso aparte: ni siquiera está cargada
+todavía (a diferencia de las otras tres series, que sí existen pero no están conectadas) — esa carga y
+esa conexión son trabajo de otros sprints. El plan completo, sprint por sprint, está en
 **[Pendientes.md](Pendientes.md)**.
 
 ## Instalación rápida
