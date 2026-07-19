@@ -1,11 +1,13 @@
 from datetime import date
+from decimal import Decimal
 
+from PySide6.QtWidgets import QMessageBox
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from database.models import AreaDerecho, Base, Expediente
-from app.views.expedientes import ExpedientesListView, NuevoExpedienteDialog
+from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
+from app.views.expedientes import ExpedientesListView, ExpedienteFormDialog
 
 
 def _sesion_en_memoria(monkeypatch):
@@ -40,7 +42,7 @@ def test_lista_muestra_expedientes_existentes(qtbot, monkeypatch):
 def test_dialogo_crea_expediente_civil_familia(qtbot, monkeypatch):
     _sesion_en_memoria(monkeypatch)
 
-    dialog = NuevoExpedienteDialog()
+    dialog = ExpedienteFormDialog()
     qtbot.addWidget(dialog)
     dialog.campo_radicado.setText("2026-002")
     dialog.campo_demandante.setText("Ana")
@@ -59,7 +61,7 @@ def test_dialogo_crea_expediente_civil_familia(qtbot, monkeypatch):
 def test_dialogo_deshabilita_areas_no_implementadas(qtbot, monkeypatch):
     _sesion_en_memoria(monkeypatch)
 
-    dialog = NuevoExpedienteDialog()
+    dialog = ExpedienteFormDialog()
     qtbot.addWidget(dialog)
 
     modelo = dialog.combo_area.model()
@@ -68,3 +70,252 @@ def test_dialogo_deshabilita_areas_no_implementadas(qtbot, monkeypatch):
     assert modelo.item(0).isEnabled() is True
     assert modelo.item(1).isEnabled() is True
     assert modelo.item(2).isEnabled() is False
+
+
+def test_dialogo_edita_expediente_existente(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-003",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        juzgado="Juzgado 5",
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    expediente_a_editar = session.get(Expediente, expediente_id)
+
+    dialog = ExpedienteFormDialog(expediente=expediente_a_editar)
+    qtbot.addWidget(dialog)
+    session.close()
+
+    assert dialog.windowTitle() == "Editar expediente"
+    assert dialog.campo_radicado.text() == "2026-003"
+    assert dialog.campo_juzgado.text() == "Juzgado 5"
+
+    dialog.campo_demandante.setText("Ana Maria")
+    resultado_id = dialog.guardar()
+
+    assert resultado_id == expediente_id
+
+    session = session_module.get_session()
+    assert session.query(Expediente).count() == 1
+    actualizado = session.get(Expediente, expediente_id)
+    assert actualizado.demandante == "Ana Maria"
+    assert actualizado.radicado == "2026-003"
+    session.close()
+
+
+def test_tabla_tiene_columnas_de_editar_y_eliminar(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-005",
+            demandante="Pedro",
+            demandado="Rosa",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    assert view.tabla.columnCount() == 6
+    assert view.tabla.cellWidget(0, 4) is not None
+    assert view.tabla.cellWidget(0, 5) is not None
+
+
+def test_boton_editar_abre_dialogo_con_el_expediente_de_la_fila(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-004",
+            demandante="Carlos",
+            demandado="Maria",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    dialogos_creados = []
+
+    class _DialogStub:
+        def __init__(self, parent, expediente):
+            dialogos_creados.append(expediente.radicado)
+
+        def exec(self):
+            return False
+
+    monkeypatch.setattr("app.views.expedientes.ExpedienteFormDialog", _DialogStub)
+
+    view._editar_expediente(view._expediente_ids_por_fila[0])
+
+    assert dialogos_creados == ["2026-004"]
+
+
+def test_eliminar_expediente_confirmado_borra_el_registro(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-006",
+        demandante="Sofia",
+        demandado="Diego",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expedientes.QMessageBox.question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    monkeypatch.setattr(
+        "app.views.expedientes.QInputDialog.getText",
+        lambda *args, **kwargs: ("2026-006", True),
+    )
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view._eliminar_expediente(expediente_id)
+
+    session = session_module.get_session()
+    assert session.query(Expediente).count() == 0
+    session.close()
+    assert view.tabla.rowCount() == 0
+
+
+def test_eliminar_expediente_con_radicado_incorrecto_no_borra(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-007",
+        demandante="Laura",
+        demandado="Mario",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expedientes.QMessageBox.question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    monkeypatch.setattr(
+        "app.views.expedientes.QInputDialog.getText",
+        lambda *args, **kwargs: ("radicado-equivocado", True),
+    )
+    monkeypatch.setattr("app.views.expedientes.QMessageBox.warning", lambda *args, **kwargs: None)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view._eliminar_expediente(expediente_id)
+
+    session = session_module.get_session()
+    assert session.query(Expediente).count() == 1
+    session.close()
+
+
+def test_eliminar_expediente_cancelado_en_primer_dialogo_no_borra(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-008",
+        demandante="Elena",
+        demandado="Pablo",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expedientes.QMessageBox.question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+    )
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view._eliminar_expediente(expediente_id)
+
+    session = session_module.get_session()
+    assert session.query(Expediente).count() == 1
+    session.close()
+
+
+def test_eliminar_expediente_borra_en_cascada_sus_obligaciones(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-009",
+        demandante="Ines",
+        demandado="Tomas",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+
+    session.add(
+        Obligacion(
+            expediente_id=expediente.id,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto="Capital",
+            categoria="CAPITAL",
+            fecha_origen=date(2026, 1, 1),
+            valor=Decimal("1000000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+        )
+    )
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expedientes.QMessageBox.question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    monkeypatch.setattr(
+        "app.views.expedientes.QInputDialog.getText",
+        lambda *args, **kwargs: ("2026-009", True),
+    )
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view._eliminar_expediente(expediente_id)
+
+    session = session_module.get_session()
+    assert session.query(Expediente).count() == 0
+    assert session.query(Obligacion).count() == 0
+    session.close()

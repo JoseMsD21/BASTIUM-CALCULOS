@@ -6,8 +6,9 @@
 > antes que nada.
 >
 > **Última actualización:** 2026-07-19 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
-> Honorarios/Litigio y exportación de liquidaciones a PDF/Word. Cada vez que se complete un sprint nuevo
-> de [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
+> Honorarios/Litigio, exportación de liquidaciones a PDF/Word, y los botones de navegación
+> (Volver/Inicio) y de editar/eliminar expediente. Cada vez que se complete un sprint nuevo de
+> [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
 > respecto al programa real.
 
 ## Índice
@@ -138,8 +139,9 @@ BASTIUM tiene **3 pantallas**, y te mueves entre ellas automáticamente según l
 de navegación separado):
 
 1. **Lista de Expedientes** — la pantalla con la que arranca el programa. Muestra una tabla con todos los
-   expedientes que ya creaste (radicado, demandante, demandado, área) y un botón **"Nuevo expediente"**.
-   Si haces doble clic sobre una fila, entras al detalle de ese expediente.
+   expedientes que ya creaste (radicado, demandante, demandado, área, y botones de **Editar** y
+   **Eliminar** por fila) y un botón **"Nuevo expediente"**. Si haces doble clic sobre una fila, entras al
+   detalle de ese expediente.
 
 2. **Detalle de Expediente** — se abre al hacer doble clic en un expediente de la lista. Aquí ves dos
    tablas lado a lado: **Obligaciones** (las deudas del expediente) y **Abonos** (los pagos hechos), cada
@@ -149,8 +151,14 @@ de navegación separado):
    tabla con el detalle día por día de cómo se acumuló el interés, y al final tres totales: interés
    acumulado, pagos aplicados y saldo final.
 
-No hay botón de "volver atrás" todavía entre pantallas — para volver a la lista, cierra y vuelve a abrir
-el programa (esto es una limitación conocida, ver [sección 8](#8-funciones-pendientes-o-en-desarrollo)).
+En la parte superior de la ventana hay dos botones de navegación, que aparecen solo cuando aplican:
+
+- **← Volver** — regresa a la pantalla anterior (por ejemplo, de Resultado de Liquidación a Detalle de
+  Expediente, y de ahí a la Lista de Expedientes). Recuerda el orden exacto en que navegaste, no solo "la
+  pantalla anterior en general". Está oculto cuando no hay a dónde volver (por ejemplo, recién abierto el
+  programa).
+- **🏠 Inicio** — regresa directo a la Lista de Expedientes sin importar en qué pantalla estés. Está
+  oculto cuando ya estás en la Lista de Expedientes.
 
 ---
 
@@ -356,6 +364,32 @@ clic en "Liquidar" y no calcula nada. Si diligenciaste el porcentaje de costas, 
 liquidación trae dos filas de capital separadas: una de honorarios profesionales y otra de costas
 procesales.
 
+### 5.11. Editar o eliminar un expediente
+
+En la Lista de Expedientes, cada fila tiene dos botones al final: **Editar** y **Eliminar**.
+
+**Editar:**
+
+1. Haz clic en el botón **"Editar"** de la fila del expediente que quieres modificar.
+2. Se abre el mismo formulario que al crear un expediente, pero ya lleno con los datos actuales
+   (radicado, demandante, demandado, área del derecho, juzgado y fecha de corte). Todos los campos se
+   pueden cambiar, incluido el radicado.
+3. Haz clic en **"Guardar"** para aplicar los cambios, o cierra la ventana sin guardar para descartarlos.
+
+**Eliminar:**
+
+Eliminar un expediente también borra **todas** sus obligaciones, abonos y registros de auditoría
+asociados, de forma permanente — por eso el programa pide confirmación en dos pasos:
+
+1. Haz clic en el botón **"Eliminar"** de la fila del expediente.
+2. Aparece una ventana de advertencia preguntando si estás seguro; explica que se borrará el expediente
+   junto con todos sus datos asociados y que la acción no se puede deshacer. Haz clic en **"Sí"** para
+   continuar, o en "No" para cancelar sin borrar nada.
+3. Si confirmaste, aparece una segunda ventana pidiéndote **escribir el radicado exacto** del expediente
+   como confirmación adicional. Si lo que escribes no coincide exactamente con el radicado (o cierras esa
+   ventana sin escribir nada), el programa avisa "Eliminación cancelada" y **no borra nada**.
+4. Si el radicado coincide, el expediente se elimina de inmediato y desaparece de la tabla.
+
 ---
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
@@ -482,8 +516,6 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   existe ese cálculo todavía (`Pendientes.md`, Sprint 7).
 - 🚧 **Calendario de días hábiles** para contar plazos legales — hoy el programa no distingue días
   hábiles de festivos (`Pendientes.md`, Sprint 6).
-- 🚧 **Botón para volver de una pantalla a otra** sin cerrar el programa — navegación de "regresar" no
-  implementada todavía.
 - 🚧 **Auditoría** (quién liquidó cada expediente y cuándo) — no existe todavía (`Pendientes.md`, Sprint 9).
 - 🚧 **Derecho Tributario, TRM/moneda extranjera, motor de reglas configurable** — dominios nuevos, de
   menor prioridad, ver `Pendientes.md`, Sprints 11, 12 y 13.
