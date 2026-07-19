@@ -65,3 +65,11 @@ def test_dias_habiles_entre_rechaza_fin_anterior_a_inicio():
 
     with pytest.raises(ValueError):
         CalendarUtils.dias_habiles_entre(date(2026, 1, 14), date(2026, 1, 13))
+
+
+def test_notificacion_surtida_el_cruza_festivo():
+    # Verificado independientemente: envío el miércoles 2025-12-24. El primer
+    # día hábil siguiente es viernes 2025-12-26 (jueves 25 es Navidad); el
+    # segundo es lunes 2025-12-29 (fin de semana 27-28 no cuenta).
+    envio = date(2025, 12, 24)
+    assert CalendarUtils.notificacion_surtida_el(envio) == date(2025, 12, 29)

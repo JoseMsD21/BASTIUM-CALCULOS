@@ -59,3 +59,9 @@ class CalendarUtils:
             if CalendarUtils.es_dia_habil(fecha):
                 dias += 1
         return dias
+
+    @staticmethod
+    def notificacion_surtida_el(fecha_envio: date) -> date:
+        # Regla pág. 4 del PDF: la notificación digital se entiende surtida
+        # 2 días hábiles después del envío.
+        return CalendarUtils.sumar_dias_habiles(fecha_envio, 2)
