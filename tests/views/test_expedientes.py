@@ -56,15 +56,14 @@ def test_dialogo_crea_expediente_civil_familia(qtbot, monkeypatch):
     session.close()
 
 
-def test_dialogo_deshabilita_areas_no_implementadas(qtbot, monkeypatch):
+def test_dialogo_habilita_todas_las_areas(qtbot, monkeypatch):
     _sesion_en_memoria(monkeypatch)
 
     dialog = NuevoExpedienteDialog()
     qtbot.addWidget(dialog)
 
     modelo = dialog.combo_area.model()
-    # Indice 0 = Civil/Familia (habilitada), indice 1 = Comercial (habilitada
-    # desde Sprint 2), indice 2 = Laboral (todavia deshabilitada).
-    assert modelo.item(0).isEnabled() is True
-    assert modelo.item(1).isEnabled() is True
-    assert modelo.item(2).isEnabled() is False
+    # Las 5 areas del derecho estan habilitadas desde el Sprint 3 (Laboral
+    # fue la ultima en habilitarse) -- ver Pendientes.md.
+    for indice in range(modelo.rowCount()):
+        assert modelo.item(indice).isEnabled() is True
