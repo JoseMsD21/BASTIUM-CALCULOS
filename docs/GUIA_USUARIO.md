@@ -5,9 +5,9 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-15 — refleja el estado de Civil/Familia y Comercial. Cada vez que se
-> complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca
-> quede desactualizada respecto al programa real.
+> **Última actualización:** 2026-07-17 — refleja el estado de Civil/Familia, Comercial, Sancionatorio y
+> Honorarios/Litigio. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md),
+> esta guía se actualiza para que nunca quede desactualizada respecto al programa real.
 
 ## Índice
 
@@ -34,10 +34,11 @@ En vez de calcular esto a mano con calculadora (algo lento y donde es fácil equ
 de forma automática, siguiendo exactamente las reglas que dicta la ley colombiana.
 
 Hoy en día, BASTIUM sabe calcular liquidaciones de las áreas **Civil y de Familia** (por ejemplo: cuotas
-de alimentos, gastos médicos, deudas civiles con interés) y **Comercial** (pagarés, letras de cambio,
-cheques y facturas, con tasa remuneratoria y moratoria). Otras áreas del derecho (Laboral, Sancionatorio,
-Honorarios) están planeadas pero **todavía no calculan** — más detalle en la
-[sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
+de alimentos, gastos médicos, deudas civiles con interés), **Comercial** (pagarés, letras de cambio,
+cheques y facturas, con tasa remuneratoria y moratoria), **Sancionatorio** (multas administrativas
+expresadas en SMLMV o UVT) y **Honorarios / Litigio** (cobro de honorarios profesionales y cuota litis,
+con costas judiciales opcionales). El área **Laboral** está planeada pero **todavía no calcula** — más
+detalle en la [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
 
 ---
 
@@ -162,10 +163,13 @@ el programa (esto es una limitación conocida, ver [sección 8](#8-funciones-pen
    - **Radicado**: el número o referencia interna del caso (ej. `2026-00123`). Es obligatorio.
    - **Demandante**: nombre de quien reclama.
    - **Demandado**: nombre de quien debe.
-   - **Área del derecho**: elige **"Civil / Familia"** o **"Comercial"** (las dos opciones activas hoy;
-     las demás aparecen "grises" con la nota "Próximamente" porque todavía no calculan, ver
-     [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)). Si eliges Comercial, el formulario de
-     "Agregar obligación" muestra campos adicionales — ver [sección 5.7](#57-agregar-una-obligación-comercial).
+   - **Área del derecho**: elige **"Civil / Familia"**, **"Comercial"**, **"Sancionatorio"** u
+     **"Honorarios / Litigio"** (las cuatro opciones activas hoy; "Laboral" aparece "gris" con la nota
+     "Próximamente" porque todavía no calcula, ver [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)).
+     Si eliges Comercial, Sancionatorio u Honorarios, el formulario de "Agregar obligación" muestra
+     campos adicionales — ver [sección 5.7](#57-agregar-una-obligación-comercial),
+     [5.8](#58-agregar-una-obligación-sancionatoria) o [5.9](#59-agregar-una-obligación-de-honorarios--litigio)
+     según el área.
    - **Juzgado**: opcional, el juzgado donde está el proceso, si aplica.
    - **Fecha de corte**: la fecha hasta la cual se va a calcular el interés (normalmente, hoy o la fecha
      en que se necesita presentar la liquidación).
@@ -273,24 +277,81 @@ Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingre
 deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
 guardar la obligación (la validación ocurre al calcular, no al capturar el dato).
 
+### 5.8. Agregar una obligación sancionatoria
+
+Cuando el expediente tiene **Área del derecho = Sancionatorio**, el formulario de "Agregar obligación"
+solo permite el tipo **Puntual** (una multa es un hecho único, no admite "Recurrente") y muestra un
+campo adicional en vez del campo "Valor":
+
+1. Dentro del Detalle de un expediente Sancionatorio, haz clic en **"Agregar obligación"**.
+2. En **Categoría**, la única opción es "Multa sancionatoria (SMLMV/UVT)".
+3. Llena:
+   - **Concepto**: una descripción corta (ej. "Multa SIC", "Multa Policía Ambiental").
+   - **Tasa efectiva anual (%)**: normalmente `0.00` — una multa sancionatoria por lo general no causa
+     interés adicional sobre sí misma; déjalo en `0.00` salvo que el caso concreto sí lo requiera.
+   - **Fecha de origen**: la fecha del hecho que originó la multa (ej. la fecha de la resolución
+     sancionatoria).
+   - **Cantidad SMLMV/UVT (Sancionatorio)**: cuántos Salarios Mínimos Legales Mensuales Vigentes o
+     Unidades de Valor Tributario ordena la sanción (ej. `2` si la multa es de 2 SMLMV). El programa
+     convierte automáticamente esa cantidad a pesos según la fecha del hecho.
+4. Haz clic en **"Guardar"**. El campo "Valor" no aparece para esta área — el monto en pesos se calcula
+   al liquidar, no al capturar el dato.
+
+La conversión a pesos usa el SMLMV vigente en el año del hecho si la fecha de origen es **anterior al
+2020-01-01**; para fechas posteriores necesitaría la tabla histórica de UVT, que todavía no está cargada
+(ver [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias)). Si intentas liquidar un hecho
+posterior a esa fecha, el programa muestra el mensaje "UVT no disponible" en vez de arriesgar un valor
+incorrecto.
+
+### 5.9. Agregar una obligación de honorarios / litigio
+
+Cuando el expediente tiene **Área del derecho = Honorarios / Litigio**, el formulario de "Agregar
+obligación" también se limita al tipo **Puntual** y reemplaza el campo "Valor" por cuatro campos
+propios de esta área:
+
+1. Dentro del Detalle de un expediente de Honorarios, haz clic en **"Agregar obligación"**.
+2. En **Categoría**, la única opción es "Honorarios profesionales (fijo + cuota litis)".
+3. Llena:
+   - **Concepto**: una descripción corta (ej. "Honorarios proceso ejecutivo").
+   - **Tasa efectiva anual (%)**: normalmente `0.00`, salvo que se haya pactado interés adicional sobre
+     los honorarios mismos.
+   - **Fecha de origen**: la fecha en que se causa el cobro de honorarios.
+   - **Honorarios fijos pactados**: la parte fija de la tarifa, en pesos (ej. `1000000.00`).
+   - **% Cuota litis pactada**: el porcentaje adicional pactado sobre lo que el cliente efectivamente
+     recupere (ej. `10.00` para 10%).
+   - **Beneficio obtenido por el cliente**: el monto en pesos que el cliente recuperó o ganó en el
+     proceso — es la base sobre la que se calculan tanto la cuota litis como los topes legales.
+   - **% Costas judiciales (opcional)**: si el juez condenó en costas y quieres incluirlas como un evento
+     de capital separado, ingresa aquí el porcentaje que corresponda (ej. `5.00`). Déjalo vacío si no
+     aplica.
+4. Haz clic en **"Guardar"**.
+
+Al liquidar, el programa valida automáticamente que la cuota litis pactada no exceda el 30% del
+"Beneficio obtenido", y que la suma de honorarios fijos + cuota litis no exceda el 50% del mismo
+beneficio (ver [sección 7.6](#76-tope-de-cuota-litis-y-honorarios-30--50-del-beneficio-obtenido)). Si
+alguno de los dos topes se excede, el programa muestra el mensaje "Cuota litis excede el tope" al hacer
+clic en "Liquidar" y no calcula nada. Si diligenciaste el porcentaje de costas, el resultado de la
+liquidación trae dos filas de capital separadas: una de honorarios profesionales y otra de costas
+procesales.
+
 ---
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
 
-Al crear un expediente, el campo "Área del derecho" muestra 5 opciones, pero **solo dos calculan de
-verdad hoy**:
+Al crear un expediente, el campo "Área del derecho" muestra 5 opciones, y **cuatro calculan de verdad
+hoy**:
 
 | Área | ¿Funciona? |
 |---|---|
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
 | Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después, validación de tope de usura (1.5× el IBC que ingreses). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
 | Laboral | 🚧 No todavía. Planeado en `Pendientes.md`, Sprint 3. |
-| Sancionatorio | 🚧 No todavía. Planeado en `Pendientes.md`, Sprint 4. |
-| Honorarios / Litigio | 🚧 No todavía. Planeado en `Pendientes.md`, Sprint 4. |
+| Sancionatorio | ✅ Sí, con una limitación — multas en SMLMV o UVT (Ley 1955/2019 art. 49), pero solo para hechos **anteriores al 2020-01-01**: todavía no hay tabla histórica de UVT cargada, y el programa se rehúsa a adivinar el valor para hechos posteriores ("UVT no disponible"). Ver [sección 5.8](#58-agregar-una-obligación-sancionatoria). |
+| Honorarios / Litigio | ✅ Sí, con una limitación — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual porque no existe una tabla estructurada confiable del Consejo Superior de la Judicatura. Ver [sección 5.9](#59-agregar-una-obligación-de-honorarios--litigio). |
 
-Si en algún momento estas áreas se habilitan en el selector y se intenta liquidar antes de que su lógica
-esté lista, el programa muestra el mensaje "Área no implementada" en vez de calcular — nunca da un
-resultado numérico inventado o incorrecto.
+Si en algún momento el área Laboral se intenta liquidar antes de que su lógica esté lista, el programa
+muestra el mensaje "Área no implementada" en vez de calcular — nunca da un resultado numérico inventado
+o incorrecto.
 
 ---
 
@@ -345,6 +406,35 @@ exactamente dónde encontrarlos y qué significa cada uno:
   cualquier programa visor de SQLite si alguna vez necesitas revisar los datos crudos, pero no es
   necesario para el uso normal del programa.
 
+### 7.5. Conversión SMLMV→UVT para multas sancionatorias
+
+- **Dónde se ve/edita en la app**: en el formulario de "Agregar obligación" de un expediente
+  Sancionatorio, el campo **"Cantidad SMLMV/UVT (Sancionatorio)"** — ver
+  [sección 5.8](#58-agregar-una-obligación-sancionatoria). No hay valores por defecto: cada multa trae su
+  propia cantidad de salarios mínimos o UVT.
+- **Dónde vive la lógica en el código**: `app/engine/indexation/smlmv_to_uvt.py`, función
+  `resolver_base_sancion`. Se invoca automáticamente al liquidar (`SancionatorioStrategy.liquidar()` en
+  `app/services/area_strategy.py`). Los valores de SMLMV por año están en
+  `app/engine/indexation/historical_index.py`.
+- **Qué pasa si el hecho es posterior al 2020-01-01**: la ley pasó de expresar estas multas en SMLMV a
+  expresarlas en UVT a partir de esa fecha, y todavía no existe una tabla histórica de UVT cargada en el
+  programa (ver `Pendientes.md`, Sprint 5). En vez de adivinar un valor, el programa lanza el error "UVT
+  no disponible" y no calcula nada.
+
+### 7.6. Tope de cuota litis y honorarios (30% / 50% del beneficio obtenido)
+
+- **Dónde se ve/edita en la app**: en el formulario de "Agregar obligación" de un expediente de
+  Honorarios, los campos **"% Cuota litis pactada"** y **"Beneficio obtenido por el cliente"** — ver
+  [sección 5.9](#59-agregar-una-obligación-de-honorarios--litigio). No hay valores por defecto.
+- **Dónde vive la lógica en el código**: `app/services/area_strategy.py`, clase `HonorariosStrategy`,
+  constantes `TOPE_CUOTA_LITIS_INDIVIDUAL_PCT` (30) y `TOPE_HONORARIOS_TOTAL_PCT` (50), validadas en
+  `_validar_obligacion_honorarios`. Ambos topes se aplican **simultáneamente** (no son alternativos):
+  la cuota litis sola no puede superar el 30% del beneficio obtenido, y la suma de honorarios fijos +
+  cuota litis no puede superar el 50% del mismo beneficio.
+- **Qué pasa si se excede alguno de los dos topes**: el programa lanza el error "Cuota litis excede el
+  tope" al hacer clic en "Liquidar" y no calcula nada — igual que con la tasa usuraria, la validación
+  ocurre al calcular, no al capturar el dato.
+
 ---
 
 ## 8. Funciones pendientes o en desarrollo
@@ -353,8 +443,12 @@ Estas funciones están planeadas pero **todavía no existen o no están conectad
 completo de cada una (qué construir, qué documentos consultar, en qué orden) está en
 [`Pendientes.md`](../Pendientes.md), organizado en sprints. Aquí un resumen en lenguaje simple:
 
-- 🚧 **Cálculo en las áreas Laboral, Sancionatorio y Honorarios** — hoy funcionan Civil/Familia y
-  Comercial (`Pendientes.md`, Sprints 3 y 4).
+- 🚧 **Cálculo en el área Laboral** — hoy funcionan Civil/Familia, Comercial, Sancionatorio y
+  Honorarios/Litigio (`Pendientes.md`, Sprint 3).
+- 🚧 **Tabla histórica de UVT** — el área Sancionatorio solo convierte a pesos los hechos anteriores al
+  2020-01-01 (vía SMLMV); los hechos posteriores necesitan una tabla histórica de UVT que todavía no
+  está cargada, y por ahora el programa avisa "UVT no disponible" en vez de calcular (`Pendientes.md`,
+  Sprint 5).
 - 🚧 **Anatocismo comercial condicionado (Art. 886 C.Co.)** — el motor de interés compuesto
   (`CompoundInterest`) existe pero no está conectado; requiere modelar si hubo demanda judicial o
   acuerdo posterior de capitalización, algo que el modelo de datos todavía no captura (`Pendientes.md`,
@@ -385,14 +479,21 @@ Ver [sección 2.5](#25-problema-conocido-rutas-largas-en-windows).
 Corre `.venv\Scripts\python.exe -m pytest -q` (ver [sección 2.6](#26-verificar-que-todo-quedó-instalado-correctamente-opcional-recomendado)).
 Si todo termina en "N passed" sin "failed", está bien.
 
-**"Seleccioné Laboral/Sancionatorio/Honorarios y no me deja."**
-Es esperado — esas áreas todavía no calculan, por eso aparecen deshabilitadas en el formulario. Comercial
-sí está habilitada. Ver [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
+**"Seleccioné Laboral y no me deja."**
+Es esperado — esa área todavía no calcula, por eso aparece deshabilitada en el formulario. Civil/Familia,
+Comercial, Sancionatorio y Honorarios/Litigio sí están habilitadas. Ver
+[sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
 
 **"Presioné Liquidar y no pasó nada / me salió un mensaje de error."**
 Revisa que el expediente tenga al menos una obligación cargada. Si el mensaje dice "Área no
 implementada", es porque el área seleccionada aún no calcula (ver sección 6). Si dice "No se pudo
 liquidar" con otro texto, anota el mensaje exacto — puede ser una validación de datos.
+
+**"Al liquidar un expediente Sancionatorio me sale 'UVT no disponible'."**
+Es esperado si la "Fecha de origen" de la multa es **posterior al 2020-01-01**: desde esa fecha, la ley
+expresa estas multas en UVT en vez de SMLMV, y todavía no hay una tabla histórica de UVT cargada en el
+programa (ver [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias) y `Pendientes.md`,
+Sprint 5). Por ahora, esta área solo liquida hechos anteriores a esa fecha.
 
 **"¿Dónde quedan guardados mis expedientes si cierro el programa?"**
 En el archivo `bastium.db` dentro de la carpeta del proyecto. No lo borres si quieres conservar la

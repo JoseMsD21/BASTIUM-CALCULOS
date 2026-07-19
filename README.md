@@ -9,20 +9,27 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-15)
+## Estado actual (2026-07-17)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
-abonos) y **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
-split real antes/después del vencimiento, validación de tope de usura 1.5×IBC).
+abonos), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
+split real antes/después del vencimiento, validación de tope de usura 1.5×IBC), **Sancionatorio**
+(multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49 — solo cubre hechos anteriores
+a 2020-01-01, porque todavía no hay tabla histórica de UVT cargada; hechos posteriores avisan "UVT no
+disponible" en vez de arriesgar un valor incorrecto) y **Honorarios / Litigio** (cobro de honorarios
+profesionales y cuota litis, validando simultáneamente el tope del 30% del beneficio obtenido para la
+cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
+se ingresan como un porcentaje manual, porque no existe una tabla estructurada confiable de los rangos
+del Consejo Superior de la Judicatura).
 
-🚧 **En desarrollo:** las áreas Laboral, Sancionatorio y Honorarios están registradas en el sistema pero
-todavía no calculan (el programa avisa "Área no implementada" si se intentan usar). Indexación por IPC,
-exportación a PDF/Word, prescripción/caducidad, anatocismo comercial condicionado (Art. 886 C.Co.) y
-varios módulos más también están pendientes. Las series históricas de SMLMV, IPC e IBC/Tasa de Usura
-(1984-2026, 1967-2025 y 1997-2026 respectivamente) ya están cargadas en
-`app/engine/indexation/historical_index.py`, aunque todavía no están conectadas a ningún cálculo — esa
-conexión es trabajo de otros sprints. El plan completo, sprint por sprint, está en
+🚧 **En desarrollo:** el área Laboral está registrada en el sistema pero todavía no calcula (el programa
+avisa "Área no implementada" si se intenta usar). Indexación por IPC, exportación a PDF/Word,
+prescripción/caducidad, anatocismo comercial condicionado (Art. 886 C.Co.) y varios módulos más también
+están pendientes. Las series históricas de SMLMV, IPC e IBC/Tasa de Usura (1984-2026, 1967-2025 y
+1997-2026 respectivamente) ya están cargadas en `app/engine/indexation/historical_index.py`, aunque
+todavía no están conectadas a todos los cálculos que las necesitan (ej. IPC, y la tabla de UVT
+histórica) — esa conexión es trabajo de otros sprints. El plan completo, sprint por sprint, está en
 **[Pendientes.md](Pendientes.md)**.
 
 ## Instalación rápida
