@@ -31,8 +31,6 @@ def test_civil_familia_es_la_unica_area_operable():
     "area_name,strategy_cls",
     [
         ("LABORAL", LaboralStrategy),
-        ("SANCIONATORIO", SancionatorioStrategy),
-        ("HONORARIOS", HonorariosStrategy),
     ],
 )
 def test_areas_no_implementadas_lanzan_error_claro_al_liquidar(area_name, strategy_cls):
@@ -128,6 +126,13 @@ def test_capital_concepts_incluye_los_codigos_comerciales_nuevos():
     assert "CAPITAL_LETRA_CAMBIO" in core._capital_concepts
     assert "CAPITAL_CHEQUE" in core._capital_concepts
     assert "CAPITAL_FACTURA" in core._capital_concepts
+
+
+def test_capital_concepts_incluye_los_codigos_sancionatorio_y_honorarios():
+    core = LiquidationCore()
+    assert "MULTA_SANCIONATORIA" in core._capital_concepts
+    assert "HONORARIOS_PROFESIONALES" in core._capital_concepts
+    assert "COSTAS_PROCESALES" in core._capital_concepts
 
 
 from app.core.exceptions import TasaUsurariaError
@@ -305,3 +310,176 @@ def test_civil_familia_items_tienen_rate_source_poblado():
         item.rate_source == "Tasa pactada en la obligación (Art. 1617 C.C.)"
         for item in resultado.items
     )
+
+
+from app.core.exceptions import UVTNoDisponibleError
+
+
+def _obligacion_sancionatoria(
+    expediente_id=1,
+    cantidad_smlmv_uvt=Decimal("2"),
+    fecha_origen=date(2019, 6, 1),
+    tasa_efectiva_anual=Decimal("0.00"),
+):
+    return Obligacion(
+        id=1,
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Multa SIC",
+        categoria="MULTA_SANCIONATORIA",
+        fecha_origen=fecha_origen,
+        valor=Decimal("0.00"),
+        tasa_efectiva_anual=tasa_efectiva_anual,
+        cantidad_smlmv_uvt=cantidad_smlmv_uvt,
+    )
+
+
+class TestSancionatorioStrategy:
+    def test_liquida_multa_pre_2020_convirtiendo_smlmv_a_pesos(self):
+        obligacion = _obligacion_sancionatoria()
+
+        resultado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2019, 6, 1)
+        )
+
+        # SMLMV 2019 = 828116.00 (ver historical_index.py); 2 SMLMV = 1656232.00.
+        assert resultado.final_balance().principal == Decimal("1656232.00")
+
+    def test_liquida_multa_posterior_a_2020_lanza_uvt_no_disponible_error(self):
+        obligacion = _obligacion_sancionatoria(fecha_origen=date(2021, 1, 1))
+
+        with pytest.raises(UVTNoDisponibleError):
+            SancionatorioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_falta_cantidad_smlmv_uvt_lanza_value_error(self):
+        obligacion = _obligacion_sancionatoria(cantidad_smlmv_uvt=None)
+
+        with pytest.raises(ValueError):
+            SancionatorioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2019, 6, 1)
+            )
+
+    def test_obligacion_recurrente_lanza_value_error(self):
+        obligacion = _obligacion_sancionatoria()
+        obligacion.tipo = TipoObligacion.RECURRENTE
+
+        with pytest.raises(ValueError):
+            SancionatorioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2019, 6, 1)
+            )
+
+    def test_multa_impaga_acumula_interes_moratorio_si_se_pacto_tasa(self):
+        obligacion = _obligacion_sancionatoria(tasa_efectiva_anual=Decimal("24.00"))
+
+        resultado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2020, 6, 1)
+        )
+
+        assert resultado.final_balance().interest > Decimal("0.00")
+
+    def test_soporta_indexacion_ipc_es_false(self):
+        assert SancionatorioStrategy().soporta_indexacion_ipc is False
+
+
+from app.core.exceptions import CuotaLitisExcedeTopeError
+
+
+def _obligacion_honorarios(
+    expediente_id=1,
+    honorarios_fijos_pactados=Decimal("1000000.00"),
+    cuota_litis_pactada_pct=Decimal("20.00"),
+    beneficio_obtenido=Decimal("10000000.00"),
+    costas_pct_manual=None,
+    fecha_origen=date(2026, 1, 1),
+    tasa_efectiva_anual=Decimal("0.00"),
+):
+    return Obligacion(
+        id=1,
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Honorarios proceso ejecutivo",
+        categoria="HONORARIOS_PROFESIONALES",
+        fecha_origen=fecha_origen,
+        valor=Decimal("0.00"),
+        tasa_efectiva_anual=tasa_efectiva_anual,
+        honorarios_fijos_pactados=honorarios_fijos_pactados,
+        cuota_litis_pactada_pct=cuota_litis_pactada_pct,
+        beneficio_obtenido=beneficio_obtenido,
+        costas_pct_manual=costas_pct_manual,
+    )
+
+
+class TestHonorariosStrategy:
+    def test_liquida_honorarios_dentro_de_ambos_topes(self):
+        # cuota litis = 10M * 20% = 2M (20% <= 30% tope individual, OK).
+        # total = 1M + 2M = 3M (30% <= 50% tope total, OK).
+        obligacion = _obligacion_honorarios()
+
+        resultado = HonorariosStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+        )
+
+        assert resultado.final_balance().principal == Decimal("3000000.00")
+
+    def test_cuota_litis_sola_excede_30_por_ciento_lanza_error(self):
+        # cuota litis = 10M * 35% = 3.5M > 3M (30% de 10M).
+        obligacion = _obligacion_honorarios(
+            honorarios_fijos_pactados=Decimal("0.00"), cuota_litis_pactada_pct=Decimal("35.00")
+        )
+
+        with pytest.raises(CuotaLitisExcedeTopeError):
+            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
+
+    def test_suma_total_excede_50_por_ciento_aunque_cuota_litis_sola_no_exceda_30(self):
+        # cuota litis = 10M * 25% = 2.5M (25% <= 30%, OK individualmente).
+        # total = 3M + 2.5M = 5.5M > 5M (50% de 10M) -> debe fallar por el tope total.
+        obligacion = _obligacion_honorarios(
+            honorarios_fijos_pactados=Decimal("3000000.00"), cuota_litis_pactada_pct=Decimal("25.00")
+        )
+
+        with pytest.raises(CuotaLitisExcedeTopeError):
+            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
+
+    def test_genera_evento_de_costas_si_costas_pct_manual_esta_seteado(self):
+        # honorarios = 1M + (10M*10%=1M) = 2M. costas = 10M * 5% = 500000.
+        obligacion = _obligacion_honorarios(
+            cuota_litis_pactada_pct=Decimal("10.00"), costas_pct_manual=Decimal("5.00")
+        )
+
+        resultado = HonorariosStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+        )
+
+        assert resultado.final_balance().principal == Decimal("2500000.00")
+
+    def test_sin_costas_pct_manual_no_genera_evento_de_costas(self):
+        obligacion = _obligacion_honorarios(cuota_litis_pactada_pct=Decimal("10.00"))
+
+        resultado = HonorariosStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+        )
+
+        # honorarios = 1M + (10M*10%=1M) = 2M, sin costas.
+        assert resultado.final_balance().principal == Decimal("2000000.00")
+
+    @pytest.mark.parametrize(
+        "campo", ["honorarios_fijos_pactados", "cuota_litis_pactada_pct", "beneficio_obtenido"]
+    )
+    def test_falta_un_campo_obligatorio_lanza_value_error(self, campo):
+        obligacion = _obligacion_honorarios()
+        setattr(obligacion, campo, None)
+
+        with pytest.raises(ValueError):
+            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
+
+    def test_obligacion_recurrente_lanza_value_error(self):
+        obligacion = _obligacion_honorarios()
+        obligacion.tipo = TipoObligacion.RECURRENTE
+
+        with pytest.raises(ValueError):
+            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
+
+    def test_soporta_indexacion_ipc_es_false(self):
+        assert HonorariosStrategy().soporta_indexacion_ipc is False
