@@ -173,7 +173,7 @@ anteriores, pero puede arrancar con el SMLMV vigente hardcodeado como parámetro
   se hizo, revisar cómo resolvió esto para no duplicar el mecanismo.
 
 **Estado:** Implementado (2026-07-19) — ver `docs/superpowers/plans/2026-07-19-area-laboral.md` y
-`docs\superpowers\specs\2026-07-18-area-laboral-design.md`. Verificado durante el diseño: la fórmula de
+`docs/superpowers/specs/2026-07-18-area-laboral-design.md`. Verificado durante el diseño: la fórmula de
 `INTERESES_CESANTIAS` que este documento marcaba como sospechosa de bug en realidad coincide exactamente
 con el PDF (pág. 51) — no se modificó. Pendientes explícitos que quedaron fuera de este sprint (decisión
 tomada con el usuario, no un olvido): seguridad social (cotizaciones IBC, pensión, salud, ARL, FSP),
