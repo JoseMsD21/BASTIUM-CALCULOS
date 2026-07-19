@@ -236,6 +236,21 @@ con los valores vigentes actuales como parámetros.
 - Test de validación de tope de cuota litis con el valor que confirme el usuario.
 - Suite completa en verde.
 
+**Estado:** Implementado (2026-07-19) — ver
+`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md` y
+`docs/superpowers/specs/2026-07-17-sprint4-sancionatorio-honorarios-design.md`. Decisiones tomadas con el
+usuario durante el brainstorming previo (no asumidas unilateralmente):
+- (a) los dos topes de cuota litis (30% individual sobre la cuota litis sola, 50% total sobre honorarios
+  fijos + cuota litis) se aplican **simultáneamente**, no como alternativas — el PDF los menciona en
+  secciones distintas y no como excluyentes entre sí.
+- (b) las costas judiciales se capturan como un **porcentaje manual** por obligación
+  (`costas_pct_manual`), en vez de una tabla estructurada de rangos del Consejo Superior de la
+  Judicatura (Acuerdo PCSJA20-11556), porque no se consiguió una fuente confiable con esos rangos
+  completos.
+- (c) la conversión SMLMV→UVT sigue sin cubrir hechos posteriores al 2020-01-01: al no existir todavía la
+  tabla histórica de UVT (pendiente del Sprint 5), `resolver_base_sancion` lanza `UVTNoDisponibleError`
+  en vez de adivinar un valor.
+
 ---
 
 ## Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT)
