@@ -702,3 +702,11 @@ backlog.
   debería resolverse junto con él la próxima vez que se toque `area_strategy.py`, en vez de seguir
   copiando el método por cada estrategia nueva. Detectado en code review del Sprint 4
   (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5).
+- **`ObligacionFormDialog.guardar()` creciendo hacia "god method"**: cada área nueva (Comercial,
+  Sancionatorio, Honorarios) le agrega su propio bloque `if es_X: try: ... except: raise ValueError(...)`
+  dentro de `app/views/obligaciones.py`. Hoy (después del Sprint 4) tiene 4 ramas implícitas y ~90 líneas;
+  sigue siendo legible, pero cada área nueva lo empeora. Si se agrega Laboral (Sprint 3) u otra área más,
+  vale la pena extraer un `_parse_area_campos()` (o una tabla de specs por campo: nombre, kwarg, mensaje
+  de error, requerido) en vez de seguir apilando ramas, espejando la separación que `area_strategy.py` ya
+  tiene por estrategia. Detectado en code review del Sprint 4
+  (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 7).
