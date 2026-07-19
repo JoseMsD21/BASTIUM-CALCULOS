@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
+from app.core.constants import AREAS_DERECHO
 from database.models import AreaDerecho, Base, Expediente
 from app.views.expedientes import ExpedientesListView, NuevoExpedienteDialog
 
@@ -63,6 +64,7 @@ def test_dialogo_habilita_todas_las_areas(qtbot, monkeypatch):
     qtbot.addWidget(dialog)
 
     modelo = dialog.combo_area.model()
+    assert modelo.rowCount() == len(AREAS_DERECHO)
     # Las 5 areas del derecho estan habilitadas desde el Sprint 3 (Laboral
     # fue la ultima en habilitarse) -- ver Pendientes.md.
     for indice in range(modelo.rowCount()):
