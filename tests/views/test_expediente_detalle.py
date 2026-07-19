@@ -335,3 +335,25 @@ def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monke
     assert page.tabla_historial.item(0, 1).text() == "jsilva"
     assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
     assert page.tabla_historial.item(0, 3).text() == "2026-06-01"
+
+
+def test_doble_clic_en_historial_reconstruye_liquidacion(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    resultados_recibidos = []
+
+    def capturar(resultado, exp_id):
+        resultados_recibidos.append((resultado, exp_id))
+
+    page = ExpedienteDetallePage(on_liquidado=capturar)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page._liquidar()
+    resultados_recibidos.clear()
+
+    page._reconstruir_desde_historial(0, 0)
+
+    assert len(resultados_recibidos) == 1
+    resultado, exp_id = resultados_recibidos[0]
+    assert exp_id == expediente_id
+    assert resultado.final_balance().principal == Decimal("427900.00")

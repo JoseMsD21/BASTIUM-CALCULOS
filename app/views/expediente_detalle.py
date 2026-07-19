@@ -16,7 +16,7 @@ from app.core.exceptions import (
     TasaUsurariaError,
     UVTNoDisponibleError,
 )
-from app.engine.audit.service import historial_de_expediente, registrar_liquidacion
+from app.engine.audit.service import historial_de_expediente, reconstruir_liquidacion, registrar_liquidacion
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
 from app.views.obligaciones import ObligacionFormDialog
@@ -60,6 +60,7 @@ class ExpedienteDetallePage(QWidget):
         self.tabla_historial.setHorizontalHeaderLabels(
             ["Fecha ejecución", "Usuario", "Área", "Fecha corte"]
         )
+        self.tabla_historial.cellDoubleClicked.connect(self._reconstruir_desde_historial)
 
         grupo_historial = QGroupBox("Historial de auditoría")
         layout_historial = QVBoxLayout()
@@ -123,6 +124,15 @@ class ExpedienteDetallePage(QWidget):
             self.tabla_historial.setItem(fila, 3, QTableWidgetItem(registro.fecha_corte.isoformat()))
             self._audit_log_ids_por_fila.append(registro.id)
         session.close()
+
+
+    def _reconstruir_desde_historial(self, fila: int, columna: int) -> None:
+        audit_log_id = self._audit_log_ids_por_fila[fila]
+        session = session_module.get_session()
+        resultado = reconstruir_liquidacion(session, audit_log_id)
+        session.close()
+        if self._on_liquidado:
+            self._on_liquidado(resultado, self._expediente_id)
 
     def _abrir_dialogo_obligacion(self) -> None:
         session = session_module.get_session()
