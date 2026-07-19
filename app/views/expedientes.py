@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QFormLayout,
+    QInputDialog,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -174,4 +175,36 @@ class ExpedientesListView(QWidget):
             self.refrescar()
 
     def _eliminar_expediente(self, expediente_id: int) -> None:
-        raise NotImplementedError
+        session = session_module.get_session()
+        expediente = session.get(Expediente, expediente_id)
+        radicado = expediente.radicado
+        session.close()
+
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar expediente",
+            f"¿Eliminar el expediente '{radicado}'? Se borraran tambien todas sus "
+            "obligaciones, abonos y registros de auditoria asociados. Esta accion "
+            "no se puede deshacer.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+
+        texto, ok = QInputDialog.getText(
+            self,
+            "Confirmar eliminacion",
+            f"Escribe el radicado '{radicado}' para confirmar:",
+        )
+        if not ok or texto.strip() != radicado:
+            QMessageBox.warning(
+                self, "Eliminacion cancelada", "El radicado no coincide. No se elimino el expediente."
+            )
+            return
+
+        session = session_module.get_session()
+        expediente = session.get(Expediente, expediente_id)
+        session.delete(expediente)
+        session.commit()
+        session.close()
+
+        self.refrescar()
