@@ -6,7 +6,7 @@
 > antes que nada.
 >
 > **Última actualización:** 2026-07-19 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
-> Honorarios/Litigio, exportación de liquidaciones a PDF/Word, y los botones de navegación
+> Honorarios/Litigio, Laboral, exportación de liquidaciones a PDF/Word, y los botones de navegación
 > (Volver/Inicio) y de editar/eliminar expediente. Cada vez que se complete un sprint nuevo de
 > [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
 > respecto al programa real.
@@ -38,9 +38,10 @@ de forma automática, siguiendo exactamente las reglas que dicta la ley colombia
 Hoy en día, BASTIUM sabe calcular liquidaciones de las áreas **Civil y de Familia** (por ejemplo: cuotas
 de alimentos, gastos médicos, deudas civiles con interés), **Comercial** (pagarés, letras de cambio,
 cheques y facturas, con tasa remuneratoria y moratoria), **Sancionatorio** (multas administrativas
-expresadas en SMLMV o UVT) y **Honorarios / Litigio** (cobro de honorarios profesionales y cuota litis,
-con costas judiciales opcionales). El área **Laboral** está planeada pero **todavía no calcula** — más
-detalle en la [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
+expresadas en SMLMV o UVT), **Honorarios / Litigio** (cobro de honorarios profesionales y cuota litis,
+con costas judiciales opcionales) y **Laboral** (liquidación final de un contrato de trabajo: cesantías,
+intereses a cesantías, prima, vacaciones e indemnización moratoria) — más detalle en la
+[sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
 
 ---
 
@@ -172,13 +173,14 @@ En la parte superior de la ventana hay dos botones de navegación, que aparecen 
    - **Radicado**: el número o referencia interna del caso (ej. `2026-00123`). Es obligatorio.
    - **Demandante**: nombre de quien reclama.
    - **Demandado**: nombre de quien debe.
-   - **Área del derecho**: elige **"Civil / Familia"**, **"Comercial"**, **"Sancionatorio"** u
-     **"Honorarios / Litigio"** (las cuatro opciones activas hoy; "Laboral" aparece "gris" con la nota
-     "Próximamente" porque todavía no calcula, ver [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)).
-     Si eliges Comercial, Sancionatorio u Honorarios, el formulario de "Agregar obligación" muestra
-     campos adicionales — ver [sección 5.7](#57-agregar-una-obligación-comercial),
-     [5.9](#59-agregar-una-obligación-sancionatoria) o
-     [5.10](#510-agregar-una-obligación-de-honorarios--litigio) según el área.
+   - **Área del derecho**: elige **"Civil / Familia"**, **"Comercial"**, **"Sancionatorio"**,
+     **"Honorarios / Litigio"** o **"Laboral"** (las cinco opciones calculan de verdad hoy, ver
+     [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)). Si eliges Comercial, Sancionatorio,
+     Honorarios o Laboral, el formulario de "Agregar obligación" muestra campos adicionales — ver
+     [sección 5.7](#57-agregar-una-obligación-comercial),
+     [5.9](#59-agregar-una-obligación-sancionatoria),
+     [5.10](#510-agregar-una-obligación-de-honorarios--litigio) o
+     [5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado) según el área.
    - **Juzgado**: opcional, el juzgado donde está el proceso, si aplica.
    - **Fecha de corte**: la fecha hasta la cual se va a calcular el interés (normalmente, hoy o la fecha
      en que se necesita presentar la liquidación).
@@ -364,7 +366,41 @@ clic en "Liquidar" y no calcula nada. Si diligenciaste el porcentaje de costas, 
 liquidación trae dos filas de capital separadas: una de honorarios profesionales y otra de costas
 procesales.
 
-### 5.11. Editar o eliminar un expediente
+### 5.11. Agregar una obligación laboral y liquidar un contrato terminado
+
+Cuando el expediente tiene **Área del derecho = Laboral**, el formulario de "Agregar obligación" cambia
+de forma: representa un contrato de trabajo completo, no una deuda puntual o una cuota recurrente — por
+eso el campo "Tipo" se oculta (siempre se guarda como Puntual) y la "Tasa efectiva anual (%)" tampoco
+aplica (se guarda en 0, sin mostrarse). El campo que en las demás áreas se llama "Fecha de origen
+(Puntual)" aquí se muestra como **"Fecha de inicio del contrato"**.
+
+1. Dentro del Detalle de un expediente Laboral, haz clic en **"Agregar obligación"**.
+2. Llena:
+   - **Concepto**: por ejemplo, "Liquidación de contrato — Juan Pérez".
+   - **Valor**: el salario base mensual.
+   - **Fecha de inicio del contrato**: el día en que empezó el contrato.
+   - **Fecha de terminación de contrato**: el día en que el contrato terminó. A partir de esta fecha se
+     calculan las prestaciones (todas se vuelven exigibles ese mismo día — es una liquidación final, no
+     un contrato en curso) y, si hubo retardo en el pago, empieza a correr la indemnización moratoria del
+     Art. 65 CST.
+   - **Prestaciones pagadas** (casilla): si el empleador ya pagó la liquidación completa, marca esta
+     casilla y llena **Fecha de pago real** con el día en que se pagó. Si no se ha pagado, deja la
+     casilla sin marcar — el programa calculará la mora hasta la fecha de corte del expediente.
+3. Haz clic en **"Guardar"**.
+4. Haz clic en **"Liquidar"**. El resultado incluye: Cesantías, Intereses/Cesantías, Prima Junio, Prima
+   Diciembre, Vacaciones y, si hubo retardo en el pago, un rubro "Indemnización moratoria Art. 65 CST".
+
+**Sobre la indemnización moratoria (Art. 65 CST):** si el pago se hizo (o el corte del expediente cae)
+más de 720 días (24 meses) después de la terminación del contrato, el programa cambia automáticamente de
+fase — hasta el día 720 cobra un día de salario por cada día de retardo; del día 721 en adelante, cobra
+intereses sobre lo adeudado a la tasa de usura histórica certificada por la Superintendencia Financiera
+(la misma serie de datos que usa el área Comercial). No hay nada que configurar manualmente para esto.
+
+**Qué NO calcula todavía esta área:** cotizaciones a seguridad social (pensión, salud, ARL, fondo de
+solidaridad pensional), incapacidades, suspensiones contractuales, ni nada relacionado con pensiones —
+ver [sección 8](#8-funciones-pendientes-o-en-desarrollo).
+
+### 5.12. Editar o eliminar un expediente
 
 En la Lista de Expedientes, cada fila tiene dos botones al final: **Editar** y **Eliminar**.
 
@@ -394,20 +430,20 @@ asociados, de forma permanente — por eso el programa pide confirmación en dos
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
 
-Al crear un expediente, el campo "Área del derecho" muestra 5 opciones, y **cuatro calculan de verdad
+Al crear un expediente, el campo "Área del derecho" muestra 5 opciones, y **las cinco calculan de verdad
 hoy**:
 
 | Área | ¿Funciona? |
 |---|---|
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
 | Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después, validación de tope de usura (1.5× el IBC que ingreses). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
-| Laboral | 🚧 No todavía. Planeado en `Pendientes.md`, Sprint 3. |
+| Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, e indemnización moratoria bifásica del Art. 65 CST si hubo retardo en el pago. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). Seguridad social no está incluida (ver sección 8). |
 | Sancionatorio | ✅ Sí, con una limitación — multas en SMLMV o UVT (Ley 1955/2019 art. 49), pero solo para hechos **anteriores al 2020-01-01**: todavía no hay tabla histórica de UVT cargada, y el programa se rehúsa a adivinar el valor para hechos posteriores ("UVT no disponible"). Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
 | Honorarios / Litigio | ✅ Sí, con una limitación — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual porque no existe una tabla estructurada confiable del Consejo Superior de la Judicatura. Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
 
-Si en algún momento el área Laboral se intenta liquidar antes de que su lógica esté lista, el programa
-muestra el mensaje "Área no implementada" en vez de calcular — nunca da un resultado numérico inventado
-o incorrecto.
+Si en algún momento se intenta liquidar un área cuya lógica todavía no esté lista (ver
+[sección 8](#8-funciones-pendientes-o-en-desarrollo)), el programa muestra el mensaje "Área no
+implementada" en vez de calcular — nunca da un resultado numérico inventado o incorrecto.
 
 ---
 
@@ -499,8 +535,11 @@ Estas funciones están planeadas pero **todavía no existen o no están conectad
 completo de cada una (qué construir, qué documentos consultar, en qué orden) está en
 [`Pendientes.md`](../Pendientes.md), organizado en sprints. Aquí un resumen en lenguaje simple:
 
-- 🚧 **Cálculo en el área Laboral** — hoy funcionan Civil/Familia, Comercial, Sancionatorio y
-  Honorarios/Litigio (`Pendientes.md`, Sprint 3).
+- 🚧 **Seguridad social en el área Laboral** (cotizaciones a pensión, salud, ARL, fondo de solidaridad
+  pensional) — decisión tomada con el usuario de dejarlo fuera del Sprint 3: BASTIUM liquida procesos
+  judiciales, no es un sistema de nómina corriente (`Pendientes.md`, Sprint 3).
+- 🚧 **Incapacidades y suspensiones contractuales en el área Laboral** — no modeladas (`Pendientes.md`,
+  Sprint 3).
 - 🚧 **Tabla histórica de UVT** — el área Sancionatorio solo convierte a pesos los hechos anteriores al
   2020-01-01 (vía SMLMV); los hechos posteriores necesitan una tabla histórica de UVT que todavía no
   está cargada, y por ahora el programa avisa "UVT no disponible" en vez de calcular (`Pendientes.md`,
@@ -534,11 +573,6 @@ Ver [sección 2.5](#25-problema-conocido-rutas-largas-en-windows).
 **"No sé si el programa quedó bien instalado."**
 Corre `.venv\Scripts\python.exe -m pytest -q` (ver [sección 2.6](#26-verificar-que-todo-quedó-instalado-correctamente-opcional-recomendado)).
 Si todo termina en "N passed" sin "failed", está bien.
-
-**"Seleccioné Laboral y no me deja."**
-Es esperado — esa área todavía no calcula, por eso aparece deshabilitada en el formulario. Civil/Familia,
-Comercial, Sancionatorio y Honorarios/Litigio sí están habilitadas. Ver
-[sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
 
 **"Presioné Liquidar y no pasó nada / me salió un mensaje de error."**
 Revisa que el expediente tenga al menos una obligación cargada. Si el mensaje dice "Área no

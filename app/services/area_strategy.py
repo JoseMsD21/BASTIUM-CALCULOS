@@ -3,14 +3,16 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import List
 
-from app.core.exceptions import AreaNoImplementadaError, CuotaLitisExcedeTopeError
+from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
+from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
+from app.engine.temporal.schedulers.labor import LaborScheduler
 from app.engine.interest.usury_validator import validar_tasa_usura
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from app.services.motor_universal import UniversalLiquidationService
@@ -222,10 +224,103 @@ class ComercialStrategy(AreaStrategy):
 
 
 class LaboralStrategy(AreaStrategy):
+    """
+    Area Laboral. Liquidacion final (finiquito) de UN contrato de trabajo por
+    expediente: cesantias, intereses a cesantias, prima (junio/diciembre) y
+    vacaciones (LaborScheduler), mas la indemnizacion moratoria bifasica del
+    Art. 65 CST (MoratoryIndemnityCalculator) si el pago real o la fecha de
+    corte quedan despues de la fecha de terminacion del contrato.
+
+    No es compatible con indexacion IPC (soporta_indexacion_ipc = False): las
+    prestaciones sociales se liquidan sobre el salario nominal vigente al
+    momento de la causacion, no se indexan por perdida de poder adquisitivo.
+
+    Seguridad social (cotizaciones IBC, pension, salud, ARL, FSP) queda fuera
+    de alcance de este sprint -- ver Pendientes.md, Sprint 3, y
+    docs/superpowers/specs/2026-07-18-area-laboral-design.md.
+    """
+
+    soporta_indexacion_ipc = False
+
     def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
-        raise AreaNoImplementadaError(
-            "El area Laboral (Art. 65 CST, vacaciones) esta pendiente. Ver Pendientes.md."
+        if not obligaciones:
+            raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
+        if len(obligaciones) != 1:
+            raise ValueError(
+                "El area Laboral liquida un solo contrato (una obligacion) por expediente."
+            )
+
+        obligacion = obligaciones[0]
+        self._validar_obligacion_laboral(obligacion)
+
+        dias_trabajados = (obligacion.fecha_fin - obligacion.fecha_inicio).days
+        eventos = LaborScheduler(
+            salario_base=obligacion.valor,
+            dias_trabajados=dias_trabajados,
+            fecha_liquidacion=obligacion.fecha_fin,
+        ).generate()
+
+        # fecha_pago_total (si existe) es cuando realmente se extinguio la
+        # deuda; nunca puede ser posterior a fecha_corte para efectos de este
+        # reporte -- si el pago real fue despues del corte elegido, la mora
+        # se calcula solo hasta el corte (foto historica), no hasta el pago.
+        if obligacion.fecha_pago_total is not None:
+            fecha_referencia_mora = min(obligacion.fecha_pago_total, fecha_corte)
+        else:
+            fecha_referencia_mora = fecha_corte
+
+        if fecha_referencia_mora > obligacion.fecha_fin:
+            monto_adeudado = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+            mora = MoratoryIndemnityCalculator.calcular(
+                salario_mensual=obligacion.valor,
+                monto_adeudado=monto_adeudado,
+                fecha_terminacion=obligacion.fecha_fin,
+                fecha_pago_o_corte=fecha_referencia_mora,
+            )
+            if mora.total > Decimal("0.00"):
+                eventos.append(Event(
+                    date=fecha_referencia_mora,
+                    payload={"amount": mora.total, "label": "Indemnizacion moratoria Art. 65 CST"},
+                    event_type="SANCION_MORATORIA",
+                ))
+
+        pagos = [
+            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
+            for abono in abonos
+        ]
+
+        service = UniversalLiquidationService()
+        return service.liquidar(
+            eventos_causacion=eventos,
+            pagos=pagos,
+            fecha_corte=fecha_corte,
         )
+        # Sin rate_provider: la tasa diaria generica de UniversalLiquidationService
+        # queda en 0 por defecto. Toda la mora del area Laboral ya esta resuelta
+        # en el evento SANCION_MORATORIA -- pasar un rate_provider aqui
+        # duplicaria el castigo por mora.
+
+    def _validar_obligacion_laboral(self, obligacion) -> None:
+        if obligacion.tipo.value != "PUNTUAL":
+            raise ValueError(
+                "El area Laboral solo admite obligaciones de tipo PUNTUAL "
+                "(un contrato completo); RECURRENTE no aplica a prestaciones sociales."
+            )
+        if obligacion.valor is None or obligacion.valor <= Decimal("0.00"):
+            raise ValueError("El salario base de la obligacion laboral debe ser mayor que cero.")
+        if obligacion.fecha_inicio is None or obligacion.fecha_fin is None:
+            raise ValueError(
+                "La obligacion laboral necesita 'fecha_inicio' y 'fecha_fin' del contrato."
+            )
+        if obligacion.fecha_fin <= obligacion.fecha_inicio:
+            raise ValueError(
+                f"La fecha de terminacion ({obligacion.fecha_fin}) debe ser posterior a la "
+                f"fecha de inicio del contrato ({obligacion.fecha_inicio})."
+            )
+        if obligacion.pagada and obligacion.fecha_pago_total is None:
+            raise ValueError(
+                "Una obligacion marcada como pagada debe tener 'fecha_pago_total'."
+            )
 
 
 class SancionatorioStrategy(AreaStrategy):

@@ -22,6 +22,16 @@ CATEGORIAS_COMERCIAL = [
 # Nota: igual que CATEGORIAS_CIVIL_FAMILIA, cada codigo debe existir en
 # app.engine.liquidation.engine.LiquidationCore._capital_concepts.
 
+CATEGORIAS_LABORAL = [
+    ("LIQUIDACION_CONTRATO_LABORAL", "Liquidacion de contrato laboral"),
+]
+# Nota: a diferencia de CATEGORIAS_CIVIL_FAMILIA/CATEGORIAS_COMERCIAL, esta
+# categoria es solo una etiqueta de UI -- el event_type real de cada linea de
+# la liquidacion (CESANTIAS, INTERESES_CESANTIAS, PRIMA_JUNIO, PRIMA_DICIEMBRE,
+# VACACIONES, SANCION_MORATORIA) lo define LaborScheduler/
+# MoratoryIndemnityCalculator internamente en app/services/area_strategy.py,
+# no este codigo.
+
 CATEGORIAS_SANCIONATORIO = [
     ("MULTA_SANCIONATORIA", "Multa sancionatoria (SMLMV/UVT)"),
 ]
@@ -38,7 +48,7 @@ CATEGORIAS_HONORARIOS = [
 AREAS_DERECHO = [
     ("CIVIL_FAMILIA", "Civil / Familia", True),
     ("COMERCIAL", "Comercial", True),
-    ("LABORAL", "Laboral", False),
+    ("LABORAL", "Laboral", True),
     ("SANCIONATORIO", "Sancionatorio", True),
     ("HONORARIOS", "Honorarios / Litigio", True),
 ]

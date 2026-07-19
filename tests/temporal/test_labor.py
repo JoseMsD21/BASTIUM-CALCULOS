@@ -1,46 +1,51 @@
-import pytest
 from datetime import date
 from decimal import Decimal
 from app.engine.temporal.schedulers.labor import LaborScheduler
 
-def test_labor_scheduler_generates_statutory_events_full_year():
-    # Escenario: Trabajador con salario base de $1,500,000 en el año 2025 (trabajó 360 días)
+
+def test_labor_scheduler_liquidacion_final_contrato_de_un_anio_completo():
+    # Escenario: contrato de un año completo (360 dias trabajados en la
+    # convencion comercial), terminado el 2025-12-31. En el modelo de
+    # finiquito, TODAS las prestaciones son exigibles ese mismo dia.
     salario = Decimal("1500000.00")
     dias_trabajados = 360
-    anio_causacion = 2025
-    
-    scheduler = LaborScheduler(salario_base=salario, dias_trabajados=dias_trabajados, anio=anio_causacion)
+    fecha_liquidacion = date(2025, 12, 31)
+
+    scheduler = LaborScheduler(
+        salario_base=salario, dias_trabajados=dias_trabajados, fecha_liquidacion=fecha_liquidacion
+    )
     events = scheduler.generate()
-    
-    # Deben generarse 4 eventos ineludibles: 
-    # 1. Prima Junio (15 días)
-    # 2. Prima Diciembre (15 días)
-    # 3. Intereses Cesantías (12% sobre el saldo)
-    # 4. Cesantías (30 días)
-    assert len(events) == 4
-    
-    # Verificación de fechas de exigibilidad estáticas y montos exactos
-    prima_junio = next(e for e in events if e.event_type == "PRIMA_JUNIO")
-    assert prima_junio.date == date(2025, 6, 30)
-    assert prima_junio.payload["amount"] == Decimal("750000.00") # Mitad del salario
-    
-    prima_dic = next(e for e in events if e.event_type == "PRIMA_DICIEMBRE")
-    assert prima_dic.date == date(2025, 12, 20)
-    assert prima_dic.payload["amount"] == Decimal("750000.00")
-    
-    int_cesantias = next(e for e in events if e.event_type == "INTERESES_CESANTIAS")
-    assert int_cesantias.date == date(2026, 1, 31) # Exigibles al año siguiente
-    assert int_cesantias.payload["amount"] == Decimal("180000.00") # 1.5M * 12%
-    
+
+    assert len(events) == 5
+    assert all(e.date == fecha_liquidacion for e in events)
+
     cesantias = next(e for e in events if e.event_type == "CESANTIAS")
-    assert cesantias.date == date(2026, 2, 14) # Límite de consignación en fondo
     assert cesantias.payload["amount"] == Decimal("1500000.00")
 
-def test_labor_scheduler_proportional_days():
-    # Escenario: Trabajo parcial de 180 días
-    scheduler = LaborScheduler(Decimal("1000000.00"), 180, 2025)
+    int_cesantias = next(e for e in events if e.event_type == "INTERESES_CESANTIAS")
+    assert int_cesantias.payload["amount"] == Decimal("180000.00")  # 1.5M * 12%
+
+    prima_junio = next(e for e in events if e.event_type == "PRIMA_JUNIO")
+    assert prima_junio.payload["amount"] == Decimal("750000.00")
+
+    prima_dic = next(e for e in events if e.event_type == "PRIMA_DICIEMBRE")
+    assert prima_dic.payload["amount"] == Decimal("750000.00")
+
+    vacaciones = next(e for e in events if e.event_type == "VACACIONES")
+    assert vacaciones.payload["amount"] == Decimal("750000.00")  # (1.5M*360)/720
+
+
+def test_labor_scheduler_dias_proporcionales():
+    # Escenario: trabajo parcial de 180 dias, contrato terminado el 2025-07-15.
+    scheduler = LaborScheduler(
+        salario_base=Decimal("1000000.00"), dias_trabajados=180, fecha_liquidacion=date(2025, 7, 15)
+    )
     events = scheduler.generate()
-    
+
+    assert all(e.date == date(2025, 7, 15) for e in events)
+
     cesantias = next(e for e in events if e.event_type == "CESANTIAS")
-    # (1M * 180) / 360 = 500,000
-    assert cesantias.payload["amount"] == Decimal("500000.00")
+    assert cesantias.payload["amount"] == Decimal("500000.00")  # (1M*180)/360
+
+    vacaciones = next(e for e in events if e.event_type == "VACACIONES")
+    assert vacaciones.payload["amount"] == Decimal("250000.00")  # (1M*180)/720

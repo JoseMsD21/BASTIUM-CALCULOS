@@ -111,7 +111,7 @@ con tasas distintas — la tasa se busca por fecha calendario, no por obligació
 
 ---
 
-## Sprint 3 — Área Laboral 🟡 En proceso
+## Sprint 3 — Área Laboral ✅ Completado
 
 **Prioridad sugerida:** Alta.
 **Depende de:** Nada estrictamente. Se beneficia del Sprint 5 (SMLMV histórico) para liquidaciones de años
@@ -171,6 +171,16 @@ anteriores, pero puede arrancar con el SMLMV vigente hardcodeado como parámetro
 - El PDF exige un flag `use_360_days_standard: boolean` por perfil de cálculo (año comercial 360 vs año
   civil 365/366) porque Laboral usa 360 pero Comercial normalmente usa 365. Si el Sprint 2 (Comercial) ya
   se hizo, revisar cómo resolvió esto para no duplicar el mecanismo.
+
+**Estado:** Implementado (2026-07-19) — ver `docs/superpowers/plans/2026-07-19-area-laboral.md` y
+`docs/superpowers/specs/2026-07-18-area-laboral-design.md`. Verificado durante el diseño: la fórmula de
+`INTERESES_CESANTIAS` que este documento marcaba como sospechosa de bug en realidad coincide exactamente
+con el PDF (pág. 51) — no se modificó. Pendientes explícitos que quedaron fuera de este sprint (decisión
+tomada con el usuario, no un olvido): seguridad social (cotizaciones IBC, pensión, salud, ARL, FSP),
+incapacidades y suspensiones contractuales, y el módulo pensional (IBL, densidad de semanas). También
+queda documentado como limitación conocida: `dias_trabajados` se calcula como diferencia de calendario
+simple, no con la convención comercial exacta de meses de 30 días que usa la nómina real (sobre-causa
+prestaciones en ~1-2% para un año calendario completo).
 
 **Definición de Hecho:**
 - `LaboralStrategy` liquida con TDD (obligación puntual = liquidación al terminar contrato, con cesantías
