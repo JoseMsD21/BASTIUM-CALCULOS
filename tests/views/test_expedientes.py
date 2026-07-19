@@ -106,3 +106,62 @@ def test_dialogo_edita_expediente_existente(qtbot, monkeypatch):
     assert actualizado.demandante == "Ana Maria"
     assert actualizado.radicado == "2026-003"
     session.close()
+
+
+def test_tabla_tiene_columnas_de_editar_y_eliminar(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-005",
+            demandante="Pedro",
+            demandado="Rosa",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    assert view.tabla.columnCount() == 6
+    assert view.tabla.cellWidget(0, 4) is not None
+    assert view.tabla.cellWidget(0, 5) is not None
+
+
+def test_boton_editar_abre_dialogo_con_el_expediente_de_la_fila(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-004",
+            demandante="Carlos",
+            demandado="Maria",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    dialogos_creados = []
+
+    class _DialogStub:
+        def __init__(self, parent, expediente):
+            dialogos_creados.append(expediente.radicado)
+
+        def exec(self):
+            return False
+
+    monkeypatch.setattr("app.views.expedientes.ExpedienteFormDialog", _DialogStub)
+
+    view._editar_expediente(view._expediente_ids_por_fila[0])
+
+    assert dialogos_creados == ["2026-004"]

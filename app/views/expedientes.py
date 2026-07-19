@@ -112,8 +112,10 @@ class ExpedientesListView(QWidget):
         super().__init__()
         self._on_expediente_abierto = on_expediente_abierto
 
-        self.tabla = QTableWidget(0, 4)
-        self.tabla.setHorizontalHeaderLabels(["Radicado", "Demandante", "Demandado", "Area"])
+        self.tabla = QTableWidget(0, 6)
+        self.tabla.setHorizontalHeaderLabels(
+            ["Radicado", "Demandante", "Demandado", "Area", "Editar", "Eliminar"]
+        )
         self.tabla.cellDoubleClicked.connect(self._abrir_seleccionado)
 
         boton_nuevo = QPushButton("Nuevo expediente")
@@ -138,6 +140,19 @@ class ExpedientesListView(QWidget):
             self.tabla.setItem(fila, 1, QTableWidgetItem(expediente.demandante))
             self.tabla.setItem(fila, 2, QTableWidgetItem(expediente.demandado))
             self.tabla.setItem(fila, 3, QTableWidgetItem(expediente.area_derecho.value))
+
+            boton_editar = QPushButton("Editar")
+            boton_editar.clicked.connect(
+                lambda _checked=False, id_=expediente.id: self._editar_expediente(id_)
+            )
+            self.tabla.setCellWidget(fila, 4, boton_editar)
+
+            boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.clicked.connect(
+                lambda _checked=False, id_=expediente.id: self._eliminar_expediente(id_)
+            )
+            self.tabla.setCellWidget(fila, 5, boton_eliminar)
+
             self._expediente_ids_por_fila.append(expediente.id)
         session.close()
 
@@ -149,3 +164,14 @@ class ExpedientesListView(QWidget):
     def _abrir_seleccionado(self, fila: int, _columna: int) -> None:
         if self._on_expediente_abierto:
             self._on_expediente_abierto(self._expediente_ids_por_fila[fila])
+
+    def _editar_expediente(self, expediente_id: int) -> None:
+        session = session_module.get_session()
+        expediente = session.get(Expediente, expediente_id)
+        dialogo = ExpedienteFormDialog(self, expediente=expediente)
+        session.close()
+        if dialogo.exec():
+            self.refrescar()
+
+    def _eliminar_expediente(self, expediente_id: int) -> None:
+        raise NotImplementedError
