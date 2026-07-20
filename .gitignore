@@ -13,3 +13,6 @@ exports/*.pdf
 
 # Worktrees aislados para desarrollo (superpowers)
 .worktrees/
+
+# Configuracion local de Claude Code (no compartida en el repo)
+.claude/settings.local.json
