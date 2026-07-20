@@ -1,6 +1,12 @@
 from datetime import date
 
-from app.engine.temporal.prescripcion import TipoAccion, calcular_prescripcion
+import pytest
+
+from app.engine.temporal.prescripcion import (
+    TipoAccion,
+    calcular_caducidad,
+    calcular_prescripcion,
+)
 
 
 def test_calcular_prescripcion_ejecutiva_5_anios():
@@ -44,3 +50,23 @@ def test_calcular_prescripcion_desborde_fin_de_mes():
     assert calcular_prescripcion(
         date(2025, 8, 31), TipoAccion.CAMBIARIA_REGRESO_ENTRE_OBLIGADOS
     ) == date(2026, 3, 2)
+
+
+def test_calcular_caducidad_tipo_conocido_impugnacion_societaria():
+    # 2021-04-12 + 60 meses -> 2026-04-12, domingo inhábil -> corre al
+    # siguiente hábil, 2026-04-13 (lunes).
+    assert calcular_caducidad(
+        date(2021, 4, 12), "IMPUGNACION_INEFICACIA_SOCIETARIA"
+    ) == date(2026, 4, 13)
+
+
+def test_calcular_caducidad_tipo_desconocido_con_plazo_manual():
+    # 2025-01-15 + 8 meses -> 2025-09-15, lunes hábil.
+    assert calcular_caducidad(
+        date(2025, 1, 15), "TUTELA_INCIDENTE_DESACATO", plazo_meses_manual=8
+    ) == date(2025, 9, 15)
+
+
+def test_calcular_caducidad_tipo_desconocido_sin_plazo_manual_lanza_error():
+    with pytest.raises(ValueError):
+        calcular_caducidad(date(2025, 1, 15), "TUTELA_INCIDENTE_DESACATO")

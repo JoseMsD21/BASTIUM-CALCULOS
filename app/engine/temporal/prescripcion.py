@@ -11,6 +11,7 @@ fecha de origen (ver docs/superpowers/specs/2026-07-19-sprint7-prescripcion-cadu
 
 from datetime import date
 from enum import Enum
+from typing import Optional
 
 from app.engine.time.calendar import CalendarUtils
 
@@ -37,3 +38,26 @@ PLAZOS_PRESCRIPCION_MESES = {
 def calcular_prescripcion(fecha_exigibilidad: date, tipo_accion: TipoAccion) -> date:
     meses = PLAZOS_PRESCRIPCION_MESES[tipo_accion]
     return CalendarUtils.vencimiento_calendario(fecha_exigibilidad, meses)
+
+
+PLAZOS_CADUCIDAD_MESES_CONOCIDOS = {
+    # Impugnacion de ineficacia societaria, PDF pag. 40.
+    "IMPUGNACION_INEFICACIA_SOCIETARIA": 60,
+}
+
+
+def calcular_caducidad(
+    fecha_hecho: date,
+    tipo_proceso: str,
+    plazo_meses_manual: Optional[int] = None,
+) -> date:
+    if tipo_proceso in PLAZOS_CADUCIDAD_MESES_CONOCIDOS:
+        meses = PLAZOS_CADUCIDAD_MESES_CONOCIDOS[tipo_proceso]
+    elif plazo_meses_manual is not None:
+        meses = plazo_meses_manual
+    else:
+        raise ValueError(
+            f"No hay plazo de caducidad conocido para '{tipo_proceso}'; "
+            "debe indicarse 'plazo_meses_manual' explicitamente."
+        )
+    return CalendarUtils.vencimiento_calendario(fecha_hecho, meses)
