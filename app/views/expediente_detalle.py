@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QGroupBox,
     QHBoxLayout,
     QMessageBox,
@@ -60,6 +61,7 @@ class ExpedienteDetallePage(QWidget):
         self.tabla_historial.setHorizontalHeaderLabels(
             ["Fecha ejecución", "Usuario", "Área", "Fecha corte"]
         )
+        self.tabla_historial.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla_historial.cellDoubleClicked.connect(self._reconstruir_desde_historial)
 
         grupo_historial = QGroupBox("Historial de auditoría")
