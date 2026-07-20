@@ -51,3 +51,24 @@ def construir_rate_provider_moratorio_tributario(
             source=FUENTE_MORATORIO_TRIBUTARIO,
         )
     return provider
+
+
+def calcular_interes_moratorio_tributario(
+    capital: Decimal, fecha_exigibilidad: date, fecha_corte: date
+) -> Decimal:
+    """Suma el interes moratorio tributario dia a dia (mismo patron que
+    LiquidationCore._accrue_time_passage en app/engine/liquidation/engine.py)
+    desde el dia siguiente a fecha_exigibilidad hasta fecha_corte. Capital
+    fijo, sin abonos ni imputacion de pagos -- eso es Sprint 11b."""
+    if capital <= Decimal("0.00"):
+        return Decimal("0.00")
+
+    provider = construir_rate_provider_moratorio_tributario(fecha_exigibilidad, fecha_corte)
+
+    total = Decimal("0.00")
+    current_day = fecha_exigibilidad + timedelta(days=1)
+    while current_day <= fecha_corte:
+        daily_rate = provider.get_rate(current_day)
+        total += DailyInterest.calculate(capital=capital, daily_rate=daily_rate, days=1)
+        current_day += timedelta(days=1)
+    return total

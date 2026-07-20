@@ -5,6 +5,7 @@ import pytest
 
 from app.engine.tax.moratory_interest import (
     FUENTE_MORATORIO_TRIBUTARIO,
+    calcular_interes_moratorio_tributario,
     construir_rate_provider_moratorio_tributario,
 )
 
@@ -43,3 +44,31 @@ def test_rango_fuera_de_datos_disponibles_propaga_value_error():
         construir_rate_provider_moratorio_tributario(
             fecha_exigibilidad=date(2026, 8, 1), fecha_corte=date(2026, 8, 5)
         )
+
+
+def test_capital_cero_o_negativo_retorna_cero_sin_consultar_tramos():
+    assert calcular_interes_moratorio_tributario(
+        capital=Decimal("0.00"), fecha_exigibilidad=date(2026, 6, 1), fecha_corte=date(2026, 6, 2)
+    ) == Decimal("0.00")
+
+
+def test_fecha_corte_igual_a_exigibilidad_da_cero_dias_de_mora():
+    assert calcular_interes_moratorio_tributario(
+        capital=Decimal("1000000.00"), fecha_exigibilidad=date(2026, 6, 15), fecha_corte=date(2026, 6, 15)
+    ) == Decimal("0.00")
+
+
+def test_un_dia_de_mora_coincide_con_el_ejemplo_del_pdf_usura_28_79_ea():
+    # PDF pag. 39: usura 28.79% EA -> interes moratorio tributario 26.79% EA
+    total = calcular_interes_moratorio_tributario(
+        capital=Decimal("1000000.00"), fecha_exigibilidad=date(2026, 6, 1), fecha_corte=date(2026, 6, 2)
+    )
+    assert total == Decimal("650.52")
+
+
+def test_mora_que_cruza_dos_meses_suma_interes_de_cada_tramo():
+    total = calcular_interes_moratorio_tributario(
+        capital=Decimal("1000000.00"), fecha_exigibilidad=date(2026, 4, 29), fecha_corte=date(2026, 5, 2)
+    )
+    # abril 30 (606.27) + mayo 1 (637.08) + mayo 2 (637.08)
+    assert total == Decimal("1880.43")
