@@ -170,5 +170,7 @@ Mismo patrón condicional que ya usan los campos específicos de Comercial (`cam
   manual en pesos).
 - `bastium.db` migrado con las tres columnas nuevas sin perder los datos existentes.
 - `README.md` y `docs/GUIA_USUARIO.md` actualizados (regla obligatoria de `Pendientes.md` al cerrar
-  cualquier sprint) — quitar la mención de TRM de "Fuera de alcance" en `GUIA_USUARIO.md` línea 199.
+  cualquier sprint) — nueva sección 7.8 (mismo estilo que 7.7), sección 5.7 (obligación comercial)
+  ampliada con los campos de moneda/TRM, y la línea 615-616 de la sección 8 corregida para quitar
+  "TRM/moneda extranjera" de la lista de pendientes.
 - Suite completa en verde.
