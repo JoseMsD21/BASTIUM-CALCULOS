@@ -551,9 +551,11 @@ git commit -m "docs: mark Sprint 11a as implemented, document Sprint 11b as pend
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the complete test suite**
+- [x] **Step 1: Run the complete test suite**
 
 Run: `python -m pytest -q`
 Expected: all tests pass (no failures, no errors), including the new `tests/engine/tax/` package and the extended `tests/engine/test_historical_index.py`.
 
-- [ ] **Step 2: If everything is green, this plan is complete.** No further commit needed for this step — Task 5's commit is the closing commit of the sprint.
+Result: 308 passed, 1 skipped (pre-existing, unrelated).
+
+- [x] **Step 2: If everything is green, this plan is complete.** No further commit needed for this step — Task 5's commit is the closing commit of the sprint.

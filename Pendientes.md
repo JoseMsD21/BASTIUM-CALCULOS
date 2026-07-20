@@ -678,7 +678,7 @@ hacer doble clic (ver
 
 ---
 
-## Sprint 11 — Derecho Tributario (DIAN) 🔴 Pendiente
+## Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)
 
 **Prioridad sugerida:** Baja / exploratoria — es un dominio jurídico completamente nuevo para BASTIUM
 (hoy 0% implementado, ni un archivo), no una extensión de algo existente. Antes de planificarlo en detalle
