@@ -372,6 +372,50 @@ class TestComercialStrategy:
         assert "Tasa remuneratoria pactada (Art. 884 C.Co.)" in fuentes
         assert "Tasa moratoria pactada (Art. 884 C.Co.)" in fuentes
 
+    def test_obligacion_en_usd_convierte_el_capital_a_pesos_antes_de_liquidar(self):
+        obligacion_usd = _obligacion_comercial(valor=Decimal("10000.00"))
+        obligacion_usd.moneda = "USD"
+        obligacion_usd.trm_aplicable = Decimal("4000.0000")
+        obligacion_usd.trm_fecha_referencia = date(2025, 1, 1)
+
+        resultado_usd = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_usd], abonos=[], fecha_corte=date(2025, 3, 1)
+        )
+
+        obligacion_cop = _obligacion_comercial(valor=Decimal("40000000.00"))
+        resultado_cop = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_cop], abonos=[], fecha_corte=date(2025, 3, 1)
+        )
+
+        assert resultado_usd.final_balance().principal == Decimal("40000000.00")
+        assert resultado_usd.final_balance().interest == resultado_cop.final_balance().interest
+
+    def test_obligacion_usd_sin_trm_aplicable_lanza_value_error(self):
+        obligacion = _obligacion_comercial()
+        obligacion.moneda = "USD"
+        obligacion.trm_fecha_referencia = date(2025, 1, 1)
+
+        with pytest.raises(ValueError, match="trm_aplicable"):
+            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+
+    def test_obligacion_usd_sin_trm_fecha_referencia_lanza_value_error(self):
+        obligacion = _obligacion_comercial()
+        obligacion.moneda = "USD"
+        obligacion.trm_aplicable = Decimal("4000.0000")
+
+        with pytest.raises(ValueError, match="trm_fecha_referencia"):
+            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+
+    def test_obligacion_sin_moneda_seteada_se_trata_como_cop(self):
+        obligacion = _obligacion_comercial()
+        assert obligacion.moneda is None  # atributo no seteado en construccion directa, sin sesion
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+        )
+
+        assert resultado.final_balance().principal == obligacion.valor
+
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True

@@ -8,6 +8,8 @@ from app.domain.obligation.payment import Payment
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
+from app.engine.currency.converter import convertir_a_pesos
+from app.engine.currency.trm_provider import ManualTRMProvider
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
@@ -213,12 +215,36 @@ class ComercialStrategy(AreaStrategy):
         validar_tasa_usura(obligacion.tasa_efectiva_anual, obligacion.ibc_vigente_anual, "remuneratoria")
         validar_tasa_usura(obligacion.tasa_moratoria_anual, obligacion.ibc_vigente_anual, "moratoria")
 
+        if obligacion.moneda not in (None, "COP"):
+            if obligacion.trm_aplicable is None:
+                raise ValueError(
+                    f"La obligacion comercial '{obligacion.concepto}' esta en "
+                    f"{obligacion.moneda} y necesita el campo 'trm_aplicable' para liquidar."
+                )
+            if obligacion.trm_fecha_referencia is None:
+                raise ValueError(
+                    f"La obligacion comercial '{obligacion.concepto}' esta en "
+                    f"{obligacion.moneda} y necesita el campo 'trm_fecha_referencia' para liquidar."
+                )
+
+    def _valor_en_pesos(self, obligacion) -> Decimal:
+        if obligacion.moneda in (None, "COP"):
+            return obligacion.valor
+        provider = ManualTRMProvider(obligacion.trm_aplicable)
+        return convertir_a_pesos(
+            valor=obligacion.valor,
+            moneda=obligacion.moneda,
+            provider=provider,
+            fecha_referencia=obligacion.trm_fecha_referencia,
+        )
+
     def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
+        valor_pesos = self._valor_en_pesos(obligacion)
         if obligacion.tipo.value == "PUNTUAL":
             return [
                 Event(
                     date=obligacion.fecha_origen,
-                    payload={"amount": obligacion.valor, "label": obligacion.concepto},
+                    payload={"amount": valor_pesos, "label": obligacion.concepto},
                     event_type=obligacion.categoria,
                 )
             ]
@@ -226,7 +252,7 @@ class ComercialStrategy(AreaStrategy):
         # RECURRENTE
         scheduler = FamilyScheduler()
         scheduler.add_monthly_obligation(
-            amount=obligacion.valor,
+            amount=valor_pesos,
             concept=obligacion.concepto,
             due_day=obligacion.dia_pago,
             category=obligacion.categoria,
