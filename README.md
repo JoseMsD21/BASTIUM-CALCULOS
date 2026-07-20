@@ -29,8 +29,13 @@ queda registrada en un historial de auditoría por expediente (quién, cuándo, 
 corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
 
 🚧 **En desarrollo:** seguridad social (cotizaciones a pensión, salud, ARL, fondo de solidaridad
-pensional) en el área Laboral, indexación por IPC, prescripción/caducidad, anatocismo comercial
-condicionado (Art. 886 C.Co.) y varios módulos más también están pendientes. Las series históricas de
+pensional) en el área Laboral, indexación por IPC, anatocismo comercial condicionado (Art. 886 C.Co.) y
+varios módulos más también están pendientes. El motor de prescripción y caducidad
+(`app/engine/temporal/prescripcion.py`) ya existe y está probado — calcula fechas límite por tipo de
+acción (ejecutiva, ordinaria, honorarios profesionales, cambiaria directa/de regreso), soporta
+prescripción parcial cuota a cuota en obligaciones de tracto sucesivo e interrupción por demanda — pero
+todavía no está conectado a ninguna pantalla ni al motor de liquidación (`Pendientes.md`, Sprint 7). Las
+series históricas de
 SMLMV, IPC e IBC/Tasa de Usura (1984-2026, 1967-2025 y 1997-2026 respectivamente) ya están cargadas en
 `app/engine/indexation/historical_index.py` — la de IBC/Usura ya se usa tanto en Comercial como en la
 fase 2 de la indemnización moratoria laboral; SMLMV e IPC todavía no están conectadas a los cálculos que

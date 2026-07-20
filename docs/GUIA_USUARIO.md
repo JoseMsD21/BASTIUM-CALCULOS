@@ -570,14 +570,17 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
 - 🚧 **Indexación por IPC** (ajustar un monto histórico por inflación) — el motor matemático ya existe y
   está probado, y desde el Sprint 5 también existen los datos históricos reales de IPC que necesita, pero
   todavía no está conectado a la pantalla de liquidación (`Pendientes.md`, Sprint 8).
-- 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — no
-  existe ese cálculo todavía (`Pendientes.md`, Sprint 7).
+- 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — el
+  motor de cálculo ya existe y está probado (`app/engine/temporal/prescripcion.py`: fechas límite por
+  tipo de acción, prescripción parcial cuota a cuota para cuotas alimentarias, e interrupción por
+  demanda), pero todavía no está conectado a ninguna pantalla ni bloquea la liquidación de un expediente
+  (`Pendientes.md`, Sprint 7).
 - 🚧 **Calendario de días hábiles y términos procesales** — el motor ya existe y está probado
   (`CalendarUtils.es_dia_habil/sumar_dias_habiles/dias_habiles_entre/notificacion_surtida_el/
   vencimiento_calendario` en `app/engine/time/calendar.py`, y el modelador de términos con
   interrupción/suspensión/reanudación en `app/engine/temporal/terminos.py`), pero todavía no está
-  conectado a ninguna pantalla — hoy sirve como base interna para el Sprint 7 de prescripción y
-  caducidad (`Pendientes.md`, Sprint 6).
+  conectado a ninguna pantalla — hoy sirve como base interna para el motor de prescripción y caducidad
+  del Sprint 7 (`Pendientes.md`, Sprint 6).
 - 🚧 **Derecho Tributario, TRM/moneda extranjera, motor de reglas configurable** — dominios nuevos, de
   menor prioridad, ver `Pendientes.md`, Sprints 11, 12 y 13.
 

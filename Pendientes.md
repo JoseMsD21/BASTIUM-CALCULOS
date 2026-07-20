@@ -416,7 +416,7 @@ de lo que Sprint 6 pedía, pero relevantes para quien tome el Sprint 7):
 
 ---
 
-## Sprint 7 — Motor de prescripción y caducidad 🔴 Pendiente
+## Sprint 7 — Motor de prescripción y caducidad ✅ Completado
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 6 (calendario de días hábiles) para cómputo preciso de plazos.
@@ -457,6 +457,30 @@ de lo que Sprint 6 pedía, pero relevantes para quien tome el Sprint 7):
 **Alcance explícitamente excluido:**
 - Integración con la GUI (bloquear el botón "Liquidar" si hay prescripción) — eso es un sprint de UI
   aparte una vez el motor exista y esté probado.
+
+**Estado:** Implementado (2026-07-19) — ver
+`docs/superpowers/plans/2026-07-19-sprint7-prescripcion-caducidad.md` y
+`docs/superpowers/specs/2026-07-19-sprint7-prescripcion-caducidad-design.md`. El motor vive en
+`app/engine/temporal/prescripcion.py`, independiente de `EstadoTermino` (Sprint 6) por decisión tomada
+con el usuario: prescripción/caducidad son plazos calendario (años/meses), no de días hábiles, y no
+necesitan pausar/reanudar un reloj — solo una fecha límite calculada desde
+`CalendarUtils.vencimiento_calendario`. Decisiones tomadas con el usuario durante el brainstorming
+previo (no asumidas unilateralmente):
+- Los tres subtipos de prescripción cambiaria del PDF (pág. 32 y pág. 45) se modelan como tres valores
+  distintos de `TipoAccion` (directa 3 años, de regreso del tenedor 1 año, entre obligados de regreso 6
+  meses), reconciliando la mención de "6 meses" de la pág. 32 como el tercer supuesto real del C.Co.
+  (art. 791) en vez de tratarla como un error aislado del documento.
+- `calcular_caducidad` solo trae hardcodeado el único caso con plazo confirmado en el PDF (impugnación
+  de ineficacia societaria, 5 años); cualquier otro `tipo_proceso` exige un `plazo_meses_manual`
+  explícito o lanza `ValueError` — mismo patrón que `costas_pct_manual` del Sprint 4, para no inventar
+  plazos sin fuente documental.
+- No se agregaron excepciones de dominio (`ObligacionPrescritaError`/`DemandaCaducadaError`): el motor
+  es cálculo puro, ya que este sprint excluye explícitamente la integración con la GUI y con
+  `area_strategy.py`.
+
+Pendiente explícito que quedó fuera de este sprint (documentado, no un olvido): la suspensión de
+caducidad por conciliación extrajudicial (máximo 3 meses, PDF pág. 25) no se modela — no hay ningún caso
+de uso en el sprint que la requiera todavía.
 
 **Definición de Hecho:**
 - Tests con los plazos de cada tipo de acción mencionados en el PDF.
