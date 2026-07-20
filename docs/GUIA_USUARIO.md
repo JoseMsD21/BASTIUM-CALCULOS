@@ -230,6 +230,11 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
    - **Fecha de inicio (Recurrente)**: desde qué mes empieza a causarse la cuota.
    - **Día de pago (Recurrente)**: el día del mes en que vence cada cuota (ej. `5` = el día 5 de cada
      mes).
+   - **Aplica indexación IPC**: igual que en obligaciones Puntuales (ver
+     [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez)), puedes marcar esta
+     casilla para que la obligación se indexe por IPC. En Recurrente, cada cuota se indexa
+     individualmente desde su propia fecha de vencimiento, no todas desde el inicio de la obligación —
+     ver [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle.
 3. Haz clic en **"Guardar"**.
 
 El programa genera automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de
