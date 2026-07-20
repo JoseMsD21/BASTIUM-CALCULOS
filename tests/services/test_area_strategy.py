@@ -156,6 +156,42 @@ def test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto
     assert resultado.final_balance().indexation == Decimal("77633.53")
 
 
+def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_propia_fecha():
+    obligacion = Obligacion(
+        id=4,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2025, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2025, 1, 1),
+        fecha_fin=date(2025, 2, 5),
+        aplica_indexacion_ipc=True,
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+
+    eventos_indexacion = sorted(
+        (item for item in resultado.items if item.balance.event_type == "INDEXATION"),
+        key=lambda item: item.date,
+    )
+    # 2 cuotas (5-ene y 5-feb-2025), cada una con su propio monto de indexacion
+    # porque cada una arranca a indexar desde una fecha distinta -- si ambas
+    # dieran el mismo monto, seria señal de que se esta usando fecha_inicio de
+    # la obligacion en vez de la fecha de cada cuota.
+    assert len(eventos_indexacion) == 2
+    assert eventos_indexacion[0].date == date(2025, 1, 5)
+    assert eventos_indexacion[1].date == date(2025, 2, 5)
+    assert eventos_indexacion[0].indexation_amount == Decimal("25133.13")
+    assert eventos_indexacion[1].indexation_amount == Decimal("22869.89")
+    assert eventos_indexacion[0].indexation_amount != eventos_indexacion[1].indexation_amount
+
+
 from app.engine.liquidation.engine import LiquidationCore
 
 
