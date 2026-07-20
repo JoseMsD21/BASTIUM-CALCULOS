@@ -9,6 +9,7 @@ from app.engine.indexation.historical_index import (
     get_ibc_usura_for_date,
     get_ipc_for_date,
     get_smlmv_for_year,
+    get_tramos_ibc_usura_between,
 )
 
 
@@ -171,3 +172,30 @@ def test_ipc_interpolado_primer_anio_usa_ancla_implicita_de_100():
     t2 = Decimal(184)  # 30-jun-1967 -> 31-dic-1967
     esperado = (t1 * v_1967 + t2 * Decimal("100")) / (t1 + t2)
     assert get_ipc_interpolado_for_date(date(1967, 6, 30)) == esperado
+
+
+def test_tramos_entre_rango_dentro_de_un_solo_tramo():
+    tramos = get_tramos_ibc_usura_between(date(2026, 6, 5), date(2026, 6, 20))
+    assert len(tramos) == 1
+    assert tramos[0].inicio == date(2026, 6, 1)
+    assert tramos[0].fin == date(2026, 6, 30)
+    assert tramos[0].usura_anual == Decimal("28.79")
+
+
+def test_tramos_entre_rango_que_cruza_dos_meses():
+    tramos = get_tramos_ibc_usura_between(date(2026, 4, 29), date(2026, 5, 2))
+    assert len(tramos) == 2
+    assert tramos[0].inicio == date(2026, 4, 1) and tramos[0].fin == date(2026, 4, 30)
+    assert tramos[0].usura_anual == Decimal("26.76")
+    assert tramos[1].inicio == date(2026, 5, 1) and tramos[1].fin == date(2026, 5, 31)
+    assert tramos[1].usura_anual == Decimal("28.17")
+
+
+def test_tramos_fin_anterior_a_inicio_lanza_value_error():
+    with pytest.raises(ValueError):
+        get_tramos_ibc_usura_between(date(2026, 5, 2), date(2026, 4, 29))
+
+
+def test_tramos_fuera_de_rango_disponible_lanza_value_error():
+    with pytest.raises(ValueError):
+        get_tramos_ibc_usura_between(date(1990, 1, 1), date(1990, 1, 5))

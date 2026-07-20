@@ -678,7 +678,7 @@ hacer doble clic (ver
 
 ---
 
-## Sprint 11 — Derecho Tributario (DIAN) 🔴 Pendiente
+## Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)
 
 **Prioridad sugerida:** Baja / exploratoria — es un dominio jurídico completamente nuevo para BASTIUM
 (hoy 0% implementado, ni un archivo), no una extensión de algo existente. Antes de planificarlo en detalle
@@ -711,6 +711,19 @@ o si BASTIUM debe seguir enfocado en litigio civil/comercial/laboral/familia.
 
 **Nota:** este sprint es el que menos detalle técnico tiene de los doce, a propósito — antes de invertir
 tiempo de planificación fina, hay que confirmar que entra en el roadmap del producto.
+
+**Estado:** Sprint 11a implementado (2026-07-20) — ver
+`docs/superpowers/plans/2026-07-20-sprint11a-tributario-interes-renta-liquida.md` y
+`docs/superpowers/specs/2026-07-20-sprint11a-tributario-interes-renta-liquida-design.md`. Decisión tomada
+con el usuario durante el brainstorming previo: de las 5 piezas sugeridas arriba, este sprint construyó
+únicamente las dos sin bloqueo de datos — `app/engine/tax/moratory_interest.py` (interés moratorio
+tributario, E.T. art. 635, resuelto automáticamente por tramos históricos de usura vía
+`historical_index.get_tramos_ibc_usura_between`) y `app/engine/tax/renta_liquida.py` (depuración de Renta
+Líquida Gravable, pipeline de 8 pasos). Son motores de cálculo puros — sin `TributarioStrategy`, sin
+registrar el área en `AREAS_DERECHO`, sin wiring de GUI — mismo patrón que `IPCIndexation` quedó
+standalone hasta que el Sprint 8 lo conectó. **Sprint 11b** (motor de sanciones, imputación tributaria de
+pagos, modelo de "Obligación Tributaria") sigue pendiente, bloqueado por la misma tabla histórica de UVT
+que el Sprint 5 dejó sin conseguir.
 
 ---
 
