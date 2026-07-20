@@ -48,6 +48,12 @@ python main.py
 Para el paso a paso completo (incluyendo un problema conocido de Windows con rutas largas y cómo
 resolverlo), ver la [Guía de Usuario](docs/GUIA_USUARIO.md#2-instalación-paso-a-paso).
 
+**Si ya tenías `bastium.db` creado antes del Sprint 8**, corre una vez
+`python scripts/migrate_aplica_indexacion_ipc.py` antes de abrir la app — agrega la columna
+`aplica_indexacion_ipc` que la indexación IPC necesita. `init_db()` (creación de tablas nuevas) no
+altera tablas existentes, así que sin este paso la app falla al leer o guardar cualquier obligación. El
+script es idempotente (se puede correr de más sin riesgo) y solo hace falta una vez por instalación.
+
 ## Estructura del proyecto
 
 ```

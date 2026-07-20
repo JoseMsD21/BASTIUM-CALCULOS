@@ -516,6 +516,20 @@ prohíbe. Queda documentado como limitación conocida (no corregida en este spri
 calculándose solo sobre el capital, no sobre el capital ya indexado, a diferencia del algoritmo de "Suma
 Única" del PDF (pág. 22) — cambiar eso afecta el motor core para las 5 áreas.
 
+Dos hallazgos de la revisión final de rama, resueltos o documentados antes de cerrar el sprint:
+- **Migración de esquema**: `init_db()` (`database/database.py`) solo crea tablas nuevas, no altera las
+  existentes — sin correr `scripts/migrate_aplica_indexacion_ipc.py` sobre un `bastium.db` preexistente,
+  la app falla al leer o guardar cualquier obligación (`no such column: aplica_indexacion_ipc`). Ya se
+  corrió el script sobre el `bastium.db` real de este equipo (2026-07-20); queda documentado en
+  `README.md` (sección "Instalación rápida") para quien clone el repo con un `bastium.db` de antes de
+  este sprint.
+- **Pendiente explícito, no bloqueante**: `ResultadoLiquidacionView` (`app/views/liquidaciones.py`, no
+  tocada en este sprint) no tiene columna "Indexación" en la tabla en pantalla — el monto indexado sí
+  queda en `LiquidationItem.indexation_amount` y sí aparece en las exportaciones a PDF/Word
+  (`app/engine/reports/table_builder.py`), pero en pantalla solo se ve reflejado en el Saldo acumulado,
+  no como cifra propia. Agregar esa columna es trabajo de un sprint/tarea aparte sobre la vista de
+  resultados, no de este sprint de conexión del motor.
+
 **Definición de Hecho:**
 - Los tests de `CivilFamiliaStrategy` (Task 6 del plan MVP) siguen pasando y se agregan casos nuevos con
   indexación activada, verificando el resultado numérico contra un cálculo manual con la fórmula del PDF.
