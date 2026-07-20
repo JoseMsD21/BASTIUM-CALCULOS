@@ -612,8 +612,15 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   interrupción/suspensión/reanudación en `app/engine/temporal/terminos.py`), pero todavía no está
   conectado a ninguna pantalla — hoy sirve como base interna para el motor de prescripción y caducidad
   del Sprint 7 (`Pendientes.md`, Sprint 6).
-- 🚧 **Derecho Tributario, TRM/moneda extranjera, motor de reglas configurable** — dominios nuevos, de
-  menor prioridad, ver `Pendientes.md`, Sprints 11, 12 y 13.
+- 🚧 **Derecho Tributario** — dos motores de cálculo ya existen y están probados: interés moratorio
+  tributario (E.T. art. 635, tasa de usura vigente menos dos puntos, resuelta automáticamente por tramos
+  históricos) y depuración de Renta Líquida Gravable (el flujo de 8 pasos del impuesto de renta). Ninguno
+  está conectado todavía a un área operable — no existe una estrategia de liquidación tributaria ni el
+  área aparece en el selector de la GUI. Sanciones (extemporaneidad, inexactitud) e imputación tributaria
+  de pagos siguen sin construir, bloqueadas por la falta de una tabla histórica de UVT (`Pendientes.md`,
+  Sprint 11).
+- 🚧 **TRM/moneda extranjera, motor de reglas configurable** — dominios nuevos, de menor prioridad, ver
+  `Pendientes.md`, Sprints 12 y 13.
 
 ---
 
