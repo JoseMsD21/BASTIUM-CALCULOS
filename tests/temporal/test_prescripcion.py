@@ -70,3 +70,11 @@ def test_calcular_caducidad_tipo_desconocido_con_plazo_manual():
 def test_calcular_caducidad_tipo_desconocido_sin_plazo_manual_lanza_error():
     with pytest.raises(ValueError):
         calcular_caducidad(date(2025, 1, 15), "TUTELA_INCIDENTE_DESACATO")
+
+
+def test_calcular_caducidad_tipo_conocido_ignora_plazo_manual_si_ambos_se_pasan():
+    # El catalogo conocido tiene prioridad: plazo_meses_manual se ignora si
+    # tipo_proceso ya esta en PLAZOS_CADUCIDAD_MESES_CONOCIDOS.
+    assert calcular_caducidad(
+        date(2021, 4, 12), "IMPUGNACION_INEFICACIA_SOCIETARIA", plazo_meses_manual=1
+    ) == date(2026, 4, 13)

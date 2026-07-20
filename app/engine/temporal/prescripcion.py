@@ -44,6 +44,8 @@ PLAZOS_CADUCIDAD_MESES_CONOCIDOS = {
     # Impugnacion de ineficacia societaria, PDF pag. 40.
     "IMPUGNACION_INEFICACIA_SOCIETARIA": 60,
 }
+# Deliberadamente no exhaustivo: solo casos con plazo confirmado en el PDF
+# fuente; cualquier otro tipo_proceso requiere plazo_meses_manual explicito.
 
 
 def calcular_caducidad(
@@ -51,6 +53,8 @@ def calcular_caducidad(
     tipo_proceso: str,
     plazo_meses_manual: Optional[int] = None,
 ) -> date:
+    # El catalogo conocido tiene prioridad sobre plazo_meses_manual por
+    # diseno: si tipo_proceso ya esta confirmado, el valor manual se ignora.
     if tipo_proceso in PLAZOS_CADUCIDAD_MESES_CONOCIDOS:
         meses = PLAZOS_CADUCIDAD_MESES_CONOCIDOS[tipo_proceso]
     elif plazo_meses_manual is not None:
