@@ -110,6 +110,62 @@ def _expediente_comercial_con_obligacion_usuraria(monkeypatch) -> int:
     return expediente_id
 
 
+def _expediente_civil_con_obligacion_indexada(monkeypatch) -> int:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-070",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2025, 12, 31),
+    )
+    session.add(expediente)
+    session.flush()
+    session.add(
+        Obligacion(
+            expediente_id=expediente.id,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto="Dano emergente",
+            categoria="DANO_EMERGENTE",
+            fecha_origen=date(2024, 7, 1),
+            valor=Decimal("1000000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            aplica_indexacion_ipc=True,
+        )
+    )
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+    return expediente_id
+
+
+def test_liquidar_area_civil_con_indexacion_ipc_incluye_evento_de_indexacion(qtbot, monkeypatch):
+    expediente_id = _expediente_civil_con_obligacion_indexada(monkeypatch)
+
+    resultados_recibidos = []
+
+    def capturar(resultado, exp_id):
+        resultados_recibidos.append((resultado, exp_id))
+
+    page = ExpedienteDetallePage(on_liquidado=capturar)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._liquidar()
+
+    assert len(resultados_recibidos) == 1
+    resultado, exp_id = resultados_recibidos[0]
+    assert exp_id == expediente_id
+
+    tipos_evento = {item.balance.event_type for item in resultado.items}
+    assert "INDEXATION" in tipos_evento
+    assert resultado.final_balance().indexation == Decimal("77633.53")
+
+
 def test_liquidar_area_comercial_con_tasa_usuraria_muestra_advertencia(qtbot, monkeypatch):
     expediente_id = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
 

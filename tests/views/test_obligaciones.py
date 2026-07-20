@@ -371,6 +371,59 @@ def test_campo_fecha_pago_total_solo_visible_si_pagada_marcada(qtbot, monkeypatc
     assert dialog.campo_fecha_pago_total.isVisible() is False
 
 
+def test_check_indexacion_visible_solo_en_civil_familia(qtbot, monkeypatch):
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+    dialog_civil.show()
+    assert dialog_civil.check_aplica_indexacion_ipc.isVisible() is True
+
+    expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+    dialog_comercial = ObligacionFormDialog(expediente_id=expediente_id_comercial, area="COMERCIAL")
+    qtbot.addWidget(dialog_comercial)
+    dialog_comercial.show()
+    assert dialog_comercial.check_aplica_indexacion_ipc.isVisible() is False
+
+
+def test_guarda_obligacion_con_indexacion_ipc_marcada(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Dano emergente")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 7, 1))
+    dialog.check_aplica_indexacion_ipc.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.aplica_indexacion_ipc is True
+    session.close()
+
+
+def test_guarda_obligacion_sin_marcar_indexacion_queda_en_false(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Dano emergente")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 7, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.aplica_indexacion_ipc is False
+    session.close()
+
+
 def test_label_fecha_origen_cambia_para_area_laboral(qtbot, monkeypatch):
     expediente_id_laboral = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
     expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
