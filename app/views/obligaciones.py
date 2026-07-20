@@ -76,6 +76,7 @@ class ObligacionFormDialog(QDialog):
         self.campo_cuota_litis_pct = QLineEdit()
         self.campo_beneficio_obtenido = QLineEdit()
         self.campo_costas_pct = QLineEdit()
+        self.check_aplica_indexacion_ipc = QCheckBox("Aplica indexación IPC (corrección monetaria)")
 
         self.campo_fecha_fin = QDateEdit(QDate.currentDate())
         self.campo_fecha_fin.setCalendarPopup(True)
@@ -104,6 +105,7 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("% Cuota litis pactada", self.campo_cuota_litis_pct)
         self.layout_formulario.addRow("Beneficio obtenido por el cliente", self.campo_beneficio_obtenido)
         self.layout_formulario.addRow("% Costas judiciales (opcional)", self.campo_costas_pct)
+        self.layout_formulario.addRow(self.check_aplica_indexacion_ipc)
         self.layout_formulario.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
         self.layout_formulario.addRow(self.check_pagada)
         self.layout_formulario.addRow("Fecha de pago real", self.campo_fecha_pago_total)
@@ -125,6 +127,8 @@ class ObligacionFormDialog(QDialog):
         self.campo_cuota_litis_pct.setVisible(es_honorarios)
         self.campo_beneficio_obtenido.setVisible(es_honorarios)
         self.campo_costas_pct.setVisible(es_honorarios)
+
+        self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
 
         # "Valor" no aplica a Sancionatorio/Honorarios: el monto se calcula a partir de
         # los campos de arriba (cantidad_smlmv_uvt, o honorarios+cuota litis+costas).
@@ -254,6 +258,7 @@ class ObligacionFormDialog(QDialog):
             cuota_litis_pactada_pct=cuota_litis_pct,
             beneficio_obtenido=beneficio_obtenido,
             costas_pct_manual=costas_pct,
+            aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
             fecha_fin=None,

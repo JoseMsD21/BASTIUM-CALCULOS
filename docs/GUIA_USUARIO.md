@@ -211,6 +211,10 @@ Usa este tipo cuando la deuda es un monto único con una sola fecha (ej. "gastos
      `6.00` (el 6% anual que ordena el Artículo 1617 del Código Civil), pero puedes cambiarlo si el caso
      tiene una tasa distinta pactada.
    - **Fecha de origen**: la fecha en que nació esa deuda (ej. la fecha de la factura o el hecho).
+   - **Aplica indexación IPC**: marca esta casilla si la obligación debe corregirse monetariamente por
+     inflación (indexación, Art. corrección monetaria) además del interés. Es una decisión del abogado
+     caso por caso — no todas las obligaciones se indexan. Ver
+     [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle de cómo se calcula.
 4. Haz clic en **"Guardar"**.
 
 Si pones un valor negativo o cero, el programa te avisa "Datos inválidos" y no deja guardar.
@@ -226,6 +230,11 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
    - **Fecha de inicio (Recurrente)**: desde qué mes empieza a causarse la cuota.
    - **Día de pago (Recurrente)**: el día del mes en que vence cada cuota (ej. `5` = el día 5 de cada
      mes).
+   - **Aplica indexación IPC**: igual que en obligaciones Puntuales (ver
+     [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez)), puedes marcar esta
+     casilla para que la obligación se indexe por IPC. En Recurrente, cada cuota se indexa
+     individualmente desde su propia fecha de vencimiento, no todas desde el inicio de la obligación —
+     ver [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle.
 3. Haz clic en **"Guardar"**.
 
 El programa genera automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de
@@ -546,6 +555,29 @@ exactamente dónde encontrarlos y qué significa cada uno:
   tope" al hacer clic en "Liquidar" y no calcula nada — igual que con la tasa usuraria, la validación
   ocurre al calcular, no al capturar el dato.
 
+### 7.7. Indexación IPC (corrección monetaria)
+
+- **Dónde se ve/edita en la app**: en el formulario de "Agregar obligación" de un expediente Civil/
+  Familia, la casilla **"Aplica indexación IPC (corrección monetaria)"** — ver
+  [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez). No viene marcada por
+  defecto: el abogado decide caso por caso si la obligación debe indexarse, además de generar intereses.
+- **Dónde vive la lógica en el código**: `app/engine/indexation/ipc.py` (`IPCIndexation.calculate`) y
+  `app/engine/indexation/historical_index.py` (`get_ipc_interpolado_for_date`), invocados desde
+  `CivilFamiliaStrategy._evento_indexacion` en `app/services/area_strategy.py`.
+- **Cómo se calcula**: `Va = Vh × (IPC_final / IPC_inicial)`. Para una obligación **Puntual**, se indexa
+  una sola vez desde la fecha de origen hasta la fecha de corte del expediente. Para una obligación
+  **Recurrente** (cuotas mensuales), cada cuota se indexa individualmente desde su propia fecha de
+  vencimiento — no todas desde el inicio de la obligación — porque cada cuota se deprecia un tiempo
+  distinto.
+- **Limitación conocida**: la fuente de datos (Sprint 5) solo trae el IPC de cierre de cada año, no mes a
+  mes como certifica el DANE en la vida real. Para una fecha intermedia dentro del año, el programa
+  interpola linealmente entre el índice de cierre del año anterior y el del año actual — es una
+  aproximación razonable, pero no es el valor mensual exacto que certificaría el DANE. Para fechas de
+  2026 en adelante (la serie no llega hasta ahí), se usa el índice de 2025 como aproximación.
+- **Qué NO hace todavía**: los intereses (Art. 1617 C.C.) se siguen calculando solo sobre el capital, no
+  sobre el capital ya indexado — el algoritmo de "Suma Única" del PDF (interés sobre el valor indexado)
+  requeriría cambiar el motor de liquidación para las 5 áreas, fuera del alcance de este sprint.
+
 ---
 
 ## 8. Funciones pendientes o en desarrollo
@@ -567,9 +599,8 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   (`CompoundInterest`) existe pero no está conectado; requiere modelar si hubo demanda judicial o
   acuerdo posterior de capitalización, algo que el modelo de datos todavía no captura (`Pendientes.md`,
   Sprint 2, nota de alcance diferido).
-- 🚧 **Indexación por IPC** (ajustar un monto histórico por inflación) — el motor matemático ya existe y
-  está probado, y desde el Sprint 5 también existen los datos históricos reales de IPC que necesita, pero
-  todavía no está conectado a la pantalla de liquidación (`Pendientes.md`, Sprint 8).
+- ✅ **Indexación por IPC** ya está conectada a Civil/Familia (Sprint 8) — ver
+  [sección 7.7](#77-indexación-ipc-corrección-monetaria).
 - 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — el
   motor de cálculo ya existe y está probado (`app/engine/temporal/prescripcion.py`: fechas límite por
   tipo de acción, prescripción parcial cuota a cuota para cuotas alimentarias, e interrupción por

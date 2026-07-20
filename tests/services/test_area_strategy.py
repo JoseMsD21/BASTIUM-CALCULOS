@@ -117,6 +117,81 @@ def test_civil_familia_expande_obligacion_recurrente_en_cuotas_mensuales():
     assert resultado.final_balance().principal == Decimal("1500000.00")
 
 
+def test_civil_familia_puntual_sin_indexacion_no_genera_evento_indexation():
+    strategy = CivilFamiliaStrategy()
+    obligacion = _obligacion_puntual()  # aplica_indexacion_ipc no seteado -> falsy
+
+    resultado = strategy.liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+    )
+
+    assert all(item.balance.event_type != "INDEXATION" for item in resultado.items)
+    assert resultado.final_balance().indexation == Decimal("0.00")
+
+
+def test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto_correcto():
+    obligacion = Obligacion(
+        id=3,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+
+    eventos_indexacion = [item for item in resultado.items if item.balance.event_type == "INDEXATION"]
+    assert len(eventos_indexacion) == 1
+    # Calculado manualmente con get_ipc_interpolado_for_date(2024-07-01) y
+    # get_ipc_interpolado_for_date(2025-12-31) via IPCIndexation.calculate --
+    # 1,000,000 indexado de jul-2024 a dic-2025.
+    assert eventos_indexacion[0].indexation_amount == Decimal("77633.53")
+    assert eventos_indexacion[0].concept == "Indexación IPC — Dano emergente"
+    assert resultado.final_balance().indexation == Decimal("77633.53")
+
+
+def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_propia_fecha():
+    obligacion = Obligacion(
+        id=4,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2025, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2025, 1, 1),
+        fecha_fin=date(2025, 2, 5),
+        aplica_indexacion_ipc=True,
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+
+    eventos_indexacion = sorted(
+        (item for item in resultado.items if item.balance.event_type == "INDEXATION"),
+        key=lambda item: item.date,
+    )
+    # 2 cuotas (5-ene y 5-feb-2025), cada una con su propio monto de indexacion
+    # porque cada una arranca a indexar desde una fecha distinta -- si ambas
+    # dieran el mismo monto, seria señal de que se esta usando fecha_inicio de
+    # la obligacion en vez de la fecha de cada cuota.
+    assert len(eventos_indexacion) == 2
+    assert eventos_indexacion[0].date == date(2025, 1, 5)
+    assert eventos_indexacion[1].date == date(2025, 2, 5)
+    assert eventos_indexacion[0].indexation_amount == Decimal("25133.13")
+    assert eventos_indexacion[1].indexation_amount == Decimal("22869.89")
+    assert eventos_indexacion[0].indexation_amount != eventos_indexacion[1].indexation_amount
+
+
 from app.engine.liquidation.engine import LiquidationCore
 
 

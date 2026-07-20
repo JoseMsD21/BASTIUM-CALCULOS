@@ -490,7 +490,7 @@ de uso en el sprint que la requiera todavía.
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔴 Pendiente
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia ✅ Completado
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -525,6 +525,34 @@ automáticamente a partir de una fecha).
 **Alcance explícitamente excluido:**
 - Indexación para áreas Comercial (incompatible con intereses bancarios per el PDF) — eso es una
   validación de exclusión en Sprint 2, no una implementación aquí.
+
+**Estado:** Implementado (2026-07-19) — ver
+`docs/superpowers/plans/2026-07-19-sprint8-indexacion-ipc-civil-familia.md` y
+`docs/superpowers/specs/2026-07-19-sprint8-indexacion-ipc-civil-familia-design.md`. Decisiones tomadas
+con el usuario durante el brainstorming previo: (a) la activación es **opt-in por obligación**
+(`aplica_indexacion_ipc`), no automática por área — es un juicio legal del abogado; (b) la interpolación
+del PDF (entre meses certificados) se aproxima con interpolación entre **índices de cierre de año**,
+porque la fuente transcrita en el Sprint 5 nunca tuvo granularidad mensual; (c) fechas de 2026 en
+adelante usan el índice de 2025 como aproximación, para no bloquear liquidaciones con la fecha actual del
+sistema; (d) la regla "no doble indexación" del PDF se documentó en vez de codificarse como guard, porque
+ningún campo de `Obligacion` usado por Civil/Familia puede representar la combinación que esa regla
+prohíbe. Queda documentado como limitación conocida (no corregida en este sprint): el interés sigue
+calculándose solo sobre el capital, no sobre el capital ya indexado, a diferencia del algoritmo de "Suma
+Única" del PDF (pág. 22) — cambiar eso afecta el motor core para las 5 áreas.
+
+Dos hallazgos de la revisión final de rama, resueltos o documentados antes de cerrar el sprint:
+- **Migración de esquema**: `init_db()` (`database/database.py`) solo crea tablas nuevas, no altera las
+  existentes — sin correr `scripts/migrate_aplica_indexacion_ipc.py` sobre un `bastium.db` preexistente,
+  la app falla al leer o guardar cualquier obligación (`no such column: aplica_indexacion_ipc`). Ya se
+  corrió el script sobre el `bastium.db` real de este equipo (2026-07-20); queda documentado en
+  `README.md` (sección "Instalación rápida") para quien clone el repo con un `bastium.db` de antes de
+  este sprint.
+- **Pendiente explícito, no bloqueante**: `ResultadoLiquidacionView` (`app/views/liquidaciones.py`, no
+  tocada en este sprint) no tiene columna "Indexación" en la tabla en pantalla — el monto indexado sí
+  queda en `LiquidationItem.indexation_amount` y sí aparece en las exportaciones a PDF/Word
+  (`app/engine/reports/table_builder.py`), pero en pantalla solo se ve reflejado en el Saldo acumulado,
+  no como cifra propia. Agregar esa columna es trabajo de un sprint/tarea aparte sobre la vista de
+  resultados, no de este sprint de conexión del motor.
 
 **Definición de Hecho:**
 - Los tests de `CivilFamiliaStrategy` (Task 6 del plan MVP) siguen pasando y se agregan casos nuevos con

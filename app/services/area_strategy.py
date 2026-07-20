@@ -15,6 +15,8 @@ from app.engine.temporal.schedulers.family import FamilyScheduler
 from app.engine.temporal.schedulers.labor import LaborScheduler
 from app.engine.interest.usury_validator import validar_tasa_usura
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
+from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
+from app.engine.indexation.ipc import IPCIndexation
 from app.services.motor_universal import UniversalLiquidationService
 
 
@@ -30,10 +32,17 @@ class AreaStrategy(ABC):
 
 class CivilFamiliaStrategy(AreaStrategy):
     """
-    Unica area operable en este sprint.
-    Interes fijo por obligacion (tasa efectiva anual pactada/legal, Art. 1617 C.C.),
-    convertido a tasa diaria. No aplica indexacion IPC en este sprint (Ver Pendientes.md:
-    depende de la carga de series historicas de IPC, que aun no existe).
+    Unica area operable en el MVP original; ahora tambien soporta indexacion IPC
+    opcional por obligacion (Sprint 8). Interes fijo por obligacion (tasa
+    efectiva anual pactada/legal, Art. 1617 C.C.), convertido a tasa diaria.
+    Indexacion (Art. corrección monetaria, PDF pag. 20-22): solo se activa por
+    obligacion via `aplica_indexacion_ipc` -- es un juicio legal del abogado, no
+    una regla automatica por categoria. La regla "no doble indexacion" del PDF
+    (incompatible con SMMLV ya actualizado) no requiere un guard en tiempo de
+    ejecucion: ningun campo de Obligacion usado por Civil/Familia representa un
+    valor ya anclado a SMMLV (eso es exclusivo de Sancionatorio, que ya tiene
+    soporta_indexacion_ipc=False), asi que la combinacion que la regla prohibe
+    no es alcanzable con el modelo de datos actual.
     """
 
     def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
@@ -61,13 +70,23 @@ class CivilFamiliaStrategy(AreaStrategy):
 
     def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
         if obligacion.tipo.value == "PUNTUAL":
-            return [
+            eventos = [
                 Event(
                     date=obligacion.fecha_origen,
                     payload={"amount": obligacion.valor, "label": obligacion.concepto},
                     event_type=obligacion.categoria,
                 )
             ]
+            if obligacion.aplica_indexacion_ipc:
+                eventos.append(
+                    self._evento_indexacion(
+                        fecha_causacion=obligacion.fecha_origen,
+                        capital=obligacion.valor,
+                        concepto=obligacion.concepto,
+                        fecha_corte=fecha_corte,
+                    )
+                )
+            return eventos
 
         # RECURRENTE
         scheduler = FamilyScheduler()
@@ -78,7 +97,36 @@ class CivilFamiliaStrategy(AreaStrategy):
             category=obligacion.categoria,
         )
         fin = obligacion.fecha_fin or fecha_corte
-        return scheduler.generate(start=obligacion.fecha_inicio, end=fin)
+        eventos_capital = scheduler.generate(start=obligacion.fecha_inicio, end=fin)
+
+        if not obligacion.aplica_indexacion_ipc:
+            return eventos_capital
+
+        eventos = list(eventos_capital)
+        for cuota in eventos_capital:
+            eventos.append(
+                self._evento_indexacion(
+                    fecha_causacion=cuota.date,
+                    capital=cuota.payload["amount"],
+                    concepto=obligacion.concepto,
+                    fecha_corte=fecha_corte,
+                )
+            )
+        return eventos
+
+    def _evento_indexacion(
+        self, fecha_causacion: date, capital: Decimal, concepto: str, fecha_corte: date
+    ) -> Event:
+        monto = IPCIndexation.calculate(
+            capital=capital,
+            initial_index=get_ipc_interpolado_for_date(fecha_causacion),
+            final_index=get_ipc_interpolado_for_date(fecha_corte),
+        )
+        return Event(
+            date=fecha_causacion,
+            payload={"amount": monto, "label": f"Indexación IPC — {concepto}"},
+            event_type="INDEXATION",
+        )
 
     def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
         fecha_mas_antigua = min(
