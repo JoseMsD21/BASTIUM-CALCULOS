@@ -139,9 +139,18 @@ def test_fecha_interrupcion_efectiva_no_retrotrae_si_notifica_fuera_del_anio():
 
 
 def test_fecha_interrupcion_efectiva_limite_exacto_365_dias_retrotrae():
+    # 2024-03-01 -> 2025-03-01 es exactamente 365 dias (incluye el 29 de
+    # febrero de 2024, bisiesto) -> retrotrae por el limite inclusivo <=.
     assert fecha_interrupcion_efectiva(
-        date(2024, 3, 1), date(2024, 3, 1)
+        date(2024, 3, 1), date(2025, 3, 1)
     ) == date(2024, 3, 1)
+
+
+def test_fecha_interrupcion_efectiva_366_dias_no_retrotrae():
+    # Un dia mas que el limite (366 dias) -> ya no retrotrae.
+    assert fecha_interrupcion_efectiva(
+        date(2024, 3, 1), date(2025, 3, 2)
+    ) == date(2025, 3, 2)
 
 
 def test_fecha_interrupcion_efectiva_rechaza_notificacion_anterior_a_radicacion():
