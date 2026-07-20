@@ -210,3 +210,57 @@ def test_borrar_expediente_borra_en_cascada_audit_logs(session):
     session.commit()
 
     assert session.query(AuditLog).count() == 0
+
+
+def test_obligacion_aplica_indexacion_ipc_default_false(session):
+    expediente = Expediente(
+        radicado="2026-00130",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("427900.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+
+    assert obligacion.aplica_indexacion_ipc is False
+
+
+def test_obligacion_aplica_indexacion_ipc_true_cuando_se_activa(session):
+    expediente = Expediente(
+        radicado="2026-00131",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("427900.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
+    )
+    session.add(obligacion)
+    session.commit()
+
+    fetched = session.query(Obligacion).filter_by(id=obligacion.id).one()
+    assert fetched.aplica_indexacion_ipc is True
