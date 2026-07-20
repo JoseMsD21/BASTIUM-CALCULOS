@@ -264,3 +264,63 @@ def test_obligacion_aplica_indexacion_ipc_true_cuando_se_activa(session):
 
     fetched = session.query(Obligacion).filter_by(id=obligacion.id).one()
     assert fetched.aplica_indexacion_ipc is True
+
+
+def test_obligacion_moneda_default_cop_al_no_especificarla(session):
+    expediente = Expediente(
+        radicado="2026-00132",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.COMERCIAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Capital de pagare",
+        categoria="CAPITAL_PAGARE",
+        fecha_origen=date(2025, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+
+    assert obligacion.moneda == "COP"
+    assert obligacion.trm_aplicable is None
+    assert obligacion.trm_fecha_referencia is None
+
+
+def test_obligacion_en_usd_guarda_trm_aplicable_y_fecha_referencia(session):
+    expediente = Expediente(
+        radicado="2026-00133",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.COMERCIAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Capital de pagare en USD",
+        categoria="CAPITAL_PAGARE",
+        fecha_origen=date(2025, 1, 1),
+        valor=Decimal("10000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        moneda="USD",
+        trm_aplicable=Decimal("4150.2500"),
+        trm_fecha_referencia=date(2025, 1, 1),
+    )
+    session.add(obligacion)
+    session.commit()
+
+    fetched = session.query(Obligacion).filter_by(id=obligacion.id).one()
+    assert fetched.moneda == "USD"
+    assert fetched.trm_aplicable == Decimal("4150.2500")
+    assert fetched.trm_fecha_referencia == date(2025, 1, 1)

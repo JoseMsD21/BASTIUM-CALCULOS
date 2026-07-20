@@ -69,6 +69,9 @@ class Obligacion(Base):
     beneficio_obtenido: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     costas_pct_manual: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     aplica_indexacion_ipc: Mapped[bool] = mapped_column(Boolean, default=False)
+    moneda: Mapped[str] = mapped_column(String(3), default="COP")
+    trm_aplicable: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
+    trm_fecha_referencia: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     expediente: Mapped["Expediente"] = relationship(back_populates="obligaciones")
     abonos: Mapped[list["Abono"]] = relationship(
