@@ -509,7 +509,7 @@ automáticamente a partir de una fecha).
 
 ---
 
-## Sprint 9 — Motor de auditoría / bitácora 🟡 En proceso
+## Sprint 9 — Motor de auditoría / bitácora ✅ Completado
 
 **Prioridad sugerida:** Baja (solo relevante si el producto pasa a multi-usuario; para uso individual de
 un solo abogado, el valor es menor).
@@ -553,6 +553,20 @@ un solo abogado, el valor es menor).
 **Definición de Hecho:**
 - Tests de que una liquidación queda registrada con timestamp y puede reconstruirse.
 - Suite completa en verde.
+
+**Estado:** Implementado (2026-07-19). La infraestructura base (rate_source
+por tramo, modelo `AuditLog`, serialización JSON exacta) se había construido
+en sesiones previas; la última pieza del motor
+(`registrar_liquidacion`/`reconstruir_liquidacion`/`historial_de_expediente`
+en `app/engine/audit/service.py`) quedó completa y probada en una rama
+huérfana (`sprint9-task8-audit-service`) que nunca se fusionó — se recuperó
+por cherry-pick al inicio de esta sesión. Lo que faltaba y se agregó ahora es
+el wiring a la GUI:
+`ExpedienteDetallePage` registra cada liquidación ejecutada y muestra un
+historial de auditoría con reconstrucción de una liquidación pasada al
+hacer doble clic (ver
+`docs/superpowers/plans/2026-07-19-motor-auditoria-gui-wiring.md` y
+`docs/superpowers/specs/2026-07-19-motor-auditoria-gui-design.md`).
 
 ---
 

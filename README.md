@@ -24,7 +24,9 @@ se ingresan como un porcentaje manual, porque no existe una tabla estructurada c
 del Consejo Superior de la Judicatura) y **Laboral** (liquidación final —finiquito— de un contrato:
 cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, e indemnización moratoria
 bifásica del Art. 65 CST si hubo retardo en el pago). El resultado de cualquier liquidación se puede
-exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación.
+exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación. Cada liquidación ejecutada
+queda registrada en un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de
+corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
 
 🚧 **En desarrollo:** seguridad social (cotizaciones a pensión, salud, ARL, fondo de solidaridad
 pensional) en el área Laboral, indexación por IPC, prescripción/caducidad, anatocismo comercial

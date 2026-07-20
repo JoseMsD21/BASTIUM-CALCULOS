@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QGroupBox,
     QHBoxLayout,
     QMessageBox,
@@ -16,6 +17,7 @@ from app.core.exceptions import (
     TasaUsurariaError,
     UVTNoDisponibleError,
 )
+from app.engine.audit.service import historial_de_expediente, reconstruir_liquidacion, registrar_liquidacion
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
 from app.views.obligaciones import ObligacionFormDialog
@@ -54,6 +56,19 @@ class ExpedienteDetallePage(QWidget):
         boton_liquidar = QPushButton("Liquidar")
         boton_liquidar.clicked.connect(self._liquidar)
 
+        self._audit_log_ids_por_fila = []
+        self.tabla_historial = QTableWidget(0, 4)
+        self.tabla_historial.setHorizontalHeaderLabels(
+            ["Fecha ejecución", "Usuario", "Área", "Fecha corte"]
+        )
+        self.tabla_historial.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabla_historial.cellDoubleClicked.connect(self._reconstruir_desde_historial)
+
+        grupo_historial = QGroupBox("Historial de auditoría")
+        layout_historial = QVBoxLayout()
+        layout_historial.addWidget(self.tabla_historial)
+        grupo_historial.setLayout(layout_historial)
+
         columnas = QHBoxLayout()
         columnas.addWidget(grupo_obligaciones)
         columnas.addWidget(grupo_abonos)
@@ -61,12 +76,14 @@ class ExpedienteDetallePage(QWidget):
         layout_principal = QVBoxLayout()
         layout_principal.addLayout(columnas)
         layout_principal.addWidget(boton_liquidar)
+        layout_principal.addWidget(grupo_historial)
         self.setLayout(layout_principal)
 
     def cargar_expediente(self, expediente_id: int) -> None:
         self._expediente_id = expediente_id
         self._refrescar_obligaciones()
         self._refrescar_abonos()
+        self._refrescar_historial()
 
     def _refrescar_obligaciones(self) -> None:
         session = session_module.get_session()
@@ -93,6 +110,30 @@ class ExpedienteDetallePage(QWidget):
             self.tabla_abonos.setItem(fila, 1, QTableWidgetItem(str(abono.monto)))
             self.tabla_abonos.setItem(fila, 2, QTableWidgetItem(abono.referencia or ""))
         session.close()
+
+    def _refrescar_historial(self) -> None:
+        session = session_module.get_session()
+        historial = historial_de_expediente(session, self._expediente_id)
+
+        self.tabla_historial.setRowCount(len(historial))
+        self._audit_log_ids_por_fila = []
+        for fila, registro in enumerate(historial):
+            self.tabla_historial.setItem(
+                fila, 0, QTableWidgetItem(registro.fecha_ejecucion.strftime("%Y-%m-%d %H:%M:%S"))
+            )
+            self.tabla_historial.setItem(fila, 1, QTableWidgetItem(registro.usuario))
+            self.tabla_historial.setItem(fila, 2, QTableWidgetItem(registro.area_derecho))
+            self.tabla_historial.setItem(fila, 3, QTableWidgetItem(registro.fecha_corte.isoformat()))
+            self._audit_log_ids_por_fila.append(registro.id)
+        session.close()
+
+    def _reconstruir_desde_historial(self, fila: int, columna: int) -> None:
+        audit_log_id = self._audit_log_ids_por_fila[fila]
+        session = session_module.get_session()
+        resultado = reconstruir_liquidacion(session, audit_log_id)
+        session.close()
+        if self._on_liquidado:
+            self._on_liquidado(resultado, self._expediente_id)
 
     def _abrir_dialogo_obligacion(self) -> None:
         session = session_module.get_session()
@@ -142,6 +183,17 @@ class ExpedienteDetallePage(QWidget):
         except ValueError as error:
             QMessageBox.warning(self, "No se pudo liquidar", str(error))
             return
+
+        session = session_module.get_session()
+        registrar_liquidacion(
+            session,
+            expediente_id=self._expediente_id,
+            area_derecho=area,
+            fecha_corte=fecha_corte,
+            resultado=resultado,
+        )
+        session.close()
+        self._refrescar_historial()
 
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)

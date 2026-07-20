@@ -266,6 +266,20 @@ def test_liquidar_area_sancionatorio_con_hecho_posterior_a_2020_muestra_adverten
     assert avisos[0][0] == "UVT no disponible"
 
 
+def test_liquidar_registra_auditoria_y_refresca_historial(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._liquidar()
+
+    assert page.tabla_historial.rowCount() == 1
+    assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
+    assert page.tabla_historial.item(0, 3).text() == "2026-06-01"
+
+
 def test_abrir_dialogo_obligacion_pasa_el_area_del_expediente(qtbot, monkeypatch):
     expediente_id = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
 
@@ -436,3 +450,59 @@ def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbo
         "LIQUIDATION_CUTOFF",
     }
     assert resultado.final_balance().principal == Decimal("7974236.10")
+
+
+from app.engine.audit.service import registrar_liquidacion
+from app.engine.liquidation.registry import AreaRegistry
+
+
+def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    obligaciones = list(expediente.obligaciones)
+    estrategia = AreaRegistry.get_strategy(expediente.area_derecho.value)
+    resultado = estrategia.liquidar(
+        obligaciones=obligaciones, abonos=[], fecha_corte=expediente.fecha_corte_default
+    )
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_id,
+        area_derecho=expediente.area_derecho.value,
+        fecha_corte=expediente.fecha_corte_default,
+        resultado=resultado,
+        usuario="jsilva",
+    )
+    session.close()
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    assert page.tabla_historial.rowCount() == 1
+    assert page.tabla_historial.item(0, 1).text() == "jsilva"
+    assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
+    assert page.tabla_historial.item(0, 3).text() == "2026-06-01"
+
+
+def test_doble_clic_en_historial_reconstruye_liquidacion(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    resultados_recibidos = []
+
+    def capturar(resultado, exp_id):
+        resultados_recibidos.append((resultado, exp_id))
+
+    page = ExpedienteDetallePage(on_liquidado=capturar)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page._liquidar()
+    resultados_recibidos.clear()
+
+    page._reconstruir_desde_historial(0, 0)
+
+    assert len(resultados_recibidos) == 1
+    resultado, exp_id = resultados_recibidos[0]
+    assert exp_id == expediente_id
+    assert resultado.final_balance().principal == Decimal("427900.00")
