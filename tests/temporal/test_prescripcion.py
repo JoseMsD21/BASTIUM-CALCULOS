@@ -7,6 +7,7 @@ from app.engine.temporal.prescripcion import (
     TipoAccion,
     calcular_caducidad,
     calcular_prescripcion,
+    fecha_interrupcion_efectiva,
     filtrar_cuotas_prescritas,
 )
 from app.engine.temporal.schedulers.family import FamilyScheduler
@@ -121,3 +122,28 @@ def test_filtrar_cuotas_prescritas_no_muta_la_lista_original():
     filtrar_cuotas_prescritas(eventos, date(2026, 1, 1), TipoAccion.EJECUTIVA)
 
     assert len(eventos) == total_original
+
+
+def test_fecha_interrupcion_efectiva_retrotrae_si_notifica_dentro_del_anio():
+    # 214 dias entre radicacion y notificacion (<= 365) -> retrotrae a la radicacion.
+    assert fecha_interrupcion_efectiva(
+        date(2024, 3, 1), date(2024, 10, 1)
+    ) == date(2024, 3, 1)
+
+
+def test_fecha_interrupcion_efectiva_no_retrotrae_si_notifica_fuera_del_anio():
+    # 457 dias entre radicacion y notificacion (> 365) -> no retrotrae.
+    assert fecha_interrupcion_efectiva(
+        date(2024, 3, 1), date(2025, 6, 1)
+    ) == date(2025, 6, 1)
+
+
+def test_fecha_interrupcion_efectiva_limite_exacto_365_dias_retrotrae():
+    assert fecha_interrupcion_efectiva(
+        date(2024, 3, 1), date(2024, 3, 1)
+    ) == date(2024, 3, 1)
+
+
+def test_fecha_interrupcion_efectiva_rechaza_notificacion_anterior_a_radicacion():
+    with pytest.raises(ValueError):
+        fecha_interrupcion_efectiva(date(2024, 3, 1), date(2024, 1, 1))

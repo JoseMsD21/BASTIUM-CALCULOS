@@ -82,3 +82,14 @@ def filtrar_cuotas_prescritas(
         else:
             vivas.append(evento)
     return vivas, prescritas
+
+
+def fecha_interrupcion_efectiva(fecha_radicacion: date, fecha_notificacion: date) -> date:
+    if fecha_notificacion < fecha_radicacion:
+        raise ValueError(
+            f"fecha_notificacion ({fecha_notificacion}) no puede ser anterior a "
+            f"fecha_radicacion ({fecha_radicacion})."
+        )
+    if (fecha_notificacion - fecha_radicacion).days <= 365:
+        return fecha_radicacion
+    return fecha_notificacion
