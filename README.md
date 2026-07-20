@@ -9,7 +9,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-19)
+## Estado actual (2026-07-20)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -35,7 +35,11 @@ también están pendientes. El motor de prescripción y caducidad
 (`app/engine/temporal/prescripcion.py`) ya existe y está probado — calcula fechas límite por tipo de
 acción (ejecutiva, ordinaria, honorarios profesionales, cambiaria directa/de regreso), soporta
 prescripción parcial cuota a cuota en obligaciones de tracto sucesivo e interrupción por demanda — pero
-todavía no está conectado a ninguna pantalla ni al motor de liquidación (`Pendientes.md`, Sprint 7). Las
+todavía no está conectado a ninguna pantalla ni al motor de liquidación (`Pendientes.md`, Sprint 7). Dos
+motores de cálculo tributario también existen y están probados sin estar conectados a ninguna
+pantalla: interés moratorio tributario (`app/engine/tax/moratory_interest.py`, E.T. art. 635, usura
+vigente menos dos puntos, resuelto por tramos históricos) y depuración de Renta Líquida Gravable
+(`app/engine/tax/renta_liquida.py`, pipeline de 8 pasos) (`Pendientes.md`, Sprint 11). Las
 series históricas de SMLMV, IPC e IBC/Tasa de Usura (1984-2026, 1967-2025 y 1997-2026 respectivamente)
 ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en Comercial y en la
 fase 2 de la indemnización moratoria laboral, e IPC ya está conectado a la indexación de Civil/Familia
