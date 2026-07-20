@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -6,7 +7,9 @@ from app.engine.temporal.prescripcion import (
     TipoAccion,
     calcular_caducidad,
     calcular_prescripcion,
+    filtrar_cuotas_prescritas,
 )
+from app.engine.temporal.schedulers.family import FamilyScheduler
 
 
 def test_calcular_prescripcion_ejecutiva_5_anios():
@@ -78,3 +81,43 @@ def test_calcular_caducidad_tipo_conocido_ignora_plazo_manual_si_ambos_se_pasan(
     assert calcular_caducidad(
         date(2021, 4, 12), "IMPUGNACION_INEFICACIA_SOCIETARIA", plazo_meses_manual=1
     ) == date(2026, 4, 13)
+
+
+def test_filtrar_cuotas_prescritas_separa_viejas_de_recientes():
+    scheduler = FamilyScheduler()
+    scheduler.add_monthly_obligation(
+        amount=Decimal("500000"),
+        concept="Cuota alimentaria",
+        due_day=1,
+        category="CHILD_SUPPORT",
+    )
+    eventos = scheduler.generate(start=date(2015, 1, 1), end=date(2026, 1, 1))
+    assert len(eventos) == 133  # 11 anios completos de cuotas mensuales
+
+    fecha_corte = date(2026, 1, 1)
+    vivas, prescritas = filtrar_cuotas_prescritas(eventos, fecha_corte, TipoAccion.EJECUTIVA)
+
+    assert len(prescritas) == 72
+    assert len(vivas) == 61
+    assert len(vivas) + len(prescritas) == len(eventos)
+
+    # Las prescritas son las causadas hace mas de 5 anios (hasta 2020-12-01
+    # inclusive); las vivas arrancan en 2021-01-01.
+    assert max(e.date for e in prescritas) == date(2020, 12, 1)
+    assert min(e.date for e in vivas) == date(2021, 1, 1)
+
+
+def test_filtrar_cuotas_prescritas_no_muta_la_lista_original():
+    scheduler = FamilyScheduler()
+    scheduler.add_monthly_obligation(
+        amount=Decimal("500000"),
+        concept="Cuota alimentaria",
+        due_day=1,
+        category="CHILD_SUPPORT",
+    )
+    eventos = scheduler.generate(start=date(2015, 1, 1), end=date(2016, 1, 1))
+    total_original = len(eventos)
+
+    filtrar_cuotas_prescritas(eventos, date(2026, 1, 1), TipoAccion.EJECUTIVA)
+
+    assert len(eventos) == total_original

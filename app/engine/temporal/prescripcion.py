@@ -11,9 +11,10 @@ fecha de origen (ver docs/superpowers/specs/2026-07-19-sprint7-prescripcion-cadu
 
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from app.engine.time.calendar import CalendarUtils
+from app.engine.temporal.schedulers.base import Event
 
 
 class TipoAccion(Enum):
@@ -65,3 +66,19 @@ def calcular_caducidad(
             "debe indicarse 'plazo_meses_manual' explicitamente."
         )
     return CalendarUtils.vencimiento_calendario(fecha_hecho, meses)
+
+
+def filtrar_cuotas_prescritas(
+    eventos: List[Event],
+    fecha_corte: date,
+    tipo_accion: TipoAccion = TipoAccion.EJECUTIVA,
+) -> Tuple[List[Event], List[Event]]:
+    vivas: List[Event] = []
+    prescritas: List[Event] = []
+    for evento in eventos:
+        fecha_limite = calcular_prescripcion(evento.date, tipo_accion)
+        if fecha_limite <= fecha_corte:
+            prescritas.append(evento)
+        else:
+            vivas.append(evento)
+    return vivas, prescritas
