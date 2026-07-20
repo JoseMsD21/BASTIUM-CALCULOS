@@ -130,3 +130,44 @@ def test_usura_es_1_5_veces_ibc_en_todos_los_tramos():
             f"{tramo}: usura {tramo.usura_anual} no es ~1.5x ibc {tramo.ibc_anual} "
             f"(esperado {esperado})"
         )
+
+
+from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
+
+
+def test_ipc_interpolado_en_cierre_de_anio_coincide_con_get_ipc_for_date():
+    assert get_ipc_interpolado_for_date(date(2025, 12, 31)) == get_ipc_for_date(date(2025, 12, 31))
+
+
+def test_ipc_interpolado_en_2024_07_01_es_promedio_ponderado_por_dias():
+    v_2023 = get_ipc_for_date(date(2023, 12, 31))
+    v_2024 = get_ipc_for_date(date(2024, 12, 31))
+    # 2024 es bisiesto (366 dias): del 31-dic-2023 al 1-jul-2024 hay 183 dias (t1),
+    # del 1-jul-2024 al 31-dic-2024 hay otros 183 dias (t2).
+    t1 = Decimal(183)
+    t2 = Decimal(183)
+    esperado = (t1 * v_2024 + t2 * v_2023) / (t1 + t2)
+    assert get_ipc_interpolado_for_date(date(2024, 7, 1)) == esperado
+
+
+def test_ipc_interpolado_fecha_posterior_al_ultimo_anio_usa_el_ultimo_indice_disponible():
+    # La serie no tiene 2026 (la fuente del PDF no lo trae). Cualquier fecha de 2026
+    # en adelante usa el indice de 2025 como aproximacion.
+    assert get_ipc_interpolado_for_date(date(2026, 7, 19)) == get_ipc_for_date(date(2025, 12, 31))
+    assert get_ipc_interpolado_for_date(date(2030, 1, 1)) == get_ipc_for_date(date(2025, 12, 31))
+
+
+def test_ipc_interpolado_fecha_anterior_a_1967_lanza_value_error():
+    with pytest.raises(ValueError):
+        get_ipc_interpolado_for_date(date(1966, 12, 31))
+
+
+def test_ipc_interpolado_primer_anio_usa_ancla_implicita_de_100():
+    # 1967 es el primer año de la serie; el año anterior (1966) no está en el
+    # diccionario, así que v1 debe ser el ancla implícita 100 (misma convención
+    # que _construir_indice_ipc_acumulado, ver docstring del módulo).
+    v_1967 = get_ipc_for_date(date(1967, 12, 31))
+    t1 = Decimal(181)  # 31-dic-1966 -> 30-jun-1967
+    t2 = Decimal(184)  # 30-jun-1967 -> 31-dic-1967
+    esperado = (t1 * v_1967 + t2 * Decimal("100")) / (t1 + t2)
+    assert get_ipc_interpolado_for_date(date(1967, 6, 30)) == esperado

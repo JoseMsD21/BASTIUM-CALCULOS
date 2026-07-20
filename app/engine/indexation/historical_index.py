@@ -186,6 +186,42 @@ def get_ipc_for_date(fecha: date) -> Decimal:
     return _IPC_INDICE_ACUMULADO[anio]
 
 
+def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
+    """Retorna el indice IPC interpolado linealmente para una fecha cualquiera,
+    usando los dos indices de cierre de año (31-dic) que la rodean -- la formula
+    del PDF (pag. 22) asume certificacion mensual, pero la fuente solo trae
+    variacion anual (ver docstring de get_ipc_for_date), asi que se interpola
+    entre años en vez de entre meses. Para fechas posteriores al ultimo año
+    disponible en la serie, retorna el indice de ese ultimo año como
+    aproximacion (ver Sprint 8 design doc, decision 3) en vez de lanzar
+    ValueError -- de lo contrario ninguna liquidacion con fecha_corte actual
+    podria activar indexacion."""
+    anio_min = min(_IPC_INDICE_ACUMULADO)
+    anio_max = max(_IPC_INDICE_ACUMULADO)
+
+    if fecha.year < anio_min:
+        raise ValueError(
+            f"No hay indice IPC configurado para el año {fecha.year}. "
+            f"Datos disponibles desde {anio_min}."
+        )
+
+    if fecha.year > anio_max:
+        return _IPC_INDICE_ACUMULADO[anio_max]
+
+    v2 = _IPC_INDICE_ACUMULADO[fecha.year]
+    v1 = _IPC_INDICE_ACUMULADO.get(fecha.year - 1, Decimal("100"))
+
+    dia_cierre_anterior = date(fecha.year - 1, 12, 31)
+    dia_cierre_actual = date(fecha.year, 12, 31)
+    t1 = (fecha - dia_cierre_anterior).days
+    t2 = (dia_cierre_actual - fecha).days
+
+    if t1 + t2 == 0:
+        return v2
+
+    return (Decimal(t1) * v2 + Decimal(t2) * v1) / Decimal(t1 + t2)
+
+
 # ---------------------------------------------------------------------------
 # IBC (Interes Bancario Corriente) y Tasa de Usura, 1997-07-01 a 2026-07-31.
 # Transcrito de las paginas 58-61 del PDF, linea de credito "Comercial"
