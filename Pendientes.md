@@ -466,7 +466,7 @@ de lo que Sprint 6 pedía, pero relevantes para quien tome el Sprint 7):
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔴 Pendiente
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia ✅ Completado
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -501,6 +501,20 @@ automáticamente a partir de una fecha).
 **Alcance explícitamente excluido:**
 - Indexación para áreas Comercial (incompatible con intereses bancarios per el PDF) — eso es una
   validación de exclusión en Sprint 2, no una implementación aquí.
+
+**Estado:** Implementado (2026-07-19) — ver
+`docs/superpowers/plans/2026-07-19-sprint8-indexacion-ipc-civil-familia.md` y
+`docs/superpowers/specs/2026-07-19-sprint8-indexacion-ipc-civil-familia-design.md`. Decisiones tomadas
+con el usuario durante el brainstorming previo: (a) la activación es **opt-in por obligación**
+(`aplica_indexacion_ipc`), no automática por área — es un juicio legal del abogado; (b) la interpolación
+del PDF (entre meses certificados) se aproxima con interpolación entre **índices de cierre de año**,
+porque la fuente transcrita en el Sprint 5 nunca tuvo granularidad mensual; (c) fechas de 2026 en
+adelante usan el índice de 2025 como aproximación, para no bloquear liquidaciones con la fecha actual del
+sistema; (d) la regla "no doble indexación" del PDF se documentó en vez de codificarse como guard, porque
+ningún campo de `Obligacion` usado por Civil/Familia puede representar la combinación que esa regla
+prohíbe. Queda documentado como limitación conocida (no corregida en este sprint): el interés sigue
+calculándose solo sobre el capital, no sobre el capital ya indexado, a diferencia del algoritmo de "Suma
+Única" del PDF (pág. 22) — cambiar eso afecta el motor core para las 5 áreas.
 
 **Definición de Hecho:**
 - Los tests de `CivilFamiliaStrategy` (Task 6 del plan MVP) siguen pasando y se agregan casos nuevos con
