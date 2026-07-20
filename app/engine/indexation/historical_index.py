@@ -527,3 +527,22 @@ def get_ibc_usura_for_date(fecha: date) -> Tuple[Decimal, Decimal]:
         f"Datos disponibles: {min(t.inicio for t in _TRAMOS_IBC_USURA)} a "
         f"{max(t.fin for t in _TRAMOS_IBC_USURA)}."
     )
+
+
+def get_tramos_ibc_usura_between(inicio: date, fin: date) -> List[TramoIBCUsura]:
+    """Tramos de _TRAMOS_IBC_USURA que se solapan con [inicio, fin], en orden
+    cronologico (la tabla ya esta ordenada por construccion, verificado en el
+    Sprint 5: sin vacios en todo el rango). Lanza ValueError si fin < inicio, o
+    si ningun tramo se solapa con el rango pedido (fuera de los datos
+    disponibles: 1997-07-01 a 2026-07-31)."""
+    if fin < inicio:
+        raise ValueError(f"Rango invalido: fin ({fin}) es anterior a inicio ({inicio}).")
+
+    tramos = [t for t in _TRAMOS_IBC_USURA if t.inicio <= fin and t.fin >= inicio]
+    if not tramos:
+        raise ValueError(
+            f"No hay tramos de IBC/Usura configurados para el rango [{inicio}, {fin}]. "
+            f"Datos disponibles: {min(t.inicio for t in _TRAMOS_IBC_USURA)} a "
+            f"{max(t.fin for t in _TRAMOS_IBC_USURA)}."
+        )
+    return tramos
