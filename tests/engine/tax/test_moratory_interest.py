@@ -1,13 +1,32 @@
 from datetime import date
+from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+import database.session as session_module
 from app.engine.tax.moratory_interest import (
     FUENTE_MORATORIO_TRIBUTARIO,
     calcular_interes_moratorio_tributario,
     construir_rate_provider_moratorio_tributario,
 )
+from database.models import Base, ParametroLegal
+
+
+@pytest.fixture(autouse=True)
+def _parametro_et635_en_memoria(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="ET635_PUNTOS_DESCUENTO", valor=Decimal("2"), vigente_desde=date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.commit()
+    session.close()
 
 
 def test_sin_mora_si_fecha_corte_no_supera_la_exigibilidad():

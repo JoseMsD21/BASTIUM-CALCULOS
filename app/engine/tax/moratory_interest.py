@@ -18,6 +18,7 @@ from app.engine.indexation.historical_index import get_tramos_ibc_usura_between
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
+from app.services.parametro_service import get_parametro
 
 PUNTOS_DESCUENTO_ET_635 = Decimal("2")
 
@@ -42,7 +43,8 @@ def construir_rate_provider_moratorio_tributario(
     for tramo in tramos:
         inicio_segmento = max(tramo.inicio, inicio_mora)
         fin_segmento = min(tramo.fin, fecha_corte)
-        tasa_anual_tributaria = tramo.usura_anual - PUNTOS_DESCUENTO_ET_635
+        puntos_descuento = get_parametro("ET635_PUNTOS_DESCUENTO", inicio_segmento)
+        tasa_anual_tributaria = tramo.usura_anual - puntos_descuento
         tasa_diaria = EffectiveRateConverter.annual_to_daily(tasa_anual_tributaria)
         provider.add_rate_period(
             start=inicio_segmento,
