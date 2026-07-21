@@ -991,6 +991,25 @@ histórica real.
   `UVTNoDisponibleError`.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-07-21):** Completado — ver
+`docs/superpowers/specs/2026-07-21-tabla-historica-uvt-design.md` y
+`docs/superpowers/plans/2026-07-21-sprint14-tabla-historica-uvt.md`. Se agregó la serie UVT 2006-2026 a
+`historical_index.py` (`get_uvt_for_year`), una entrada nueva `"UVT"` en el catálogo de
+`parametro_service.py` (modo `ANUAL_EXACTO`, mismo patrón que SMLMV/IPC), siembra en
+`scripts/migrate_parametros_legales.py`, y `resolver_base_sancion` (`smlmv_to_uvt.py`) ahora convierte via
+UVT para hechos con fecha posterior o igual a 2020-01-01 en vez de lanzar `UVTNoDisponibleError` sin
+condición.
+
+Como el PDF de requisitos no trae una tabla UVT completa (solo un valor aislado de ejemplo, página 69), la
+serie se obtuvo de fuente externa y se verificó cruzando 3 fuentes independientes antes de transcribirla —
+ver la spec para el detalle de fuentes y la tabla verificada.
+
+`UVTNoDisponibleError` sigue existiendo y sigue lanzándose, pero ahora solo para años fuera del rango
+cargado 2006-2026 (p. ej. un año futuro que la DIAN aún no ha publicado), no de forma incondicional para
+cualquier fecha posterior a 2020 como antes.
+
+`README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (373 passed, 1 skipped).
+
 ---
 
 ## Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b)
