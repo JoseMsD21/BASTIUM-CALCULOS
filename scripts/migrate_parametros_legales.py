@@ -13,7 +13,7 @@ necesita despues del re-cableado. Esto sigue siendo cierto para
 TOPE_MULTIPLICADOR (usury_validator), PUNTOS_DESCUENTO_ET_635
 (moratory_interest), LegalRates.CIVIL_ANNUAL_RATE (legal_rates),
 PLAZOS_PRESCRIPCION_MESES/PLAZOS_CADUCIDAD_MESES_CONOCIDOS (prescripcion) y
-las 3 series historicas de historical_index.py (SMLMV, IPC, IBC/usura).
+las 4 series historicas de historical_index.py (SMLMV, IPC, IBC/usura, UVT).
 
 Excepcion: CUOTA_LITIS_INDIVIDUAL_PCT y HONORARIOS_TOTAL_PCT SI se
 retranscriben a mano como Decimal("30")/Decimal("50") -- a diferencia de los
@@ -46,6 +46,7 @@ from app.engine.indexation.historical_index import (
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
+    _UVT_POR_ANIO,
 )
 from app.engine.interest.legal_rates import LegalRates
 from app.engine.interest.usury_validator import TOPE_MULTIPLICADOR
@@ -137,6 +138,11 @@ def migrar() -> int:
         if not _clave_ya_sembrada(session, "USURA_CONSUMO_ORDINARIO"):
             for tramo in _TRAMOS_IBC_USURA:
                 session.add(_fila("USURA_CONSUMO_ORDINARIO", tramo.usura_anual, tramo.inicio, tramo.fin))
+            sembradas += 1
+
+        if not _clave_ya_sembrada(session, "UVT"):
+            for anio, valor in _UVT_POR_ANIO.items():
+                session.add(_fila("UVT", valor, date(anio, 1, 1)))
             sembradas += 1
 
         session.commit()

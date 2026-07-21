@@ -105,6 +105,10 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Tasa de usura, linea Consumo y Ordinario (% anual)",
         "Indicadores historicos", "PDF paginas 58-61 (SFC)", ModoResolucion.TRAMO_CERRADO,
     ),
+    "UVT": InfoParametro(
+        "Unidad de Valor Tributario (UVT)", "Indicadores historicos",
+        "DIAN, resolución anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
+    ),
 }
 
 

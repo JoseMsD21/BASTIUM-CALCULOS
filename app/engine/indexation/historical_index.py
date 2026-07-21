@@ -572,3 +572,53 @@ def get_tramos_ibc_usura_between(inicio: date, fin: date) -> List[TramoIBCUsura]
         ibc_anual, usura_anual = get_ibc_usura_for_date(fila.vigente_desde)
         tramos.append(TramoIBCUsura(fila.vigente_desde, fila.vigente_hasta, ibc_anual, usura_anual))
     return tramos
+
+
+# ---------------------------------------------------------------------------
+# UVT (Unidad de Valor Tributario), 2006-2026.
+# El PDF de requisitos NO trae una tabla completa para esta serie (a diferencia
+# de SMLMV/IPC/IBC-Usura) -- solo describe el mecanismo (paginas 8, 21, 38, 53)
+# y cita un valor aislado (pagina 69, "UVT 2023 ~ $38.004") que en realidad
+# corresponde al valor oficial de 2022, no 2023. Serie verificada cruzando 3
+# fuentes externas independientes -- ver
+# docs/superpowers/specs/2026-07-21-tabla-historica-uvt-design.md para la
+# tabla completa con resolucion DIAN por año y las URLs consultadas.
+# ---------------------------------------------------------------------------
+
+_UVT_POR_ANIO: Dict[int, Decimal] = {
+    2006: Decimal("20000.00"),
+    2007: Decimal("20974.00"),
+    2008: Decimal("22054.00"),
+    2009: Decimal("23763.00"),
+    2010: Decimal("24555.00"),
+    2011: Decimal("25132.00"),
+    2012: Decimal("26049.00"),
+    2013: Decimal("26841.00"),
+    2014: Decimal("27485.00"),
+    2015: Decimal("28279.00"),
+    2016: Decimal("29753.00"),
+    2017: Decimal("31859.00"),
+    2018: Decimal("33156.00"),
+    2019: Decimal("34270.00"),
+    2020: Decimal("35607.00"),
+    2021: Decimal("36308.00"),
+    2022: Decimal("38004.00"),
+    2023: Decimal("42412.00"),
+    2024: Decimal("47065.00"),
+    2025: Decimal("49799.00"),
+    2026: Decimal("52374.00"),
+}
+
+
+def get_uvt_for_year(anio: int) -> Decimal:
+    """Retorna la Unidad de Valor Tributario (UVT) vigente para el año dado,
+    consultando la tabla parametros_legales (clave UVT, editable desde la
+    GUI). _UVT_POR_ANIO sigue siendo la referencia congelada de origen (ver
+    scripts/migrate_parametros_legales.py)."""
+    try:
+        return get_parametro("UVT", date(anio, 1, 1))
+    except ParametroNoDisponibleError as error:
+        raise ValueError(
+            f"No hay UVT configurada para el año {anio}. "
+            f"Datos disponibles: {min(_UVT_POR_ANIO)}-{max(_UVT_POR_ANIO)}."
+        ) from error
