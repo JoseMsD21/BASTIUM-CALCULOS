@@ -2,6 +2,11 @@
 Series historicas de indicadores economicos colombianos, transcritas y verificadas
 contra REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf (paginas 55-62).
 
+Excepcion: la serie UVT NO viene de ese PDF -- el documento solo describe el
+mecanismo y cita un valor aislado que en realidad corresponde a otro año (ver
+el comentario junto a _UVT_POR_ANIO). Esa serie se verifico cruzando 3 fuentes
+externas independientes en su lugar.
+
 Ver docs/superpowers/specs/2026-07-15-carga-datos-historicos-design.md para el
 detalle de como se extrajo y verifico cada serie (en particular, por que la tabla
 de IBC/Usura requirio extraccion de tabla con reconocimiento de grilla en vez de

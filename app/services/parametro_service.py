@@ -107,7 +107,7 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
     ),
     "UVT": InfoParametro(
         "Unidad de Valor Tributario (UVT)", "Indicadores historicos",
-        "DIAN, resolución anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
+        "DIAN, resolucion anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
     ),
 }
 

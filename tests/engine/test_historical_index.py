@@ -58,7 +58,7 @@ def test_uvt_2026_valor_conocido():
 
 
 def test_uvt_2021_valor_conocido_interior_del_rango():
-    # Chequeo puntual en la mitad de la serie, no solo en los extremos.
+    # Chequeo puntual en un año interior, no solo en los extremos.
     assert get_uvt_for_year(2021) == Decimal("36308.00")
 
 

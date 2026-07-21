@@ -50,6 +50,18 @@ def test_migrar_smlmv_2026_coincide_con_el_valor_conocido():
     assert fila.valor == Decimal("1750905.00")
 
 
+def test_migrar_uvt_2026_coincide_con_el_valor_conocido():
+    from scripts.migrate_parametros_legales import migrar
+
+    migrar()
+    session = session_module.get_session()
+    fila = session.query(ParametroLegal).filter(
+        ParametroLegal.clave == "UVT", ParametroLegal.vigente_desde == date(2026, 1, 1)
+    ).one()
+    session.close()
+    assert fila.valor == Decimal("52374.00")
+
+
 def test_migrar_ibc_usura_primer_tramo_1997_coincide_con_inicio_y_fin():
     from scripts.migrate_parametros_legales import migrar
 
