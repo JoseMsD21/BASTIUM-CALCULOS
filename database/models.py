@@ -6,10 +6,34 @@ from decimal import Decimal
 
 from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class DecimalExacto(TypeDecorator):
+    """Columna Numeric que preserva la precision exacta de Decimal
+    almacenando como TEXT. SQLite le da afinidad NUMERIC a las columnas
+    Numeric/DECIMAL declaradas y termina guardando el valor como REAL
+    (float64), lo que pierde precision para Decimals de muchos digitos sin
+    redondear (ej. el indice IPC acumulado, encadenado sin redondeo por
+    diseno -- ver historical_index.py). Guardar como TEXT evita ese problema
+    por completo, en cualquier backend."""
+
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return Decimal(value)
 
 
 class AreaDerecho(enum.Enum):
@@ -110,7 +134,7 @@ class ParametroLegal(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     clave: Mapped[str] = mapped_column(String(100))
-    valor: Mapped[Decimal] = mapped_column(Numeric(24, 10))
+    valor: Mapped[Decimal] = mapped_column(DecimalExacto)
     vigente_desde: Mapped[date] = mapped_column(Date)
     vigente_hasta: Mapped[date | None] = mapped_column(Date, nullable=True)
     usuario: Mapped[str] = mapped_column(String(200))
