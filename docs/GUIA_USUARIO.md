@@ -498,7 +498,8 @@ columnas:
 2. En el formulario que se abre, llena:
    - **Parámetro**: elige de la lista cuál de los valores legales estás actualizando.
    - **Valor**: el número nuevo (ej. `1.5` para el multiplicador de usura, o `1300000` para un SMLMV).
-   - **Vigente desde**: la fecha a partir de la cual rige este valor.
+   - **Vigente desde**: la fecha a partir de la cual rige este valor (para SMLMV o el índice IPC, lee la
+     advertencia más abajo **antes** de guardar).
    - **Vigente hasta**: **este campo solo aparece para dos parámetros** — el Interés Bancario Corriente
      (IBC, línea Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores
      históricos". Para todos los demás parámetros el campo está oculto y no aplica: el valor rige desde
@@ -507,16 +508,6 @@ columnas:
    - **Motivo (opcional)**: por qué se agrega este valor (ej. "Actualización SMLMV 2027, Decreto XXXX").
      No es obligatorio, pero se recomienda diligenciarlo — queda guardado para siempre junto con el valor.
 3. Haz clic en **"Guardar"**.
-
-Si dejas el campo Usuario vacío, o escribes un valor que no es un número, el programa avisa "Datos
-inválidos" y no deja guardar.
-
-**Nada se edita ni se borra — solo se agrega:** cuando cambias un valor legal, no estás corrigiendo la
-fila anterior, estás agregando una fila nueva. La fila vieja se queda intacta para siempre, para que
-cualquier liquidación calculada en el pasado (ver [sección 5.12](#512-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada))
-se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
-Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
-vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
 
 > **⚠️ Importante — el SMLMV y el índice IPC acumulado son estrictos con la fecha, y no avisan si te
 > equivocas:**
@@ -542,6 +533,16 @@ vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la
 > adelante, sin exigir que sea un 1 de enero. El IBC y la Tasa de Usura (los dos parámetros con "Vigente
 > hasta") tampoco exigen una fecha exacta — rigen dentro del rango completo que hayas escrito entre
 > "Vigente desde" y "Vigente hasta".
+
+Si dejas el campo Usuario vacío, o escribes un valor que no es un número, el programa avisa "Datos
+inválidos" y no deja guardar.
+
+**Nada se edita ni se borra — solo se agrega:** cuando cambias un valor legal, no estás corrigiendo la
+fila anterior, estás agregando una fila nueva. La fila vieja se queda intacta para siempre, para que
+cualquier liquidación calculada en el pasado (ver [sección 5.12](#512-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada))
+se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
+Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
+vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
 
 ---
 
@@ -762,6 +763,14 @@ Es esperado si la "Fecha de origen" de la multa es **posterior al 2020-01-01**: 
 expresa estas multas en UVT en vez de SMLMV, y todavía no hay una tabla histórica de UVT cargada en el
 programa (ver [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias) y `Pendientes.md`,
 Sprint 5). Por ahora, esta área solo liquida hechos anteriores a esa fecha.
+
+**"Cargué el SMLMV/IPC nuevo pero la liquidación sigue usando el valor del año pasado."**
+Casi siempre es un problema de fecha, no del programa: el SMLMV y el índice IPC acumulado solo se
+reconocen como vigentes si "Vigente desde" quedó en **exactamente el 1 de enero** del año que querías
+cargar (ej. `01/01/2027`, no el `15/01/2027` ni el `01/01/2026`). El programa guarda el valor igual, sin
+avisar del error — ábrelo con doble clic en la tabla de "⚙ Parámetros" para revisar la fecha exacta con
+la que quedó, y si está mal, agrega un valor nuevo con la fecha correcta. Ver la advertencia completa en
+[sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros).
 
 **"¿Dónde quedan guardados mis expedientes si cierro el programa?"**
 En el archivo `bastium.db` dentro de la carpeta del proyecto. No lo borres si quieres conservar la
