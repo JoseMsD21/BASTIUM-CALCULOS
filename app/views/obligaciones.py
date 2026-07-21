@@ -70,6 +70,13 @@ class ObligacionFormDialog(QDialog):
         self.campo_fecha_vencimiento.setCalendarPopup(True)
         self.campo_ibc_vigente = QLineEdit()
 
+        self.combo_moneda = QComboBox()
+        self.combo_moneda.addItem("COP (peso colombiano)", userData="COP")
+        self.combo_moneda.addItem("USD (dolar)", userData="USD")
+        self.campo_trm_aplicable = QLineEdit()
+        self.campo_trm_fecha_referencia = QDateEdit(QDate.currentDate())
+        self.campo_trm_fecha_referencia.setCalendarPopup(True)
+
         self.campo_cantidad_smlmv_uvt = QLineEdit()
 
         self.campo_honorarios_fijos = QLineEdit()
@@ -100,6 +107,9 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
         self.layout_formulario.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
         self.layout_formulario.addRow("IBC vigente aplicable (%)", self.campo_ibc_vigente)
+        self.layout_formulario.addRow("Moneda", self.combo_moneda)
+        self.layout_formulario.addRow("TRM aplicable (COP por USD)", self.campo_trm_aplicable)
+        self.layout_formulario.addRow("Fecha de referencia de la TRM", self.campo_trm_fecha_referencia)
         self.layout_formulario.addRow("Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt)
         self.layout_formulario.addRow("Honorarios fijos pactados", self.campo_honorarios_fijos)
         self.layout_formulario.addRow("% Cuota litis pactada", self.campo_cuota_litis_pct)
@@ -120,6 +130,7 @@ class ObligacionFormDialog(QDialog):
         self.campo_tasa_moratoria.setVisible(es_comercial)
         self.campo_fecha_vencimiento.setVisible(es_comercial)
         self.campo_ibc_vigente.setVisible(es_comercial)
+        self.combo_moneda.setVisible(es_comercial)
 
         self.campo_cantidad_smlmv_uvt.setVisible(es_sancionatorio)
 
@@ -156,8 +167,16 @@ class ObligacionFormDialog(QDialog):
         # ya existen antes de que la señal pueda dispararse.
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
+        self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
 
         self._actualizar_campos_visibles()
+        self._actualizar_visibilidad_trm()
+
+    def _actualizar_visibilidad_trm(self) -> None:
+        es_comercial = self._area == "COMERCIAL"
+        es_usd = self.combo_moneda.currentData() == "USD"
+        self.campo_trm_aplicable.setVisible(es_comercial and es_usd)
+        self.campo_trm_fecha_referencia.setVisible(es_comercial and es_usd)
 
     def _actualizar_campos_visibles(self) -> None:
         if self._area == "LABORAL":
@@ -224,6 +243,9 @@ class ObligacionFormDialog(QDialog):
         tasa_moratoria = None
         fecha_vencimiento = None
         ibc_vigente = None
+        moneda = "COP"
+        trm_aplicable = None
+        trm_fecha_referencia = None
         if self._area == "COMERCIAL":
             try:
                 tasa_moratoria = Decimal(self.campo_tasa_moratoria.text())
@@ -234,6 +256,14 @@ class ObligacionFormDialog(QDialog):
             fecha_vencimiento = date(
                 qdate_vencimiento.year(), qdate_vencimiento.month(), qdate_vencimiento.day()
             )
+            moneda = self.combo_moneda.currentData()
+            if moneda == "USD":
+                try:
+                    trm_aplicable = Decimal(self.campo_trm_aplicable.text())
+                except InvalidOperation as error:
+                    raise ValueError("La TRM aplicable debe ser un numero valido.") from error
+                qdate_trm = self.campo_trm_fecha_referencia.date()
+                trm_fecha_referencia = date(qdate_trm.year(), qdate_trm.month(), qdate_trm.day())
 
         tipo = TipoObligacion(self.combo_tipo.currentData())
         qdate_origen = self.campo_fecha_origen.date()
@@ -259,6 +289,9 @@ class ObligacionFormDialog(QDialog):
             beneficio_obtenido=beneficio_obtenido,
             costas_pct_manual=costas_pct,
             aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
+            moneda=moneda,
+            trm_aplicable=trm_aplicable,
+            trm_fecha_referencia=trm_fecha_referencia,
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
             fecha_fin=None,

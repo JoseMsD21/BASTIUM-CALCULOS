@@ -727,7 +727,7 @@ que el Sprint 5 dejó sin conseguir.
 
 ---
 
-## Sprint 12 — TRM y obligaciones en moneda extranjera 🔴 Pendiente
+## Sprint 12 — TRM y obligaciones en moneda extranjera ✅ Completado
 
 **Prioridad sugerida:** Baja.
 **Depende de:** Nada.
@@ -754,6 +754,43 @@ que el Sprint 5 dejó sin conseguir.
 **Nota:** de menor prioridad que los sprints 2-4 (áreas del derecho) — es una feature transversal para
 casos específicos de comercio internacional, poco frecuente en la práctica de un despacho promedio.
 Confirmar con el usuario si vale la pena antes de planificar en detalle.
+
+**Estado:** Implementado (2026-07-20) — ver
+`docs/superpowers/plans/2026-07-20-sprint12-trm-moneda-extranjera.md` y
+`docs/superpowers/specs/2026-07-20-sprint12-trm-moneda-extranjera-design.md`. Decisiones tomadas con el
+usuario durante el brainstorming previo: (a) alcance limitado a **solo el área Comercial y solo USD** —
+el PDF ata la TRM a títulos valores comerciales (Art. 874 C.Co.), y USD cubre los casos reales
+confirmados con el usuario; (b) el PDF **no trae una serie histórica de TRM diaria** (a diferencia de
+SMLMV/IPC/IBC del Sprint 5) — verificado extrayendo el texto completo de las páginas 8 y 21 del PDF —, así
+que la TRM se ingresa manualmente por obligación (`trm_aplicable`, `trm_fecha_referencia`) detrás de una
+interfaz `TRMProvider` reemplazable por una fuente histórica real más adelante, sin tocar
+`ComercialStrategy`; (c) la conversión del capital a pesos es **única, al inicio de la liquidación** (antes
+de construir los eventos de causación), no una reconversión continua por cada abono — el resto del motor
+de interés/mora/usura sigue operando 100% en pesos sin ningún cambio.
+
+Hallazgo técnico importante detectado durante la planificación (documentado al inicio del plan): los
+objetos `Obligacion` construidos directamente en tests (sin sesión de base de datos, patrón usado en todos
+los fixtures de `tests/services/test_area_strategy.py`) no reciben el default `"COP"` de SQLAlchemy —
+`mapped_column(default=...)` solo se aplica al hacer `session.commit()`. Por eso todo el código de este
+sprint trata `moneda in (None, "COP")` como "sin conversión", nunca una comparación `== "COP"` sola, para
+no romper ninguna obligación Comercial existente en la suite de pruebas.
+
+**Definición de Hecho:**
+- `ComercialStrategy` liquida obligaciones en USD convirtiendo el capital a pesos con la TRM ingresada por
+  el abogado, antes de aplicar interés/mora/usura — verificado con tests que comparan el resultado contra
+  el mismo caso armado manualmente en pesos (mismo interés, mismo capital convertido).
+- Formulario de obligación (`ObligacionFormDialog`) operable end-to-end para el flujo Comercial + USD:
+  smoke test end-to-end scriptado (diálogo real de PySide6 con widgets/señales reales, guardado real en
+  base de datos, liquidación vía el mismo `AreaRegistry.get_strategy()` que usa el botón "Liquidar" real de
+  la app) confirmó que una obligación de USD 10.000 con TRM 4.150,25 liquida con un capital de
+  $41.502.500,00 pesos, sin errores.
+- `README.md` y `docs/GUIA_USUARIO.md` actualizados (sección 5.7 ampliada, nueva sección 7.8, sección 8
+  corregida).
+- Suite completa en verde (314 passed, 1 skipped — el mismo skip preexistente de antes del sprint).
+- Migración de esquema (`scripts/migrate_moneda_trm.py`, mismo patrón idempotente que
+  `migrate_aplica_indexacion_ipc.py` del Sprint 8) — pendiente de correr contra el `bastium.db` real del
+  equipo, ya que ese archivo no está versionado y no existe dentro del worktree de este sprint; queda como
+  el último paso al fusionar esta rama a `main` (documentado en `README.md`, "Instalación rápida").
 
 ---
 

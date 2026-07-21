@@ -439,3 +439,88 @@ def test_label_fecha_origen_cambia_para_area_laboral(qtbot, monkeypatch):
     assert etiqueta_laboral != etiqueta_civil
     assert etiqueta_laboral == "Fecha de inicio del contrato"
     assert etiqueta_civil == "Fecha de origen (Puntual)"
+
+
+def test_combo_moneda_visible_solo_para_area_comercial(qtbot, monkeypatch):
+    expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+    dialog_comercial = ObligacionFormDialog(expediente_id=expediente_id_comercial, area="COMERCIAL")
+    qtbot.addWidget(dialog_comercial)
+    dialog_comercial.show()
+    assert dialog_comercial.combo_moneda.isVisible() is True
+
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+    dialog_civil.show()
+    assert dialog_civil.combo_moneda.isVisible() is False
+
+
+def test_campos_trm_visibles_solo_si_moneda_es_usd_en_comercial(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.combo_moneda.currentData() == "COP"
+    assert dialog.campo_trm_aplicable.isVisible() is False
+    assert dialog.campo_trm_fecha_referencia.isVisible() is False
+
+    indice_usd = dialog.combo_moneda.findData("USD")
+    dialog.combo_moneda.setCurrentIndex(indice_usd)
+    assert dialog.campo_trm_aplicable.isVisible() is True
+    assert dialog.campo_trm_fecha_referencia.isVisible() is True
+
+    dialog.combo_moneda.setCurrentIndex(dialog.combo_moneda.findData("COP"))
+    assert dialog.campo_trm_aplicable.isVisible() is False
+    assert dialog.campo_trm_fecha_referencia.isVisible() is False
+
+
+def test_guarda_obligacion_comercial_en_usd_con_trm(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Capital de pagare en USD")
+    dialog.campo_valor.setText("10000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+    dialog.combo_moneda.setCurrentIndex(dialog.combo_moneda.findData("USD"))
+    dialog.campo_trm_aplicable.setText("4150.2500")
+    dialog.campo_trm_fecha_referencia.setDate(date(2025, 1, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.moneda == "USD"
+    assert guardada.trm_aplicable == Decimal("4150.2500")
+    assert guardada.trm_fecha_referencia == date(2025, 1, 1)
+    session.close()
+
+
+def test_guarda_obligacion_comercial_en_cop_deja_trm_en_none(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.moneda == "COP"
+    assert guardada.trm_aplicable is None
+    assert guardada.trm_fecha_referencia is None
+    session.close()
