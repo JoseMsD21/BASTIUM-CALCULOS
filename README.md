@@ -30,6 +30,14 @@ exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación. 
 queda registrada en un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de
 corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
 
+✅ **Parámetros legales versionados:** desde la pantalla "⚙ Parámetros" cualquier abogado puede consultar
+y agregar, sin tocar código, los valores/tasas/topes que antes solo un desarrollador podía cambiar: el
+multiplicador de usura, los topes de cuota litis, los plazos de prescripción/caducidad, el descuento del
+interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC
+e IBC/Tasa de Usura. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — nunca se edita
+ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
+queda siempre disponible con doble clic.
+
 🚧 **En desarrollo:** seguridad social (cotizaciones a pensión, salud, ARL, fondo de solidaridad
 pensional) en el área Laboral, anatocismo comercial condicionado (Art. 886 C.Co.) y varios módulos más
 también están pendientes. El motor de prescripción y caducidad
@@ -68,6 +76,12 @@ script es idempotente (se puede correr de más sin riesgo) y solo hace falta una
 `python scripts/migrate_moneda_trm.py` antes de abrir la app — agrega las columnas `moneda`,
 `trm_aplicable` y `trm_fecha_referencia` que necesitan las obligaciones comerciales en moneda extranjera.
 Igual que el script del Sprint 8, es idempotente y solo hace falta una vez por instalación.
+
+**Si ya tenías `bastium.db` creado antes de este sprint**, corre una vez
+`python scripts/migrate_parametros_legales.py` antes de abrir la app — crea y siembra la tabla
+`parametros_legales` con los valores hoy vigentes (usura, cuota litis, prescripción/caducidad, SMLMV,
+IPC, IBC/usura), para que la pantalla "⚙ Parámetros" y todos los motores que ahora la consultan tengan
+datos desde el primer arranque. Es idempotente y solo hace falta una vez por instalación.
 
 ## Estructura del proyecto
 

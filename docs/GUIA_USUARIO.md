@@ -5,11 +5,11 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-19 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
-> Honorarios/Litigio, Laboral, exportación de liquidaciones a PDF/Word, y los botones de navegación
-> (Volver/Inicio) y de editar/eliminar expediente. Cada vez que se complete un sprint nuevo de
-> [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
-> respecto al programa real.
+> **Última actualización:** 2026-07-20 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> Honorarios/Litigio, Laboral, exportación de liquidaciones a PDF/Word, los botones de navegación
+> (Volver/Inicio) y de editar/eliminar expediente, y la pantalla "⚙ Parámetros" de parámetros legales
+> versionados. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md), esta guía
+> se actualiza para que nunca quede desactualizada respecto al programa real.
 
 ## Índice
 
@@ -136,8 +136,8 @@ sube a internet ni se comparte con nadie).
 
 ## 4. Tour de la aplicación
 
-BASTIUM tiene **3 pantallas**, y te mueves entre ellas automáticamente según lo que hagas (no hay un menú
-de navegación separado):
+BASTIUM tiene **4 pantallas**. Te mueves entre las tres primeras automáticamente según lo que hagas (no
+hay un menú de navegación separado); a la cuarta se entra con un botón de la barra superior:
 
 1. **Lista de Expedientes** — la pantalla con la que arranca el programa. Muestra una tabla con todos los
    expedientes que ya creaste (radicado, demandante, demandado, área, y botones de **Editar** y
@@ -152,7 +152,12 @@ de navegación separado):
    tabla con el detalle día por día de cómo se acumuló el interés, y al final tres totales: interés
    acumulado, pagos aplicados y saldo final.
 
-En la parte superior de la ventana hay dos botones de navegación, que aparecen solo cuando aplican:
+4. **⚙ Parámetros** — la pantalla de parámetros legales versionados (tasas, topes, plazos e indicadores
+   históricos). Se abre desde el botón **"⚙ Parámetros"** de la barra superior, disponible siempre, sin
+   importar en qué otra pantalla estés. Ver [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros)
+   para el detalle completo.
+
+En la parte superior de la ventana hay botones de navegación:
 
 - **← Volver** — regresa a la pantalla anterior (por ejemplo, de Resultado de Liquidación a Detalle de
   Expediente, y de ahí a la Lista de Expedientes). Recuerda el orden exacto en que navegaste, no solo "la
@@ -160,6 +165,8 @@ En la parte superior de la ventana hay dos botones de navegación, que aparecen 
   programa).
 - **🏠 Inicio** — regresa directo a la Lista de Expedientes sin importar en qué pantalla estés. Está
   oculto cuando ya estás en la Lista de Expedientes.
+- **⚙ Parámetros** — siempre visible, en cualquier pantalla; te lleva a la pantalla de parámetros legales
+  versionados (ver punto 4 arriba).
 
 ---
 
@@ -464,6 +471,78 @@ El historial de auditoría es de solo lectura: no se puede editar ni borrar
 una fila individualmente (solo desaparece si se elimina el expediente
 completo, ver [sección 5.11](#511-editar-o-eliminar-un-expediente)).
 
+### 5.13. Editar tasas y topes legales (pantalla "⚙ Parámetros")
+
+Antes, si el multiplicador de usura, un tope de cuota litis, un plazo de prescripción o el valor del
+SMLMV de un año nuevo cambiaban, había que pedirle a un programador que editara el código. Ya no: desde
+la pantalla **"⚙ Parámetros"** cualquier abogado puede consultar y agregar esos valores directamente.
+
+**Dónde está:** haz clic en el botón **"⚙ Parámetros"** de la barra superior — está siempre visible, sin
+importar en qué pantalla estés (Lista de Expedientes, Detalle de Expediente o Resultado de Liquidación).
+
+**Qué muestra la tabla principal:** una fila por cada parámetro que el programa sabe manejar, con cuatro
+columnas:
+
+- **Categoría**: agrupa los parámetros en "Topes legales", "Plazos de prescripción y caducidad" o
+  "Indicadores históricos".
+- **Parámetro**: el nombre del valor (ej. "Multiplicador del tope de usura sobre el IBC", "Salario
+  Mínimo Legal Mensual Vigente").
+- **Valor vigente hoy**: el valor que el programa usaría si liquidara algo hoy mismo. Si dice
+  "(sin dato)", es que todavía no se ha cargado ningún valor para ese parámetro (o ninguno aplica a la
+  fecha de hoy).
+- **Vigente desde**: la fecha desde la que rige ese valor vigente.
+
+**Cómo agregar un valor nuevo:**
+
+1. Haz clic en el botón **"+ Agregar valor nuevo"**, encima de la tabla.
+2. En el formulario que se abre, llena:
+   - **Parámetro**: elige de la lista cuál de los valores legales estás actualizando.
+   - **Valor**: el número nuevo (ej. `1.5` para el multiplicador de usura, o `1300000` para un SMLMV).
+   - **Vigente desde**: la fecha a partir de la cual rige este valor.
+   - **Vigente hasta**: **este campo solo aparece para dos parámetros** — el Interés Bancario Corriente
+     (IBC, línea Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores
+     históricos". Para todos los demás parámetros el campo está oculto y no aplica: el valor rige desde
+     "Vigente desde" hacia adelante, sin fecha de corte, hasta que se agregue un valor más nuevo.
+   - **Usuario**: tu nombre o usuario, para que quede registrado quién hizo el cambio. Es obligatorio.
+   - **Motivo (opcional)**: por qué se agrega este valor (ej. "Actualización SMLMV 2027, Decreto XXXX").
+     No es obligatorio, pero se recomienda diligenciarlo — queda guardado para siempre junto con el valor.
+3. Haz clic en **"Guardar"**.
+
+Si dejas el campo Usuario vacío, o escribes un valor que no es un número, el programa avisa "Datos
+inválidos" y no deja guardar.
+
+**Nada se edita ni se borra — solo se agrega:** cuando cambias un valor legal, no estás corrigiendo la
+fila anterior, estás agregando una fila nueva. La fila vieja se queda intacta para siempre, para que
+cualquier liquidación calculada en el pasado (ver [sección 5.12](#512-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada))
+se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
+Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
+vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
+
+> **⚠️ Importante — el SMLMV y el índice IPC acumulado son estrictos con la fecha, y no avisan si te
+> equivocas:**
+>
+> Los dos parámetros de "Indicadores históricos" marcados como series **anuales** — el **SMLMV** y el
+> **índice IPC acumulado** — solo quedan "vigentes" para un año si el campo **"Vigente desde" es
+> exactamente el 1 de enero de ese año**. Por ejemplo, para cargar el SMLMV del 2027, "Vigente desde"
+> tiene que ser `01/01/2027` — ni un día antes ni un día después, y tampoco sirve una fecha del 2026 con
+> la idea de que "ya queda lista para cuando llegue el 2027".
+>
+> Si pones cualquier otra fecha (ej. `15/01/2027` o `01/01/2026` con la intención de que cubra el 2027),
+> el programa **guarda el valor sin ningún mensaje de error**, pero ese valor nunca va a aparecer como
+> "vigente" para ningún cálculo — la columna "Valor vigente hoy" seguirá mostrando el valor anterior (o
+> "(sin dato)"), y cualquier liquidación que necesite ese SMLMV seguirá usando el año anterior, en
+> silencio. Si cargaste un SMLMV o un IPC nuevo y no ves que cambie el "Valor vigente hoy", lo primero que
+> hay que revisar es que "Vigente desde" haya quedado exactamente en el 1 de enero del año correcto —
+> ábrelo con doble clic en la tabla para confirmar la fecha exacta con la que quedó guardado, y si está
+> mal, simplemente agrega un valor nuevo con la fecha correcta (no hace falta ni se puede "corregir" la
+> fila anterior).
+>
+> Esto **no** les pasa a los demás parámetros: los topes legales (usura, cuota litis, honorarios) y los
+> plazos de prescripción/caducidad rigen desde cualquier fecha que pongas en "Vigente desde" hacia
+> adelante, sin exigir que sea un 1 de enero. El IBC y la Tasa de Usura (los dos parámetros con "Vigente
+> hasta") tampoco exigen una fecha exacta — rigen dentro del rango completo que hayas escrito entre
+> "Vigente desde" y "Vigente hasta".
+
 ---
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
@@ -489,7 +568,13 @@ implementada" en vez de calcular — nunca da un resultado numérico inventado o
 
 Todos los valores fijos que usa el programa (tasas legales, categorías disponibles, áreas habilitadas)
 están guardados en archivos de texto dentro del código, **no** escondidos ni cifrados. Aquí está
-exactamente dónde encontrarlos y qué significa cada uno:
+exactamente dónde encontrarlos y qué significa cada uno.
+
+**Nota:** varios de los valores descritos abajo (el multiplicador de usura, los topes de cuota litis, los
+plazos de prescripción/caducidad, la tasa civil legal, el descuento del interés moratorio tributario, y
+las series de SMLMV/IPC/IBC-Usura) ya no requieren tocar código para cambiarse — se administran desde la
+pantalla **"⚙ Parámetros"**, ver [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros).
+Lo que sigue documenta además dónde vive cada valor por dentro, para quien programa.
 
 ### 7.1. Tasa de interés civil (6% anual, Art. 1617 C.C.)
 
@@ -651,7 +736,10 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   Sprint 11).
 - ✅ **TRM y obligaciones en moneda extranjera** ya está conectada al área Comercial (Sprint 12) — ver
   [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera).
-- 🚧 **Motor de reglas configurable** — dominio nuevo, de menor prioridad, ver `Pendientes.md`, Sprint 13.
+- ✅ **Parámetros legales versionados** (pantalla "⚙ Parámetros") — el Sprint 13, planeado originalmente
+  como un motor de reglas configurable de alcance mucho mayor, se reemplazó por este dominio más acotado:
+  tasas, topes, plazos e indicadores históricos editables desde la GUI, con historial completo. Ver
+  [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros).
 
 ---
 
