@@ -58,3 +58,39 @@ def test_get_parametro_clave_desconocida_lanza_value_error():
 
     with pytest.raises(ValueError):
         get_parametro("NO_EXISTE", date(2026, 1, 1))
+
+
+def test_get_parametro_modo_anual_exacto_requiere_el_mismo_anio():
+    from app.services.parametro_service import get_parametro
+
+    _insertar("SMLMV", "1750905.00", date(2026, 1, 1))
+    _insertar("SMLMV", "1423500.00", date(2025, 1, 1))
+
+    assert get_parametro("SMLMV", date(2026, 7, 20)) == Decimal("1750905.00")
+    assert get_parametro("SMLMV", date(2025, 12, 31)) == Decimal("1423500.00")
+
+
+def test_get_parametro_modo_anual_exacto_no_extrapola():
+    from app.services.parametro_service import get_parametro
+
+    _insertar("SMLMV", "1750905.00", date(2026, 1, 1))
+    with pytest.raises(ParametroNoDisponibleError):
+        get_parametro("SMLMV", date(2027, 1, 1))
+
+
+def test_get_parametro_modo_tramo_cerrado_encuentra_el_tramo_correcto():
+    from app.services.parametro_service import get_parametro
+
+    _insertar("IBC_CONSUMO_ORDINARIO", "16.24", date(2026, 1, 1), vigente_hasta=date(2026, 1, 31))
+    _insertar("IBC_CONSUMO_ORDINARIO", "16.82", date(2026, 2, 1), vigente_hasta=date(2026, 2, 28))
+
+    assert get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 1, 15)) == Decimal("16.24")
+    assert get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 2, 15)) == Decimal("16.82")
+
+
+def test_get_parametro_modo_tramo_cerrado_no_extrapola_mas_alla_del_ultimo_tramo():
+    from app.services.parametro_service import get_parametro
+
+    _insertar("IBC_CONSUMO_ORDINARIO", "16.24", date(2026, 1, 1), vigente_hasta=date(2026, 1, 31))
+    with pytest.raises(ParametroNoDisponibleError):
+        get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 2, 1))
