@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
+from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO
 from database.models import AreaDerecho, Base, Expediente, Obligacion, ParametroLegal, TipoObligacion, Abono
 from app.views.expediente_detalle import ExpedienteDetallePage
 
@@ -120,6 +121,16 @@ def _expediente_civil_con_obligacion_indexada(monkeypatch) -> int:
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
     session = session_module.get_session()
+    # Tarea 12: CivilFamiliaStrategy ahora resuelve el indice IPC via
+    # get_ipc_interpolado_for_date -> parametro_service, en vez del diccionario
+    # en memoria de historical_index.py -- se siembra IPC_INDICE_ACUMULADO
+    # completo desde el mismo diccionario congelado que usa
+    # scripts/migrate_parametros_legales.py, para no re-transcribir a mano.
+    for anio, valor in _IPC_INDICE_ACUMULADO.items():
+        session.add(ParametroLegal(
+            clave="IPC_INDICE_ACUMULADO", valor=valor, vigente_desde=date(anio, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+        ))
     expediente = Expediente(
         radicado="2026-070",
         demandante="Ana",

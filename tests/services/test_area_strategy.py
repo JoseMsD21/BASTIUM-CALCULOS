@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.exceptions import AreaNoImplementadaError
+from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO, _SMLMV_POR_ANIO
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.area_strategy import (
     CivilFamiliaStrategy,
@@ -29,6 +30,14 @@ def _parametros_legales_en_memoria(monkeypatch):
     # USURA_MULTIPLICADOR calcados de tests/engine/test_usury_validator.py
     # (la fixture equivalente de la Tarea 7) para no divergir del valor real
     # sembrado en bastium.db por scripts/migrate_parametros_legales.py.
+    #
+    # SMLMV/IPC_INDICE_ACUMULADO (Tarea 12): SancionatorioStrategy (via
+    # resolver_base_sancion -> get_smlmv_for_year) y CivilFamiliaStrategy (via
+    # get_ipc_interpolado_for_date) ahora leen ambas claves de
+    # parametro_service en cada liquidar(). Se siembran desde los mismos
+    # diccionarios congelados que consume scripts/migrate_parametros_legales.py
+    # (no se re-transcriben a mano) para no divergir del dato real y para no
+    # tener que enumerar a mano que anios especificos necesita cada test.
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
@@ -45,6 +54,16 @@ def _parametros_legales_en_memoria(monkeypatch):
         clave="HONORARIOS_TOTAL_PCT", valor=_Decimal("50"), vigente_desde=_date(1900, 1, 1),
         vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
     ))
+    for anio, valor in _SMLMV_POR_ANIO.items():
+        session.add(ParametroLegal(
+            clave="SMLMV", valor=valor, vigente_desde=_date(anio, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+    for anio, valor in _IPC_INDICE_ACUMULADO.items():
+        session.add(ParametroLegal(
+            clave="IPC_INDICE_ACUMULADO", valor=valor, vigente_desde=_date(anio, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
     session.commit()
     session.close()
 

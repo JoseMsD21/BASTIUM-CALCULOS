@@ -17,6 +17,9 @@ from datetime import date
 from decimal import Decimal
 from typing import Dict, List, Tuple
 
+from app.core.exceptions import ParametroNoDisponibleError
+from app.services.parametro_service import get_parametro, ultimo_anio_disponible
+
 
 # ---------------------------------------------------------------------------
 # SMLMV (Salario Minimo Legal Mensual Vigente), 1984-2026.
@@ -72,15 +75,17 @@ _SMLMV_POR_ANIO: Dict[int, Decimal] = {
 
 
 def get_smlmv_for_year(anio: int) -> Decimal:
-    """Retorna el Salario Minimo Legal Mensual Vigente para el año dado.
-    Datos disponibles: 1984-2026 (2027 aun no definido por el Gobierno a la fecha
-    del documento fuente)."""
-    if anio not in _SMLMV_POR_ANIO:
+    """Retorna el Salario Minimo Legal Mensual Vigente para el año dado,
+    consultando la tabla parametros_legales (clave SMLMV, editable desde la
+    GUI). Antes de la migracion de este sprint, el año debia existir en
+    _SMLMV_POR_ANIO (que sigue siendo la referencia congelada de origen, ver
+    scripts/migrate_parametros_legales.py)."""
+    try:
+        return get_parametro("SMLMV", date(anio, 1, 1))
+    except ParametroNoDisponibleError as error:
         raise ValueError(
-            f"No hay SMLMV configurado para el año {anio}. "
-            f"Datos disponibles: {min(_SMLMV_POR_ANIO)}-{max(_SMLMV_POR_ANIO)}."
-        )
-    return _SMLMV_POR_ANIO[anio]
+            f"No hay SMLMV configurado para el año {anio}."
+        ) from error
 
 
 # ---------------------------------------------------------------------------
@@ -173,17 +178,17 @@ _IPC_INDICE_ACUMULADO: Dict[int, Decimal] = _construir_indice_ipc_acumulado(_IPC
 
 
 def get_ipc_for_date(fecha: date) -> Decimal:
-    """Retorna el indice IPC acumulado de cierre de año (31-dic) del año de `fecha`.
-    Datos disponibles: 1967-2025. La fuente solo trae variacion ANUAL -- no hay
-    granularidad mensual; interpolar a un mes especifico dentro del año es
-    responsabilidad del Sprint 8 (indexacion IPC conectada a Civil/Familia)."""
-    anio = fecha.year
-    if anio not in _IPC_INDICE_ACUMULADO:
+    """Retorna el indice IPC acumulado de cierre de año (31-dic) del año de
+    `fecha`, consultando parametros_legales (clave IPC_INDICE_ACUMULADO). La
+    fuente solo trae variacion ANUAL -- no hay granularidad mensual; interpolar
+    a un mes especifico dentro del año es responsabilidad de
+    get_ipc_interpolado_for_date."""
+    try:
+        return get_parametro("IPC_INDICE_ACUMULADO", date(fecha.year, 1, 1))
+    except ParametroNoDisponibleError as error:
         raise ValueError(
-            f"No hay indice IPC configurado para el año {anio}. "
-            f"Datos disponibles: {min(_IPC_INDICE_ACUMULADO)}-{max(_IPC_INDICE_ACUMULADO)}."
-        )
-    return _IPC_INDICE_ACUMULADO[anio]
+            f"No hay indice IPC configurado para el año {fecha.year}."
+        ) from error
 
 
 def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
@@ -196,20 +201,16 @@ def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
     aproximacion (ver Sprint 8 design doc, decision 3) en vez de lanzar
     ValueError -- de lo contrario ninguna liquidacion con fecha_corte actual
     podria activar indexacion."""
-    anio_min = min(_IPC_INDICE_ACUMULADO)
-    anio_max = max(_IPC_INDICE_ACUMULADO)
-
-    if fecha.year < anio_min:
-        raise ValueError(
-            f"No hay indice IPC configurado para el año {fecha.year}. "
-            f"Datos disponibles desde {anio_min}."
-        )
+    anio_max = ultimo_anio_disponible("IPC_INDICE_ACUMULADO")
 
     if fecha.year > anio_max:
-        return _IPC_INDICE_ACUMULADO[anio_max]
+        return get_parametro("IPC_INDICE_ACUMULADO", date(anio_max, 1, 1))
 
-    v2 = _IPC_INDICE_ACUMULADO[fecha.year]
-    v1 = _IPC_INDICE_ACUMULADO.get(fecha.year - 1, Decimal("100"))
+    v2 = get_ipc_for_date(date(fecha.year, 12, 31))
+    try:
+        v1 = get_ipc_for_date(date(fecha.year - 1, 12, 31))
+    except ValueError:
+        v1 = Decimal("100")
 
     dia_cierre_anterior = date(fecha.year - 1, 12, 31)
     dia_cierre_actual = date(fecha.year, 12, 31)

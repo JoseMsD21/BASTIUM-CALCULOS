@@ -2,7 +2,11 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+import database.database as database_module
+import database.session as session_module
 from app.engine.indexation.historical_index import (
     _IPC_VARIACION_ANUAL,
     _TRAMOS_IBC_USURA,
@@ -11,6 +15,15 @@ from app.engine.indexation.historical_index import (
     get_smlmv_for_year,
     get_tramos_ibc_usura_between,
 )
+
+
+@pytest.fixture(autouse=True)
+def _parametros_legales_en_memoria(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    monkeypatch.setattr(database_module, "engine", engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    from scripts.migrate_parametros_legales import migrar
+    migrar()
 
 
 def test_smlmv_2026_valor_conocido():
