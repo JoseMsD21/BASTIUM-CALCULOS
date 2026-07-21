@@ -1,8 +1,12 @@
 from datetime import date
+from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+import database.session as session_module
 from app.engine.temporal.prescripcion import (
     TipoAccion,
     calcular_caducidad,
@@ -11,6 +15,32 @@ from app.engine.temporal.prescripcion import (
     filtrar_cuotas_prescritas,
 )
 from app.engine.temporal.schedulers.family import FamilyScheduler
+from database.models import Base, ParametroLegal
+
+_PLAZOS_MESES = {
+    "PRESCRIPCION_EJECUTIVA_MESES": 60,
+    "PRESCRIPCION_ORDINARIA_MESES": 120,
+    "PRESCRIPCION_HONORARIOS_MESES": 36,
+    "PRESCRIPCION_CAMBIARIA_DIRECTA_MESES": 36,
+    "PRESCRIPCION_CAMBIARIA_REGRESO_TENEDOR_MESES": 12,
+    "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES": 6,
+    "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES": 60,
+}
+
+
+@pytest.fixture(autouse=True)
+def _parametros_prescripcion_en_memoria(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    session = session_module.get_session()
+    for clave, meses in _PLAZOS_MESES.items():
+        session.add(ParametroLegal(
+            clave=clave, valor=Decimal(meses), vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+    session.commit()
+    session.close()
 
 
 def test_calcular_prescripcion_ejecutiva_5_anios():

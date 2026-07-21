@@ -15,6 +15,7 @@ from typing import List, Optional, Tuple
 
 from app.engine.time.calendar import CalendarUtils
 from app.engine.temporal.schedulers.base import Event
+from app.services.parametro_service import get_parametro
 
 
 class TipoAccion(Enum):
@@ -36,8 +37,18 @@ PLAZOS_PRESCRIPCION_MESES = {
 }
 
 
+_CLAVE_POR_TIPO_ACCION = {
+    TipoAccion.EJECUTIVA: "PRESCRIPCION_EJECUTIVA_MESES",
+    TipoAccion.ORDINARIA: "PRESCRIPCION_ORDINARIA_MESES",
+    TipoAccion.HONORARIOS_PROFESIONALES: "PRESCRIPCION_HONORARIOS_MESES",
+    TipoAccion.CAMBIARIA_DIRECTA: "PRESCRIPCION_CAMBIARIA_DIRECTA_MESES",
+    TipoAccion.CAMBIARIA_REGRESO_TENEDOR: "PRESCRIPCION_CAMBIARIA_REGRESO_TENEDOR_MESES",
+    TipoAccion.CAMBIARIA_REGRESO_ENTRE_OBLIGADOS: "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES",
+}
+
+
 def calcular_prescripcion(fecha_exigibilidad: date, tipo_accion: TipoAccion) -> date:
-    meses = PLAZOS_PRESCRIPCION_MESES[tipo_accion]
+    meses = int(get_parametro(_CLAVE_POR_TIPO_ACCION[tipo_accion], fecha_exigibilidad))
     return CalendarUtils.vencimiento_calendario(fecha_exigibilidad, meses)
 
 
@@ -48,6 +59,8 @@ PLAZOS_CADUCIDAD_MESES_CONOCIDOS = {
 # Deliberadamente no exhaustivo: solo casos con plazo confirmado en el PDF
 # fuente; cualquier otro tipo_proceso requiere plazo_meses_manual explicito.
 
+_TIPOS_CADUCIDAD_CONOCIDOS = set(PLAZOS_CADUCIDAD_MESES_CONOCIDOS)
+
 
 def calcular_caducidad(
     fecha_hecho: date,
@@ -56,8 +69,8 @@ def calcular_caducidad(
 ) -> date:
     # El catalogo conocido tiene prioridad sobre plazo_meses_manual por
     # diseno: si tipo_proceso ya esta confirmado, el valor manual se ignora.
-    if tipo_proceso in PLAZOS_CADUCIDAD_MESES_CONOCIDOS:
-        meses = PLAZOS_CADUCIDAD_MESES_CONOCIDOS[tipo_proceso]
+    if tipo_proceso in _TIPOS_CADUCIDAD_CONOCIDOS:
+        meses = int(get_parametro(f"CADUCIDAD_{tipo_proceso}_MESES", fecha_hecho))
     elif plazo_meses_manual is not None:
         meses = plazo_meses_manual
     else:
