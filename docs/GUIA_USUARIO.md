@@ -356,10 +356,11 @@ campo adicional en vez del campo "Valor":
    al liquidar, no al capturar el dato.
 
 La conversión a pesos usa el SMLMV vigente en el año del hecho si la fecha de origen es **anterior al
-2020-01-01**; para fechas posteriores necesitaría la tabla histórica de UVT, que todavía no está cargada
-(ver [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias)). Si intentas liquidar un hecho
-posterior a esa fecha, el programa muestra el mensaje "UVT no disponible" en vez de arriesgar un valor
-incorrecto.
+2020-01-01**, y la UVT vigente en el año del hecho si es **igual o posterior** a esa fecha (tabla
+histórica UVT 2006-2026, ver [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias)). Si el
+hecho es de un año para el que todavía no exista UVT publicada por la DIAN (por ejemplo, un año futuro
+que la DIAN aún no ha fijado), el programa muestra el mensaje "UVT no disponible" en vez de arriesgar un
+valor incorrecto.
 
 ### 5.10. Agregar una obligación de honorarios / litigio
 
@@ -498,7 +499,7 @@ columnas:
 2. En el formulario que se abre, llena:
    - **Parámetro**: elige de la lista cuál de los valores legales estás actualizando.
    - **Valor**: el número nuevo (ej. `1.5` para el multiplicador de usura, o `1300000` para un SMLMV).
-   - **Vigente desde**: la fecha a partir de la cual rige este valor (para SMLMV o el índice IPC, lee la
+   - **Vigente desde**: la fecha a partir de la cual rige este valor (para SMLMV, IPC o UVT, lee la
      advertencia más abajo **antes** de guardar).
    - **Vigente hasta**: **este campo solo aparece para dos parámetros** — el Interés Bancario Corriente
      (IBC, línea Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores
@@ -512,8 +513,8 @@ columnas:
 > **⚠️ Importante — el SMLMV y el índice IPC acumulado son estrictos con la fecha, y no avisan si te
 > equivocas:**
 >
-> Los dos parámetros de "Indicadores históricos" marcados como series **anuales** — el **SMLMV** y el
-> **índice IPC acumulado** — solo quedan "vigentes" para un año si el campo **"Vigente desde" es
+> Los tres parámetros de "Indicadores históricos" marcados como series **anuales** — el **SMLMV**, el
+> **índice IPC acumulado** y la **UVT** — solo quedan "vigentes" para un año si el campo **"Vigente desde" es
 > exactamente el 1 de enero de ese año**. Por ejemplo, para cargar el SMLMV del 2027, "Vigente desde"
 > tiene que ser `01/01/2027` — ni un día antes ni un día después, y tampoco sirve una fecha del 2026 con
 > la idea de que "ya queda lista para cuando llegue el 2027".
@@ -556,7 +557,7 @@ hoy**:
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
 | Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después, validación de tope de usura (1.5× el IBC que ingreses). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
 | Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, e indemnización moratoria bifásica del Art. 65 CST si hubo retardo en el pago. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). Seguridad social no está incluida (ver sección 8). |
-| Sancionatorio | ✅ Sí, con una limitación — multas en SMLMV o UVT (Ley 1955/2019 art. 49), pero solo para hechos **anteriores al 2020-01-01**: todavía no hay tabla histórica de UVT cargada, y el programa se rehúsa a adivinar el valor para hechos posteriores ("UVT no disponible"). Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
+| Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
 | Honorarios / Litigio | ✅ Sí, con una limitación — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual porque no existe una tabla estructurada confiable del Consejo Superior de la Judicatura. Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
 
 Si en algún momento se intenta liquidar un área cuya lógica todavía no esté lista (ver
@@ -630,12 +631,15 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   propia cantidad de salarios mínimos o UVT.
 - **Dónde vive la lógica en el código**: `app/engine/indexation/smlmv_to_uvt.py`, función
   `resolver_base_sancion`. Se invoca automáticamente al liquidar (`SancionatorioStrategy.liquidar()` en
-  `app/services/area_strategy.py`). Los valores de SMLMV por año están en
-  `app/engine/indexation/historical_index.py`.
+  `app/services/area_strategy.py`). Los valores de SMLMV y de UVT por año están en
+  `app/engine/indexation/historical_index.py` (funciones `get_smlmv_for_year` y `get_uvt_for_year`), y
+  también se pueden consultar o corregir desde la pantalla "⚙ Parámetros" (claves `SMLMV` y `UVT`, ver
+  [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros)).
 - **Qué pasa si el hecho es posterior al 2020-01-01**: la ley pasó de expresar estas multas en SMLMV a
-  expresarlas en UVT a partir de esa fecha, y todavía no existe una tabla histórica de UVT cargada en el
-  programa (ver `Pendientes.md`, Sprint 5). En vez de adivinar un valor, el programa lanza el error "UVT
-  no disponible" y no calcula nada.
+  expresarlas en UVT a partir de esa fecha; el programa ya tiene cargada la tabla histórica de UVT
+  (2006-2026, ver `Pendientes.md`, Sprint 14) y convierte automáticamente. Solo lanza el error "UVT no
+  disponible" si el hecho es de un año que la DIAN todavía no ha publicado (por ejemplo, un año futuro
+  aún sin resolución) — en ese caso, en vez de adivinar un valor, no calcula nada.
 
 ### 7.6. Tope de cuota litis y honorarios (30% / 50% del beneficio obtenido)
 
@@ -707,10 +711,9 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   judiciales, no es un sistema de nómina corriente (`Pendientes.md`, Sprint 3).
 - 🚧 **Incapacidades y suspensiones contractuales en el área Laboral** — no modeladas (`Pendientes.md`,
   Sprint 3).
-- 🚧 **Tabla histórica de UVT** — el área Sancionatorio solo convierte a pesos los hechos anteriores al
-  2020-01-01 (vía SMLMV); los hechos posteriores necesitan una tabla histórica de UVT que todavía no
-  está cargada, y por ahora el programa avisa "UVT no disponible" en vez de calcular (`Pendientes.md`,
-  Sprint 5).
+- ✅ **Tabla histórica de UVT** (2006-2026) ya está cargada y conectada — el área Sancionatorio convierte
+  a pesos tanto los hechos anteriores al 2020-01-01 (vía SMLMV) como los posteriores (vía UVT). Ver
+  [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias) (`Pendientes.md`, Sprint 14).
 - 🚧 **Anatocismo comercial condicionado (Art. 886 C.Co.)** — el motor de interés compuesto
   (`CompoundInterest`) existe pero no está conectado; requiere modelar si hubo demanda judicial o
   acuerdo posterior de capitalización, algo que el modelo de datos todavía no captura (`Pendientes.md`,
@@ -733,8 +736,8 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   históricos) y depuración de Renta Líquida Gravable (el flujo de 8 pasos del impuesto de renta). Ninguno
   está conectado todavía a un área operable — no existe una estrategia de liquidación tributaria ni el
   área aparece en el selector de la GUI. Sanciones (extemporaneidad, inexactitud) e imputación tributaria
-  de pagos siguen sin construir, bloqueadas por la falta de una tabla histórica de UVT (`Pendientes.md`,
-  Sprint 11).
+  de pagos siguen sin construir; la tabla histórica de UVT que las bloqueaba ya está disponible
+  (`Pendientes.md`, Sprint 14), quedan pendientes del Sprint 15 (Tributario 11b).
 - ✅ **TRM y obligaciones en moneda extranjera** ya está conectada al área Comercial (Sprint 12) — ver
   [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera).
 - ✅ **Parámetros legales versionados** (pantalla "⚙ Parámetros") — el Sprint 13, planeado originalmente
@@ -759,10 +762,11 @@ implementada", es porque el área seleccionada aún no calcula (ver sección 6).
 liquidar" con otro texto, anota el mensaje exacto — puede ser una validación de datos.
 
 **"Al liquidar un expediente Sancionatorio me sale 'UVT no disponible'."**
-Es esperado si la "Fecha de origen" de la multa es **posterior al 2020-01-01**: desde esa fecha, la ley
-expresa estas multas en UVT en vez de SMLMV, y todavía no hay una tabla histórica de UVT cargada en el
-programa (ver [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias) y `Pendientes.md`,
-Sprint 5). Por ahora, esta área solo liquida hechos anteriores a esa fecha.
+Desde el Sprint 14, esto solo ocurre si la "Fecha de origen" de la multa cae en un año para el que la
+DIAN todavía no ha publicado la UVT (por ejemplo, un año futuro sin resolución vigente) — la tabla
+histórica cubre 2006-2026. Revisa la fecha de origen, o agrega el valor de UVT del año faltante desde la
+pantalla "⚙ Parámetros" en cuanto la DIAN lo publique (ver
+[sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias)).
 
 **"Cargué el SMLMV/IPC nuevo pero la liquidación sigue usando el valor del año pasado."**
 Casi siempre es un problema de fecha, no del programa: el SMLMV y el índice IPC acumulado solo se
