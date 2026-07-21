@@ -49,6 +49,12 @@ def _parametros_legales_en_memoria(monkeypatch):
     # lee ambas claves de parametro_service por dia de mora. Se siembran desde
     # la misma tabla congelada _TRAMOS_IBC_USURA que consume
     # scripts/migrate_parametros_legales.py, mismo criterio que SMLMV/IPC arriba.
+    #
+    # UVT (Tarea 14): SancionatorioStrategy (via resolver_base_sancion ->
+    # get_uvt_for_year) ahora resuelve hechos posteriores a 2020-01-01 contra
+    # la tabla historica de UVT en vez de lanzar UVTNoDisponibleError siempre.
+    # Se siembra igual que SMLMV/IPC/IBC arriba, desde el mismo diccionario
+    # congelado _UVT_POR_ANIO que consume scripts/migrate_parametros_legales.py.
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))

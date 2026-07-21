@@ -27,4 +27,7 @@ def resolver_base_sancion(fecha_hecho: date, cantidad: Decimal) -> Decimal:
             f"del {fecha_hecho}. {error}"
         ) from error
 
+    # SMMLVCalculator.to_pesos es un conversor generico "cantidad x valor de unidad,
+    # redondeado a moneda" pese a su nombre -- no tiene logica especifica de SMLMV,
+    # asi que se reutiliza tal cual para UVT en vez de crear una clase paralela.
     return SMMLVCalculator.to_pesos(cantidad, uvt_del_anio)
