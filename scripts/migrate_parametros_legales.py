@@ -13,6 +13,15 @@ migracion es la unica lectora que las necesita despues del re-cableado.
 Idempotente: si una clave ya tiene filas, no la vuelve a sembrar (mismo patron
 que scripts/migrate_aplica_indexacion_ipc.py, Sprint 8)."""
 
+import sys
+from pathlib import Path
+
+# Garantiza resolucion de 'database.*' y 'app.*' al invocar este archivo
+# directamente (python scripts/migrate_parametros_legales.py) desde la raiz
+# del proyecto, sin depender de que el caller use 'python -m'. Mismo patron
+# que exports/scripts/generar_liquidacion_demo.py.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from datetime import date, datetime
 from decimal import Decimal
 
