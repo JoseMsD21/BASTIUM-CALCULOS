@@ -103,3 +103,16 @@ class AuditLog(Base):
     resultado_json: Mapped[str] = mapped_column(Text)
 
     expediente: Mapped["Expediente"] = relationship(back_populates="audit_logs")
+
+
+class ParametroLegal(Base):
+    __tablename__ = "parametros_legales"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    clave: Mapped[str] = mapped_column(String(100))
+    valor: Mapped[Decimal] = mapped_column(Numeric(24, 10))
+    vigente_desde: Mapped[date] = mapped_column(Date)
+    vigente_hasta: Mapped[date | None] = mapped_column(Date, nullable=True)
+    usuario: Mapped[str] = mapped_column(String(200))
+    motivo: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime)
