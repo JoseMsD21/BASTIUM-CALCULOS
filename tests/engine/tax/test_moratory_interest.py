@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
+from app.engine.indexation.historical_index import _TRAMOS_IBC_USURA
 from app.engine.tax.moratory_interest import (
     FUENTE_MORATORIO_TRIBUTARIO,
     calcular_interes_moratorio_tributario,
@@ -25,6 +26,22 @@ def _parametro_et635_en_memoria(monkeypatch):
         clave="ET635_PUNTOS_DESCUENTO", valor=Decimal("2"), vigente_desde=date(1900, 1, 1),
         vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
     ))
+    # IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO (Tarea 13):
+    # construir_rate_provider_moratorio_tributario llama a
+    # get_tramos_ibc_usura_between, que ahora reconstruye tramos desde
+    # parametros_legales en vez de leer _TRAMOS_IBC_USURA en memoria. Se
+    # siembran aqui desde la misma tabla congelada que consume
+    # scripts/migrate_parametros_legales.py (mismo criterio que la fixture
+    # equivalente de tests/services/test_area_strategy.py).
+    for tramo in _TRAMOS_IBC_USURA:
+        session.add(ParametroLegal(
+            clave="IBC_CONSUMO_ORDINARIO", valor=tramo.ibc_anual, vigente_desde=tramo.inicio,
+            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+        session.add(ParametroLegal(
+            clave="USURA_CONSUMO_ORDINARIO", valor=tramo.usura_anual, vigente_desde=tramo.inicio,
+            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
     session.commit()
     session.close()
 

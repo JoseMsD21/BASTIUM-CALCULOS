@@ -1,10 +1,42 @@
-from datetime import date, timedelta
+from datetime import date, datetime as _dt, timedelta
 from decimal import Decimal
 
-from app.engine.indexation.historical_index import get_ibc_usura_for_date
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import database.session as session_module
+from app.engine.indexation.historical_index import _TRAMOS_IBC_USURA, get_ibc_usura_for_date
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+from database.models import Base, ParametroLegal
+
+
+@pytest.fixture(autouse=True)
+def _parametros_ibc_usura_en_memoria(monkeypatch):
+    # Tarea 13: MoratoryIndemnityCalculator.calcular (via get_ibc_usura_for_date)
+    # ahora lee IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO de parametros_legales
+    # en vez de la tabla en memoria _TRAMOS_IBC_USURA. Sin esta fixture, los tests
+    # de este archivo dependerian silenciosamente del bastium.db real en disco
+    # (gitignored, estado no garantizado en un checkout limpio o en CI) en vez de
+    # una base aislada -- mismo criterio que las fixtures equivalentes de
+    # tests/engine/test_historical_index.py y tests/services/test_area_strategy.py.
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    session = session_module.get_session()
+    for tramo in _TRAMOS_IBC_USURA:
+        session.add(ParametroLegal(
+            clave="IBC_CONSUMO_ORDINARIO", valor=tramo.ibc_anual, vigente_desde=tramo.inicio,
+            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+        session.add(ParametroLegal(
+            clave="USURA_CONSUMO_ORDINARIO", valor=tramo.usura_anual, vigente_desde=tramo.inicio,
+            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+    session.commit()
+    session.close()
 
 
 def test_pagado_a_tiempo_no_genera_indemnizacion():

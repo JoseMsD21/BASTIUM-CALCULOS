@@ -17,8 +17,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Dict, List, Tuple
 
+import database.session as session_module
 from app.core.exceptions import ParametroNoDisponibleError
 from app.services.parametro_service import get_parametro, ultimo_anio_disponible
+from database.models import ParametroLegal
 
 
 # ---------------------------------------------------------------------------
@@ -520,32 +522,53 @@ _TRAMOS_IBC_USURA: List[TramoIBCUsura] = [
 
 def get_ibc_usura_for_date(fecha: date) -> Tuple[Decimal, Decimal]:
     """Retorna (ibc_anual, usura_anual) certificados por la SFC para la linea
-    'Consumo y Ordinario' (sucesora de 'Comercial' desde 2007) vigentes en `fecha`.
-    Datos disponibles: 1997-07-01 a 2026-07-31."""
-    for tramo in _TRAMOS_IBC_USURA:
-        if tramo.inicio <= fecha <= tramo.fin:
-            return (tramo.ibc_anual, tramo.usura_anual)
-    raise ValueError(
-        f"No hay tramo de IBC/Usura configurado para la fecha {fecha}. "
-        f"Datos disponibles: {min(t.inicio for t in _TRAMOS_IBC_USURA)} a "
-        f"{max(t.fin for t in _TRAMOS_IBC_USURA)}."
-    )
+    'Consumo y Ordinario' (sucesora de 'Comercial' desde 2007) vigentes en
+    `fecha`, consultando parametros_legales (claves IBC_CONSUMO_ORDINARIO y
+    USURA_CONSUMO_ORDINARIO, modo TRAMO_CERRADO -- no extrapola fuera de los
+    tramos cargados)."""
+    try:
+        ibc = get_parametro("IBC_CONSUMO_ORDINARIO", fecha)
+        usura = get_parametro("USURA_CONSUMO_ORDINARIO", fecha)
+    except ParametroNoDisponibleError as error:
+        raise ValueError(
+            f"No hay tramo de IBC/Usura configurado para la fecha {fecha}."
+        ) from error
+    return (ibc, usura)
 
 
 def get_tramos_ibc_usura_between(inicio: date, fin: date) -> List[TramoIBCUsura]:
-    """Tramos de _TRAMOS_IBC_USURA que se solapan con [inicio, fin], en orden
-    cronologico (la tabla ya esta ordenada por construccion, verificado en el
-    Sprint 5: sin vacios en todo el rango). Lanza ValueError si fin < inicio, o
-    si ningun tramo se solapa con el rango pedido (fuera de los datos
-    disponibles: 1997-07-01 a 2026-07-31)."""
+    """Tramos de IBC/usura que se solapan con [inicio, fin], en orden
+    cronologico, reconstruidos desde parametros_legales (clave
+    USURA_CONSUMO_ORDINARIO, la que trae el ibc_anual asociado se resuelve por
+    tramo via get_ibc_usura_for_date para que ambas claves se mantengan
+    consistentes). Lanza ValueError si fin < inicio, o si ningun tramo se
+    solapa con el rango pedido."""
     if fin < inicio:
         raise ValueError(f"Rango invalido: fin ({fin}) es anterior a inicio ({inicio}).")
 
-    tramos = [t for t in _TRAMOS_IBC_USURA if t.inicio <= fin and t.fin >= inicio]
-    if not tramos:
-        raise ValueError(
-            f"No hay tramos de IBC/Usura configurados para el rango [{inicio}, {fin}]. "
-            f"Datos disponibles: {min(t.inicio for t in _TRAMOS_IBC_USURA)} a "
-            f"{max(t.fin for t in _TRAMOS_IBC_USURA)}."
+    session = session_module.get_session()
+    try:
+        filas = (
+            session.query(ParametroLegal)
+            .filter(
+                ParametroLegal.clave == "USURA_CONSUMO_ORDINARIO",
+                ParametroLegal.vigente_desde <= fin,
+                ParametroLegal.vigente_hasta.is_not(None),
+                ParametroLegal.vigente_hasta >= inicio,
+            )
+            .order_by(ParametroLegal.vigente_desde)
+            .all()
         )
+    finally:
+        session.close()
+
+    if not filas:
+        raise ValueError(
+            f"No hay tramos de IBC/Usura configurados para el rango [{inicio}, {fin}]."
+        )
+
+    tramos = []
+    for fila in filas:
+        ibc_anual, usura_anual = get_ibc_usura_for_date(fila.vigente_desde)
+        tramos.append(TramoIBCUsura(fila.vigente_desde, fila.vigente_hasta, ibc_anual, usura_anual))
     return tramos

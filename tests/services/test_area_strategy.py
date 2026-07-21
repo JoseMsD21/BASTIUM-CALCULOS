@@ -7,7 +7,11 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.exceptions import AreaNoImplementadaError
-from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO, _SMLMV_POR_ANIO
+from app.engine.indexation.historical_index import (
+    _IPC_INDICE_ACUMULADO,
+    _SMLMV_POR_ANIO,
+    _TRAMOS_IBC_USURA,
+)
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.area_strategy import (
     CivilFamiliaStrategy,
@@ -38,6 +42,12 @@ def _parametros_legales_en_memoria(monkeypatch):
     # diccionarios congelados que consume scripts/migrate_parametros_legales.py
     # (no se re-transcriben a mano) para no divergir del dato real y para no
     # tener que enumerar a mano que anios especificos necesita cada test.
+    #
+    # IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO (Tarea 13): LaboralStrategy
+    # (via MoratoryIndemnityCalculator.calcular -> get_ibc_usura_for_date) ahora
+    # lee ambas claves de parametro_service por dia de mora. Se siembran desde
+    # la misma tabla congelada _TRAMOS_IBC_USURA que consume
+    # scripts/migrate_parametros_legales.py, mismo criterio que SMLMV/IPC arriba.
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
@@ -63,6 +73,15 @@ def _parametros_legales_en_memoria(monkeypatch):
         session.add(ParametroLegal(
             clave="IPC_INDICE_ACUMULADO", valor=valor, vigente_desde=_date(anio, 1, 1),
             vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+    for tramo in _TRAMOS_IBC_USURA:
+        session.add(ParametroLegal(
+            clave="IBC_CONSUMO_ORDINARIO", valor=tramo.ibc_anual, vigente_desde=tramo.inicio,
+            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+        session.add(ParametroLegal(
+            clave="USURA_CONSUMO_ORDINARIO", valor=tramo.usura_anual, vigente_desde=tramo.inicio,
+            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
         ))
     session.commit()
     session.close()
