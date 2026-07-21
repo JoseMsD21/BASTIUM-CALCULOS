@@ -20,6 +20,7 @@ from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
 from app.engine.indexation.ipc import IPCIndexation
 from app.services.motor_universal import UniversalLiquidationService
+from app.services.parametro_service import get_parametro
 
 
 class AreaStrategy(ABC):
@@ -496,9 +497,6 @@ class HonorariosStrategy(AreaStrategy):
     No soporta obligaciones RECURRENTE. No es compatible con indexacion IPC.
     """
 
-    TOPE_CUOTA_LITIS_INDIVIDUAL_PCT = Decimal("30")
-    TOPE_HONORARIOS_TOTAL_PCT = Decimal("50")
-
     soporta_indexacion_ipc = False
 
     def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
@@ -545,7 +543,8 @@ class HonorariosStrategy(AreaStrategy):
                 )
 
         cuota_litis_monto = self._cuota_litis_monto(obligacion)
-        tope_individual = obligacion.beneficio_obtenido * self.TOPE_CUOTA_LITIS_INDIVIDUAL_PCT / Decimal("100")
+        tope_individual_pct = get_parametro("CUOTA_LITIS_INDIVIDUAL_PCT", obligacion.fecha_origen)
+        tope_individual = obligacion.beneficio_obtenido * tope_individual_pct / Decimal("100")
         if cuota_litis_monto > tope_individual:
             raise CuotaLitisExcedeTopeError(
                 f"La cuota litis pactada ({obligacion.cuota_litis_pactada_pct}%) de "
@@ -554,7 +553,8 @@ class HonorariosStrategy(AreaStrategy):
             )
 
         total_honorarios = obligacion.honorarios_fijos_pactados + cuota_litis_monto
-        tope_total = obligacion.beneficio_obtenido * self.TOPE_HONORARIOS_TOTAL_PCT / Decimal("100")
+        tope_total_pct = get_parametro("HONORARIOS_TOTAL_PCT", obligacion.fecha_origen)
+        tope_total = obligacion.beneficio_obtenido * tope_total_pct / Decimal("100")
         if total_honorarios > tope_total:
             raise CuotaLitisExcedeTopeError(
                 f"La suma de honorarios fijos + cuota litis de '{obligacion.concepto}' "

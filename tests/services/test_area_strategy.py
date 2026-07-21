@@ -1,5 +1,11 @@
-import pytest
+from datetime import date as _date, datetime as _dt
+from decimal import Decimal as _Decimal
 
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import database.session as session_module
 from app.core.exceptions import AreaNoImplementadaError
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.area_strategy import (
@@ -9,6 +15,38 @@ from app.services.area_strategy import (
     LaboralStrategy,
     SancionatorioStrategy,
 )
+from database.models import Base, ParametroLegal
+
+
+@pytest.fixture(autouse=True)
+def _parametros_legales_en_memoria(monkeypatch):
+    # Fixture autouse global para todo el archivo: TestComercialStrategy ya
+    # depende de validar_tasa_usura (Tarea 7), que ahora lee USURA_MULTIPLICADOR
+    # via parametro_service en cada liquidar() -- si esta fixture solo sembrara
+    # las claves de Honorarios, todos los tests de Comercial de este archivo
+    # fallarian con ParametroNoDisponibleError. Se siembran aqui las 3 claves
+    # que cualquier test de este archivo puede necesitar. Valores/fechas de
+    # USURA_MULTIPLICADOR calcados de tests/engine/test_usury_validator.py
+    # (la fixture equivalente de la Tarea 7) para no divergir del valor real
+    # sembrado en bastium.db por scripts/migrate_parametros_legales.py.
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="USURA_MULTIPLICADOR", valor=_Decimal("1.5"), vigente_desde=_date(1997, 7, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="CUOTA_LITIS_INDIVIDUAL_PCT", valor=_Decimal("30"), vigente_desde=_date(2007, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="HONORARIOS_TOTAL_PCT", valor=_Decimal("50"), vigente_desde=_date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.commit()
+    session.close()
 
 
 def test_registry_expone_las_5_areas():
