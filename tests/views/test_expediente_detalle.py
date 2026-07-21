@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import database.database as database_module
 import database.session as session_module
 from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO
 from database.models import AreaDerecho, Base, Expediente, Obligacion, ParametroLegal, TipoObligacion, Abono
@@ -250,10 +251,19 @@ def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
     return expediente_id
 
 
-def _expediente_sancionatorio_con_hecho_posterior_a_2020(monkeypatch) -> int:
+def _expediente_sancionatorio_con_hecho_posterior_a_2026(monkeypatch) -> int:
+    """
+    Siembra la tabla historica UVT real (via scripts.migrate_parametros_legales.migrar(),
+    mismo patron que tests/engine/test_historical_index.py) para que el hecho de 2027
+    genuinamente quede fuera de rango (la serie historica cubre 2006-2026), en vez de
+    que la resolucion falle solo porque la BD en memoria esta vacia.
+    """
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
+    monkeypatch.setattr(database_module, "engine", engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    from scripts.migrate_parametros_legales import migrar
+    migrar()
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -261,7 +271,7 @@ def _expediente_sancionatorio_con_hecho_posterior_a_2020(monkeypatch) -> int:
         demandante="Estado",
         demandado="Empresa XYZ",
         area_derecho=AreaDerecho.SANCIONATORIO,
-        fecha_corte_default=date(2021, 6, 1),
+        fecha_corte_default=date(2027, 6, 1),
     )
     session.add(expediente)
     session.flush()
@@ -271,7 +281,7 @@ def _expediente_sancionatorio_con_hecho_posterior_a_2020(monkeypatch) -> int:
             tipo=TipoObligacion.PUNTUAL,
             concepto="Multa SIC",
             categoria="MULTA_SANCIONATORIA",
-            fecha_origen=date(2021, 1, 1),  # posterior a 2020-01-01: no hay tabla UVT
+            fecha_origen=date(2027, 1, 1),  # posterior a 2026: fuera del rango de la tabla historica UVT (2006-2026), aun no publicada por la DIAN
             valor=Decimal("0.00"),
             tasa_efectiva_anual=Decimal("0.00"),
             cantidad_smlmv_uvt=Decimal("2"),
@@ -313,15 +323,20 @@ def test_liquidar_area_honorarios_con_cuota_litis_excesiva_muestra_advertencia_s
     assert avisos[0][0] == "Cuota litis excede el tope"
 
 
-def test_liquidar_area_sancionatorio_con_hecho_posterior_a_2020_muestra_advertencia_sin_crash(
+def test_liquidar_area_sancionatorio_con_hecho_posterior_a_2026_muestra_advertencia_sin_crash(
     qtbot, monkeypatch
 ):
     """
     Regresion: UVTNoDisponibleError (agregada en Sprint 4) no estaba en la lista de except
     de _liquidar(), asi que se propagaba como traceback no controlado en vez de mostrarse
     como advertencia amigable, igual que CuotaLitisExcedeTopeError.
+
+    Sprint 14 agrego la tabla historica UVT (2006-2026) y desbloqueo la conversion real
+    via UVT para hechos sancionatorios en ese rango, asi que este test siembra esa tabla
+    real (via migrar()) y usa un hecho de 2027 -- genuinamente fuera de rango -- para
+    seguir probando la ruta de UVTNoDisponibleError sin depender de que la BD este vacia.
     """
-    expediente_id = _expediente_sancionatorio_con_hecho_posterior_a_2020(monkeypatch)
+    expediente_id = _expediente_sancionatorio_con_hecho_posterior_a_2026(monkeypatch)
 
     resultados_recibidos = []
 
