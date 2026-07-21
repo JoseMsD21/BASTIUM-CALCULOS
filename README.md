@@ -9,7 +9,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-20)
+## Estado actual (2026-07-21)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -17,9 +17,9 @@ abonos, indexación IPC opcional por obligación (Art. corrección monetaria; el
 aplica, con interpolación entre índices de cierre de año para fechas intermedias)), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
 split real antes/después del vencimiento, validación de tope de usura 1.5×IBC, y obligaciones en USD
 convertidas a pesos con la TRM ingresada por el abogado, Art. 874 C.Co.), **Sancionatorio**
-(multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49 — solo cubre hechos anteriores
-a 2020-01-01, porque todavía no hay tabla histórica de UVT cargada; hechos posteriores avisan "UVT no
-disponible" en vez de arriesgar un valor incorrecto), **Honorarios / Litigio** (cobro de honorarios
+(multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49, con la base convertida a pesos
+según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tabla histórica de UVT
+2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios
 profesionales y cuota litis, validando simultáneamente el tope del 30% del beneficio obtenido para la
 cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
 se ingresan como un porcentaje manual, porque no existe una tabla estructurada confiable de los rangos
@@ -33,8 +33,8 @@ corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble cl
 ✅ **Parámetros legales versionados:** desde la pantalla "⚙ Parámetros" cualquier abogado puede consultar
 y agregar, sin tocar código, los valores/tasas/topes que antes solo un desarrollador podía cambiar: el
 multiplicador de usura, los topes de cuota litis, los plazos de prescripción/caducidad, el descuento del
-interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC
-e IBC/Tasa de Usura. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — nunca se edita
+interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC,
+IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — nunca se edita
 ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
 queda siempre disponible con doble clic.
 
@@ -49,11 +49,11 @@ motores de cálculo tributario también existen y están probados sin estar cone
 pantalla: interés moratorio tributario (`app/engine/tax/moratory_interest.py`, E.T. art. 635, usura
 vigente menos dos puntos, resuelto por tramos históricos) y depuración de Renta Líquida Gravable
 (`app/engine/tax/renta_liquida.py`, pipeline de 8 pasos) (`Pendientes.md`, Sprint 11). Las
-series históricas de SMLMV, IPC e IBC/Tasa de Usura (1984-2026, 1967-2025 y 1997-2026 respectivamente)
-ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en Comercial y en la
-fase 2 de la indemnización moratoria laboral, e IPC ya está conectado a la indexación de Civil/Familia
-(Sprint 8); SMLMV sigue sin un consumidor propio. La tabla histórica de UVT es un caso aparte: ni
-siquiera está cargada todavía. El plan completo, sprint por sprint, está en
+series históricas de SMLMV, IPC, IBC/Tasa de Usura y UVT (1984-2026, 1967-2025, 1997-2026 y 2006-2026
+respectivamente) ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en
+Comercial y en la fase 2 de la indemnización moratoria laboral, IPC ya está conectado a la indexación de
+Civil/Familia (Sprint 8), y UVT ya está conectada a la conversión SMLMV→UVT del área Sancionatorio
+(Sprint 14); SMLMV sigue sin un consumidor propio. El plan completo, sprint por sprint, está en
 **[Pendientes.md](Pendientes.md)**.
 
 ## Instalación rápida
@@ -80,7 +80,7 @@ Igual que el script del Sprint 8, es idempotente y solo hace falta una vez por i
 **Si ya tenías `bastium.db` creado antes de este sprint**, corre una vez
 `python scripts/migrate_parametros_legales.py` antes de abrir la app — crea y siembra la tabla
 `parametros_legales` con los valores hoy vigentes (usura, cuota litis, prescripción/caducidad, SMLMV,
-IPC, IBC/usura), para que la pantalla "⚙ Parámetros" y todos los motores que ahora la consultan tengan
+IPC, IBC/usura, UVT), para que la pantalla "⚙ Parámetros" y todos los motores que ahora la consultan tengan
 datos desde el primer arranque. Es idempotente y solo hace falta una vez por instalación.
 
 ## Estructura del proyecto

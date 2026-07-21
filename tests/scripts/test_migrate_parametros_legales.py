@@ -18,7 +18,7 @@ def _db_en_memoria(monkeypatch):
     return engine
 
 
-def test_migrar_siembra_las_16_claves_del_catalogo():
+def test_migrar_siembra_las_17_claves_del_catalogo():
     from scripts.migrate_parametros_legales import migrar
 
     migrar()
@@ -34,6 +34,7 @@ def test_migrar_siembra_las_16_claves_del_catalogo():
         "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES",
         "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES",
         "SMLMV", "IPC_INDICE_ACUMULADO", "IBC_CONSUMO_ORDINARIO", "USURA_CONSUMO_ORDINARIO",
+        "UVT",
     }
 
 
@@ -47,6 +48,18 @@ def test_migrar_smlmv_2026_coincide_con_el_valor_conocido():
     ).one()
     session.close()
     assert fila.valor == Decimal("1750905.00")
+
+
+def test_migrar_uvt_2026_coincide_con_el_valor_conocido():
+    from scripts.migrate_parametros_legales import migrar
+
+    migrar()
+    session = session_module.get_session()
+    fila = session.query(ParametroLegal).filter(
+        ParametroLegal.clave == "UVT", ParametroLegal.vigente_desde == date(2026, 1, 1)
+    ).one()
+    session.close()
+    assert fila.valor == Decimal("52374.00")
 
 
 def test_migrar_ibc_usura_primer_tramo_1997_coincide_con_inicio_y_fin():
@@ -77,5 +90,5 @@ def test_migrar_es_idempotente():
 
     primera = migrar()
     segunda = migrar()
-    assert primera == 16
+    assert primera == 17
     assert segunda == 0

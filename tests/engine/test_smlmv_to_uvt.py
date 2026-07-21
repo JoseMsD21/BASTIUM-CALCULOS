@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.exceptions import UVTNoDisponibleError
+from app.engine.indexation.historical_index import _UVT_POR_ANIO
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from database.models import Base, ParametroLegal
 
@@ -21,6 +22,11 @@ def _db_en_memoria(monkeypatch):
         clave="SMLMV", valor=Decimal("828116.00"), vigente_desde=date(2019, 1, 1),
         vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
     ))
+    for anio, valor in _UVT_POR_ANIO.items():
+        session.add(ParametroLegal(
+            clave="UVT", valor=valor, vigente_desde=date(anio, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+        ))
     session.commit()
     session.close()
 
@@ -36,11 +42,21 @@ def test_hecho_dia_anterior_al_corte_2020_usa_smlmv_2019():
     assert resultado == Decimal("828116.00")
 
 
-def test_hecho_exactamente_2020_01_01_ya_requiere_uvt_y_lanza_error():
-    with pytest.raises(UVTNoDisponibleError):
-        resolver_base_sancion(date(2020, 1, 1), Decimal("1"))
+def test_hecho_exactamente_2020_01_01_usa_uvt_2020():
+    # UVT 2020 = 35607.00 (ver historical_index.py, verificado contra 3 fuentes externas).
+    resultado = resolver_base_sancion(date(2020, 1, 1), Decimal("1"))
+    assert resultado == Decimal("35607.00")
 
 
-def test_hecho_posterior_a_2020_lanza_uvt_no_disponible_error():
+def test_hecho_posterior_a_2020_usa_uvt_del_anio_del_hecho():
+    # UVT 2021 = 36308.00; 2 UVT = 72616.00.
+    resultado = resolver_base_sancion(date(2021, 1, 1), Decimal("2"))
+    assert resultado == Decimal("72616.00")
+
+
+def test_hecho_con_anio_uvt_aun_no_publicada_lanza_uvt_no_disponible_error():
+    # La serie llega hasta 2026 (ultimo año con resolucion DIAN publicada al
+    # momento de este sprint) -- 2027 todavia no existe, sigue lanzando el
+    # error de siempre en vez de adivinar.
     with pytest.raises(UVTNoDisponibleError):
-        resolver_base_sancion(date(2021, 1, 1), Decimal("1"))
+        resolver_base_sancion(date(2027, 1, 1), Decimal("1"))

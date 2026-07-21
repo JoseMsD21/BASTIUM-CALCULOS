@@ -414,7 +414,7 @@ class SancionatorioStrategy(AreaStrategy):
     Area Sancionatorio (multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019
     art. 49). Cada obligacion es un hecho puntual: `cantidad_smlmv_uvt` se convierte a
     pesos segun la fecha del hecho (`fecha_origen`) via `resolver_base_sancion` -- SMLMV
-    si es anterior a 2020-01-01, UVT (todavia no disponible) si es posterior.
+    si es anterior a 2020-01-01, UVT (tabla historica 2006-2026) si es posterior.
 
     No soporta obligaciones RECURRENTE (una multa es un hecho unico).
     No es compatible con indexacion IPC: el monto ya esta expresado en una unidad

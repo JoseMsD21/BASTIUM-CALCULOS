@@ -11,6 +11,7 @@ from app.engine.indexation.historical_index import (
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
+    _UVT_POR_ANIO,
 )
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.area_strategy import (
@@ -48,6 +49,12 @@ def _parametros_legales_en_memoria(monkeypatch):
     # lee ambas claves de parametro_service por dia de mora. Se siembran desde
     # la misma tabla congelada _TRAMOS_IBC_USURA que consume
     # scripts/migrate_parametros_legales.py, mismo criterio que SMLMV/IPC arriba.
+    #
+    # UVT (Tarea 14): SancionatorioStrategy (via resolver_base_sancion ->
+    # get_uvt_for_year) ahora resuelve hechos posteriores a 2020-01-01 contra
+    # la tabla historica de UVT en vez de lanzar UVTNoDisponibleError siempre.
+    # Se siembra igual que SMLMV/IPC/IBC arriba, desde el mismo diccionario
+    # congelado _UVT_POR_ANIO que consume scripts/migrate_parametros_legales.py.
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
@@ -67,6 +74,11 @@ def _parametros_legales_en_memoria(monkeypatch):
     for anio, valor in _SMLMV_POR_ANIO.items():
         session.add(ParametroLegal(
             clave="SMLMV", valor=valor, vigente_desde=_date(anio, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+    for anio, valor in _UVT_POR_ANIO.items():
+        session.add(ParametroLegal(
+            clave="UVT", valor=valor, vigente_desde=_date(anio, 1, 1),
             vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
         ))
     for anio, valor in _IPC_INDICE_ACUMULADO.items():
@@ -521,9 +533,6 @@ def test_civil_familia_items_tienen_rate_source_poblado():
     )
 
 
-from app.core.exceptions import UVTNoDisponibleError
-
-
 def _obligacion_sancionatoria(
     expediente_id=1,
     cantidad_smlmv_uvt=Decimal("2"),
@@ -554,13 +563,15 @@ class TestSancionatorioStrategy:
         # SMLMV 2019 = 828116.00 (ver historical_index.py); 2 SMLMV = 1656232.00.
         assert resultado.final_balance().principal == Decimal("1656232.00")
 
-    def test_liquida_multa_posterior_a_2020_lanza_uvt_no_disponible_error(self):
+    def test_liquida_multa_posterior_a_2020_convirtiendo_uvt_a_pesos(self):
         obligacion = _obligacion_sancionatoria(fecha_origen=date(2021, 1, 1))
 
-        with pytest.raises(UVTNoDisponibleError):
-            SancionatorioStrategy().liquidar(
-                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
-            )
+        resultado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        # UVT 2021 = 36308.00; cantidad_smlmv_uvt por defecto en el factory es 2.
+        assert resultado.final_balance().principal == Decimal("72616.00")
 
     def test_falta_cantidad_smlmv_uvt_lanza_value_error(self):
         obligacion = _obligacion_sancionatoria(cantidad_smlmv_uvt=None)

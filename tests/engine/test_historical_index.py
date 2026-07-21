@@ -14,6 +14,7 @@ from app.engine.indexation.historical_index import (
     get_ipc_for_date,
     get_smlmv_for_year,
     get_tramos_ibc_usura_between,
+    get_uvt_for_year,
 )
 
 
@@ -45,6 +46,27 @@ def test_smlmv_2010_valor_conocido_interior_del_rango():
     # Chequeo puntual en la mitad de la serie (no solo en los extremos 1984/2026),
     # para detectar un error de transcripcion en un año intermedio.
     assert get_smlmv_for_year(2010) == Decimal("515000.00")
+
+
+def test_uvt_2006_primer_anio_disponible():
+    # Ley 1111 de 2006 crea la UVT; primer valor fijado ($20.000).
+    assert get_uvt_for_year(2006) == Decimal("20000.00")
+
+
+def test_uvt_2026_valor_conocido():
+    assert get_uvt_for_year(2026) == Decimal("52374.00")
+
+
+def test_uvt_2021_valor_conocido_interior_del_rango():
+    # Chequeo puntual en un año interior, no solo en los extremos.
+    assert get_uvt_for_year(2021) == Decimal("36308.00")
+
+
+def test_uvt_fuera_de_rango_lanza_value_error():
+    with pytest.raises(ValueError):
+        get_uvt_for_year(2027)
+    with pytest.raises(ValueError):
+        get_uvt_for_year(2005)
 
 
 def test_ipc_variacion_2025_valor_conocido():
