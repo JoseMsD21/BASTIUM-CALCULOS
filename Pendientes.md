@@ -859,17 +859,28 @@ Python — todo en una tabla `parametros_legales` append-only con pantalla nueva
 `app/views/configuracion.py` (hoy vacío). El motor EFDJ completo (reglas con fórmulas/condiciones como
 datos) sigue cerrado sin construir, sin cambios sobre esa parte de la decisión.
 
-**Estado de la implementación:** Completado — ver
+**Cierre de implementación (2026-07-20):** Completado — ver
 `docs/superpowers/plans/2026-07-20-parametros-legales-versionados.md`. Tabla `parametros_legales`
-(append-only, 3 modos de resolución: `ABIERTO`/`ANUAL_EXACTO`/`TRAMO_CERRADO`), servicio
+(append-only) con tres modos de resolución: `ABIERTO` (topes y plazos legales, aplican desde su fecha de
+vigencia sin fecha de corte), `ANUAL_EXACTO` (SMLMV e IPC, exige que la fecha de vigencia sea exactamente
+el 1 de enero del año — sin coincidencia exacta, no hay error, el valor simplemente no queda disponible
+para ese año) y `TRAMO_CERRADO` (IBC/usura, exige un rango de fechas cerrado). Servicio
 `app/services/parametro_service.py`, script de siembra `scripts/migrate_parametros_legales.py`, seis
 motores re-cableados (`usury_validator`, `HonorariosStrategy`, `prescripcion`, `moratory_interest`,
 `legal_rates`, `historical_index`) sin cambiar ningún resultado de cálculo existente, y pantalla nueva
 "⚙ Parámetros" en la GUI. Las constantes Python originales se conservan deliberadamente (no se borraron)
 como transcripción congelada y fuente del script de siembra — ver la spec, sección "Motores a re-cablear".
+
+**Nota importante para quien extienda el catálogo:** en modo `ANUAL_EXACTO`, cargar un valor con una
+fecha que no sea el 1 de enero exacto no produce ningún error — el valor se guarda pero nunca queda
+"vigente" para ningún cálculo; esto motivó una advertencia dedicada en `docs/GUIA_USUARIO.md` (sección
+5.13) y una entrada de FAQ (sección 9).
+
 De paso, se encontró y corrigió un bug de esquema preexistente no relacionado con el catálogo de reglas:
 SQLite truncaba silenciosamente valores `Decimal` de alta precisión al guardarlos como `float64`; se
 corrigió con un `TypeDecorator` `DecimalExacto` a nivel de columna (usado en `parametros_legales.valor`).
+
+`README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (367 passed, 1 skipped).
 
 ---
 
