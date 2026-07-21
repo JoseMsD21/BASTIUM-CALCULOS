@@ -14,3 +14,8 @@ class UVTNoDisponibleError(Exception):
 class CuotaLitisExcedeTopeError(Exception):
     """Se lanza cuando honorarios fijos + cuota litis exceden el tope legal (30% cuota
     litis sola, 50% suma total del beneficio obtenido)."""
+
+
+class ParametroNoDisponibleError(Exception):
+    """Se lanza cuando no hay un valor de un parametro legal versionado disponible
+    para la fecha pedida (ver app/services/parametro_service.py)."""
