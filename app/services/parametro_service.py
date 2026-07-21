@@ -1,0 +1,148 @@
+"""
+Servicio de parametros legales versionados: valores/tasas/topes/plazos que
+antes vivian como constantes Python sueltas (usura, cuota litis, prescripcion,
+E.T. 635, tasa civil legal) o como series versionadas solo en codigo (SMLMV,
+IPC, IBC/usura, ver historical_index.py) pasan a vivir en la tabla
+parametros_legales, editable desde la GUI (app/views/configuracion.py) sin
+tocar Python ni redesplegar.
+
+Ver docs/superpowers/specs/2026-07-20-parametros-legales-versionados-design.md
+para el diseno completo, en particular la Adenda de modos de resolucion.
+
+Tabla append-only: nunca se edita ni se borra una fila existente. Una
+correccion o un cambio de vigencia se hace agregando una fila nueva -- las
+columnas usuario/motivo/creado_en de cada fila son, en conjunto, la bitacora
+completa (no depende de AuditLog, que exige un expediente_id).
+"""
+
+from __future__ import annotations
+
+import enum
+from datetime import date
+from decimal import Decimal
+from typing import NamedTuple
+
+import database.session as session_module
+from app.core.exceptions import ParametroNoDisponibleError
+from database.models import ParametroLegal
+
+
+class ModoResolucion(enum.Enum):
+    ABIERTO = "ABIERTO"
+    ANUAL_EXACTO = "ANUAL_EXACTO"
+    TRAMO_CERRADO = "TRAMO_CERRADO"
+
+
+class InfoParametro(NamedTuple):
+    descripcion: str
+    categoria: str
+    fuente_legal: str
+    modo: ModoResolucion
+
+
+CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
+    "USURA_MULTIPLICADOR": InfoParametro(
+        "Multiplicador del tope de usura sobre el IBC", "Topes legales",
+        "Ley 45/1990, art. 72", ModoResolucion.ABIERTO,
+    ),
+    "CUOTA_LITIS_INDIVIDUAL_PCT": InfoParametro(
+        "Tope de cuota litis individual (% del beneficio obtenido)", "Topes legales",
+        "Ley 1123/2007", ModoResolucion.ABIERTO,
+    ),
+    "HONORARIOS_TOTAL_PCT": InfoParametro(
+        "Tope de honorarios fijos + cuota litis (% del beneficio obtenido)", "Topes legales",
+        "Criterio jurisprudencial/etico", ModoResolucion.ABIERTO,
+    ),
+    "ET635_PUNTOS_DESCUENTO": InfoParametro(
+        "Puntos que se restan a la usura vigente para el interes moratorio tributario",
+        "Topes legales", "Estatuto Tributario, art. 635", ModoResolucion.ABIERTO,
+    ),
+    "CIVIL_ANNUAL_RATE": InfoParametro(
+        "Tasa de interes civil legal anual", "Topes legales",
+        "Art. 1617 Codigo Civil", ModoResolucion.ABIERTO,
+    ),
+    "PRESCRIPCION_EJECUTIVA_MESES": InfoParametro(
+        "Plazo de prescripcion de la accion ejecutiva (meses)", "Plazos de prescripcion y caducidad",
+        "PDF paginas 16/19, 42, 43, 45", ModoResolucion.ABIERTO,
+    ),
+    "PRESCRIPCION_ORDINARIA_MESES": InfoParametro(
+        "Plazo de prescripcion de la accion ordinaria (meses)", "Plazos de prescripcion y caducidad",
+        "Art. 2536 Codigo Civil", ModoResolucion.ABIERTO,
+    ),
+    "PRESCRIPCION_HONORARIOS_MESES": InfoParametro(
+        "Plazo de prescripcion de honorarios profesionales (meses)", "Plazos de prescripcion y caducidad",
+        "PDF pagina 35", ModoResolucion.ABIERTO,
+    ),
+    "PRESCRIPCION_CAMBIARIA_DIRECTA_MESES": InfoParametro(
+        "Plazo de prescripcion cambiaria directa (meses)", "Plazos de prescripcion y caducidad",
+        "Art. 789 C.Co.", ModoResolucion.ABIERTO,
+    ),
+    "PRESCRIPCION_CAMBIARIA_REGRESO_TENEDOR_MESES": InfoParametro(
+        "Plazo de prescripcion cambiaria de regreso del tenedor (meses)",
+        "Plazos de prescripcion y caducidad", "Art. 790 C.Co.", ModoResolucion.ABIERTO,
+    ),
+    "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES": InfoParametro(
+        "Plazo de prescripcion cambiaria entre obligados de regreso (meses)",
+        "Plazos de prescripcion y caducidad", "Art. 791 C.Co.", ModoResolucion.ABIERTO,
+    ),
+    "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES": InfoParametro(
+        "Plazo de caducidad de impugnacion de ineficacia societaria (meses)",
+        "Plazos de prescripcion y caducidad", "PDF pagina 40", ModoResolucion.ABIERTO,
+    ),
+    "SMLMV": InfoParametro(
+        "Salario Minimo Legal Mensual Vigente", "Indicadores historicos",
+        "PDF paginas 55-57", ModoResolucion.ANUAL_EXACTO,
+    ),
+    "IPC_INDICE_ACUMULADO": InfoParametro(
+        "Indice de Precios al Consumidor acumulado (cierre de año, base 100 en 1966)",
+        "Indicadores historicos", "PDF pagina 62", ModoResolucion.ANUAL_EXACTO,
+    ),
+    "IBC_CONSUMO_ORDINARIO": InfoParametro(
+        "Interes Bancario Corriente, linea Consumo y Ordinario (% anual)",
+        "Indicadores historicos", "PDF paginas 58-61 (SFC)", ModoResolucion.TRAMO_CERRADO,
+    ),
+    "USURA_CONSUMO_ORDINARIO": InfoParametro(
+        "Tasa de usura, linea Consumo y Ordinario (% anual)",
+        "Indicadores historicos", "PDF paginas 58-61 (SFC)", ModoResolucion.TRAMO_CERRADO,
+    ),
+}
+
+
+def _validar_clave(clave: str) -> InfoParametro:
+    info = CATALOGO_PARAMETROS.get(clave)
+    if info is None:
+        raise ValueError(f"'{clave}' no es una clave de parametro reconocida.")
+    return info
+
+
+def _resolver_fila(clave: str, fecha: date) -> ParametroLegal | None:
+    info = _validar_clave(clave)
+    session = session_module.get_session()
+    try:
+        query = session.query(ParametroLegal).filter(ParametroLegal.clave == clave)
+        if info.modo == ModoResolucion.ANUAL_EXACTO:
+            query = query.filter(ParametroLegal.vigente_desde == date(fecha.year, 1, 1))
+        elif info.modo == ModoResolucion.TRAMO_CERRADO:
+            query = query.filter(
+                ParametroLegal.vigente_desde <= fecha,
+                ParametroLegal.vigente_hasta.is_not(None),
+                ParametroLegal.vigente_hasta >= fecha,
+            )
+        else:
+            query = query.filter(ParametroLegal.vigente_desde <= fecha)
+        return query.order_by(
+            ParametroLegal.vigente_desde.desc(), ParametroLegal.creado_en.desc()
+        ).first()
+    finally:
+        session.close()
+
+
+def get_parametro(clave: str, fecha: date) -> Decimal:
+    """Resuelve el valor de `clave` vigente en `fecha`, segun el modo_resolucion
+    declarado en CATALOGO_PARAMETROS (ver Adenda de diseno de la spec)."""
+    fila = _resolver_fila(clave, fecha)
+    if fila is None:
+        raise ParametroNoDisponibleError(
+            f"No hay valor de '{clave}' disponible para la fecha {fecha}."
+        )
+    return fila.valor
