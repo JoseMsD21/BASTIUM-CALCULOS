@@ -1,11 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion, Abono
+from database.models import AreaDerecho, Base, Expediente, Obligacion, ParametroLegal, TipoObligacion, Abono
 from app.views.expediente_detalle import ExpedienteDetallePage
 
 
@@ -81,6 +81,10 @@ def _expediente_comercial_con_obligacion_usuraria(monkeypatch) -> int:
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
     session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="USURA_MULTIPLICADOR", valor=Decimal("1.5"), vigente_desde=date(1997, 7, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
     expediente = Expediente(
         radicado="2026-040",
         demandante="Comercial SAS",

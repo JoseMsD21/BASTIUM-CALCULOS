@@ -212,8 +212,14 @@ class ComercialStrategy(AreaStrategy):
                 f"({obligacion.fecha_vencimiento}) anterior a fecha_origen ({obligacion.fecha_origen})."
             )
 
-        validar_tasa_usura(obligacion.tasa_efectiva_anual, obligacion.ibc_vigente_anual, "remuneratoria")
-        validar_tasa_usura(obligacion.tasa_moratoria_anual, obligacion.ibc_vigente_anual, "moratoria")
+        validar_tasa_usura(
+            obligacion.tasa_efectiva_anual, obligacion.ibc_vigente_anual, "remuneratoria",
+            obligacion.fecha_origen,
+        )
+        validar_tasa_usura(
+            obligacion.tasa_moratoria_anual, obligacion.ibc_vigente_anual, "moratoria",
+            obligacion.fecha_origen,
+        )
 
         if obligacion.moneda not in (None, "COP"):
             if obligacion.trm_aplicable is None:
