@@ -4,11 +4,24 @@ valores hoy hardcodeados en distintos motores, para que el sprint de
 parametros legales versionados no cambie ningun resultado de calculo el dia
 que se despliegue.
 
-Los valores se leen directamente de las constantes Python existentes -- nunca
-retranscritos a mano -- porque esas constantes NO se borran al re-cablear los
-motores que las usan (ver design spec, seccion "Motores a re-cablear"): siguen
-siendo la transcripcion congelada y verificada contra el PDF fuente, y esta
-migracion es la unica lectora que las necesita despues del re-cableado.
+La mayoria de los valores se leen directamente de las constantes Python
+existentes -- nunca retranscritos a mano -- porque esas constantes NO se
+borran al re-cablear los motores que las usan (ver design spec, seccion
+"Motores a re-cablear"): siguen siendo la transcripcion congelada y
+verificada contra el PDF fuente, y esta migracion es la unica lectora que las
+necesita despues del re-cableado. Esto sigue siendo cierto para
+TOPE_MULTIPLICADOR (usury_validator), PUNTOS_DESCUENTO_ET_635
+(moratory_interest), LegalRates.CIVIL_ANNUAL_RATE (legal_rates),
+PLAZOS_PRESCRIPCION_MESES/PLAZOS_CADUCIDAD_MESES_CONOCIDOS (prescripcion) y
+las 3 series historicas de historical_index.py (SMLMV, IPC, IBC/usura).
+
+Excepcion: CUOTA_LITIS_INDIVIDUAL_PCT y HONORARIOS_TOTAL_PCT SI se
+retranscriben a mano como Decimal("30")/Decimal("50") -- a diferencia de los
+demas, esas dos constantes (antes HonorariosStrategy.TOPE_*) fueron borradas
+de la clase al re-cablear HonorariosStrategy (Tarea 8 del sprint de
+parametros legales versionados), asi que ya no hay una fuente viva de la que
+leerlas. Los valores hardcodeados aqui son su ultimo valor conocido al
+momento de esta migracion, no una lectura en vivo.
 
 Idempotente: si una clave ya tiene filas, no la vuelve a sembrar (mismo patron
 que scripts/migrate_aplica_indexacion_ipc.py, Sprint 8)."""
@@ -42,7 +55,6 @@ from app.engine.temporal.prescripcion import (
     PLAZOS_PRESCRIPCION_MESES,
     TipoAccion,
 )
-from app.services.area_strategy import HonorariosStrategy
 
 USUARIO_MIGRACION = "sistema"
 MOTIVO_MIGRACION = (
@@ -80,8 +92,11 @@ def migrar() -> int:
     try:
         valores_unicos = [
             ("USURA_MULTIPLICADOR", TOPE_MULTIPLICADOR, ANCLA_SIN_FECHA_NORMA),
-            ("CUOTA_LITIS_INDIVIDUAL_PCT", HonorariosStrategy.TOPE_CUOTA_LITIS_INDIVIDUAL_PCT, date(2007, 1, 1)),
-            ("HONORARIOS_TOTAL_PCT", HonorariosStrategy.TOPE_HONORARIOS_TOTAL_PCT, ANCLA_SIN_FECHA_NORMA),
+            # Hardcodeados (no leidos en vivo): HonorariosStrategy.TOPE_CUOTA_LITIS_INDIVIDUAL_PCT/
+            # TOPE_HONORARIOS_TOTAL_PCT fueron borrados de la clase al re-cablear
+            # HonorariosStrategy (Tarea 8) -- ver docstring del modulo.
+            ("CUOTA_LITIS_INDIVIDUAL_PCT", Decimal("30"), date(2007, 1, 1)),
+            ("HONORARIOS_TOTAL_PCT", Decimal("50"), ANCLA_SIN_FECHA_NORMA),
             ("ET635_PUNTOS_DESCUENTO", PUNTOS_DESCUENTO_ET_635, ANCLA_SIN_FECHA_NORMA),
             ("CIVIL_ANNUAL_RATE", LegalRates.CIVIL_ANNUAL_RATE, ANCLA_SIN_FECHA_NORMA),
         ]

@@ -201,6 +201,14 @@ def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
     session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="CUOTA_LITIS_INDIVIDUAL_PCT", valor=Decimal("30"), vigente_desde=date(2007, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="HONORARIOS_TOTAL_PCT", valor=Decimal("50"), vigente_desde=date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
     expediente = Expediente(
         radicado="2026-050",
         demandante="Abogado",
