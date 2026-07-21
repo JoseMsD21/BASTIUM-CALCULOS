@@ -794,7 +794,7 @@ no romper ninguna obligación Comercial existente en la suite de pruebas.
 
 ---
 
-## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) ⛔ Cerrado (EFDJ completo), 🔄 reemplazado por "Parámetros legales versionados"
+## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) ⛔ Cerrado (EFDJ completo), ✅ "Parámetros legales versionados" implementado
 
 **Prioridad sugerida:** Decisión arquitectónica, no un sprint de features — leer la nota antes de
 planificar nada.
@@ -858,6 +858,18 @@ que ya vivían versionadas en `historical_index.py` (SMLMV, IPC, IBC/usura) pero
 Python — todo en una tabla `parametros_legales` append-only con pantalla nueva en
 `app/views/configuracion.py` (hoy vacío). El motor EFDJ completo (reglas con fórmulas/condiciones como
 datos) sigue cerrado sin construir, sin cambios sobre esa parte de la decisión.
+
+**Estado de la implementación:** Completado — ver
+`docs/superpowers/plans/2026-07-20-parametros-legales-versionados.md`. Tabla `parametros_legales`
+(append-only, 3 modos de resolución: `ABIERTO`/`ANUAL_EXACTO`/`TRAMO_CERRADO`), servicio
+`app/services/parametro_service.py`, script de siembra `scripts/migrate_parametros_legales.py`, seis
+motores re-cableados (`usury_validator`, `HonorariosStrategy`, `prescripcion`, `moratory_interest`,
+`legal_rates`, `historical_index`) sin cambiar ningún resultado de cálculo existente, y pantalla nueva
+"⚙ Parámetros" en la GUI. Las constantes Python originales se conservan deliberadamente (no se borraron)
+como transcripción congelada y fuente del script de siembra — ver la spec, sección "Motores a re-cablear".
+De paso, se encontró y corrigió un bug de esquema preexistente no relacionado con el catálogo de reglas:
+SQLite truncaba silenciosamente valores `Decimal` de alta precisión al guardarlos como `float64`; se
+corrigió con un `TypeDecorator` `DecimalExacto` a nivel de columna (usado en `parametros_legales.valor`).
 
 ---
 
