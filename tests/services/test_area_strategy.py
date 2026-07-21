@@ -406,6 +406,16 @@ class TestComercialStrategy:
         with pytest.raises(ValueError, match="trm_fecha_referencia"):
             ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
 
+    @pytest.mark.parametrize("trm_invalida", [Decimal("0.0000"), Decimal("-100.0000")])
+    def test_obligacion_usd_con_trm_no_positiva_lanza_value_error(self, trm_invalida):
+        obligacion = _obligacion_comercial()
+        obligacion.moneda = "USD"
+        obligacion.trm_aplicable = trm_invalida
+        obligacion.trm_fecha_referencia = date(2025, 1, 1)
+
+        with pytest.raises(ValueError, match="trm_aplicable"):
+            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+
     def test_obligacion_sin_moneda_seteada_se_trata_como_cop(self):
         obligacion = _obligacion_comercial()
         assert obligacion.moneda is None  # atributo no seteado en construccion directa, sin sesion

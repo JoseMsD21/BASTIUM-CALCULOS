@@ -221,6 +221,11 @@ class ComercialStrategy(AreaStrategy):
                     f"La obligacion comercial '{obligacion.concepto}' esta en "
                     f"{obligacion.moneda} y necesita el campo 'trm_aplicable' para liquidar."
                 )
+            if obligacion.trm_aplicable <= 0:
+                raise ValueError(
+                    f"La obligacion comercial '{obligacion.concepto}' tiene 'trm_aplicable' "
+                    f"({obligacion.trm_aplicable}) que no es un valor positivo."
+                )
             if obligacion.trm_fecha_referencia is None:
                 raise ValueError(
                     f"La obligacion comercial '{obligacion.concepto}' esta en "
