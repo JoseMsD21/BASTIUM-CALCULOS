@@ -94,3 +94,80 @@ def test_get_parametro_modo_tramo_cerrado_no_extrapola_mas_alla_del_ultimo_tramo
     _insertar("IBC_CONSUMO_ORDINARIO", "16.24", date(2026, 1, 1), vigente_hasta=date(2026, 1, 31))
     with pytest.raises(ParametroNoDisponibleError):
         get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 2, 1))
+
+
+from datetime import datetime as _datetime  # noqa: E402  (kept near top-level imports style of this repo)
+
+
+def test_agregar_valor_modo_abierto_no_admite_vigente_hasta():
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(ValueError):
+        agregar_valor(
+            "USURA_MULTIPLICADOR", Decimal("1.5"), date(2026, 1, 1), "abogado1",
+            vigente_hasta=date(2026, 12, 31),
+        )
+
+
+def test_agregar_valor_modo_tramo_cerrado_exige_vigente_hasta():
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(ValueError):
+        agregar_valor("IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 8, 1), "abogado1")
+
+
+def test_agregar_valor_guarda_y_queda_disponible_para_get_parametro():
+    from app.services.parametro_service import agregar_valor, get_parametro
+
+    agregar_valor(
+        "SMLMV", Decimal("1900000.00"), date(2027, 1, 1), "abogado1",
+        motivo="Publicado por el Gobierno",
+    )
+    assert get_parametro("SMLMV", date(2027, 3, 1)) == Decimal("1900000.00")
+
+
+def test_historial_ordena_del_mas_reciente_al_mas_antiguo():
+    from app.services.parametro_service import agregar_valor, historial
+
+    agregar_valor("SMLMV", Decimal("1423500.00"), date(2025, 1, 1), "abogado1")
+    agregar_valor("SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1")
+
+    filas = historial("SMLMV")
+    assert [f.vigente_desde for f in filas] == [date(2026, 1, 1), date(2025, 1, 1)]
+
+
+def test_valor_vigente_hoy_retorna_none_sin_datos():
+    from app.services.parametro_service import valor_vigente_hoy
+
+    assert valor_vigente_hoy("SMLMV") is None
+
+
+def test_valor_vigente_hoy_retorna_la_fila_resuelta_para_hoy():
+    from app.services.parametro_service import agregar_valor, valor_vigente_hoy
+
+    agregar_valor("CUOTA_LITIS_INDIVIDUAL_PCT", Decimal("30"), date(2007, 1, 1), "abogado1")
+    fila = valor_vigente_hoy("CUOTA_LITIS_INDIVIDUAL_PCT")
+    assert fila is not None
+    assert fila.valor == Decimal("30")
+
+
+def test_ultimo_anio_disponible_retorna_el_mayor_anio_cargado():
+    from app.services.parametro_service import agregar_valor, ultimo_anio_disponible
+
+    agregar_valor("IPC_INDICE_ACUMULADO", Decimal("100"), date(1967, 1, 1), "sistema")
+    agregar_valor("IPC_INDICE_ACUMULADO", Decimal("500"), date(2025, 1, 1), "sistema")
+    assert ultimo_anio_disponible("IPC_INDICE_ACUMULADO") == 2025
+
+
+def test_ultimo_anio_disponible_rechaza_claves_que_no_son_anuales():
+    from app.services.parametro_service import ultimo_anio_disponible
+
+    with pytest.raises(ValueError):
+        ultimo_anio_disponible("USURA_MULTIPLICADOR")
+
+
+def test_ultimo_anio_disponible_sin_datos_lanza_parametro_no_disponible():
+    from app.services.parametro_service import ultimo_anio_disponible
+
+    with pytest.raises(ParametroNoDisponibleError):
+        ultimo_anio_disponible("SMLMV")

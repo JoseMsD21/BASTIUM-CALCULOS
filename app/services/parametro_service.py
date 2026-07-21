@@ -18,7 +18,7 @@ completa (no depende de AuditLog, que exige un expediente_id).
 from __future__ import annotations
 
 import enum
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import NamedTuple
 
@@ -146,3 +146,82 @@ def get_parametro(clave: str, fecha: date) -> Decimal:
             f"No hay valor de '{clave}' disponible para la fecha {fecha}."
         )
     return fila.valor
+
+
+def agregar_valor(
+    clave: str,
+    valor: Decimal,
+    vigente_desde: date,
+    usuario: str,
+    motivo: str | None = None,
+    vigente_hasta: date | None = None,
+) -> ParametroLegal:
+    """Inserta una fila nueva (append-only: nunca modifica ni borra filas
+    existentes). Usada por la GUI (app/views/configuracion.py)."""
+    info = _validar_clave(clave)
+    if info.modo == ModoResolucion.TRAMO_CERRADO and vigente_hasta is None:
+        raise ValueError(f"'{clave}' requiere 'vigente_hasta' (modo TRAMO_CERRADO).")
+    if info.modo != ModoResolucion.TRAMO_CERRADO and vigente_hasta is not None:
+        raise ValueError(f"'{clave}' no admite 'vigente_hasta' (modo {info.modo.value}).")
+
+    session = session_module.get_session()
+    try:
+        fila = ParametroLegal(
+            clave=clave,
+            valor=valor,
+            vigente_desde=vigente_desde,
+            vigente_hasta=vigente_hasta,
+            usuario=usuario,
+            motivo=motivo,
+            creado_en=datetime.now(),
+        )
+        session.add(fila)
+        session.commit()
+        session.refresh(fila)
+        return fila
+    finally:
+        session.close()
+
+
+def historial(clave: str) -> list[ParametroLegal]:
+    """Todas las filas de una clave, mas reciente primero -- alimenta la vista
+    de historial de la GUI."""
+    _validar_clave(clave)
+    session = session_module.get_session()
+    try:
+        return (
+            session.query(ParametroLegal)
+            .filter(ParametroLegal.clave == clave)
+            .order_by(ParametroLegal.vigente_desde.desc(), ParametroLegal.creado_en.desc())
+            .all()
+        )
+    finally:
+        session.close()
+
+
+def valor_vigente_hoy(clave: str) -> ParametroLegal | None:
+    """Fila resuelta para la fecha de hoy -- alimenta la tabla resumen de la GUI."""
+    return _resolver_fila(clave, date.today())
+
+
+def ultimo_anio_disponible(clave: str) -> int:
+    """Maximo ano con datos cargados para una clave ANUAL_EXACTO. Usado por
+    get_ipc_interpolado_for_date (historical_index.py) para su aproximacion ya
+    documentada: fechas posteriores al ultimo ano disponible usan el indice de
+    ese ultimo ano (Sprint 8, decision 3)."""
+    info = _validar_clave(clave)
+    if info.modo != ModoResolucion.ANUAL_EXACTO:
+        raise ValueError(f"'{clave}' no es una serie anual (modo {info.modo.value}).")
+    session = session_module.get_session()
+    try:
+        fila = (
+            session.query(ParametroLegal)
+            .filter(ParametroLegal.clave == clave)
+            .order_by(ParametroLegal.vigente_desde.desc())
+            .first()
+        )
+        if fila is None:
+            raise ParametroNoDisponibleError(f"No hay ningun valor cargado para '{clave}'.")
+        return fila.vigente_desde.year
+    finally:
+        session.close()
