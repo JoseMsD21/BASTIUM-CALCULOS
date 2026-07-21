@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 
+from PySide6.QtCore import QDate
+
 from app.services.parametro_service import agregar_valor, historial
 from app.views.configuracion import ParametroFormDialog, ParametrosView
 
@@ -83,3 +85,35 @@ def test_parametro_form_dialog_muestra_vigente_hasta_solo_para_tramo_cerrado(qtb
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
     assert dialogo.campo_vigente_hasta.isVisible() is True
+
+
+def test_parametro_form_dialog_valor_no_finito_lanza_value_error(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(
+        dialogo.combo_clave.findData("USURA_MULTIPLICADOR")
+    )
+    dialogo.campo_valor.setText("inf")
+    dialogo.campo_usuario.setText("abogado1")
+    try:
+        dialogo.guardar()
+        assert False, "se esperaba ValueError"
+    except ValueError:
+        pass
+
+
+def test_parametro_form_dialog_vigente_hasta_anterior_a_desde_lanza_value_error(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(
+        dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO")
+    )
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+    dialogo.campo_vigente_desde.setDate(QDate(2026, 2, 1))
+    dialogo.campo_vigente_hasta.setDate(QDate(2026, 1, 1))
+    try:
+        dialogo.guardar()
+        assert False, "se esperaba ValueError"
+    except ValueError:
+        pass

@@ -72,6 +72,8 @@ class ParametroFormDialog(QDialog):
             valor = Decimal(self.campo_valor.text())
         except InvalidOperation as error:
             raise ValueError("El valor debe ser un numero valido.") from error
+        if not valor.is_finite():
+            raise ValueError("El valor debe ser un numero finito.")
 
         usuario = self.campo_usuario.text().strip()
         if not usuario:
@@ -84,6 +86,8 @@ class ParametroFormDialog(QDialog):
         if info.modo == ModoResolucion.TRAMO_CERRADO:
             qdate_hasta = self.campo_vigente_hasta.date()
             vigente_hasta = date(qdate_hasta.year(), qdate_hasta.month(), qdate_hasta.day())
+            if vigente_hasta < vigente_desde:
+                raise ValueError("'Vigente hasta' no puede ser anterior a 'Vigente desde'.")
 
         motivo = self.campo_motivo.text().strip() or None
 
