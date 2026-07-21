@@ -33,7 +33,15 @@ class DecimalExacto(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value is None:
             return None
-        return Decimal(value)
+        # str(value) en vez de Decimal(value) directo: si la fila viene de una
+        # tabla que todavia no fue recreada bajo este tipo (afinidad NUMERIC
+        # heredada, valor ya almacenado como REAL), sqlite3 entrega un float.
+        # Decimal(float) expone el ruido binario del float (ej. Decimal(0.06)
+        # -> ...779553950749686919152736663818359375); pasar por str() primero
+        # replica el comportamiento del procesador Numeric original de
+        # SQLAlchemy, que tambien usa Decimal(str(value)), asi que como minimo
+        # no empeora una fila legada respecto al tipo anterior.
+        return Decimal(str(value))
 
 
 class AreaDerecho(enum.Enum):

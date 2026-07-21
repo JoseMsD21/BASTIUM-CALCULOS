@@ -84,7 +84,8 @@ def get_smlmv_for_year(anio: int) -> Decimal:
         return get_parametro("SMLMV", date(anio, 1, 1))
     except ParametroNoDisponibleError as error:
         raise ValueError(
-            f"No hay SMLMV configurado para el año {anio}."
+            f"No hay SMLMV configurado para el año {anio}. "
+            f"Datos disponibles: {min(_SMLMV_POR_ANIO)}-{max(_SMLMV_POR_ANIO)}."
         ) from error
 
 
@@ -187,7 +188,8 @@ def get_ipc_for_date(fecha: date) -> Decimal:
         return get_parametro("IPC_INDICE_ACUMULADO", date(fecha.year, 1, 1))
     except ParametroNoDisponibleError as error:
         raise ValueError(
-            f"No hay indice IPC configurado para el año {fecha.year}."
+            f"No hay indice IPC configurado para el año {fecha.year}. "
+            f"Datos disponibles: {min(_IPC_INDICE_ACUMULADO)}-{max(_IPC_INDICE_ACUMULADO)}."
         ) from error
 
 
