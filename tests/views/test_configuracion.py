@@ -4,7 +4,11 @@ from decimal import Decimal
 from PySide6.QtCore import QDate
 
 from app.services.parametro_service import agregar_valor, historial
-from app.views.configuracion import ParametroFormDialog, ParametrosView
+from app.views.configuracion import (
+    HistorialParametroDialog,
+    ParametroFormDialog,
+    ParametrosView,
+)
 
 
 def test_parametros_view_lista_todas_las_claves_del_catalogo(qtbot):
@@ -100,6 +104,39 @@ def test_parametro_form_dialog_valor_no_finito_lanza_value_error(qtbot):
         assert False, "se esperaba ValueError"
     except ValueError:
         pass
+
+
+def test_historial_parametro_dialog_lista_todas_las_filas_de_una_clave(qtbot):
+    agregar_valor("SMLMV", Decimal("1423500.00"), date(2025, 1, 1), "abogado1")
+    agregar_valor("SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1")
+
+    dialogo = HistorialParametroDialog("SMLMV")
+    qtbot.addWidget(dialogo)
+    assert dialogo.tabla.rowCount() == 2
+    assert dialogo.tabla.item(0, 0).text() == "1750905.00"
+
+
+def test_parametros_view_abrir_dialogo_agregar_refresca_la_tabla(qtbot, monkeypatch):
+    from PySide6.QtWidgets import QDialog
+
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+    monkeypatch.setattr(ParametroFormDialog, "guardar", lambda self: agregar_valor(
+        "USURA_MULTIPLICADOR", Decimal("1.5"), date(1900, 1, 1), "abogado1",
+    ))
+
+    def _exec_simulado(self):
+        # Simula el flujo real (click en "Guardar" -> _guardar_y_cerrar ->
+        # guardar() -> accept()) sin abrir el bucle de eventos modal.
+        self.guardar()
+        return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(ParametroFormDialog, "exec", _exec_simulado)
+
+    vista._abrir_dialogo_agregar()
+
+    fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
+    assert vista.tabla.item(fila_usura, 2).text() == "1.5"
 
 
 def test_parametro_form_dialog_vigente_hasta_anterior_a_desde_lanza_value_error(qtbot):

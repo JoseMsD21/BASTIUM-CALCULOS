@@ -22,6 +22,7 @@ from app.services.parametro_service import (
     CATALOGO_PARAMETROS,
     ModoResolucion,
     agregar_valor,
+    historial,
     valor_vigente_hoy,
 )
 
@@ -108,6 +109,34 @@ class ParametroFormDialog(QDialog):
             QMessageBox.warning(self, "Datos invalidos", str(error))
 
 
+class HistorialParametroDialog(QDialog):
+    def __init__(self, clave: str, parent=None):
+        super().__init__(parent)
+        info = CATALOGO_PARAMETROS[clave]
+        self.setWindowTitle(f"Historial: {info.descripcion}")
+
+        columnas = ["Valor", "Vigente desde", "Vigente hasta", "Usuario", "Motivo"]
+        self.tabla = QTableWidget(0, len(columnas))
+        self.tabla.setHorizontalHeaderLabels(columnas)
+        self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+
+        filas = historial(clave)
+        self.tabla.setRowCount(len(filas))
+        for fila_idx, fila in enumerate(filas):
+            self.tabla.setItem(fila_idx, 0, QTableWidgetItem(str(fila.valor)))
+            self.tabla.setItem(fila_idx, 1, QTableWidgetItem(fila.vigente_desde.isoformat()))
+            self.tabla.setItem(
+                fila_idx, 2,
+                QTableWidgetItem(fila.vigente_hasta.isoformat() if fila.vigente_hasta else ""),
+            )
+            self.tabla.setItem(fila_idx, 3, QTableWidgetItem(fila.usuario))
+            self.tabla.setItem(fila_idx, 4, QTableWidgetItem(fila.motivo or ""))
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.tabla)
+        self.setLayout(layout)
+
+
 class ParametrosView(QWidget):
     def __init__(self):
         super().__init__()
@@ -117,6 +146,7 @@ class ParametrosView(QWidget):
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabla.cellDoubleClicked.connect(self._abrir_historial)
 
         boton_agregar = QPushButton("+ Agregar valor nuevo")
         boton_agregar.clicked.connect(self._abrir_dialogo_agregar)
@@ -149,4 +179,10 @@ class ParametrosView(QWidget):
             self._claves_por_fila.append(clave)
 
     def _abrir_dialogo_agregar(self) -> None:
-        pass  # implementado en la siguiente tarea
+        dialogo = ParametroFormDialog(self)
+        if dialogo.exec():
+            self.refrescar()
+
+    def _abrir_historial(self, fila: int, _columna: int) -> None:
+        clave = self._claves_por_fila[fila]
+        HistorialParametroDialog(clave, self).exec()
