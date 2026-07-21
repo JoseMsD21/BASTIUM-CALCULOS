@@ -757,7 +757,7 @@ Confirmar con el usuario si vale la pena antes de planificar en detalle.
 
 ---
 
-## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) 🔴 Pendiente
+## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) ⛔ Cerrado (EFDJ completo), 🔄 reemplazado por "Parámetros legales versionados"
 
 **Prioridad sugerida:** Decisión arquitectónica, no un sprint de features — leer la nota antes de
 planificar nada.
@@ -791,6 +791,36 @@ con el usuario (tipo `superpowers:brainstorming`) para decidir si el patrón act
 tamaño real de BASTIUM, o si de verdad hace falta la complejidad de un catálogo de reglas versionado.
 Construir esto sin esa conversación previa es el riesgo de sobre-ingeniería más grande de todo este
 backlog.
+
+**Estado:** Evaluado y cerrado sin construir nada (2026-07-20), tras la conversación de brainstorming que
+este mismo sprint pedía tener antes de planificar tareas técnicas. Motivación real detrás de la pregunta:
+que alguien sin conocimientos de Python pueda editar reglas — pero (a) esa persona no existe todavía, es
+una capacidad a futuro sin fecha ni usuario concreto asignado, y (b) lo que necesitaría editar son
+**valores/parámetros** (tasas, topes, plazos, tarifas), no condiciones ni fórmulas completas. El catálogo
+EFDJ del PDF (24 campos por regla, reglas-como-datos con fórmula y compatibilidades incluidas) está
+diseñado para un escenario mucho más exigente que este. Con esa combinación (sin urgencia + alcance
+reducido a solo parámetros) no se justifica el costo de migrar; se decidió con el usuario no construir
+nada ahora en vez de sobre-construir una capacidad sin caso de uso real.
+
+Si en el futuro aparece una necesidad concreta, la puerta de entrada recomendada **no es** el catálogo
+EFDJ completo, sino un paso intermedio mucho más barato: extraer los valores hoy hardcodeados dentro de
+`area_strategy.py` y los motores (`usury_validator.py`, topes de cuota litis, plazos de
+`prescripcion.py`, etc.) a una capa de datos versionada (YAML/JSON o tabla simple) con una función de
+consulta por nombre + fecha de vigencia, dejando la lógica/condiciones en Python. Eso resuelve "editar un
+número sin redeploy" sin construir un motor de reglas-como-datos completo.
+
+**Actualización (2026-07-20, misma sesión):** esa necesidad concreta apareció en la misma conversación —
+el usuario aclaró que sí quiere que un abogado (sin fecha ni identidad fija todavía, capacidad a futuro)
+pueda editar tasas/topes/porcentajes desde la GUI, porque esos datos sí cambian. Es exactamente el paso
+intermedio descrito arriba (parámetros como datos versionados, no reglas completas como datos), así que
+se retomó como un sprint nuevo, más chico y concreto que el EFDJ original: **"Parámetros legales
+versionados"**, diseño completo en
+`docs/superpowers/specs/2026-07-20-parametros-legales-versionados-design.md`. Cubre tanto los topes
+legales sueltos (usura, cuota litis, prescripción/caducidad, E.T. 635, tasa civil legal) como las 3 series
+que ya vivían versionadas en `historical_index.py` (SMLMV, IPC, IBC/usura) pero solo editables por
+Python — todo en una tabla `parametros_legales` append-only con pantalla nueva en
+`app/views/configuracion.py` (hoy vacío). El motor EFDJ completo (reglas con fórmulas/condiciones como
+datos) sigue cerrado sin construir, sin cambios sobre esa parte de la decisión.
 
 ---
 
