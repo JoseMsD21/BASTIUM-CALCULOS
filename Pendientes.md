@@ -27,7 +27,42 @@ al código real.
   (interés civil sin indexación). Cada sprint abajo cita las páginas exactas de este PDF que aplican.
 - Suite de tests: 81 passed a fecha 2026-07-15 (`pytest.ini` usa `--import-mode=importlib` +
   `consider_namespace_packages=true` para evitar colisión de nombre `tests/database` vs `database/` — no
-  tocar esa config sin necesidad).
+  tocar esa config sin necesidad). 367 passed, 1 skipped a fecha 2026-07-21, tras cerrar los Sprints 2-13.
+
+**Sprints 14-22 (nuevos, 2026-07-21):** los Sprints 2-13 quedaron todos completados, pero cada cierre dejó
+pendientes explícitos (decisiones de alcance sin confirmar, fuentes de datos no conseguidas, o cambios de
+fondo aplazados a propósito). Los Sprints 14-22 son exactamente esos pendientes, convertidos en sprints
+autocontenidos para poder trabajarlos uno por uno: Sprint 14 (tabla UVT, desbloqueador común), Sprint 15
+(cierre del Sprint 11b tributario), Sprint 16 (seguridad social/incapacidades laborales), Sprint 17
+(módulo pensional), Sprint 18 (costas judiciales con tabla real), Sprint 19 (anatocismo comercial
+condicionado), Sprint 20 (indexación sobre capital indexado, "Suma Única"), Sprint 21 (múltiples tasas
+simultáneas por expediente) y Sprint 22 (limpieza técnica acumulada, sin relación con el PDF de
+requisitos). Varios de estos (16, 20) requieren una conversación previa con el usuario antes de codificar,
+igual que exigió el Sprint 13 con el EFDJ (Especificación Funcional del Dominio Jurídico, el nombre que el
+propio PDF usa en su página 63) — no arrancarlos sin esa validación.
+
+**Sprints 23-30 (nuevos, 2026-07-21):** auditoría transversal de calidad de código y documentación (bugs
+de ejecución, lógica, concurrencia, dependencias, rendimiento, seguridad, escalabilidad, mantenibilidad,
+gaps funcionales, validación de datos, UX, CI/CD, versionado, y calidad de la documentación), hecha con 4
+agentes en paralelo y verificada manualmente en los hallazgos de mayor severidad antes de documentarla acá.
+No tiene relación con el PDF de requisitos — son defectos y deuda encontrados en el código/documentación
+ya existente, no funcionalidad jurídica faltante. Los más urgentes: Sprint 23 (dos bugs reales: sobrepago
+que desaparece silenciosamente del resultado, y reconstrucción de auditoría que puede lanzar `KeyError` en
+liquidaciones históricas), Sprint 24 (formularios y `parametro_service` aceptan datos absurdos sin
+validar) y Sprint 29 (rutas rotas `specifications/` en README/GUIA/Pendientes, numeración duplicada en
+GUIA_USUARIO.md que rompe un enlace interno, y 4 specs de motores desactualizadas).
+
+**Sprints 31-37 (nuevos, 2026-07-21): UX/UI de la GUI.** BASTIUM hoy es funcional pero visualmente es 100%
+el estilo nativo de Qt/Windows sin ninguna identidad propia: cero `setStyleSheet`/`QPalette` en toda la
+app, la tipografía de marca (`AncizarSans`, en `app/assets/fonts/`) y los colores de marca (burdeos/crema,
+ya definidos en `app/reports/pdf.py` para los reportes) nunca se aplican a la GUI en vivo, no hay íconos
+(solo emoji sueltos en la navegación), y `app/views/dashboard.py` sigue vacío pese a que la app abre
+directo a un listado plano sin ningún resumen. Los Sprints 31-37 cubren, en orden de dependencia: Sprint 31
+(tema visual base: color/tipografía/íconos — los demás dependen de este), Sprint 32 (navegación con
+breadcrumb y atajos), Sprint 33 (dashboard real de inicio), Sprint 34 (UX de formularios), Sprint 35
+(búsqueda/filtros/estados vacíos en listados), Sprint 36 (feedback no bloqueante y jerarquía de botones) y
+Sprint 37 (persistencia de ventana y accesibilidad de teclado). Ninguno depende del PDF de requisitos — son
+mejoras de experiencia de usuario sobre una app ya funcional.
 
 ---
 
@@ -884,48 +919,1362 @@ corrigió con un `TypeDecorator` `DecimalExacto` a nivel de columna (usado en `p
 
 ---
 
-## Backlog técnico / limpieza (sin sprint asignado, tareas pequeñas e independientes)
+## Sprint 14 — Tabla histórica de UVT (DIAN)
 
-- **Resolver el motor de allocation duplicado**: hay DOS clases `AllocationEngine` con firmas
-  distintas — `app/engine/allocation/allocator.py` (método de instancia `allocate(self, payment:
-  Payment, obligations: list[Obligation])`, `raise NotImplementedError`, código huérfano que nadie
-  importa) vs. `app/engine/liquidation/allocation.py` (método estático `allocate(payment_amount,
-  current_debt, payment_date)`, implementación real usada por `LiquidationCore`). Decidir: ¿eliminar
-  `app/engine/allocation/allocator.py` por completo (y su carpeta si queda vacía), o hay algún caso de
-  uso futuro (el modelo de dominio `app.domain.obligation.base.Obligation` que usa) que lo justifique?
-- **Archivo vacío sin uso**: `app/engine/financial/allocation.py` está vacío (0 bytes) y coincide de
-  nombre con los dos de arriba — probablemente un archivo abandonado a mitad de refactor. Confirmar que
-  nada lo importa y eliminarlo.
-- **Wiring de `CompoundInterest`**: `app/engine/interest/compound_interest.py` tiene una implementación
-  completa y correcta de interés compuesto, pero ningún motor la invoca hoy — queda relevante recién en
-  el Sprint 2 (anatocismo comercial condicionado).
-- **Múltiples tasas de interés simultáneas por expediente**: hoy `CivilFamiliaStrategy` usa una sola tasa
-  para todo el expediente (tomada de la primera obligación) — si un expediente real tiene obligaciones a
-  tasas distintas, eso no se soporta todavía. Evaluar si esto amerita su propio sprint o se resuelve como
-  parte del Sprint 2/3 al construir las otras estrategias.
+**Prioridad sugerida:** Alta — es el desbloqueador común de dos piezas ya pendientes: la conversión
+SMLMV→UVT del Sprint 4 (hoy lanza `UVTNoDisponibleError` para hechos posteriores a 2020-01-01) y el
+Sprint 15 (Tributario 11b), que necesita UVT para la sanción mínima (10 UVT) y para expresar cuantías.
+
+**Depende de:** Nada técnicamente. El bloqueador real es conseguir la fuente: el PDF (páginas 8, 21, 38,
+53, 69) describe el mecanismo (la UVT se fija anualmente por resolución DIAN en noviembre/diciembre, rige
+desde el 1 de enero, se ajusta según variación IPC oct-oct) pero nunca trae una tabla año por año
+completa — solo un ejemplo aislado en la página 69 ("UVT 2023 ≈ $38.004"), insuficiente para una serie
+histórica real.
+
+**Documentos a consultar:**
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`: pág. 8 (ficha del indicador UVT,
+  periodicidad anual nov/dic), pág. 21 ("D. UVT... se incrementa según la cifra del DANE por ingresos
+  medios de año a año"), pág. 38 ("se reajusta anualmente cada 1 de enero según la variación del IPC
+  oct-oct"), pág. 53 (repite la ficha), pág. 69 (único valor numérico citado, solo ejemplo ilustrativo, no
+  tabla).
+- Sprint 5 y Sprint 4 de este mismo archivo (ambos dejaron la UVT como pendiente explícito por falta de
+  fuente completa).
+
+**Código existente a reutilizar:**
+- `app/engine/indexation/historical_index.py` → mismo patrón que `get_smlmv_for_year(anio)` (línea 79)
+  para el nuevo `get_uvt_for_year(anio)`; la UVT es anual como el SMLMV, no por tramos como IBC/usura.
+- `app/services/parametro_service.py` → `CATALOGO_PARAMETROS` (línea 43) ya tiene el modo `ANUAL_EXACTO`
+  diseñado exactamente para series "un valor por 1 de enero" (usado hoy por `SMLMV` e
+  `IPC_INDICE_ACUMULADO`, líneas 92-99) — la UVT es del mismo tipo, se agrega una entrada más al catálogo,
+  no un modo nuevo.
+- `scripts/migrate_parametros_legales.py` → script de siembra ya existente, mismo patrón para poblar la
+  serie UVT una vez transcrita.
+- `app/engine/indexation/smlmv_to_uvt.py` → `resolver_base_sancion()` (línea 11) es quien debe dejar de
+  lanzar `UVTNoDisponibleError` una vez este sprint exista.
+
+**Decisión de diseño a tomar antes de codificar:**
+- La fuente real debe venir de las resoluciones DIAN publicadas (ej. resolución de fijación de UVT de cada
+  año) o pedirse directamente al usuario si tiene una tabla de referencia — **no inventar valores**. Si no
+  se consigue la serie completa desde el año de creación de la UVT (2006, Ley 1111 de 2006) hasta 2026,
+  decidir con el usuario desde qué año arrancar (ej. solo desde 2020, que es cuando el PDF explícitamente
+  empieza a exigir la conversión SMLMV→UVT).
+
+**Código nuevo a crear:**
+- Serie UVT anual en `historical_index.py`, transcrita de la fuente confirmada (no del ejemplo aislado de
+  la pág. 69).
+- `get_uvt_for_year(anio: int) -> Decimal`, mismo contrato que `get_smlmv_for_year`.
+- Entrada `"UVT"` en `CATALOGO_PARAMETROS` (`parametro_service.py`), modo `ANUAL_EXACTO`, fuente legal
+  "DIAN, resolución anual (Ley 1111 de 2006)".
+- Actualizar `scripts/migrate_parametros_legales.py` para sembrar la serie UVT igual que SMLMV/IPC.
+- Actualizar `resolver_base_sancion()` (`smlmv_to_uvt.py`) para consultar `get_uvt_for_year`/
+  `parametro_service.get_parametro("UVT", fecha)` en vez de lanzar `UVTNoDisponibleError` para fechas
+  posteriores a 2020-01-01.
+
+**Alcance incluido:**
+- Transcripción de la serie UVT (desde el año que se confirme con el usuario) hasta 2026.
+- Función de consulta + entrada en el catálogo de parámetros versionados.
+- Desbloqueo real de `resolver_base_sancion()` para fechas posteriores a 2020.
+
+**Alcance explícitamente excluido:**
+- Automatización de actualización anual vía scraping DIAN (fuera de alcance, igual que el resto de series
+  del Sprint 5).
+- El Sprint 15 en sí — este sprint solo entrega el dato, no el motor de sanciones que lo consume.
+
+**Riesgos / notas técnicas conocidas:**
+- Si no se consigue una fuente confiable y completa, no inventar valores por interpolación o estimación —
+  documentar el hueco explícito por año, mismo criterio que ya se usó en Sprint 4/7 con
+  `plazo_meses_manual`/`costas_pct_manual` (exigir un valor manual en vez de adivinar).
+
+**Definición de Hecho:**
+- `get_uvt_for_year` retorna valores verificables contra la fuente citada para al menos 2020-2026.
+- `resolver_base_sancion` liquida correctamente un caso con fecha posterior a 2020-01-01 sin lanzar
+  `UVTNoDisponibleError`.
+- Suite completa en verde.
+
+---
+
+## Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b)
+
+**Prioridad sugerida:** Media — es la continuación directa y ya presupuestada del Sprint 11 (11a se
+completó el 2026-07-20; esta es la segunda mitad, aplazada a propósito para trabajarla con calma en su
+propio sprint).
+
+**Depende de:** Sprint 14 (tabla UVT) — la sanción mínima (10 UVT) y la conversión de cuantías
+tributarias a UVT no se pueden probar con casos reales sin esa serie.
+
+**Documentos a consultar:**
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, "OBLIGACIONES EN DERECHO TRIBUTARIO..."
+  completa (págs. 38-40): elementos del hecho gravable (sujeto activo, sujeto pasivo, hecho gravado, base
+  gravable, tarifa — pág. 38), sanciones (pág. 39: extemporaneidad 5% mensual tope 100%, inexactitud
+  160%/200%, error aritmético 30%, sanción mínima 10 UVT), imputación tributaria de pagos (pág. 40:
+  sanciones → intereses → impuestos/anticipos/retenciones, distinta del orden civil que es intereses →
+  capital).
+- Pág. 70-71 (catálogo EFDJ): confirma "Tributaria y sancionatoria" como tipología propia del motor, con
+  "impuesto, sanción, extemporaneidad, inexactitud, error aritmético, UVT, mora fiscal, cobro coactivo,
+  multas públicas".
+- Pág. 74, sección "10) Reglas tributarias y sancionatorias": exige explícitamente "motores específicos
+  para sanciones por extemporaneidad, inexactitud, error aritmético y sanción mínima" y que "la
+  imputación tributaria debe ser independiente del régimen civil".
+- `docs/superpowers/plans/2026-07-20-sprint11a-tributario-interes-renta-liquida.md` y su spec — documentan
+  lo ya construido (11a) y explícitamente dejan 11b como pendiente.
+
+**Código existente a reutilizar:**
+- `app/engine/tax/moratory_interest.py` y `app/engine/tax/renta_liquida.py` (Sprint 11a) — motores puros
+  ya implementados y probados; este sprint los complementa, no los reemplaza.
+- `app/services/area_strategy.py` — seguir el mismo patrón de las 5 estrategias existentes
+  (`CivilFamiliaStrategy` línea 36, `ComercialStrategy` línea 152, `LaboralStrategy` línea 312,
+  `SancionatorioStrategy` línea 412, `HonorariosStrategy` línea 481) para la nueva `TributarioStrategy`.
+- `database/models.py` → `AreaDerecho` (línea 47) y `app/core/constants.py` → `AREAS_DERECHO` (línea 48) —
+  agregar `"TRIBUTARIO"` a ambos, mismo patrón usado por las 5 áreas actuales (todas ya están en `True`,
+  este sprint agrega la sexta).
+- `app/engine/liquidation/allocation.py` — el motor de imputación civil (`LiquidationCore`) usa un orden
+  fijo (intereses → capital); la imputación tributaria necesita su propio orden y probablemente su propia
+  función, no reutilizar la civil directamente.
+- `app/services/parametro_service.py` → agregar entradas nuevas al catálogo para los porcentajes de
+  sanción, siguiendo el mismo patrón de `USURA_MULTIPLICADOR`/`ET635_PUNTOS_DESCUENTO` (modo `ABIERTO`,
+  porque son topes legales fijos que solo cambian por reforma tributaria, no por vigencia mensual/anual).
+
+**Decisión de diseño a tomar antes de codificar:**
+- Modelo de "Obligación Tributaria": ¿extender la tabla `Obligacion` existente con campos nuevos
+  (sujeto_activo, hecho_gravado, base_gravable, tarifa) o crear un modelo separado? El PDF (pág. 70) la
+  describe como una entidad con parámetros propios distintos de una obligación civil/comercial — evaluar
+  con el usuario antes de elegir, ya que afecta migración de esquema (mismo patrón de
+  `scripts/migrate_*.py` ya usado en Sprints 8/12).
+- Confirmar con el usuario si `TributarioStrategy` se habilita en la GUI de una vez (área operable
+  end-to-end) o si, como 11a, se deja como motor standalone por ahora.
+
+**Código nuevo a crear:**
+- `app/engine/tax/sanciones.py` (sugerido): cuatro funciones/clases, una por sanción — extemporaneidad
+  (5% del impuesto a cargo por cada mes o fracción de mes de retraso, tope 100%), inexactitud (160% de la
+  diferencia entre saldo a pagar determinado y declarado; 200% si hay omisión de activos o inclusión de
+  pasivos inexistentes), error aritmético (30% de la diferencia generada por el error), sanción mínima
+  (ninguna sanción puede ser inferior a 10 UVT, usa `get_uvt_for_year`/`parametro_service` del Sprint 14).
+- `app/engine/tax/imputacion.py` (sugerido): jerarquía de imputación tributaria (sanciones → intereses →
+  impuestos/anticipos/retenciones), como función pura independiente de
+  `app/engine/liquidation/allocation.py`.
+- Modelo de "Obligación Tributaria" (según la decisión de diseño de arriba).
+- `TributarioStrategy.liquidar()` en `area_strategy.py`, cableando `moratory_interest.py` +
+  `renta_liquida.py` (ya existentes) + los dos motores nuevos de este sprint.
+- Registro de `"TRIBUTARIO"` en `AreaDerecho` y `AREAS_DERECHO`, con migración de esquema si aplica.
+- Entradas nuevas en `CATALOGO_PARAMETROS`: `EXTEMPORANEIDAD_PCT_MENSUAL`, `INEXACTITUD_PCT`,
+  `INEXACTITUD_AGRAVADA_PCT`, `ERROR_ARITMETICO_PCT` (todas modo `ABIERTO`, fuente Estatuto Tributario).
+
+**Alcance incluido:**
+- Los componentes que 11a no cubrió: modelo de Obligación Tributaria, motor de sanciones completo,
+  imputación tributaria propia.
+- `TributarioStrategy` real, cableada al registry, con el área habilitada si así se decide con el usuario.
+
+**Alcance explícitamente excluido:**
+- Integración en vivo con la DIAN (radicación, formularios oficiales) — fuera de alcance de un motor de
+  liquidación de litigio.
+- Cobro coactivo administrativo como proceso propio — el PDF lo menciona (pág. 71) pero es un
+  procedimiento, no una fórmula de cálculo.
+
+**Riesgos / notas técnicas conocidas:**
+- La sanción mínima (10 UVT) depende 100% de que el Sprint 14 ya esté cerrado — no empezar este sprint sin
+  esa dependencia resuelta.
+- El PDF (pág. 40) advierte: "no se pueden cobrar simultáneamente intereses moratorios y actualización
+  monetaria si esto conduce a una tasa usuraria o doble pago por el mismo concepto" — documentar esta
+  validación explícitamente en `TributarioStrategy`, no solo como comentario (mismo criterio ya exigido en
+  Sprint 2 para la incompatibilidad interés-comercial + IPC).
+
+**Definición de Hecho:**
+- Tests de cada uno de los 4 tipos de sanción con casos conocidos del PDF (pág. 39).
+- Test de imputación tributaria verificando el orden sanciones → intereses → impuesto, distinto del test
+  equivalente civil.
+- `TributarioStrategy` liquida con TDD siguiendo el mismo patrón que `tests/services/test_area_strategy.py`.
+- Suite completa en verde.
+
+---
+
+## Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral)
+
+**Prioridad sugerida:** Media — el Sprint 3 (Laboral) dejó esto fuera a propósito, pendiente de decisión
+de alcance con el usuario.
+
+**Depende de:** Sprint 3 (Área Laboral, ya completo) — extiende `LaboralStrategy`, no la reemplaza.
+
+**Documentos a consultar:**
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, pág. 51-52 ("C. Derecho Laboral" + sección
+  de Riesgos Laborales/ARL/Incapacidades): cotizaciones IBC, pensión 16%, salud 12.5%, ARL por nivel de
+  riesgo (I: 0.522% a V: 6.960%), FSP si IBC ≥ 4 SMMLV.
+- Pág. 52, "4. Manejo de Eventos y Estados: Suspensiones e Incapacidades" (texto exacto): suspensión
+  (licencia no remunerada/huelga/disciplinaria) → el empleador NO cotiza ARL pero SÍ mantiene aportes a
+  Salud y Pensión; incapacidad de origen común → días 1-2 el empleador paga 66.67%, días 3-90 la EPS paga
+  66.67%, día 91-180 la EPS paga 50%; incapacidad de origen laboral → la ARL paga 100% del IBC desde el
+  día 1.
+- Pág. 74, "8) Reglas laborales": el catálogo EFDJ exige "Seguridad social: debe soportarse IBC, límites
+  mínimos y máximos, distribución empleador/trabajador y aportes diferenciales como FSP y ARL" y "eventos
+  de suspensión contractual, licencias no remuneradas e incapacidades comunes o laborales con sus
+  pagadores y porcentajes" — es decir, el PDF sí ubica esto dentro del motor de cálculo, no como módulo de
+  nómina aparte (matiz relevante para la decisión de alcance que el Sprint 3 dejó abierta).
+- Pág. 71 (tipología EFDJ): "Laboral: salarios, prestaciones, cesantías, intereses a cesantías, prima,
+  vacaciones, seguridad social, indemnización moratoria..." — lista "seguridad social" como parte
+  constitutiva del área Laboral, no como feature opcional.
+
+**Código existente a reutilizar:**
+- `app/engine/temporal/schedulers/labor.py` → `LaborScheduler` ya genera los eventos de prestaciones; este
+  sprint agrega eventos nuevos (cotizaciones, incapacidades, suspensiones) al mismo generador o a uno
+  paralelo.
+- `app/services/area_strategy.py` → `LaboralStrategy` (línea 312).
+- `app/engine/indexation/smmlv.py` → `SMMLVCalculator` para topes de IBC expresados en SMMLV (1-25 SMMLV
+  es el rango típico de IBC de seguridad social en Colombia).
+- `app/services/parametro_service.py` → los porcentajes de cotización (pensión 16%, salud 12.5%, ARL por
+  nivel I-V, FSP) son candidatos naturales al catálogo `CATALOGO_PARAMETROS`, modo `ABIERTO` (cambian por
+  reforma, no por vigencia calendario).
+
+**Decisión de diseño a tomar antes de codificar (con el usuario, no asumir):**
+- Confirmar si esto entra en el alcance de BASTIUM como **liquidación de procesos judiciales** (ej. cuando
+  un juez condena a pagar aportes no consignados, o para calcular cuánto se le debe a un trabajador
+  incluyendo seguridad social dejada de pagar) o si es un módulo de **nómina corriente** fuera del
+  producto. La nota del Sprint 3 dejó esto sin resolver — el matiz nuevo encontrado en este sprint (la
+  pág. 74 del PDF sí lo incluye en el catálogo EFDJ del motor) es un argumento a favor de que sí es parte
+  del motor de cálculo, pero la decisión de negocio sigue siendo del usuario. Recomendado: una
+  conversación corta tipo `superpowers:brainstorming` antes de construir, igual que se hizo con el Sprint
+  13 (EFDJ) antes de invertir tiempo de planificación fina.
+
+**Código nuevo a crear (si se aprueba el alcance):**
+- Función de cotizaciones de seguridad social: dado un IBC, retorna pensión (16%, típicamente 12%
+  empleador + 4% trabajador), salud (12.5%, típicamente 8.5%/4%), ARL (según nivel de riesgo I-V) y FSP
+  (si IBC ≥ 4 SMMLV).
+- Eventos de estado de contrato: `SUSPENSION` (con motivo: huelga/licencia no remunerada/disciplinaria)
+  que desactiva ARL pero mantiene Salud/Pensión; `INCAPACIDAD_COMUN` e `INCAPACIDAD_LABORAL` con los
+  pagadores/porcentajes exactos de la pág. 52.
+- Wiring en `LaboralStrategy.liquidar()` para que estos eventos afecten el resultado cuando la obligación
+  los tenga registrados.
+
+**Alcance incluido:**
+- Cotizaciones de seguridad social (pensión, salud, ARL, FSP) como parte de una liquidación laboral
+  judicial.
+- Incapacidades (común y laboral) con sus pagadores y porcentajes exactos por rango de días.
+- Suspensiones contractuales con su efecto diferencial sobre ARL vs. Salud/Pensión.
+
+**Alcance explícitamente excluido:**
+- Módulo de nómina corriente (generación periódica de planillas PILA, afiliaciones, etc.).
+- Régimen pensional (IBL, densidad de semanas) — va en el Sprint 17.
+
+**Riesgos / notas técnicas conocidas:**
+- Mismo tipo de decisión previa que tuvo el Sprint 13 con el motor EFDJ completo: no construir sin
+  confirmar antes que esto es parte del producto.
+
+**Definición de Hecho:**
+- Tests con los porcentajes exactos de cada escenario de incapacidad (días 1-2, 3-90, 91-180) y de
+  suspensión (con/sin ARL).
+- Suite completa en verde.
+
+---
+
+## Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas)
+
+**Prioridad sugerida:** Baja — el propio Sprint 3 lo señaló como "un dominio aparte", y el PDF lo trata
+como un régimen de liquidación mucho más largo (vida laboral completa) que el resto de obligaciones
+puntuales que BASTIUM liquida hoy.
+
+**Depende de:** Sprint 6 (calendario de días hábiles) — ya documenta la limitación conocida relevante:
+`dias_habiles_entre` cuenta días hábiles (~250/año), pero el conteo de semanas de pensión que exige este
+sprint es en días calendario (~365/año) desde la Sentencia SL138-2024; no reusar directamente esa función
+sin adaptarla.
+
+**Documentos a consultar:**
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, pág. 52, "5. Liquidaciones Especiales: IBL y
+  Pensiones": IBL (Ingreso Base de Liquidación) = promedio de los salarios sobre los cuales se cotizó en
+  los últimos 10 años, actualizados anualmente con el IPC; Tasa de Reemplazo (Fórmula R) = `r = 65.5 −
+  0.5·s`, donde `s` es el número de salarios mínimos contenidos en el IBL.
+- Pág. 52, "7. Indicador Crítico de Tiempo: El Calendario": la Sentencia SL138-2024 de la Corte Suprema
+  (Sala Laboral) cambió el conteo de semanas de pensión a días reales de calendario (365/366), no al año
+  comercial de 360 usado antes.
+- Pág. 74, "8) Reglas laborales": "El módulo pensional debe separar densidad temporal, IBL, actualización
+  por IPC y reglas especiales de conteo real del calendario para semanas cuando proceda" — confirma que
+  son 4 piezas separadas, no una sola fórmula.
+
+**Código existente a reutilizar:**
+- `app/engine/indexation/ipc.py` → `IPCIndexation.calculate()` para actualizar anualmente los salarios
+  históricos que entran al promedio del IBL.
+- `app/engine/indexation/historical_index.py` → `get_smlmv_for_year()` para expresar el IBL en salarios
+  mínimos (variable `s` de la fórmula R).
+- `app/engine/time/calendar.py` → como base de conteo de días calendario (no `dias_habiles_entre`, ver
+  riesgo del Sprint 6 arriba).
+
+**Código nuevo a crear:**
+- `app/engine/labor/ibl.py` (sugerido): `calcular_ibl(historial_salarios_10_anios) -> Decimal`, aplicando
+  indexación IPC año por año antes de promediar.
+- `calcular_tasa_reemplazo(ibl: Decimal, smlmv_vigente: Decimal) -> Decimal`, fórmula `r = 65.5 − 0.5·s`.
+- `calcular_densidad_semanas(periodos_cotizados: list[tuple[date, date]]) -> int`, contando días calendario
+  reales (365/366) según SL138-2024, no días hábiles ni año comercial de 360.
+
+**Alcance incluido:**
+- Las 4 piezas que el PDF exige por separado: IBL, tasa de reemplazo, densidad de semanas (con el criterio
+  post-SL138-2024), actualización IPC del historial salarial.
+
+**Alcance explícitamente excluido:**
+- Régimen de Ahorro Individual con Solidaridad (RAIS) — el PDF solo describe Prima Media.
+- Integración con Colpensiones/AFP para traer el historial real de cotizaciones — el input es manual.
+
+**Riesgos / notas técnicas conocidas:**
+- Sprint de mayor incertidumbre de dominio de todo el backlog nuevo: el PDF da la fórmula pero no ejemplos
+  numéricos completos para verificar contra un caso real — conviene pedir al usuario un caso pensional
+  real (con IBL/semanas conocidos) para usar como test de referencia antes de dar el sprint por terminado.
+
+**Definición de Hecho:**
+- Tests de IBL con un historial salarial sintético de 10 años con IPC variable.
+- Test de tasa de reemplazo con al menos 3 valores de `s` distintos.
+- Test de densidad de semanas que compare explícitamente el resultado en días calendario vs. el año
+  comercial de 360, documentando la diferencia.
+- Suite completa en verde.
+
+---
+
+## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PCSJA20-11556)
+
+**Prioridad sugerida:** Media — el Sprint 4 ya dejó `costas_pct_manual` como solución temporal por no
+conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa fuente.
+
+**Depende de:** Sprint 4 (Sancionatorio/Honorarios, ya completo) — reemplaza/complementa
+`costas_pct_manual` sin quitarlo (mantenerlo como fallback cuando no haya tabla aplicable).
+
+**Documentos a consultar:**
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, pág. 9-10 y pág. 55: "Costas Judiciales
+  (Agencias en Derecho): las fija el juez mediante auto, basadas en los rangos del Consejo Superior de la
+  Judicatura (ej. Acuerdo PCSJA20-11556), que establece porcentajes (ej. 3% al 7% de las pretensiones
+  reconocidas)" — el PDF cita el acuerdo por nombre pero no transcribe la tabla completa de rangos.
+- El acuerdo real (PCSJA20-11556 u otro vigente del Consejo Superior de la Judicatura) no viene en el PDF
+  ni se consiguió durante el Sprint 4 — este sprint depende de conseguir esa fuente externa (pedir al
+  usuario, o buscar el texto oficial del acuerdo).
+
+**Código existente a reutilizar:**
+- `database/models.py` → `Obligacion.costas_pct_manual` (línea 102) — campo ya existente, este sprint no
+  lo reemplaza, lo complementa con una tabla automática cuando aplique.
+- `app/services/parametro_service.py` → los 3 modos existentes (`ABIERTO`, `ANUAL_EXACTO`,
+  `TRAMO_CERRADO`) no calzan bien con una tabla de rangos por **cuantía** (no por fecha) — este sprint
+  probablemente necesita decidir si extiende el catálogo con un modo nuevo o si la tabla de rangos vive
+  aparte, como estructura de datos simple (lista de tuplas rango_desde/rango_hasta/porcentaje) sin pasar
+  por `parametros_legales`.
+- `app/services/area_strategy.py` → `HonorariosStrategy` (línea 481) es quien hoy usa `costas_pct_manual`.
+
+**Decisión de diseño a tomar antes de codificar:**
+- Conseguir el texto real del Acuerdo PCSJA20-11556 (o el que esté vigente) — sin esta fuente, no se puede
+  construir la tabla sin inventar porcentajes, mismo criterio de rigor ya aplicado en Sprint 4/5/7.
+- Decidir si la tabla de rangos vive en `parametros_legales` (requeriría un modo de resolución nuevo, "por
+  rango de cuantía" en vez de "por fecha") o en una estructura Python simple versionada como las de
+  `historical_index.py`.
+
+**Código nuevo a crear (una vez conseguida la fuente):**
+- Tabla de rangos de costas por cuantía de las pretensiones reconocidas.
+- Función `calcular_costas_por_rango(pretensiones_reconocidas: Decimal) -> Decimal`.
+- Wiring en `HonorariosStrategy` para usar esta función cuando la obligación no tenga `costas_pct_manual`
+  explícito, conservando el campo manual como override/fallback.
+
+**Alcance incluido:**
+- Tabla real de rangos del Consejo Superior de la Judicatura, una vez conseguida la fuente.
+- Función de cálculo automático de costas por cuantía.
+
+**Alcance explícitamente excluido:**
+- Si no se consigue una fuente confiable, este sprint se cierra documentando el hueco (igual que el
+  Sprint 5 con UVT) en vez de inventar porcentajes.
+
+**Riesgos / notas técnicas conocidas:**
+- Único sprint nuevo bloqueado por una fuente 100% externa que no es un dato público fácil de encontrar en
+  una sola búsqueda — puede requerir que el usuario aporte el texto del acuerdo vigente directamente.
+
+**Definición de Hecho:**
+- Tests con al menos 2-3 rangos de cuantía reales contra el acuerdo confirmado.
+- `HonorariosStrategy` sigue funcionando igual que antes cuando se usa `costas_pct_manual` (no debe romper
+  el comportamiento del Sprint 4).
+- Suite completa en verde.
+
+---
+
+## Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.)
+
+**Prioridad sugerida:** Media — pendiente explícito documentado desde el cierre del Sprint 2, con el
+motor matemático (`CompoundInterest`) ya implementado y huérfano desde antes del MVP.
+
+**Depende de:** Sprint 2 (Área Comercial, ya completo) — extiende `ComercialStrategy`, no la reemplaza.
+
+**Documentos a consultar:**
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, pág. 45, "C. Anatocismo (Intereses sobre
+  Intereses)": "Solo se permite cobrar intereses sobre intereses si: 1) Hay demanda judicial, o 2) Hay
+  acuerdo posterior al vencimiento, siempre que se trate de intereses debidos con al menos un año de
+  anterioridad."
+- Pág. 10 y pág. 52-53 (repetición de la misma regla): "El algoritmo no debe aplicar interés compuesto por
+  defecto en las liquidaciones judiciales" — el default siempre debe ser interés simple; el anatocismo es
+  la excepción condicionada, nunca el comportamiento base.
+- Pág. 70 (catálogo EFDJ): "Comercial y financiera: ... anatocismo condicionado" — confirmado como pieza
+  propia de la tipología Comercial del motor.
+
+**Código existente a reutilizar:**
+- `app/engine/interest/compound_interest.py` → `CompoundInterest.calculate(capital, period_rate: Rate,
+  periods: int)` — YA implementado y probado, huérfano desde antes del MVP; este sprint es 100% de
+  wiring/condiciones, no de construir matemática nueva.
+- `app/services/area_strategy.py` → `ComercialStrategy.liquidar()` (línea 170).
+- `database/models.py` → `Obligacion` (línea 79) necesita campos nuevos para modelar las dos condiciones
+  habilitantes (ver abajo).
+
+**Decisión de diseño a tomar antes de codificar:**
+- Qué campos nuevos agregar a `Obligacion` para representar "hay demanda judicial" y/o "hay acuerdo
+  posterior de capitalización" — sugerido: `anatocismo_demanda_judicial: bool` y
+  `anatocismo_fecha_acuerdo: date | None` (si hay acuerdo posterior, se necesita la fecha para validar que
+  los intereses capitalizables ya llevan al menos un año). Requiere migración de esquema, mismo patrón que
+  `scripts/migrate_aplica_indexacion_ipc.py` (Sprint 8) y `scripts/migrate_moneda_trm.py` (Sprint 12).
+
+**Código nuevo a crear:**
+- Migración de esquema para los campos nuevos de `Obligacion`.
+- Validación en `ComercialStrategy.liquidar()`: el anatocismo solo se activa si (a) los intereses vencidos
+  llevan más de un año Y (b) existe demanda judicial O acuerdo posterior — las dos condiciones son
+  obligatorias siempre, no basta con que exista mora (nota ya dejada en el Sprint 2 original).
+- Wiring de `CompoundInterest.calculate()` en el tramo de intereses vencidos que cumpla la condición,
+  mientras el resto de la liquidación sigue en interés simple.
+
+**Alcance incluido:**
+- Activación condicionada del anatocismo comercial exactamente con las dos reglas del PDF.
+- Campos nuevos en `Obligacion` + migración.
+
+**Alcance explícitamente excluido:**
+- Anatocismo civil (Art. 1617 C.C. lo prohíbe de forma general) — no aplica fuera de Comercial.
+- Anatocismo tributario o laboral — no mencionados en el PDF para esas áreas.
+
+**Riesgos / notas técnicas conocidas:**
+- Migración de esquema pendiente de correr contra el `bastium.db` real del equipo al fusionar la rama,
+  mismo patrón documentado ya en Sprints 8 y 12.
+
+**Definición de Hecho:**
+- Test que activa anatocismo con demanda judicial + >1 año de mora, y otro que lo deniega sin alguna de
+  las dos condiciones.
+- `ComercialStrategy` sigue liquidando en interés simple por defecto cuando no se cumplen las condiciones.
+- Suite completa en verde.
+
+---
+
+## Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")
+
+**Prioridad sugerida:** Baja/exploratoria — es un cambio de fondo en el motor core que afecta las 5 áreas
+operables hoy; el Sprint 8 documentó esta limitación deliberadamente sin corregirla porque el impacto es
+transversal, no local a Civil/Familia.
+
+**Depende de:** Sprint 8 (Indexación IPC conectada, ya completo).
+
+**Documentos a consultar:**
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, pág. 21-22, "Caso de Suma Única (Daño
+  Emergente Consolidado)": Paso 1 (Indexar) → actualizar el desembolso histórico con la fórmula del IPC,
+  obtiene `Va`; Paso 2 (Intereses) → sobre ese valor **ya actualizado** (`Va`), aplicar el interés civil
+  puro del 6% anual (0.4867% mensual) por el tiempo transcurrido; Resultado: `Dec = Va × (1 + i)^n` — el
+  interés se compone sobre el capital ya indexado, no sobre el capital histórico sin indexar (que es como
+  funciona BASTIUM hoy).
+- Misma página, "6. Coexistencia con Intereses": confirma que el interés civil (6%, "interés puro") es
+  plenamente compatible con la indexación, y añade el caso especial de "Intereses de la Ley 80 de 1993
+  (Contratos Estatales)", que permite explícitamente "ajustar el capital con el IPC y cobrar
+  simultáneamente intereses moratorios sobre el capital ya indexado" — el mismo patrón "Suma Única" pero
+  con nombre y fuente normativa propia para contratación estatal.
+
+**Código existente a reutilizar:**
+- `app/engine/indexation/ipc.py` → `IPCIndexation.calculate()` ya calcula `Va`; el cambio es **dónde** se
+  usa ese resultado dentro del motor de intereses, no la fórmula de indexación en sí.
+- `app/services/area_strategy.py` → `CivilFamiliaStrategy._construir_rate_provider()` y el wiring de
+  indexación del Sprint 8 son el punto exacto donde hoy el interés se calcula solo sobre capital sin
+  indexar.
+
+**Decisión de diseño a tomar antes de codificar (con el usuario, no asumir):**
+- Este cambio altera el resultado numérico de liquidaciones existentes con indexación activada — antes de
+  tocar el motor core, confirmar con el usuario si el comportamiento actual (interés solo sobre capital)
+  fue una simplificación consciente del MVP o si de verdad hace falta migrar al algoritmo "Suma Única"
+  exacto del PDF. Dado que afecta las 5 áreas, conviene una conversación breve tipo
+  `superpowers:brainstorming` antes de escribir código, igual que se hizo para el Sprint 13 y se recomienda
+  para el Sprint 16.
+
+**Código nuevo a crear (si se aprueba):**
+- Modificar el motor de intereses para que, cuando una obligación tenga `aplica_indexacion_ipc=True`, el
+  interés civil se calcule sobre `Va` (capital ya indexado) en vez de sobre el capital histórico.
+- Flag o parámetro explícito para distinguir el algoritmo "Suma Única" del comportamiento actual, para no
+  romper retrocompatibilidad de liquidaciones ya auditadas (Sprint 9) que se reconstruyan con el algoritmo
+  viejo.
+
+**Alcance incluido:**
+- Algoritmo "Suma Única" completo: indexar primero, luego aplicar interés sobre el valor ya indexado.
+- Caso especial Ley 80/1993 (contratos estatales) documentado como variante con la misma mecánica.
+
+**Alcance explícitamente excluido:**
+- Migrar automáticamente liquidaciones históricas ya registradas en `AuditLog` (Sprint 9) al nuevo
+  algoritmo — la reconstrucción exacta de una liquidación pasada debe seguir usando el algoritmo vigente
+  en el momento en que se ejecutó.
+
+**Riesgos / notas técnicas conocidas:**
+- Alto riesgo de romper resultados numéricos ya validados en Sprints 2, 3, 4, 8 si se aplica sin cuidado —
+  requiere suite de regresión explícita comparando el resultado viejo vs. nuevo antes de cambiar el
+  default.
+- Interactúa directamente con el motor de auditoría (Sprint 9): `reconstruir_liquidacion()` debe poder
+  reproducir el algoritmo que estaba vigente en la fecha de cada liquidación histórica.
+
+**Definición de Hecho:**
+- Test que reproduce el ejemplo numérico exacto del PDF (pág. 69: capital $50.000.000 de 2010 a 2025,
+  indexado y luego con interés) y verifica el resultado contra el cálculo manual.
+- Test de que liquidaciones auditadas antes de este sprint se siguen reconstruyendo idénticas.
+- Suite completa en verde.
+
+---
+
+## Sprint 21 — Múltiples tasas de interés simultáneas por expediente
+
+**Prioridad sugerida:** Media — limitación conocida desde el Sprint 2, documentada como pendiente en el
+backlog técnico desde entonces.
+
+**Depende de:** Sprints 2, 3, 4 (todas las estrategias existentes comparten esta limitación).
+
+**Documentos a consultar:**
+- Este sprint no depende de una sección nueva del PDF — es una limitación de implementación encontrada
+  durante el Sprint 2 (`CivilFamiliaStrategy` toma la tasa de la primera obligación y la usa para todo el
+  expediente).
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, pág. 76, "Algoritmo abstracto de
+  liquidación": "Segmentos = partir(Timeline, cuando cambie tasa/base/vigencia/estado/saldo)" — el
+  algoritmo maestro del PDF sí espera que la tasa pueda cambiar por tramo dentro de un mismo caso.
+
+**Código existente a reutilizar:**
+- `app/engine/interest/provider.py` → `MemoryRateProvider`/`RatePeriod` ya soporta tramos de tasa **por
+  fecha calendario**; la limitación documentada en el Sprint 2 es que dos obligaciones del mismo
+  expediente con tasas distintas pero fechas que se solapan no se resuelven correctamente porque la tasa
+  se busca por fecha, no por obligación.
+- `app/services/area_strategy.py` → `_construir_rate_provider()` (duplicado entre varias estrategias, ver
+  Sprint 22) es el punto de entrada a modificar.
+
+**Decisión de diseño a tomar antes de codificar:**
+- Decidir si `MemoryRateProvider` pasa a indexarse por `obligacion_id` además de por fecha (permitiendo
+  tasas distintas simultáneas), o si se construye un `RateProvider` por obligación en vez de uno solo por
+  expediente.
+
+**Código nuevo a crear:**
+- Extensión de `MemoryRateProvider` (o proveedor nuevo) que resuelva la tasa por combinación de obligación
+  + fecha, no solo por fecha.
+- Wiring en las estrategias existentes para pasar la tasa correcta por obligación en vez de una sola tasa
+  para todo el expediente.
+
+**Alcance incluido:**
+- Soporte correcto para expedientes con varias obligaciones a tasas distintas, incluyendo el caso de
+  fechas que se solapan.
+
+**Alcance explícitamente excluido:**
+- Cambiar el modelo de datos de `Obligacion` — cada obligación ya tiene su propia `tasa_efectiva_anual`
+  (línea 89 de `database/models.py`); el problema es solo de cómo el motor la usa.
+
+**Riesgos / notas técnicas conocidas:**
+- Tocar `MemoryRateProvider` es un cambio compartido por las 5 áreas — requiere regresión completa de la
+  suite existente para confirmar que ningún expediente con una sola obligación cambia de resultado.
+
+**Definición de Hecho:**
+- Test con un expediente de 2+ obligaciones a tasas distintas y fechas solapadas, verificando que cada una
+  liquida con su propia tasa.
+- Suite completa en verde, sin cambios de resultado en los tests existentes de expedientes de una sola
+  obligación.
+
+---
+
+## Sprint 22 — Limpieza técnica acumulada
+
+**Prioridad sugerida:** Baja — deuda técnica de calidad de código, no funcionalidad faltante del PDF de
+requisitos; conviene agruparla en un solo sprint de "housekeeping" antes de que crezca más con cada área
+nueva.
+
+**Depende de:** Nada bloqueante, pero toca código compartido por los Sprints 2, 3, 4 y sus estrategias.
+
+**Tareas** (cada una detectada en code review de un sprint anterior, ver la cita puntual):
+1. **Motor de allocation duplicado**: hay DOS clases `AllocationEngine` con firmas distintas —
+   `app/engine/allocation/allocator.py` (método de instancia `allocate(self, payment: Payment,
+   obligations: list[Obligation])`, `raise NotImplementedError`, código huérfano que nadie importa) vs.
+   `app/engine/liquidation/allocation.py` (método estático `allocate(payment_amount, current_debt,
+   payment_date)`, implementación real usada por `LiquidationCore`). Decidir: eliminar
+   `app/engine/allocation/allocator.py` por completo (y su carpeta si queda vacía), o confirmar si el
+   modelo de dominio `app.domain.obligation.base.Obligation` que usa justifica mantenerlo.
+2. **Archivo vacío sin uso**: `app/engine/financial/allocation.py` (0 bytes), nombre similar a los dos de
+   arriba, probablemente abandonado a mitad de refactor. Confirmar que nada lo importa y eliminarlo.
+3. **Duplicación de `_eventos_de_obligacion`** entre `CivilFamiliaStrategy` y `ComercialStrategy`
+   (`app/services/area_strategy.py`): método idéntico byte a byte, no tiene nada específico del área, solo
+   depende de `tipo`. Ya se repitió una tercera vez en `LaboralStrategy` (Sprint 3) — subirlo a
+   `AreaStrategy` (clase base, línea 26) o extraerlo a función compartida antes de que se repita en
+   `TributarioStrategy` (Sprint 15). Detectado en code review del Sprint 2
+   (`docs/superpowers/plans/2026-07-15-area-comercial.md`).
+4. **Misma duplicación en `_construir_rate_provider`**: `SancionatorioStrategy` y `HonorariosStrategy`
+   (Sprint 4) repiten, casi byte a byte, el patrón de "un solo tramo de tasa plana desde la obligación más
+   antigua hasta la fecha de corte" que ya existe en `CivilFamiliaStrategy` y `ComercialStrategy`.
+   Resolver junto con el punto 3 la próxima vez que se toque `area_strategy.py` — nota: si el Sprint 21
+   (múltiples tasas simultáneas) se hace primero, este método cambia de fondo, conviene coordinar el
+   orden. Detectado en code review del Sprint 4
+   (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5).
+5. **`ObligacionFormDialog.guardar()` creciendo hacia "god method"**: cada área nueva (Comercial,
+   Sancionatorio, Honorarios) agrega su propio bloque `if es_X: try: ... except: raise ValueError(...)` en
+   `app/views/obligaciones.py` — hoy (después del Sprint 4) tiene 4 ramas implícitas y ~90 líneas. Con
+   Laboral (Sprint 3) y Tributario (Sprint 15) ya son o serán 6 ramas. Extraer `_parse_area_campos()` (o
+   una tabla de specs por campo: nombre, kwarg, mensaje de error, requerido) en vez de seguir apilando
+   ramas, espejando la separación que `area_strategy.py` ya tiene por estrategia. Detectado en code review
+   del Sprint 4 (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 7).
+
+**Alcance incluido:** los 5 puntos de arriba.
+
+**Alcance explícitamente excluido:** cualquier cambio de comportamiento visible al usuario — este sprint
+es puramente estructural, la suite existente no debe cambiar de resultado en ningún test.
+
+**Definición de Hecho:**
+- Un solo `AllocationEngine` real en el código, sin huérfanos ni archivos vacíos.
+- `_eventos_de_obligacion` y `_construir_rate_provider` viven en un solo lugar (clase base o función
+  compartida), no duplicados por estrategia.
+- `ObligacionFormDialog.guardar()` reducido a una tabla de specs por campo en vez de ramas
+  `if/try/except` apiladas.
+- Suite completa en verde, sin ningún cambio de resultado numérico.
+
+---
+
+## Sprint 23 — Bugs críticos de integridad financiera y auditoría
+
+**Prioridad sugerida:** Alta — son bugs reales de ejecución encontrados en auditoría de código
+(2026-07-21), no gaps de alcance; afectan la exactitud de liquidaciones en áreas ya operables y la
+garantía de reconstrucción exacta que promete el motor de auditoría (Sprint 9).
+
+**Depende de:** Nada — corrige código ya existente en producción (Sprints 1 y 9).
+
+**Documentos a consultar:** Ninguno del PDF de requisitos — son bugs de implementación, no huecos de
+alcance. Consultar directamente el código citado abajo.
+
+**Hallazgos (auditoría de código, 2026-07-21, verificados leyendo el código real):**
+
+1. **Sobrepago silenciosamente descartado** — `app/engine/liquidation/engine.py`, método
+   `_process_event`, rama `elif event.event_type == "PAYMENT"`: `allocation, new_debt, remainder =
+   AllocationEngine.allocate(amount, self._current_debt, event.date)` calcula correctamente el
+   `remainder` cuando un pago excede la deuda total, pero la variable nunca se usa después — no se
+   refleja en el `LiquidationItem` ni en ningún campo de "saldo a favor" del `LiquidationResult`. Además,
+   `payment_amount = amount` guarda el pago nominal completo (lo que entró), no lo que realmente se aplicó
+   a la deuda. Escenario de fallo: un abono de $10.000.000 contra una deuda de $7.000.000 se registra como
+   si los $10.000.000 se hubieran aplicado íntegramente, y los $3.000.000 de exceso desaparecen del
+   resultado sin ningún error ni advertencia. `AllocationEngine.allocate()` en sí está bien probado
+   (`tests/liquidation/test_allocation.py::test_overpayment_generates_remainder`), pero no existe ningún
+   test de integración de `LiquidationCore.process()` que ejercite un sobrepago end-to-end — ese hueco de
+   cobertura ocultó el bug.
+2. **Reconstrucción de auditoría rompe con `KeyError` en registros históricos** —
+   `app/engine/audit/serialization.py`, función `_item_desde_dict`: `rate_source=data["rate_source"]`
+   accede al diccionario sin `.get()` con valor por defecto. El campo `rate_source` se agregó a
+   `LiquidationItem` en un commit posterior al que introdujo el motor de auditoría (Sprint 9); cualquier
+   fila de `AuditLog.resultado_json` guardada antes de ese commit no tiene esa clave en su JSON (la tabla
+   es append-only, esas filas nunca se reescriben). Escenario de fallo: `reconstruir_liquidacion()` sobre
+   cualquier liquidación auditada antes de que se agregara `rate_source` lanza `KeyError: 'rate_source'` —
+   rompe exactamente la garantía que el PDF exige y que el Sprint 9 implementó ("debe existir
+   reconstrucción exacta de una liquidación histórica"). No existe script de backfill en `scripts/` para
+   poblar el campo faltante en registros viejos.
+
+**Código nuevo a crear / corregir:**
+- En `engine.py`: capturar el `remainder` del sobrepago y exponerlo explícitamente (nuevo campo en
+  `LiquidationItem`/`LiquidationResult`, ej. `saldo_a_favor`); corregir `payment_amount` para que refleje
+  lo realmente aplicado si se decide distinguirlo de lo recibido.
+- En `serialization.py`: cambiar a `data.get("rate_source", "N/A")` (mismo default que usa el resto del
+  código cuando no se conoce la fuente); evaluar si hace falta documentar en `README.md` que los
+  `AuditLog` anteriores a cierto commit reconstruyen con `rate_source="N/A"` en vez de intentar un backfill
+  real (la tabla es append-only, no se puede editar el JSON histórico sin romper esa garantía).
+
+**Alcance incluido:**
+- Corrección de ambos bugs con tests de regresión explícitos.
+- Decisión de diseño (con el usuario) de qué hacer con un sobrepago: ¿rechazarlo con validación en la GUI
+  antes de liquidar, o aceptarlo y reflejarlo como saldo a favor del deudor?
+
+**Riesgos / notas técnicas conocidas:**
+- El bug de `rate_source` es silencioso hasta que alguien intente reconstruir una liquidación vieja desde
+  la GUI (Sprint 9, doble clic en el historial) — vale la pena una prueba manual reconstruyendo una
+  liquidación anterior a la fecha del commit que agregó el campo, para confirmar el alcance real del
+  problema en el `bastium.db` de producción del usuario.
+
+**Definición de Hecho:**
+- Test de integración de un sobrepago real en `LiquidationCore.process()` que verifique explícitamente qué
+  pasa con el excedente.
+- Test que reconstruye un `AuditLog` sintético sin la clave `rate_source` en su JSON y confirma que no
+  lanza `KeyError`.
+- Suite completa en verde.
+
+---
+
+## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados
+
+**Prioridad sugerida:** Alta — hoy es posible guardar datos absurdos (tasas negativas, fechas invertidas,
+tramos de parámetros solapados) sin ningún aviso, y el error solo aparece más tarde como un resultado de
+liquidación incorrecto sin explicación.
+
+**Depende de:** Nada — corrige código existente de varios sprints (formularios de obligaciones,
+`parametro_service.py` del Sprint 13).
+
+**Hallazgos (auditoría de código, 2026-07-21):**
+1. `app/views/obligaciones.py` (`ObligacionFormDialog.guardar()`, 351 líneas):
+   - `tasa_efectiva_anual`, `tasa_moratoria_anual`, `ibc_vigente_anual`, `cuota_litis_pactada_pct`,
+     `costas_pct_manual` solo se validan como `Decimal` parseable — nunca se rechaza un valor negativo ni
+     absurdamente alto (ej. 99999%). La validación de usura sí existe (`usury_validator.py`) pero se
+     dispara solo al liquidar, no al guardar — el usuario puede guardar datos inválidos y enterarse recién
+     al intentar liquidar el expediente.
+   - `cantidad_smlmv_uvt` sin validar signo/positividad.
+   - No hay ninguna comparación entre `fecha_origen`/`fecha_inicio` de la obligación y la
+     `fecha_corte_default` del expediente — se puede guardar una obligación con fecha de origen posterior a
+     la fecha de corte.
+   - `concepto` se guarda con `.strip()` pero nunca se valida no-vacío — inconsistente con
+     `expedientes.py`, que sí exige `radicado` no vacío.
+   - Único control real hoy: `valor <= 0` rechazado.
+2. `app/services/parametro_service.py` (`agregar_valor`, verificado línea por línea): no valida que
+   `valor` sea positivo/razonable para ninguna clave, ni que la nueva fila no se solape con un tramo
+   `TRAMO_CERRADO` ya cargado para la misma `clave`, ni que `vigente_desde` sea posterior a las filas
+   existentes. La única validación real es de modo (`TRAMO_CERRADO` exige `vigente_hasta`). Como
+   `_resolver_fila` ordena por `vigente_desde desc, creado_en desc` y toma la primera fila, un solapamiento
+   no lanza error — resuelve de forma ambigua según el orden de desempate, contradiciendo la premisa
+   "append-only cronológico" que documenta el propio docstring del módulo. Además, `vigente_hasta >=
+   vigente_desde` solo se valida en la GUI (`app/views/configuracion.py`), no en el service — cualquier
+   otro caller (tests, scripts, un futuro sprint) puede insertar datos inconsistentes sin que nada lo
+   impida.
+
+**Código nuevo a crear:**
+- Rangos de validación explícitos por campo de tasa/porcentaje en `obligaciones.py` (ej. tasa entre 0% y
+  un tope razonable configurable, porcentajes entre 0% y 100% salvo donde el dominio permita más).
+- Validación cruzada de fechas (origen/inicio vs. fecha de corte del expediente).
+- Validación de `concepto` no vacío, igual que `radicado` en `expedientes.py`.
+- Mover la validación `vigente_hasta >= vigente_desde` al service `agregar_valor` (no solo a la GUI), y
+  agregar validación de solapamiento con tramos `TRAMO_CERRADO` existentes de la misma clave, y de
+  signo/rango razonable en `valor` (al menos rechazar negativos para claves que nunca deberían serlo, ej.
+  tasas y SMLMV).
+
+**Alcance explícitamente excluido:**
+- No se propone un catálogo de rangos por campo tipo EFDJ (sería sobre-ingeniería para este alcance) —
+  bastan validaciones simples de sentido común por campo.
+
+**Definición de Hecho:**
+- Tests que confirman que `ObligacionFormDialog` rechaza tasa negativa, porcentaje fuera de rango, y fecha
+  de origen posterior a la fecha de corte.
+- Test que confirma que `parametro_service.agregar_valor` rechaza un valor negativo para una clave de
+  tasa/indicador, y rechaza un tramo `TRAMO_CERRADO` que se solape con uno existente.
+- Suite completa en verde.
+
+---
+
+## Sprint 25 — Rendimiento del motor de tasas, índices e historial
+
+**Prioridad sugerida:** Media — no degrada hoy con el volumen actual de un solo abogado, pero son mejoras
+baratas que evitan degradación futura conforme crezcan expedientes y años de historial.
+
+**Depende de:** Nada.
+
+**Hallazgos (auditoría de código, 2026-07-21):**
+1. `app/engine/interest/provider.py` (`MemoryRateProvider.get_rate`) hace un scan lineal O(n) de
+   `self._periods` en cada llamada, invocado día por día dentro de `app/engine/liquidation/engine.py`
+   (`_accrue_time_passage`) y `app/engine/tax/moratory_interest.py`. Para procesos con años de mora
+   (prescripción ejecutiva a 5 años, usura tributaria desde 1997) esto son miles de llamadas.
+2. `app/services/area_strategy.py` (validación de `HonorariosStrategy`, ~líneas 506-556) llama a
+   `get_parametro(...)` dos veces por obligación dentro de un loop, y cada llamada abre y cierra una sesión
+   SQLAlchemy nueva (`parametro_service.py`). Los parámetros no cambian durante una misma liquidación — no
+   hace falta reconsultarlos por cada obligación.
+3. El mismo patrón (consulta a `get_parametro`, que abre sesión DB) ocurre dentro de
+   `historical_index.get_smlmv_for_year`/`get_ipc_for_date`, llamadas repetidamente dentro de loops de
+   indexación por cuota (`CivilFamiliaStrategy._evento_indexacion`, para obligaciones RECURRENTE mensuales
+   con muchos meses).
+4. `database/models.py` no define ningún `index=True` en columnas de filtrado frecuente:
+   `Obligacion.expediente_id`, `AuditLog.expediente_id`, `Abono.obligacion_id`, `ParametroLegal.clave`. Con
+   SQLite y volúmenes actuales el costo es bajo, pero es la mejora más barata y de mayor retorno si
+   `parametros_legales` (ya ~350+ filas) o las tablas de expedientes/auditoría crecen con años de uso.
+5. `app/views/expedientes.py` carga la tabla completa (`session.query(Expediente).all()`) sin paginar ni
+   filtrar.
+
+**Código nuevo a crear:**
+- Cachear el resultado de `get_parametro` (o los valores usados repetidamente) fuera de los loops que
+  iteran por obligación/cuota dentro de una misma liquidación.
+- Reemplazar el scan lineal de `MemoryRateProvider` por búsqueda binaria (`bisect`) sobre la lista ya
+  ordenada de tramos.
+- Agregar `index=True` a las 4 columnas señaladas en `database/models.py` (requiere migración de esquema,
+  mismo patrón `scripts/migrate_*.py` ya usado).
+- Evaluar paginación o filtro por defecto en `expedientes.py` si el volumen lo justifica.
+
+**Alcance explícitamente excluido:**
+- No se propone cambiar `MemoryRateProvider` de diseño en memoria a una base de datos indexada — solo
+  optimizar el lookup dentro del diseño actual.
+
+**Definición de Hecho:**
+- Benchmark simple (test o script) que compare tiempo de liquidación antes/después en un expediente con
+  muchos años de mora.
+- Migración de índices aplicada y verificada contra `bastium.db` real.
+- Suite completa en verde, sin cambios de resultado numérico.
+
+---
+
+## Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI
+
+**Prioridad sugerida:** Media-alta — impacto directo de UX en operaciones que ya son lentas por diseño
+(loops día a día en el motor).
+
+**Depende de:** Nada, aunque se beneficia del Sprint 25 (un motor más rápido hace el problema menos
+frecuente, pero no lo elimina para expedientes grandes).
+
+**Hallazgos (auditoría de código, 2026-07-21):**
+- Confirmado: no existe ningún `QThread`, `QRunnable`, `threading.Thread` ni `asyncio` en todo `app/`.
+  `estrategia.liquidar(...)` (`app/views/expediente_detalle.py`) y la exportación a PDF/Word
+  (`app/views/liquidaciones.py`) se ejecutan de forma síncrona y directa en el hilo de la UI, desde el
+  manejador del botón.
+- El motor de intereses (`app/engine/liquidation/engine.py`, `_accrue_time_passage`) y el interés
+  moratorio tributario (`app/engine/tax/moratory_interest.py`) iteran día por día en Python puro entre
+  eventos — para procesos de varios años esto son miles de iteraciones síncronas.
+- No existe ningún `QProgressDialog`/`QProgressBar`/`processEvents` en ninguna vista — para expedientes con
+  muchas obligaciones/abonos, la ventana puede quedar sin respuesta visible mientras liquida o exporta, sin
+  ninguna señal de que está trabajando.
+
+**Código nuevo a crear:**
+- Mover la llamada a `estrategia.liquidar()` y a los generadores de PDF/Word a un `QRunnable`/`QThread`
+  (patrón estándar de PySide6: `QThreadPool` + señales para reportar progreso/resultado).
+- Agregar un `QProgressDialog` (modal, indeterminado si no se puede calcular progreso exacto) mientras la
+  operación corre en background.
+- Deshabilitar el botón de acción mientras la operación está en curso, para evitar doble liquidación
+  concurrente sobre el mismo expediente.
+
+**Alcance explícitamente excluido:**
+- No se propone paralelizar el cálculo interno del motor (varias obligaciones en threads distintos) — solo
+  sacar la operación completa del hilo de UI.
+
+**Riesgos / notas técnicas conocidas:**
+- Mover trabajo a un hilo secundario que además abre sesiones SQLAlchemy requiere cuidado: cada sesión debe
+  crearse y cerrarse dentro del mismo hilo que la usa (SQLAlchemy no es thread-safe si se comparte una
+  sesión entre hilos) — usar `get_session()` dentro del `QRunnable`, no pasar una sesión ya abierta desde
+  el hilo principal.
+
+**Definición de Hecho:**
+- Smoke test manual: liquidar un expediente con muchas obligaciones/años de mora sin que la ventana deje
+  de responder (se puede mover/redimensionar mientras liquida).
+- Suite completa en verde (tests de GUI con `pytest-qt` cubriendo el nuevo flujo).
+
+---
+
+## Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional
+
+**Prioridad sugerida:** Baja — housekeeping, no afecta comportamiento, pero reduce superficie de
+mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos nuevos de la auditoría
+2026-07-21.
+
+**Depende de:** Nada.
+
+**Hallazgos:**
+1. `requirements.txt` — de 16 paquetes declarados, 7 no se usan en ningún archivo de `app/`, `database/`,
+   `scripts/` ni `tests/` (confirmado con grep exhaustivo de imports): `fastapi`, `uvicorn`, `pandas`,
+   `numpy`, `openpyxl`, `pydantic`, `alembic`. Nota: `alembic` no tiene ni `alembic.ini` ni carpeta de
+   migraciones — las migraciones se hacen a mano vía `scripts/migrate_*.py`, consistente con la decisión ya
+   documentada en el Sprint 5 de mantener BASTIUM simple sin esa infraestructura.
+2. `rich` y `matplotlib` sí tienen un import real (no son falsos positivos de grep), pero solo los usan dos
+   módulos completamente huérfanos que nadie más importa:
+   - `app/engine/text/nlp_extractor.py` (`from rich.prompt import Prompt`) — además, `Prompt.ask()` hace
+     una lectura bloqueante de stdin; si `LegalTextExtractor.validate_and_fill` se conectara alguna vez a
+     la GUI sin cambiarlo, colgaría la app (un ejecutable Windows sin consola adjunta no tiene stdin
+     interactivo).
+   - `app/reports/charts.py` (`BastiumChartGenerator`) — además usa `os.path.join(os.getcwd(), ...)` en vez
+     de `pathlib.Path` (único archivo del código fuente con ese patrón), dependiente del directorio de
+     lanzamiento del proceso.
+3. `app/engine/math/parsers.py` (`FinancialParser.parse_money`) asume siempre formato colombiano de
+   miles/decimales (`.`/`,`) de forma incondicional — un texto en formato US (ej. `"5000000.00"`) se
+   interpretaría 100x más grande. Bug real, pero hoy inalcanzable: no hay ningún caller de este parser en
+   `app/` (código muerto).
+
+**Decisión de diseño a tomar antes de codificar:**
+- Para `nlp_extractor.py` y `charts.py`: decidir con el usuario si (a) se eliminan por completo (nadie los
+  usa, no están en el roadmap de los Sprints 14-22), o (b) se conservan porque hay intención de conectarlos
+  a futuro — si se conservan, al menos corregir el bug de `os.getcwd()` y documentar por qué siguen
+  huérfanos.
+- Para `parsers.py`: mismo criterio — eliminar si no hay intención de usarlo, o corregir el bug de formato
+  si se piensa conectar a futuro (ej. para importar montos desde texto libre).
+
+**Código nuevo a crear (según la decisión):**
+- Quitar de `requirements.txt` los paquetes no usados que se decida no conservar.
+- Eliminar o corregir `nlp_extractor.py`, `charts.py`, `parsers.py` según la decisión de diseño.
+
+**Definición de Hecho:**
+- `requirements.txt` solo lista paquetes con al menos un import real en el código fuente.
+- Ningún archivo huérfano queda sin una decisión explícita documentada (eliminado, o conservado con
+  motivo).
+- Suite completa en verde tras cualquier eliminación.
+
+---
+
+## Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests
+
+**Prioridad sugerida:** Media-alta para CI (protege contra regresiones subidas sin querer); baja para el
+resto (housekeeping).
+
+**Depende de:** Nada.
+
+**Hallazgos (auditoría organizacional, 2026-07-21):**
+1. **Sin CI/CD**: no existe `.github/`, `.gitlab-ci.yml`, `azure-pipelines.yml`, `Jenkinsfile`, `tox.ini`
+   ni `.pre-commit-config.yaml`. Los 367 tests solo corren si alguien ejecuta `pytest` manualmente — nada
+   impide subir un commit que rompa la suite.
+2. **Sin versión de la aplicación**: no hay `__version__` en ningún archivo, ni `pyproject.toml`/
+   `setup.py`, ni tags de git (`git tag` vacío). Si el usuario reporta un bug, no hay forma de identificar
+   qué build está corriendo.
+3. **`config/` no es configuración real de runtime**: `config/decimal_config.py` solo fija precisión de
+   `Decimal` al importarse (es código, no config editable). La ruta de `bastium.db` está hardcodeada en
+   `database/database.py` — cambiarla requiere editar código fuente, no hay variable de entorno ni archivo
+   `.env`/`config.ini`.
+4. **`.gitignore` no cubre backups de base de datos**: cubre `*.db` pero no `*.db.bak-*` — confirmado,
+   `bastium.db.bak-2026-07-19` y `bastium.db.bak-2026-07-20-pre-sprint12` aparecen como untracked sueltos
+   en la raíz. Riesgo: un `git add .` accidental comitearía backups pesados con datos reales de clientes.
+5. **3 ramas locales huérfanas sin fusionar**: `specs-en-progreso`, `sprint10-exportacion-pdf-word-backup`,
+   `sprint3-4-docs-recuperados` (últimos commits 2026-07-17/18) — parecen planeación duplicada tras crear
+   worktrees; limpiar o documentar por qué siguen ahí.
+6. **Test "1 skipped" es en realidad un test muerto, no un skip intencional**: `tests/services/
+   test_area_strategy.py`, `test_areas_no_implementadas_lanzan_error_claro_al_liquidar`, decorado con
+   `@pytest.mark.parametrize("area_name,strategy_cls", [])` — lista vacía (verificado). El test dejó de
+   ejercitar nada desde que Comercial/Laboral/Sancionatorio/Honorarios se implementaron (Sprints 2-4);
+   nadie lo actualizó ni lo eliminó, y pytest lo reporta como "skipped" (parameter set vacío), dando una
+   falsa sensación de que hay un skip intencional y documentado.
+7. **Fixture de base de datos en memoria duplicada en 13+ archivos de test** fuera de `tests/views/`: el
+   bloque `create_engine("sqlite:///:memory:")` + `monkeypatch.setattr(session_module, "SessionLocal",
+   ...)` se repite literalmente en cada archivo nuevo (`test_usury_validator.py`, `test_smlmv_to_uvt.py`,
+   `test_parametro_service.py`, etc.) en vez de vivir en un `conftest.py` raíz — ya existe el patrón
+   centralizado correcto en `tests/views/conftest.py`, pero no se replicó para el resto del árbol de tests.
+
+**Código nuevo a crear:**
+- Pipeline de CI mínimo (ej. GitHub Actions) que corra `pytest` en cada push/PR a `main`.
+- `__version__` en `main.py` o un módulo dedicado, más un primer tag de git.
+- Variable de entorno o archivo de configuración simple para la ruta de `bastium.db` (sin
+  sobre-ingeniería).
+- Ampliar `.gitignore` con un patrón `*.db.bak*`.
+- Decidir con el usuario qué hacer con las 3 ramas huérfanas (fusionar lo que aún sirva, borrar el resto).
+- Eliminar o reescribir `test_areas_no_implementadas_lanzan_error_claro_al_liquidar` (ya no aplica) y
+  quitar el `@pytest.mark.parametrize` vacío.
+- Crear un `conftest.py` raíz en `tests/` con la fixture de sesión en memoria compartida, y migrar los
+  archivos duplicados a usarla.
+
+**Definición de Hecho:**
+- CI corriendo y en verde en al menos un push de prueba.
+- `pytest` deja de reportar "1 skipped" sin que sea por un motivo real y documentado.
+- Suite completa en verde tras consolidar los fixtures duplicados.
+
+---
+
+## Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos
+
+**Prioridad sugerida:** Alta para las rutas rotas y la numeración duplicada de la guía (afectan
+directamente al usuario final); media para el resto.
+
+**Depende de:** Nada — es documentación pura, sin relación con código de motor.
+
+**Hallazgos (auditoría de documentación, 2026-07-21, todos verificados releyendo los archivos reales):**
+1. **Ruta `specifications/` rota en 3 documentos**: `README.md` (línea 100), `docs/GUIA_USUARIO.md`
+   (línea 800) y `Pendientes.md` (líneas 23, 511, 589, 643) referencian `specifications/...` sin el prefijo
+   `docs/`. La ruta real, desde que se movió el 2026-07-19 (commit `0b4cf5e`), es `docs/specifications/`.
+   La migración corrigió una referencia interna dentro de `07_motor_juridico_familia.md` pero nunca tocó
+   README, GUIA ni Pendientes — las 4 apariciones en Pendientes.md son consistentemente incorrectas.
+2. **`docs/GUIA_USUARIO.md` tiene numeración de encabezados duplicada**: existen DOS secciones `### 5.12`
+   — "Editar o eliminar un expediente" (línea 429) y "Ver el historial de auditoría y reconstruir una
+   liquidación pasada" (línea 455) — lo que desplaza toda la numeración siguiente (la sección de
+   Parámetros, hoy "5.13", debería ser "5.14").
+3. **Enlace interno roto como consecuencia directa del punto 2**: línea 472 de GUIA_USUARIO.md dice "ver
+   sección 5.11" refiriéndose a "Editar o eliminar un expediente", pero esa sección está numerada 5.12.
+4. **`docs/GUIA_USUARIO.md` desactualizada en al menos 2 puntos verificables**:
+   - Sección 2.6 dice que `pytest` debe mostrar `"81 passed"` — el número real hoy es 367 passed, 1
+     skipped (Pendientes.md sí tiene el número correcto).
+   - Sección 7.6 (líneas ~645-646) cita constantes `TOPE_CUOTA_LITIS_INDIVIDUAL_PCT` y
+     `TOPE_HONORARIOS_TOTAL_PCT` en `area_strategy.py` — esas constantes ya no existen, fueron reemplazadas
+     por `get_parametro("CUOTA_LITIS_INDIVIDUAL_PCT", ...)`/`get_parametro("HONORARIOS_TOTAL_PCT", ...)`
+     desde el Sprint 13. La guía describe código pre-Sprint-13 pese a decir que refleja el estado
+     posterior.
+5. **4 de los 7 `docs/specifications/*.md` describen un estado anterior al real**:
+   - `01_motor_temporal.md`: lista prescripción/caducidad y calendario de días hábiles como "no
+     implementado" — existen y están probados desde los Sprints 6-7.
+   - `02_motor_financiero.md`: lista la validación de tope de usura como pendiente — implementada desde el
+     Sprint 2.
+   - `06_motor_reportes.md`: dice que no hay botón de exportar a PDF/Word — existe desde el Sprint 10.
+   - `07_motor_juridico_familia.md`: dice que `ComercialStrategy`/`LaboralStrategy`/
+     `SancionatorioStrategy`/`HonorariosStrategy` lanzan `AreaNoImplementadaError` y que la GUI nunca las
+     llama — las 4 tienen `liquidar()` real desde los Sprints 2-4.
+6. **El acrónimo "EFDJ"** se usa más de 15 veces en `Pendientes.md` (incluido el título del Sprint 13) sin
+   definirse nunca en ningún documento del repo — contradice el propósito explícito del propio archivo (que
+   una sesión nueva de Claude pueda trabajar sin releer todo el proyecto).
+7. **Hallazgos menores**: `Pendientes.md` (1500+ líneas, 22+ sprints) no tiene tabla de contenidos al
+   inicio, solo un párrafo de "cómo usar este archivo"; el encabezado del Sprint 13 usa un formato de
+   estado distinto al resto ("⛔ Cerrado... ✅ ... implementado" en vez de "✅ Completado"); la nota del
+   Sprint 9 sobre `05_motor_auditoria.md` sigue diciendo "documenta el estado actual: vacío" pese a que el
+   spec ya tiene contenido completo; las secciones con fórmulas legales en GUIA_USUARIO.md (7.1, 7.7, 7.8,
+   5.11) no incluyen ningún ejemplo numérico completo de principio a fin, solo qué escribir en un campo de
+   formulario.
+
+**Código/documentación nueva a crear:**
+- Corregir las 6 apariciones de `specifications/` sin prefijo (README, GUIA, 4x Pendientes.md) a
+  `docs/specifications/`.
+- Renumerar `docs/GUIA_USUARIO.md` a partir de la sección 5.12 duplicada (todo lo que sigue corre +1), y
+  corregir el enlace roto de la línea 472.
+- Actualizar sección 2.6 (conteo de tests) y sección 7.6 (constantes reemplazadas por `parametro_service`)
+  de GUIA_USUARIO.md.
+- Actualizar los 4 specs desactualizados (`01`, `02`, `06`, `07`) para reflejar el estado real post-Sprints
+  2-10.
+- Agregar una definición breve de "EFDJ" (Especificación Funcional del Dominio Jurídico, nombre que el
+  propio PDF de requisitos usa en su página 63) la primera vez que aparece en `Pendientes.md`.
+- Agregar un índice/tabla de contenidos al inicio de `Pendientes.md`.
+- Uniformar el encabezado del Sprint 13 al mismo formato "✅ Completado" que el resto.
+- Agregar al menos un ejemplo numérico completo en las secciones de GUIA_USUARIO.md que explican fórmulas
+  legales.
+
+**Definición de Hecho:**
+- `grep -rn "specifications/"` en README/GUIA/Pendientes ya no devuelve ninguna ruta sin el prefijo
+  `docs/`.
+- `docs/GUIA_USUARIO.md` no tiene números de sección duplicados (verificar con `grep -n "^### "`).
+- Los 4 specs actualizados coinciden con el código real.
+
+---
+
+## Sprint 30 — Verificación de reglas de dominio con posible error de un día
+
+**Prioridad sugerida:** Media — son bugs sutiles de un día, con bajo impacto individual pero que requieren
+confirmación jurídica antes de decidir si se corrigen.
+
+**Depende de:** Sprint 7 (prescripción/caducidad) y Sprint 3 (Área Laboral), ambos ya completos — este
+sprint es de verificación/corrección puntual, no de construcción nueva.
+
+**Hallazgos (auditoría de código, 2026-07-21):**
+1. `app/engine/temporal/prescripcion.py` (`fecha_interrupcion_efectiva`): usa `(fecha_notificacion -
+   fecha_radicacion).days <= 365` como proxy de "dentro de un año" para decidir si el efecto interruptor de
+   la prescripción se retrotrae a la fecha de la demanda. En años bisiestos entre ambas fechas, 365 días
+   puede ser un día calendario menos que "un año" real, activando la regla de "notificación tardía" un día
+   antes de lo que correspondería jurídicamente.
+2. `app/services/area_strategy.py` (`LaboralStrategy.liquidar`): `dias_trabajados = (obligacion.fecha_fin
+   - obligacion.fecha_inicio).days` no suma 1 — para un contrato de 2020-01-01 a 2020-12-31 (año bisiesto
+   completo) da 365, no 366 (verificado). El test existente (`tests/services/test_area_strategy.py`)
+   documenta y asume ese mismo valor (365), así que el sistema es autoconsistente, pero es una convención
+   de "días transcurridos" (resta cruda de fechas) distinta de "días trabajados inclusive" (contar el
+   primer día).
+
+**Documentos a consultar:**
+- Para el punto 1: verificar contra la fuente exacta de la regla de interrupción de prescripción (Código
+  Civil/Código General del Proceso, la que el Sprint 7 haya citado en su spec) si "un año" debe computarse
+  como año calendario (fecha a fecha) o como 365 días corridos — el PDF de requisitos (pág. 40) dice
+  explícitamente "Meses/Años: De fecha a fecha... Si no hay día equivalente en el mes de vencimiento,
+  expira el último día de ese mes", lo cual sugiere que el cómputo correcto es fecha-a-fecha, no una resta
+  de días fija.
+- Para el punto 2: verificar contra la fuente laboral (CST) si el primer día de labor debe contarse como
+  "trabajado" al calcular cesantías/prestaciones proporcionales.
+
+**Código nuevo a crear (si se confirma que hay que corregir):**
+- Cambiar `fecha_interrupcion_efectiva` para comparar fecha-a-fecha (ej. usando
+  `CalendarUtils.vencimiento_calendario` o una comparación de "un año después" real) en vez de `<= 365`
+  días fijos.
+- Cambiar `dias_trabajados` a inclusive (`+1`) si se confirma que así lo exige la práctica laboral,
+  actualizando el test existente que hoy asume 365 para el caso de año completo.
+
+**Alcance explícitamente excluido:**
+- No tocar nada más de `LaborScheduler` ni de `prescripcion.py` — este sprint es exclusivamente la
+  corrección puntual de estos dos cómputos, una vez confirmados.
+
+**Riesgos / notas técnicas conocidas:**
+- Si se corrige el punto 2, el cambio afecta el resultado numérico de todas las liquidaciones laborales
+  existentes (aunque sea por un solo día) — requiere aviso explícito y posiblemente recalcular
+  liquidaciones ya auditadas (interactúa con el Sprint 9).
+
+**Definición de Hecho:**
+- Confirmación explícita (con el usuario o con la fuente normativa exacta) de cuál de los dos
+  comportamientos es el correcto en cada caso, antes de tocar código.
+- Si se corrige: test que cubre explícitamente el caso bisiesto para prescripción, y el caso de contrato de
+  año completo para `dias_trabajados`.
+- Suite completa en verde.
+
+---
+
+## Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI
+
+**Prioridad sugerida:** Alta — es la base de la que dependen casi todos los demás sprints de UX (32-37);
+sin un sistema de estilos centralizado, cada pantalla seguiría viéndose distinta.
+
+**Depende de:** Nada técnicamente.
+
+**Hallazgos (auditoría de código, 2026-07-21):**
+- La app hoy no tiene NINGÚN `setStyleSheet`, `QPalette` personalizada ni archivo `.qss` en todo `app/` —
+  toda la GUI se renderiza con el estilo nativo por defecto de Qt/Windows, sin ninguna identidad visual
+  propia.
+- Sí existe una identidad de marca ya definida y en uso — pero solo en los reportes exportados:
+  `app/reports/pdf.py` define `c_burgundy = "#ae1c21"` y `c_cream = "#f5f1e9"` para las tablas del PDF. La
+  GUI en vivo nunca usa estos colores.
+- `app/assets/fonts/` tiene 3 pesos de una tipografía propia (`AncizarSans-Regular/Medium/ExtraBold.ttf`)
+  que **nunca se cargan** con `QFontDatabase` en ningún punto de la app — la GUI corre con la fuente por
+  defecto del sistema operativo.
+- No hay ningún ícono en toda la app (`QIcon` no aparece en ningún `.py` de `app/views/`) — la navegación
+  usa emoji sueltos (🏠, ⚙, ←) como único lenguaje visual, y todos los botones son `QPushButton` con el
+  chrome nativo del SO.
+- `resources/` es un paquete vacío (`resources/__init__.py`, 0 líneas más) — un scaffold que nunca se
+  llenó, sugiere que hubo intención de centralizar assets ahí.
+- La ventana principal no tiene ícono propio (`setWindowIcon` nunca se llama) — muestra el ícono genérico
+  de Qt en la barra de tareas/título.
+
+**Código existente a reutilizar:**
+- Los colores de marca ya definidos en `app/reports/pdf.py` (`c_burgundy`, `c_cream`) — punto de partida
+  obvio para la paleta de la GUI, en vez de inventar colores nuevos.
+- Las 3 fuentes ya incluidas en `app/assets/fonts/`.
+
+**Decisión de diseño a tomar antes de codificar:**
+- Definir una paleta completa (no solo los 2 colores del PDF): primario, secundario, superficie/fondo,
+  texto, éxito/error/advertencia, y sus variantes hover/disabled/pressed — usando burdeos/crema como ancla
+  de marca.
+- Decidir el mecanismo técnico: un único archivo `.qss` cargado con `app.setStyleSheet(...)` en `main.py`
+  (más simple, más parecido a CSS) vs. `QPalette` programática (más nativo de Qt pero menos expresivo).
+  Recomendado: `.qss` para spacing/bordes/estados, complementado con `QPalette` para los colores base del
+  sistema.
+
+**Código nuevo a crear:**
+- `resources/theme.qss` (o similar): stylesheet centralizado con la paleta de marca, aplicado una sola vez
+  en `main.py` vía `app.setStyleSheet(...)`.
+- Carga de `AncizarSans` con `QFontDatabase.addApplicationFont()` en el arranque (`main.py`), aplicada
+  como fuente por defecto de la `QApplication`.
+- Un ícono de aplicación (`.ico`/`.png`) en `resources/`, aplicado con `setWindowIcon` en `MainWindow`.
+- Set mínimo de íconos reemplazando los emoji de navegación (Inicio, Volver, Parámetros) y los botones de
+  acción más frecuentes (Guardar, Cancelar, Eliminar, Exportar) — pueden ser SVG/PNG de una librería libre
+  (ej. Feather, Lucide, Material Symbols) empaquetados en `resources/icons/`.
+
+**Alcance incluido:**
+- Paleta de color y tipografía de marca aplicadas de forma consistente a las 8 vistas existentes
+  (`expedientes.py`, `obligaciones.py`, `abonos.py`, `configuracion.py`, `expediente_detalle.py`,
+  `liquidaciones.py`, `main_window.py`).
+- Ícono de aplicación y de navegación básicos.
+
+**Alcance explícitamente excluido:**
+- Modo oscuro/claro — este sprint solo entrega un tema único coherente (ver Sprint 37 para otras mejoras
+  de personalización, si se decide agregar un modo oscuro en el futuro sería un sprint propio).
+- Rediseño de la disposición de cada pantalla (eso es Sprint 32-35) — este sprint es solo la capa visual
+  (color/tipografía/íconos), no la estructura.
+
+**Riesgos / notas técnicas conocidas:**
+- Un `.qss` mal alcanzado (selectores demasiado genéricos, ej. `QPushButton { ... }` sin scoping) puede
+  romper widgets nativos que dependen del estilo del SO (ej. el calendario emergente de `QDateEdit`) —
+  probar visualmente cada pantalla tras aplicar el stylesheet.
+
+**Definición de Hecho:**
+- Las 8 vistas existentes se ven visualmente consistentes (misma paleta, misma tipografía) al recorrerlas
+  manualmente.
+- Ícono de aplicación visible en la barra de tareas de Windows.
+- Suite de tests de GUI (`pytest-qt`) sigue en verde tras aplicar el stylesheet.
+
+---
+
+## Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado
+
+**Prioridad sugerida:** Alta — la navegación es el primer punto de contacto con la app y hoy es mínima.
+
+**Depende de:** Sprint 31 (para que los íconos de navegación ya existan).
+
+**Hallazgos:**
+- `MainWindow` (`app/views/main_window.py`) usa un único `QToolBar` no movible con 3 `QPushButton` de
+  texto (`← Volver`, `🏠 Inicio`, `⚙ Parametros`) — no hay sidebar, no hay menú (`QMenuBar` no se usa en
+  ningún archivo), no hay indicación de "dónde estoy" (qué expediente/área está abierta) más allá del
+  contenido de la pantalla misma.
+- La navegación es un historial lineal (`self._history: list[str]`) — no hay forma de saltar directo a una
+  pantalla intermedia si el flujo se profundiza.
+- No hay atajos de teclado en ningún punto de la navegación (no se encontró `QShortcut`/`setShortcut` en
+  `app/views/`).
+
+**Código existente a reutilizar:**
+- El patrón de `_pages`/`show_page`/`_history` de `MainWindow` ya funciona y no hace falta rehacerlo — este
+  sprint mejora la presentación, no la máquina de estados de navegación en sí.
+
+**Decisión de diseño a tomar antes de codificar:**
+- Confirmar con el usuario si prefiere una barra lateral fija (sidebar) o mantener el toolbar superior pero
+  enriquecido (íconos + breadcrumb). Con solo 4 pantallas hoy, un sidebar puede ser excesivo — evaluar si
+  conviene esperar a que el Sprint 33 (dashboard) agregue una sección más antes de invertir en un sidebar
+  completo.
+
+**Código nuevo a crear:**
+- Breadcrumb/título contextual en la barra de navegación (ej. "Expedientes › Radicado 2024-00123 ›
+  Liquidación") que se actualiza según la pantalla activa.
+- Atajos de teclado básicos: `Alt+Izquierda`/`Backspace` para "Volver", `Ctrl+Home` para "Inicio", y
+  atajos de guardar (`Ctrl+S`)/cancelar (`Esc`) en los diálogos de formulario.
+- Reemplazar los botones de texto+emoji por botones con ícono (del Sprint 31) + texto, con estilo
+  consistente de "activo"/"inactivo" según la pantalla actual.
+
+**Alcance explícitamente excluido:**
+- Un sidebar completo, si la decisión de diseño concluye que 4 pantallas no lo ameritan todavía — en ese
+  caso el alcance se reduce a breadcrumb + atajos + íconos sobre el toolbar existente.
+
+**Definición de Hecho:**
+- El usuario puede navegar solo con teclado entre las pantallas principales.
+- La barra de navegación muestra claramente en qué expediente/pantalla se está parado.
+- Suite de tests de GUI en verde.
+
+---
+
+## Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas
+
+**Prioridad sugerida:** Media-alta — hoy `app/views/dashboard.py` está vacío (0 bytes) y no se usa; la app
+abre directo a un listado plano de expedientes sin ningún resumen ni contexto.
+
+**Depende de:** Sprint 7 (motor de prescripción/caducidad, para alertas de vencimientos próximos) y
+Sprint 9 (auditoría, para mostrar actividad reciente) — ambos ya completos, este sprint solo los expone en
+la GUI.
+
+**Hallazgos:**
+- `app/views/dashboard.py` existe como archivo pero está completamente vacío y no lo importa nadie
+  (confirmado en auditoría anterior) — es un hueco real de producto, no solo código muerto: hoy no hay
+  ninguna pantalla de "vista general".
+- El motor de prescripción (`app/engine/temporal/prescripcion.py`) y el de auditoría
+  (`app/engine/audit/service.py`) ya calculan justo el tipo de información que un dashboard necesitaría
+  (fechas límite, historial de liquidaciones), pero hoy solo se consumen desde dentro del detalle de cada
+  expediente, uno por uno — no hay una vista agregada de "qué necesita mi atención hoy" a través de todos
+  los expedientes.
+
+**Código existente a reutilizar:**
+- `app/engine/temporal/prescripcion.py` (`calcular_prescripcion`/`calcular_caducidad`) para alertas de
+  "vence pronto" por expediente.
+- `app/engine/audit/service.py` (`historial_de_expediente`) para una sección de "actividad reciente".
+- `app/views/expedientes.py` como referencia de cómo se consulta la tabla `Expediente` hoy.
+
+**Código nuevo a crear:**
+- Construir `DashboardView` en `app/views/dashboard.py` (hoy vacío) con: conteo de expedientes por área,
+  lista de expedientes con plazos próximos a vencer, y las últimas N liquidaciones ejecutadas.
+- Registrar `DashboardView` como pantalla de inicio en `MainWindow` (reemplazando o precediendo al listado
+  plano de expedientes).
+
+**Alcance explícitamente excluido:**
+- Gráficas/visualizaciones complejas (ej. usar `matplotlib`, hoy huérfano según el Sprint 27) — este
+  sprint es de datos tabulares/listas simples, no de dataviz; evaluar una gráfica en un sprint aparte una
+  vez que el dashboard base exista y se valide que es útil.
+
+**Riesgos / notas técnicas conocidas:**
+- Calcular alertas de vencimiento para TODOS los expedientes al abrir la app podría ser lento si el
+  volumen crece (relacionado con el Sprint 25) — considerar cachear o calcular de forma perezosa/asíncrona
+  (relacionado con el Sprint 26).
+
+**Definición de Hecho:**
+- Al abrir la app, el usuario ve un resumen útil antes de tener que abrir un expediente puntual.
+- Test de GUI que verifica que el dashboard muestra el conteo correcto de expedientes y al menos una
+  alerta de vencimiento con datos sintéticos.
+
+---
+
+## Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real
+
+**Prioridad sugerida:** Media-alta — los formularios (`ObligacionFormDialog`, `ExpedienteFormDialog`) son
+donde el abogado pasa más tiempo y hoy son una lista plana de campos sin jerarquía visual.
+
+**Depende de:** Sprint 24 (validación de datos) — este sprint expone visualmente esas validaciones, no las
+reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
+
+**Hallazgos:**
+- `ObligacionFormDialog` (`app/views/obligaciones.py`, 351 líneas) usa un único `QFormLayout` plano con
+  ~15 campos seguidos (concepto, valor, tasa, fechas, cuota litis, costas, etc.) sin ninguna agrupación
+  visual — todos los campos se muestran siempre, incluso los que no aplican según el área/tipo elegido
+  (ej. campos de honorarios se ven aunque el área sea Civil).
+- No hay placeholder text visible ni tooltips explicando qué significa cada campo legal para un usuario no
+  técnico (ej. "tasa_efectiva_anual" vs. un label simple "Tasa de interés").
+- La validación (Sprint 24) hoy solo se dispara al presionar "Guardar" (`QMessageBox` de error) — no hay
+  feedback en tiempo real mientras el usuario escribe.
+- Valor por defecto de tasa hardcodeado en el campo (`"6.00"`) sin explicar de dónde sale (es el interés
+  civil legal del Art. 1617, pero el usuario no lo sabe sin leer la guía aparte).
+
+**Código nuevo a crear:**
+- Reorganizar `ObligacionFormDialog` en secciones colapsables o pestañas (ej. "Datos básicos", "Tasas e
+  intereses", "Honorarios/Costas" — mostrando solo la sección relevante según el área/tipo elegido).
+- Tooltips o texto de ayuda inline en los campos con nombres técnicos, explicando su significado legal en
+  una frase simple.
+- Feedback visual en tiempo real (ej. `QLineEdit` con borde rojo + ícono de advertencia) conectado a la
+  validación del Sprint 24, en vez de solo un `QMessageBox` al guardar.
+- Indicar visualmente de dónde sale un valor por defecto (ej. ícono de información junto al campo de tasa
+  con tooltip "Valor por defecto: interés civil legal, Art. 1617 C.C.").
+
+**Alcance explícitamente excluido:**
+- No se propone rediseñar el modelo de datos ni las reglas de validación (eso es Sprint 24) — este sprint
+  es puramente de presentación/interacción sobre los campos ya existentes.
+
+**Definición de Hecho:**
+- Un abogado sin conocimiento técnico puede completar el formulario de obligación entendiendo qué
+  significa cada campo sin consultar la guía de usuario aparte.
+- Los campos inválidos se marcan visualmente antes de intentar guardar.
+- Suite de tests de GUI en verde.
+
+---
+
+## Sprint 35 — Búsqueda, filtros y estados vacíos en listados
+
+**Prioridad sugerida:** Media.
+
+**Depende de:** Se beneficia del Sprint 25 (índices de BD) si el volumen crece, pero no es bloqueante.
+
+**Hallazgos:**
+- `ExpedientesListView` (`app/views/expedientes.py`) carga y muestra la tabla completa de expedientes sin
+  ningún campo de búsqueda ni filtro por área/estado (`session.query(Expediente).all()`, ya señalado en el
+  Sprint 25 desde el ángulo de rendimiento; este sprint lo aborda desde el ángulo de UX).
+- No existe ningún "estado vacío" diseñado — si un usuario nuevo abre la app sin expedientes cargados, ve
+  una tabla en blanco sin ninguna guía de qué hacer primero.
+- No hay ordenamiento de columnas en las tablas (`QTableWidget` sin `setSortingEnabled(True)`).
+
+**Código nuevo a crear:**
+- Campo de búsqueda/filtro (por radicado, demandante, demandado, área) sobre `ExpedientesListView`.
+- Ordenamiento de columnas habilitado (`setSortingEnabled(True)`) en las tablas relevantes.
+- Estado vacío diseñado explícitamente (mensaje + llamado a la acción) cuando la tabla no tiene filas, en
+  vez de una tabla en blanco.
+
+**Alcance explícitamente excluido:**
+- Paginación (eso es una decisión de rendimiento, Sprint 25) — este sprint es UX de búsqueda/filtro/orden,
+  no de paginación de datos.
+
+**Definición de Hecho:**
+- Un usuario puede encontrar un expediente por radicado o filtrar por área sin tener que hacer scroll
+  manual sobre toda la lista.
+- Una base de datos vacía muestra un mensaje útil, no una tabla en blanco.
+- Suite de tests de GUI en verde.
+
+---
+
+## Sprint 36 — Feedback no bloqueante y jerarquía visual de botones
+
+**Prioridad sugerida:** Media.
+
+**Depende de:** Sprint 26 (threading/progreso) y Sprint 31 (tema visual) — se complementan.
+
+**Hallazgos:**
+- Toda comunicación con el usuario hoy pasa por `QMessageBox` modal (éxito, error y confirmación de
+  borrado usan el mismo patrón de diálogo bloqueante) — no hay ninguna notificación no intrusiva (tipo
+  "toast"/snackbar) para confirmaciones simples (ej. "Obligación guardada"), que hoy interrumpen el flujo
+  con un diálogo que hay que cerrar a mano.
+- Todos los botones de la app son `QPushButton` estándar sin distinción visual entre acción primaria (ej.
+  "Guardar", "Liquidar"), secundaria (ej. "Cancelar") y destructiva (ej. "Eliminar expediente") — todos se
+  ven exactamente igual, dependiendo solo del texto para transmitir su importancia/riesgo.
+
+**Código nuevo a crear:**
+- Un widget de notificación no bloqueante (toast/snackbar simple, ej. un `QLabel` flotante con
+  auto-ocultado) para confirmaciones de bajo riesgo (guardar, actualizar), reservando `QMessageBox` modal
+  solo para errores y confirmaciones de acciones destructivas/irreversibles.
+- Clases de estilo (vía el `.qss` del Sprint 31) para 3 niveles de botón: primario (color de marca),
+  secundario (neutro) y destructivo (rojo/advertencia) — aplicadas consistentemente en las 8 vistas.
+
+**Alcance explícitamente excluido:**
+- No se propone un sistema de notificaciones persistente/centro de notificaciones — solo feedback
+  inmediato de acciones puntuales.
+
+**Definición de Hecho:**
+- Guardar una obligación exitosamente no requiere cerrar un diálogo modal para seguir trabajando.
+- Los botones destructivos (eliminar) son visualmente distinguibles de los botones normales en toda la
+  app.
+- Suite de tests de GUI en verde.
+
+---
+
+## Sprint 37 — Comportamiento de ventana y accesibilidad de teclado
+
+**Prioridad sugerida:** Baja-media.
+
+**Depende de:** Nada.
+
+**Hallazgos:**
+- `main.py` fija `window.resize(1000, 700)` sin persistir tamaño/posición entre sesiones — cada vez que se
+  abre la app, la ventana vuelve al mismo tamaño por defecto, sin recordar preferencias del usuario ni el
+  estado de maximizado.
+- No se verificó ningún control explícito de orden de tabulación (`setTabOrder`) en los formularios — el
+  orden de foco depende del orden de creación de los widgets en código, que puede no coincidir con el orden
+  visual/lógico para el usuario.
+- No hay confirmación explícita de que `Enter`/`Return` dispare el botón por defecto ni que `Esc` cancele
+  el diálogo de forma consistente en todos los formularios.
+
+**Código nuevo a crear:**
+- Persistir geometría de ventana (tamaño, posición, maximizado) entre sesiones usando `QSettings`.
+- Revisar y fijar el orden de tabulación en los formularios más usados (`ObligacionFormDialog`,
+  `ExpedienteFormDialog`).
+- Confirmar/asegurar que `Enter` dispare el botón por defecto ("Guardar") y `Esc` cierre el diálogo sin
+  guardar, en todos los diálogos de formulario.
+
+**Definición de Hecho:**
+- La ventana recuerda su tamaño/posición entre una sesión y la siguiente.
+- Un usuario puede completar y guardar un formulario usando solo el teclado (Tab + Enter) en un orden
+  lógico.
+- Suite de tests de GUI en verde.
+
+---
+
+## Notas de entorno (sin sprint asignado)
+
 - ~~Validar/enable Windows "Long Paths" en la máquina de desarrollo~~ — **resuelto** (2026-07-15): se
   habilitó `LongPathsEnabled=1` en el registro de Windows para poder instalar PySide6 dentro de la ruta
   profunda de OneDrive, con confirmación previa del usuario.
 - Confirmar si conviene excluir `.venv/` de la sincronización de OneDrive (hoy está en `.gitignore` pero
   OneDrive igual intenta sincronizar carpetas no versionadas dentro de la carpeta del proyecto).
-- **Duplicación de `_eventos_de_obligacion` entre `CivilFamiliaStrategy` y `ComercialStrategy`**: el
-  método que mapea una `Obligacion` PUNTUAL/RECURRENTE a `Event`(s) es idéntico byte a byte en las dos
-  clases (`app/services/area_strategy.py`) — no tiene nada específico del área, solo depende de `tipo`.
-  Vale la pena subirlo a `AreaStrategy` (o extraerlo a una función compartida) antes de escribir la
-  tercera estrategia real (`LaboralStrategy`, Sprint 3), para no triplicar el copy-paste. Detectado en
-  code review del Sprint 2 (`docs/superpowers/plans/2026-07-15-area-comercial.md`).
-- **Misma duplicación en `_construir_rate_provider`**: `SancionatorioStrategy` y `HonorariosStrategy`
-  (Sprint 4) repiten, casi byte a byte, el mismo patrón de "un solo tramo de tasa plana desde la
-  obligación más antigua hasta la fecha de corte" que ya existe en `CivilFamiliaStrategy` y
-  `ComercialStrategy`. Es la misma clase de problema que el punto anterior (`_eventos_de_obligacion`) y
-  debería resolverse junto con él la próxima vez que se toque `area_strategy.py`, en vez de seguir
-  copiando el método por cada estrategia nueva. Detectado en code review del Sprint 4
-  (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5).
-- **`ObligacionFormDialog.guardar()` creciendo hacia "god method"**: cada área nueva (Comercial,
-  Sancionatorio, Honorarios) le agrega su propio bloque `if es_X: try: ... except: raise ValueError(...)`
-  dentro de `app/views/obligaciones.py`. Hoy (después del Sprint 4) tiene 4 ramas implícitas y ~90 líneas;
-  sigue siendo legible, pero cada área nueva lo empeora. Si se agrega Laboral (Sprint 3) u otra área más,
-  vale la pena extraer un `_parse_area_campos()` (o una tabla de specs por campo: nombre, kwarg, mensaje
-  de error, requerido) en vez de seguir apilando ramas, espejando la separación que `area_strategy.py` ya
-  tiene por estrategia. Detectado en code review del Sprint 4
-  (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 7).
