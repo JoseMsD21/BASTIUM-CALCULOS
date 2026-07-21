@@ -15,7 +15,8 @@ están los valores legales (como la tasa de interés) por si necesitas consultar
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
 abonos, indexación IPC opcional por obligación (Art. corrección monetaria; el abogado marca caso por caso si
 aplica, con interpolación entre índices de cierre de año para fechas intermedias)), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
-split real antes/después del vencimiento, validación de tope de usura 1.5×IBC), **Sancionatorio**
+split real antes/después del vencimiento, validación de tope de usura 1.5×IBC, y obligaciones en USD
+convertidas a pesos con la TRM ingresada por el abogado, Art. 874 C.Co.), **Sancionatorio**
 (multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49 — solo cubre hechos anteriores
 a 2020-01-01, porque todavía no hay tabla histórica de UVT cargada; hechos posteriores avisan "UVT no
 disponible" en vez de arriesgar un valor incorrecto), **Honorarios / Litigio** (cobro de honorarios
@@ -58,6 +59,11 @@ resolverlo), ver la [Guía de Usuario](docs/GUIA_USUARIO.md#2-instalación-paso-
 `aplica_indexacion_ipc` que la indexación IPC necesita. `init_db()` (creación de tablas nuevas) no
 altera tablas existentes, así que sin este paso la app falla al leer o guardar cualquier obligación. El
 script es idempotente (se puede correr de más sin riesgo) y solo hace falta una vez por instalación.
+
+**Si ya tenías `bastium.db` creado antes del Sprint 12**, corre una vez
+`python scripts/migrate_moneda_trm.py` antes de abrir la app — agrega las columnas `moneda`,
+`trm_aplicable` y `trm_fecha_referencia` que necesitan las obligaciones comerciales en moneda extranjera.
+Igual que el script del Sprint 8, es idempotente y solo hace falta una vez por instalación.
 
 ## Estructura del proyecto
 

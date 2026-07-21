@@ -272,7 +272,8 @@ Si el expediente no tiene ninguna obligación cargada, el botón "Liquidar" te m
 ### 5.7. Agregar una obligación comercial
 
 Cuando el expediente tiene **Área del derecho = Comercial**, el formulario de "Agregar obligación"
-muestra tres campos adicionales, específicos de esta área:
+muestra varios campos adicionales, específicos de esta área — y dos más si la obligación está pactada en
+dólares:
 
 1. Dentro del Detalle de un expediente Comercial, haz clic en **"Agregar obligación"**.
 2. Llena los campos comunes (Tipo, Categoría, Concepto, Valor, Tasa efectiva anual, Fecha de origen)
@@ -291,7 +292,16 @@ muestra tres campos adicionales, específicos de esta área:
    - **IBC vigente aplicable (%)**: el Interés Bancario Corriente certificado por la Superintendencia
      Financiera para la fecha del caso. Se usa únicamente para validar que ninguna de las dos tasas
      pactadas supere el tope legal de usura (1.5× este valor).
-4. Haz clic en **"Guardar"**.
+   - **Moneda**: "COP" por defecto. Si la obligación está pactada en dólares, elige "USD" — aparecen dos
+     campos adicionales (ver punto 4).
+4. Si elegiste **Moneda = USD**, llena también:
+   - **TRM aplicable (COP por USD)**: cuántos pesos vale un dólar para este caso (Art. 874 C.Co.: se
+     puede pactar la TRM de la fecha de la obligación o la del pago — el abogado decide cuál usar y la
+     ingresa directamente aquí, no hay una serie histórica cargada en el programa — ver
+     [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera)).
+   - **Fecha de referencia de la TRM**: la fecha que sustenta el valor anterior, solo para trazabilidad —
+     el programa no vuelve a buscar nada con esta fecha, es un dato de auditoría.
+5. Haz clic en **"Guardar"**.
 
 Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingresaste, el programa no
 deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
@@ -578,6 +588,26 @@ exactamente dónde encontrarlos y qué significa cada uno:
   sobre el capital ya indexado — el algoritmo de "Suma Única" del PDF (interés sobre el valor indexado)
   requeriría cambiar el motor de liquidación para las 5 áreas, fuera del alcance de este sprint.
 
+### 7.8. TRM y obligaciones en moneda extranjera
+
+- **Dónde se ve/edita en la app**: en el formulario de "Agregar obligación" de un expediente Comercial,
+  el campo **"Moneda"** y, si se elige "USD", los campos **"TRM aplicable (COP por USD)"** y **"Fecha de
+  referencia de la TRM"** — ver [sección 5.7](#57-agregar-una-obligación-comercial).
+- **Dónde vive la lógica en el código**: `app/engine/currency/converter.py` (`convertir_a_pesos`) y
+  `app/engine/currency/trm_provider.py` (`ManualTRMProvider`), invocados desde
+  `ComercialStrategy._valor_en_pesos` en `app/services/area_strategy.py`.
+- **Cómo se calcula**: el capital de la obligación se convierte a pesos **una sola vez**, multiplicando el
+  valor en dólares por la TRM que ingresó el abogado, antes de que empiece a correr cualquier interés. A
+  partir de ahí, la obligación se liquida exactamente igual que cualquier obligación comercial en pesos —
+  interés remuneratorio, mora y validación de usura no cambian.
+- **De dónde sale la TRM**: el abogado la ingresa directamente. El PDF fuente de BASTIUM (a diferencia de
+  SMLMV, IPC e IBC/Usura) no trae una serie histórica de TRM diaria, así que el programa no la busca
+  automáticamente — Art. 874 C.Co. permite usar la TRM de la fecha de la obligación o la de la fecha de
+  pago, y esa elección queda en manos del abogado según el caso.
+- **Qué NO hace todavía**: no soporta otras monedas extranjeras distintas de USD, no reconvierte el
+  capital pendiente en cada abono (la conversión es única, al inicio), y no existe todavía una serie
+  histórica de TRM precargada en el programa.
+
 ---
 
 ## 8. Funciones pendientes o en desarrollo
@@ -612,8 +642,10 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   interrupción/suspensión/reanudación en `app/engine/temporal/terminos.py`), pero todavía no está
   conectado a ninguna pantalla — hoy sirve como base interna para el motor de prescripción y caducidad
   del Sprint 7 (`Pendientes.md`, Sprint 6).
-- 🚧 **Derecho Tributario, TRM/moneda extranjera, motor de reglas configurable** — dominios nuevos, de
-  menor prioridad, ver `Pendientes.md`, Sprints 11, 12 y 13.
+- ✅ **TRM y obligaciones en moneda extranjera** ya está conectada al área Comercial (Sprint 12) — ver
+  [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera).
+- 🚧 **Derecho Tributario, motor de reglas configurable** — dominios nuevos, de menor prioridad, ver
+  `Pendientes.md`, Sprints 11 y 13.
 
 ---
 
