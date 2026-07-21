@@ -144,3 +144,12 @@ def test_click_en_inicio_regresa_a_expedientes_y_oculta_los_botones(qtbot):
     assert window.stacked_widget.currentWidget() is window.expedientes_page
     assert window.boton_volver.isVisible() is False
     assert window.boton_inicio.isVisible() is False
+
+
+def test_boton_parametros_navega_a_la_pantalla_de_parametros(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.boton_parametros.click()
+
+    assert window.stacked_widget.currentWidget() is window.parametros_page

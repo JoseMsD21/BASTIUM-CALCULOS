@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QMainWindow, QPushButton, QStackedWidget, QToolBar
 
+from app.views.configuracion import ParametrosView
 from app.views.expedientes import ExpedientesListView
 from app.views.expediente_detalle import ExpedienteDetallePage
 from app.views.liquidaciones import ResultadoLiquidacionView
@@ -18,15 +19,18 @@ class MainWindow(QMainWindow):
         self.expedientes_page = ExpedientesListView(on_expediente_abierto=self._abrir_detalle)
         self.detalle_page = ExpedienteDetallePage(on_liquidado=self._mostrar_resultado)
         self.resultado_page = ResultadoLiquidacionView()
+        self.parametros_page = ParametrosView()
 
         self.stacked_widget.addWidget(self.expedientes_page)
         self.stacked_widget.addWidget(self.detalle_page)
         self.stacked_widget.addWidget(self.resultado_page)
+        self.stacked_widget.addWidget(self.parametros_page)
 
         self._pages = {
             "expedientes": self.expedientes_page,
             "detalle": self.detalle_page,
             "resultado": self.resultado_page,
+            "parametros": self.parametros_page,
         }
 
         self._history: list[str] = []
@@ -46,6 +50,10 @@ class MainWindow(QMainWindow):
         self.boton_inicio = QPushButton("\U0001F3E0 Inicio")
         self.boton_inicio.clicked.connect(self._ir_inicio)
         barra.addWidget(self.boton_inicio)
+
+        self.boton_parametros = QPushButton("⚙ Parametros")
+        self.boton_parametros.clicked.connect(self._ir_a_parametros)
+        barra.addWidget(self.boton_parametros)
 
         self.addToolBar(barra)
         self._actualizar_botones_navegacion()
@@ -86,3 +94,7 @@ class MainWindow(QMainWindow):
     def _mostrar_resultado(self, resultado, expediente_id: int) -> None:
         self.resultado_page.mostrar(resultado, expediente_id)
         self.show_page("resultado")
+
+    def _ir_a_parametros(self) -> None:
+        self.parametros_page.refrescar()
+        self.show_page("parametros")
