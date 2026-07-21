@@ -18,8 +18,8 @@ aplica, con interpolación entre índices de cierre de año para fechas intermed
 split real antes/después del vencimiento, validación de tope de usura 1.5×IBC, y obligaciones en USD
 convertidas a pesos con la TRM ingresada por el abogado, Art. 874 C.Co.), **Sancionatorio**
 (multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49, con la base convertida a pesos
-según la fecha del hecho: SMLMV antes del 2020-01-01, UVT desde esa fecha, con tabla histórica de UVT
-2006-2026 cargada), **Honorarios / Litigio** (cobro de honorarios
+según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tabla histórica de UVT
+2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios
 profesionales y cuota litis, validando simultáneamente el tope del 30% del beneficio obtenido para la
 cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
 se ingresan como un porcentaje manual, porque no existe una tabla estructurada confiable de los rangos
@@ -33,8 +33,8 @@ corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble cl
 ✅ **Parámetros legales versionados:** desde la pantalla "⚙ Parámetros" cualquier abogado puede consultar
 y agregar, sin tocar código, los valores/tasas/topes que antes solo un desarrollador podía cambiar: el
 multiplicador de usura, los topes de cuota litis, los plazos de prescripción/caducidad, el descuento del
-interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC
-e IBC/Tasa de Usura. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — nunca se edita
+interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC,
+IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — nunca se edita
 ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
 queda siempre disponible con doble clic.
 
@@ -80,7 +80,7 @@ Igual que el script del Sprint 8, es idempotente y solo hace falta una vez por i
 **Si ya tenías `bastium.db` creado antes de este sprint**, corre una vez
 `python scripts/migrate_parametros_legales.py` antes de abrir la app — crea y siembra la tabla
 `parametros_legales` con los valores hoy vigentes (usura, cuota litis, prescripción/caducidad, SMLMV,
-IPC, IBC/usura), para que la pantalla "⚙ Parámetros" y todos los motores que ahora la consultan tengan
+IPC, IBC/usura, UVT), para que la pantalla "⚙ Parámetros" y todos los motores que ahora la consultan tengan
 datos desde el primer arranque. Es idempotente y solo hace falta una vez por instalación.
 
 ## Estructura del proyecto

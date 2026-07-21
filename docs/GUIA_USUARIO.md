@@ -5,7 +5,7 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-20 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> **Última actualización:** 2026-07-21 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, exportación de liquidaciones a PDF/Word, los botones de navegación
 > (Volver/Inicio) y de editar/eliminar expediente, y la pantalla "⚙ Parámetros" de parámetros legales
 > versionados. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md), esta guía
@@ -510,8 +510,8 @@ columnas:
      No es obligatorio, pero se recomienda diligenciarlo — queda guardado para siempre junto con el valor.
 3. Haz clic en **"Guardar"**.
 
-> **⚠️ Importante — el SMLMV y el índice IPC acumulado son estrictos con la fecha, y no avisan si te
-> equivocas:**
+> **⚠️ Importante — el SMLMV, el índice IPC acumulado y la UVT son estrictos con la fecha, y no avisan si
+> te equivocas:**
 >
 > Los tres parámetros de "Indicadores históricos" marcados como series **anuales** — el **SMLMV**, el
 > **índice IPC acumulado** y la **UVT** — solo quedan "vigentes" para un año si el campo **"Vigente desde" es
@@ -736,8 +736,8 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   históricos) y depuración de Renta Líquida Gravable (el flujo de 8 pasos del impuesto de renta). Ninguno
   está conectado todavía a un área operable — no existe una estrategia de liquidación tributaria ni el
   área aparece en el selector de la GUI. Sanciones (extemporaneidad, inexactitud) e imputación tributaria
-  de pagos siguen sin construir; la tabla histórica de UVT que las bloqueaba ya está disponible
-  (`Pendientes.md`, Sprint 14), quedan pendientes del Sprint 15 (Tributario 11b).
+  de pagos siguen sin construir y quedan pendientes para el Sprint 15 (Tributario 11b); la tabla
+  histórica de UVT que las bloqueaba ya está disponible (`Pendientes.md`, Sprint 14).
 - ✅ **TRM y obligaciones en moneda extranjera** ya está conectada al área Comercial (Sprint 12) — ver
   [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera).
 - ✅ **Parámetros legales versionados** (pantalla "⚙ Parámetros") — el Sprint 13, planeado originalmente
