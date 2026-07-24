@@ -75,9 +75,11 @@ solo reconoce el bucket `indexation` para el string literal `"INDEXATION"` — n
 único `event_type="SANCION_TRIBUTARIA"` al emitir el evento — la categoría real (cuál de las 3 sanciones
 es) se preserva en `obligacion.categoria`/el `label` del evento (el `concepto` capturado), que es lo que
 igual se muestra en el reporte. `LiquidationCore._process_event` no requiere ningún cambio estructural
-(no se agrega un set nuevo tipo `_indexation_concepts`) — la única línea que se toca en `engine.py` es
-agregar `"IMPUESTO_A_CARGO"` a `_capital_concepts`, exactamente como ya hizo cada área anterior con sus
-propias categorías.
+(no se agrega un set nuevo tipo `_indexation_concepts`): se tocan dos líneas puntuales en `engine.py` —
+agregar `"IMPUESTO_A_CARGO"` a `_capital_concepts` (exactamente como ya hizo cada área anterior con sus
+propias categorías), y ensanchar la comparación literal `elif event.event_type == "INDEXATION":` a
+`elif event.event_type in ("INDEXATION", "SANCION_TRIBUTARIA"):` — sigue siendo una comparación de
+strings literales, no una lista de conceptos configurable como `_capital_concepts`.
 
 ### Columnas nuevas en `Obligacion` (migración de esquema, mismo patrón que
 `scripts/migrate_moneda_trm.py` — `ALTER TABLE` idempotente vía `PRAGMA table_info`)
