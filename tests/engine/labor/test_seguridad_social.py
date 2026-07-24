@@ -124,3 +124,43 @@ def test_ibc_se_ajusta_al_techo_de_25_smmlv():
     assert resultado.monto_arl == Decimal("114553.29")
     assert resultado.monto_fsp == Decimal("438901.50")  # IBC cae en tramo 6 (>20 SMMLV)
     assert resultado.total == Decimal("6807801.17")
+
+
+def test_fsp_no_aplica_justo_debajo_del_umbral_de_4_smmlv():
+    from app.engine.labor.seguridad_social import SeguridadSocialCalculator
+
+    resultado = SeguridadSocialCalculator.calcular(
+        salario_base=Decimal("3511211.00"), dias_trabajados=30, dias_suspension=0,
+        nivel_riesgo_arl="I", fecha_referencia=date(2020, 12, 31),
+    )
+
+    assert resultado.monto_fsp == Decimal("0.00")
+
+
+def test_fsp_aplica_justo_en_el_umbral_exacto_de_4_smmlv():
+    from app.engine.labor.seguridad_social import SeguridadSocialCalculator
+
+    resultado = SeguridadSocialCalculator.calcular(
+        salario_base=Decimal("3511212.00"), dias_trabajados=30, dias_suspension=0,
+        nivel_riesgo_arl="I", fecha_referencia=date(2020, 12, 31),
+    )
+
+    assert resultado.monto_fsp == Decimal("35112.12")  # 3511212.00 * 1% (tramo 1)
+
+
+@pytest.mark.parametrize("multiplo_smmlv,tramo_pct_esperado", [
+    (Decimal("4"), Decimal("0.01")),
+    (Decimal("16"), Decimal("0.012")),
+    (Decimal("17"), Decimal("0.014")),
+    (Decimal("18"), Decimal("0.016")),
+    (Decimal("19"), Decimal("0.018")),
+    (Decimal("20"), Decimal("0.02")),
+    (Decimal("25"), Decimal("0.02")),
+])
+def test_resolver_tramo_fsp_en_cada_frontera(multiplo_smmlv, tramo_pct_esperado):
+    from app.engine.labor.seguridad_social import _resolver_tramo_fsp
+
+    smmlv = Decimal("877803.00")
+    ibc = smmlv * multiplo_smmlv
+
+    assert _resolver_tramo_fsp(ibc, smmlv, date(2020, 12, 31)) == tramo_pct_esperado
