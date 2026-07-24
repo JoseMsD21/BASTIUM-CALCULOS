@@ -116,6 +116,8 @@ class Obligacion(Base):
     moneda: Mapped[str] = mapped_column(String(3), default="COP")
     trm_aplicable: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
     trm_fecha_referencia: Mapped[date | None] = mapped_column(Date, nullable=True)
+    incluir_seguridad_social: Mapped[bool] = mapped_column(Boolean, default=False)
+    nivel_riesgo_arl: Mapped[str | None] = mapped_column(String(2), nullable=True)
 
     expediente: Mapped["Expediente"] = relationship(back_populates="obligaciones")
     abonos: Mapped[list["Abono"]] = relationship(

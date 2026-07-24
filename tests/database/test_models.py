@@ -403,3 +403,65 @@ def test_obligacion_en_usd_guarda_trm_aplicable_y_fecha_referencia(session):
     assert fetched.moneda == "USD"
     assert fetched.trm_aplicable == Decimal("4150.2500")
     assert fetched.trm_fecha_referencia == date(2025, 1, 1)
+
+
+def test_obligacion_incluir_seguridad_social_default_false(session):
+    expediente = Expediente(
+        radicado="2026-00202",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
+    )
+    session.add(obligacion)
+    session.commit()
+
+    fetched = session.query(Obligacion).one()
+    assert fetched.incluir_seguridad_social is False
+    assert fetched.nivel_riesgo_arl is None
+
+
+def test_obligacion_incluir_seguridad_social_con_nivel_riesgo(session):
+    expediente = Expediente(
+        radicado="2026-00203",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
+        incluir_seguridad_social=True,
+        nivel_riesgo_arl="I",
+    )
+    session.add(obligacion)
+    session.commit()
+
+    fetched = session.query(Obligacion).one()
+    assert fetched.incluir_seguridad_social is True
+    assert fetched.nivel_riesgo_arl == "I"
