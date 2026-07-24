@@ -127,14 +127,15 @@ def calcular_sancion_extemporaneidad(
     fracción, tope 100% del impuesto a cargo. Piso de 10 UVT (get_uvt_for_year(fecha_referencia.year))."""
 
 def calcular_sancion_inexactitud(
-    saldo_declarado: Decimal, saldo_determinado: Decimal, agravada: bool, fecha_referencia: date
+    diferencia: Decimal, agravada: bool, fecha_referencia: date
 ) -> Decimal:
-    """160% (o 200% si agravada) de (saldo_determinado - saldo_declarado). Piso de 10 UVT."""
+    """160% (o 200% si agravada) de la diferencia entre el saldo determinado y el declarado
+    (ya calculada por el llamador -- ver 'base_sancion_tributaria' en Modelo de datos). Piso de 10 UVT."""
 
 def calcular_sancion_error_aritmetico(
-    diferencia_generada: Decimal, fecha_referencia: date
+    diferencia: Decimal, fecha_referencia: date
 ) -> Decimal:
-    """30% de la diferencia generada por el error. Piso de 10 UVT."""
+    """30% de la diferencia generada por el error (ya calculada por el llamador). Piso de 10 UVT."""
 
 def aplicar_piso_sancion_minima(monto_sancion: Decimal, fecha_referencia: date) -> Decimal:
     """max(monto_sancion, 10 * get_uvt_for_year(fecha_referencia.year)) -- función compartida por
