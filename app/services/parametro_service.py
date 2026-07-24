@@ -109,6 +109,58 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Unidad de Valor Tributario (UVT)", "Indicadores historicos",
         "DIAN, resolucion anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
     ),
+    "SS_PENSION_PCT": InfoParametro(
+        "Cotizacion a pension (% del IBC)", "Seguridad social",
+        "Ley 100/1993, art. 20", ModoResolucion.ABIERTO,
+    ),
+    "SS_SALUD_PCT": InfoParametro(
+        "Cotizacion a salud (% del IBC)", "Seguridad social",
+        "Ley 100/1993, art. 204", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_I_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo I (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_II_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo II (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_III_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo III (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_IV_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo IV (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_V_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo V (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_1_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 1 (4-16 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_2_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 2 (16-17 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_3_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 3 (17-18 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_4_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 4 (18-19 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_5_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 5 (19-20 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_6_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 6 (>20 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
 }
 
 
