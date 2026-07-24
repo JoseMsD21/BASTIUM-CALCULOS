@@ -109,12 +109,21 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Unidad de Valor Tributario (UVT)", "Indicadores historicos",
         "DIAN, resolucion anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
     ),
+    # NOTA DE COORDINACION (Sprint 16, Task 3): las siguientes claves SS_* (12 en
+    # total: SS_PENSION_PCT, SS_SALUD_PCT, SS_ARL_NIVEL_I..V_PCT y
+    # SS_FSP_TRAMO_1..6_PCT) ya fueron agregadas en esta tarea con citas
+    # verificadas contra Ley 100/1993 art. 20 (pension/salud), Decreto 1772/1994
+    # (ARL) y Ley 797/2003 art. 8 (tramos FSP). Si una tarea posterior (p.ej.
+    # Task 6) vuelve a tocar estas mismas claves con textos genericos tipo
+    # "PDF pagina 51/52", NO sobrescribir sin mas: reconciliar con estas citas
+    # mas precisas primero (los dict literals de Python dejan que la entrada
+    # posterior gane en silencio).
     "SS_PENSION_PCT": InfoParametro(
-        "Cotizacion a pension (% del IBC)", "Seguridad social",
+        "Cotizacion total a pension (% del IBC, empleador + trabajador)", "Seguridad social",
         "Ley 100/1993, art. 20", ModoResolucion.ABIERTO,
     ),
     "SS_SALUD_PCT": InfoParametro(
-        "Cotizacion a salud (% del IBC)", "Seguridad social",
+        "Cotizacion total a salud (% del IBC, empleador + trabajador)", "Seguridad social",
         "Ley 100/1993, art. 204", ModoResolucion.ABIERTO,
     ),
     "SS_ARL_NIVEL_I_PCT": InfoParametro(
