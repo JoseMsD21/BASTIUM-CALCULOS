@@ -109,6 +109,22 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Unidad de Valor Tributario (UVT)", "Indicadores historicos",
         "DIAN, resolucion anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
     ),
+    "EXTEMPORANEIDAD_PCT_MENSUAL": InfoParametro(
+        "Sanción por extemporaneidad, porcentaje mensual del impuesto a cargo", "Topes legales",
+        "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
+    "INEXACTITUD_PCT": InfoParametro(
+        "Sanción por inexactitud, porcentaje de la diferencia (sin agravante)", "Topes legales",
+        "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
+    "INEXACTITUD_AGRAVADA_PCT": InfoParametro(
+        "Sanción por inexactitud, porcentaje agravado (omisión de activos/pasivos inexistentes)",
+        "Topes legales", "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
+    "ERROR_ARITMETICO_PCT": InfoParametro(
+        "Sanción por error aritmético, porcentaje de la diferencia generada", "Topes legales",
+        "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
 }
 
 
