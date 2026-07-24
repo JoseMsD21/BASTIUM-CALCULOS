@@ -57,6 +57,18 @@ class TipoObligacion(enum.Enum):
     RECURRENTE = "RECURRENTE"
 
 
+class TipoEventoLaboral(enum.Enum):
+    SUSPENSION = "SUSPENSION"
+    INCAPACIDAD_COMUN = "INCAPACIDAD_COMUN"
+    INCAPACIDAD_LABORAL = "INCAPACIDAD_LABORAL"
+
+
+class MotivoSuspension(enum.Enum):
+    HUELGA = "HUELGA"
+    LICENCIA_NO_REMUNERADA = "LICENCIA_NO_REMUNERADA"
+    DISCIPLINARIA = "DISCIPLINARIA"
+
+
 class Expediente(Base):
     __tablename__ = "expedientes"
 
@@ -109,6 +121,9 @@ class Obligacion(Base):
     abonos: Mapped[list["Abono"]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
+    eventos_laborales: Mapped[list["EventoLaboral"]] = relationship(
+        back_populates="obligacion", cascade="all, delete-orphan"
+    )
 
 
 class Abono(Base):
@@ -121,6 +136,26 @@ class Abono(Base):
     referencia: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     obligacion: Mapped["Obligacion"] = relationship(back_populates="abonos")
+
+
+class EventoLaboral(Base):
+    """Suspension contractual o incapacidad (comun/laboral) dentro de un
+    contrato Laboral -- tabla polimorfica, no dos tablas separadas: un mismo
+    contrato puede tener varios eventos de cualquier tipo. `motivo_suspension`
+    solo se llena cuando `tipo == SUSPENSION` (validado en
+    LaboralStrategy, no aqui)."""
+    __tablename__ = "eventos_laborales"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    obligacion_id: Mapped[int] = mapped_column(ForeignKey("obligaciones.id"))
+    tipo: Mapped[TipoEventoLaboral] = mapped_column(SAEnum(TipoEventoLaboral))
+    fecha_inicio: Mapped[date] = mapped_column(Date)
+    fecha_fin: Mapped[date] = mapped_column(Date)
+    motivo_suspension: Mapped[MotivoSuspension | None] = mapped_column(
+        SAEnum(MotivoSuspension), nullable=True
+    )
+
+    obligacion: Mapped["Obligacion"] = relationship(back_populates="eventos_laborales")
 
 
 class AuditLog(Base):

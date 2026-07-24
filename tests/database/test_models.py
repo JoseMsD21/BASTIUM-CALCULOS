@@ -5,7 +5,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from database.models import Base, Expediente, Obligacion, Abono, AuditLog, AreaDerecho, TipoObligacion
+from database.models import (
+    Base, Expediente, Obligacion, Abono, AuditLog, AreaDerecho, TipoObligacion,
+    EventoLaboral, TipoEventoLaboral, MotivoSuspension,
+)
 
 
 @pytest.fixture
@@ -124,6 +127,82 @@ def test_abono_asociado_a_obligacion(session):
     session.commit()
 
     assert obligacion.abonos[0].monto == Decimal("100000.00")
+
+
+def test_evento_laboral_suspension_asociado_a_obligacion(session):
+    expediente = Expediente(
+        radicado="2026-00200",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
+    )
+    session.add(obligacion)
+    session.flush()
+
+    evento = EventoLaboral(
+        obligacion_id=obligacion.id,
+        tipo=TipoEventoLaboral.SUSPENSION,
+        fecha_inicio=date(2020, 3, 1),
+        fecha_fin=date(2020, 3, 15),
+        motivo_suspension=MotivoSuspension.HUELGA,
+    )
+    session.add(evento)
+    session.commit()
+
+    assert obligacion.eventos_laborales[0].tipo == TipoEventoLaboral.SUSPENSION
+    assert obligacion.eventos_laborales[0].motivo_suspension == MotivoSuspension.HUELGA
+
+
+def test_evento_laboral_incapacidad_no_requiere_motivo_suspension(session):
+    expediente = Expediente(
+        radicado="2026-00201",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
+    )
+    session.add(obligacion)
+    session.flush()
+
+    evento = EventoLaboral(
+        obligacion_id=obligacion.id,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1),
+        fecha_fin=date(2020, 5, 3),
+    )
+    session.add(evento)
+    session.commit()
+
+    assert obligacion.eventos_laborales[0].motivo_suspension is None
 
 
 def test_borrar_expediente_borra_en_cascada_obligaciones_y_abonos(session):
