@@ -30,7 +30,8 @@ class LiquidationCore:
             "CESANTIAS", "INTERESES_CESANTIAS", "PRIMA_JUNIO", "PRIMA_DICIEMBRE", "SANCION_MORATORIA",
             "DANO_EMERGENTE", "LUCRO_CESANTE_CONSOLIDADO", "DANOS_MORALES", "CAPITAL_PAGARE",
             "CAPITAL_LETRA_CAMBIO", "CAPITAL_CHEQUE", "CAPITAL_FACTURA",
-            "MULTA_SANCIONATORIA", "HONORARIOS_PROFESIONALES", "COSTAS_PROCESALES", "VACACIONES"
+            "MULTA_SANCIONATORIA", "HONORARIOS_PROFESIONALES", "COSTAS_PROCESALES", "VACACIONES",
+            "IMPUESTO_A_CARGO"
         }
 
     def process(self, chronological_events: List[Event], cutoff_date: date) -> LiquidationResult:
@@ -117,7 +118,7 @@ class LiquidationCore:
             interest_amount = amount
             self._current_debt = BalanceEngine.add_interest(self._current_debt, amount)
 
-        elif event.event_type == "INDEXATION":
+        elif event.event_type in ("INDEXATION", "SANCION_TRIBUTARIA"):
             amount = Decimal(str(event.payload.get("amount", "0.00")))
             indexation_amount = amount
             self._current_debt = BalanceEngine.add_indexation(self._current_debt, amount)

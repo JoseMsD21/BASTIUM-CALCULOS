@@ -6,6 +6,7 @@ import pytest
 from app.engine.audit.serialization import deserializar_resultado, serializar_resultado
 from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
 from app.engine.liquidation.result import LiquidationResult
+from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
 
 
 def _item(rate_source: str = "N/A") -> LiquidationItem:
@@ -121,3 +122,66 @@ def test_serializar_usa_caracteres_no_ascii_legibles():
     json_str = serializar_resultado(resultado)
 
     assert "Indexación" in json_str
+
+
+def _item_de_prueba() -> LiquidationItem:
+    debt = PendingDebt(Decimal("1000000.00"), Decimal("0.00"), Decimal("0.00"))
+    balance = RunningBalance(date=date(2026, 1, 1), debt=debt, event_type="IMPUESTO_A_CARGO")
+    return LiquidationItem(
+        date=date(2026, 1, 1),
+        concept="Impuesto de renta 2024",
+        capital_base=Decimal("1000000.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("0.00"),
+        balance=balance,
+        rate_source="N/A",
+    )
+
+
+def test_round_trip_sin_renta_liquida_preserva_none():
+    resultado = LiquidationResult(items=[_item_de_prueba()])
+
+    reconstruido = deserializar_resultado(serializar_resultado(resultado))
+
+    assert reconstruido.renta_liquida is None
+    assert len(reconstruido.items) == 1
+
+
+def test_round_trip_con_renta_liquida_preserva_el_resultado_completo():
+    renta_liquida = RentaLiquidaGravableResult(
+        ingresos_netos=Decimal("100000000.00"),
+        renta_bruta=Decimal("60000000.00"),
+        renta_liquida=Decimal("40000000.00"),
+        hubo_perdida_liquida=False,
+        renta_liquida_gravable=Decimal("35000000.00"),
+    )
+    resultado = LiquidationResult(items=[_item_de_prueba()], renta_liquida=renta_liquida)
+
+    reconstruido = deserializar_resultado(serializar_resultado(resultado))
+
+    assert reconstruido.renta_liquida == renta_liquida
+
+
+def test_deserializar_snapshot_antiguo_sin_clave_renta_liquida_no_lanza_keyerror():
+    # Snapshot como los que ya existen en bastium.db, guardados ANTES de este sprint --
+    # no tienen la clave "renta_liquida" en el JSON. deserializar_resultado debe seguir
+    # funcionando (regresion equivalente a la ya conocida en Sprint 23 con otras claves).
+    import json
+    snapshot_antiguo = json.dumps({"items": [
+        {
+            "date": "2026-01-01", "concept": "Abono a capital", "capital_base": "1000000.00",
+            "interest_rate": "0.00", "interest_amount": "0.00", "indexation_amount": "0.00",
+            "payment_amount": "0.00", "rate_source": "N/A",
+            "balance": {
+                "date": "2026-01-01",
+                "debt": {"principal": "1000000.00", "interest": "0.00", "indexation": "0.00"},
+                "event_type": "IMPUESTO_A_CARGO",
+            },
+        }
+    ]})
+
+    reconstruido = deserializar_resultado(snapshot_antiguo)
+
+    assert reconstruido.renta_liquida is None
