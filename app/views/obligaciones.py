@@ -21,6 +21,7 @@ from app.core.constants import (
     CATEGORIAS_HONORARIOS,
     CATEGORIAS_LABORAL,
     CATEGORIAS_SANCIONATORIO,
+    CATEGORIAS_TRIBUTARIO,
 )
 from database.models import Obligacion, TipoObligacion
 
@@ -34,7 +35,7 @@ class ObligacionFormDialog(QDialog):
 
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("Puntual", userData="PUNTUAL")
-        if self._area not in ("SANCIONATORIO", "HONORARIOS", "LABORAL"):
+        if self._area not in ("SANCIONATORIO", "HONORARIOS", "LABORAL", "TRIBUTARIO"):
             # Una multa, un cobro de honorarios o una liquidacion de contrato laboral
             # es siempre un hecho puntual (ver SancionatorioStrategy/HonorariosStrategy/
             # LaboralStrategy en area_strategy.py, que rechazan RECURRENTE con ValueError)
@@ -47,6 +48,7 @@ class ObligacionFormDialog(QDialog):
             "SANCIONATORIO": CATEGORIAS_SANCIONATORIO,
             "HONORARIOS": CATEGORIAS_HONORARIOS,
             "LABORAL": CATEGORIAS_LABORAL,
+            "TRIBUTARIO": CATEGORIAS_TRIBUTARIO,
         }
         categorias = categorias_por_area.get(self._area, CATEGORIAS_CIVIL_FAMILIA)
         for codigo, etiqueta in categorias:
@@ -85,6 +87,17 @@ class ObligacionFormDialog(QDialog):
         self.campo_costas_pct = QLineEdit()
         self.check_aplica_indexacion_ipc = QCheckBox("Aplica indexación IPC (corrección monetaria)")
 
+        self.campo_base_sancion = QLineEdit()
+        self.campo_meses_extemporaneidad = QSpinBox()
+        self.campo_meses_extemporaneidad.setRange(1, 120)
+        self.campo_meses_extemporaneidad.setValue(1)
+        self.check_sancion_agravada = QCheckBox("Agravada (omision de activos o pasivos inexistentes)")
+        self.campo_ingresos_brutos = QLineEdit()
+        self.campo_devoluciones = QLineEdit()
+        self.campo_costos = QLineEdit()
+        self.campo_deducciones = QLineEdit()
+        self.campo_rentas_exentas = QLineEdit()
+
         self.campo_fecha_fin = QDateEdit(QDate.currentDate())
         self.campo_fecha_fin.setCalendarPopup(True)
         self.check_pagada = QCheckBox("Prestaciones pagadas")
@@ -116,6 +129,14 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Beneficio obtenido por el cliente", self.campo_beneficio_obtenido)
         self.layout_formulario.addRow("% Costas judiciales (opcional)", self.campo_costas_pct)
         self.layout_formulario.addRow(self.check_aplica_indexacion_ipc)
+        self.layout_formulario.addRow("Base de la sancion (impuesto a cargo o diferencia)", self.campo_base_sancion)
+        self.layout_formulario.addRow("Meses o fraccion de atraso (extemporaneidad)", self.campo_meses_extemporaneidad)
+        self.layout_formulario.addRow(self.check_sancion_agravada)
+        self.layout_formulario.addRow("Ingresos brutos (Renta liquida)", self.campo_ingresos_brutos)
+        self.layout_formulario.addRow("Devoluciones/rebajas/descuentos (Renta liquida)", self.campo_devoluciones)
+        self.layout_formulario.addRow("Costos (Renta liquida)", self.campo_costos)
+        self.layout_formulario.addRow("Deducciones (Renta liquida)", self.campo_deducciones)
+        self.layout_formulario.addRow("Rentas exentas (Renta liquida)", self.campo_rentas_exentas)
         self.layout_formulario.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
         self.layout_formulario.addRow(self.check_pagada)
         self.layout_formulario.addRow("Fecha de pago real", self.campo_fecha_pago_total)
@@ -126,6 +147,7 @@ class ObligacionFormDialog(QDialog):
         es_sancionatorio = self._area == "SANCIONATORIO"
         es_honorarios = self._area == "HONORARIOS"
         es_laboral = self._area == "LABORAL"
+        es_tributario = self._area == "TRIBUTARIO"
 
         self.campo_tasa_moratoria.setVisible(es_comercial)
         self.campo_fecha_vencimiento.setVisible(es_comercial)
@@ -141,17 +163,25 @@ class ObligacionFormDialog(QDialog):
 
         self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
 
-        # "Valor" no aplica a Sancionatorio/Honorarios: el monto se calcula a partir de
-        # los campos de arriba (cantidad_smlmv_uvt, o honorarios+cuota litis+costas).
-        self.campo_valor.setVisible(not es_sancionatorio and not es_honorarios)
+        # "Valor" no aplica a Sancionatorio/Honorarios/Tributario (salvo IMPUESTO_A_CARGO,
+        # ver _actualizar_campos_tributario): el monto se calcula a partir de otros campos.
+        self.campo_valor.setVisible(not es_sancionatorio and not es_honorarios and not es_tributario)
 
-        # Laboral es siempre PUNTUAL (ver combo_tipo arriba) y no usa tasa efectiva
-        # anual (la liquidacion no es un interes compuesto) -- se ocultan combo_tipo
-        # y campo_tasa, y se muestran los campos propios de contrato laboral.
-        self.combo_tipo.setVisible(not es_laboral)
-        self.campo_tasa.setVisible(not es_laboral)
+        # Laboral y Tributario son siempre PUNTUAL y no usan tasa efectiva anual pactada
+        # (Tributario: el interes es automatico, E.T. art. 635, nunca se pacta).
+        self.combo_tipo.setVisible(not es_laboral and not es_tributario)
+        self.campo_tasa.setVisible(not es_laboral and not es_tributario)
         self.campo_fecha_fin.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
+
+        self.campo_base_sancion.setVisible(False)
+        self.campo_meses_extemporaneidad.setVisible(False)
+        self.check_sancion_agravada.setVisible(False)
+        self.campo_ingresos_brutos.setVisible(False)
+        self.campo_devoluciones.setVisible(False)
+        self.campo_costos.setVisible(False)
+        self.campo_deducciones.setVisible(False)
+        self.campo_rentas_exentas.setVisible(False)
 
         # campo_fecha_origen se reutiliza en Laboral como "fecha de inicio del contrato"
         # (ver _actualizar_campos_visibles) -- se ajusta la etiqueta del formulario para
@@ -168,15 +198,38 @@ class ObligacionFormDialog(QDialog):
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
+        self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
 
         self._actualizar_campos_visibles()
         self._actualizar_visibilidad_trm()
+        self._actualizar_campos_tributario()
 
     def _actualizar_visibilidad_trm(self) -> None:
         es_comercial = self._area == "COMERCIAL"
         es_usd = self.combo_moneda.currentData() == "USD"
         self.campo_trm_aplicable.setVisible(es_comercial and es_usd)
         self.campo_trm_fecha_referencia.setVisible(es_comercial and es_usd)
+
+    def _actualizar_campos_tributario(self) -> None:
+        if self._area != "TRIBUTARIO":
+            return
+        categoria = self.combo_categoria.currentData()
+        es_impuesto = categoria == "IMPUESTO_A_CARGO"
+        es_extemporaneidad = categoria == "SANCION_EXTEMPORANEIDAD"
+        es_inexactitud = categoria == "SANCION_INEXACTITUD"
+        es_error_aritmetico = categoria == "SANCION_ERROR_ARITMETICO"
+        es_renta_liquida = categoria == "RENTA_LIQUIDA"
+        es_sancion = es_extemporaneidad or es_inexactitud or es_error_aritmetico
+
+        self.campo_valor.setVisible(es_impuesto)
+        self.campo_base_sancion.setVisible(es_sancion)
+        self.campo_meses_extemporaneidad.setVisible(es_extemporaneidad)
+        self.check_sancion_agravada.setVisible(es_inexactitud)
+        self.campo_ingresos_brutos.setVisible(es_renta_liquida)
+        self.campo_devoluciones.setVisible(es_renta_liquida)
+        self.campo_costos.setVisible(es_renta_liquida)
+        self.campo_deducciones.setVisible(es_renta_liquida)
+        self.campo_rentas_exentas.setVisible(es_renta_liquida)
 
     def _actualizar_campos_visibles(self) -> None:
         if self._area == "LABORAL":
@@ -195,6 +248,8 @@ class ObligacionFormDialog(QDialog):
     def guardar(self) -> int:
         if self._area == "LABORAL":
             return self._guardar_laboral()
+        if self._area == "TRIBUTARIO":
+            return self._guardar_tributario()
 
         es_sancionatorio = self._area == "SANCIONATORIO"
         es_honorarios = self._area == "HONORARIOS"
@@ -335,6 +390,79 @@ class ObligacionFormDialog(QDialog):
             fecha_fin=fecha_fin,
             pagada=pagada,
             fecha_pago_total=fecha_pago_total,
+        )
+        session.add(obligacion)
+        session.commit()
+        obligacion_id = obligacion.id
+        session.close()
+        return obligacion_id
+
+    def _guardar_tributario(self) -> int:
+        categoria = self.combo_categoria.currentData()
+
+        qdate_origen = self.campo_fecha_origen.date()
+        fecha_origen = date(qdate_origen.year(), qdate_origen.month(), qdate_origen.day())
+
+        valor = Decimal("0.00")
+        base_sancion = None
+        meses_extemporaneidad = None
+        sancion_agravada = False
+        ingresos_brutos = None
+        devoluciones = None
+        costos = None
+        deducciones = None
+        rentas_exentas = None
+
+        if categoria == "IMPUESTO_A_CARGO":
+            try:
+                valor = Decimal(self.campo_valor.text())
+            except InvalidOperation as error:
+                raise ValueError("El valor del impuesto a cargo debe ser un numero valido.") from error
+
+        elif categoria == "SANCION_EXTEMPORANEIDAD":
+            try:
+                base_sancion = Decimal(self.campo_base_sancion.text())
+            except InvalidOperation as error:
+                raise ValueError("La base de la sancion debe ser un numero valido.") from error
+            meses_extemporaneidad = self.campo_meses_extemporaneidad.value()
+
+        elif categoria in ("SANCION_INEXACTITUD", "SANCION_ERROR_ARITMETICO"):
+            try:
+                base_sancion = Decimal(self.campo_base_sancion.text())
+            except InvalidOperation as error:
+                raise ValueError("La base de la sancion debe ser un numero valido.") from error
+            if categoria == "SANCION_INEXACTITUD":
+                sancion_agravada = self.check_sancion_agravada.isChecked()
+
+        elif categoria == "RENTA_LIQUIDA":
+            try:
+                ingresos_brutos = Decimal(self.campo_ingresos_brutos.text())
+                devoluciones = Decimal(self.campo_devoluciones.text())
+                costos = Decimal(self.campo_costos.text())
+                deducciones = Decimal(self.campo_deducciones.text())
+                rentas_exentas = Decimal(self.campo_rentas_exentas.text())
+            except InvalidOperation as error:
+                raise ValueError(
+                    "Los 5 campos de renta liquida gravable deben ser numeros validos."
+                ) from error
+
+        session = session_module.get_session()
+        obligacion = Obligacion(
+            expediente_id=self._expediente_id,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto=self.campo_concepto.text().strip(),
+            categoria=categoria,
+            fecha_origen=fecha_origen,
+            valor=valor,
+            tasa_efectiva_anual=Decimal("0.00"),
+            base_sancion_tributaria=base_sancion,
+            meses_extemporaneidad=meses_extemporaneidad,
+            sancion_agravada=sancion_agravada,
+            ingresos_brutos=ingresos_brutos,
+            devoluciones_rebajas_descuentos=devoluciones,
+            costos=costos,
+            deducciones=deducciones,
+            rentas_exentas=rentas_exentas,
         )
         session.add(obligacion)
         session.commit()

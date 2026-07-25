@@ -524,3 +524,104 @@ def test_guarda_obligacion_comercial_en_cop_deja_trm_en_none(qtbot, monkeypatch)
     assert guardada.trm_aplicable is None
     assert guardada.trm_fecha_referencia is None
     session.close()
+
+
+def test_guarda_obligacion_tributaria_impuesto_a_cargo(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.combo_categoria.setCurrentIndex(0)  # IMPUESTO_A_CARGO
+    dialog.campo_concepto.setText("Impuesto de renta 2024")
+    dialog.campo_valor.setText("10000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.categoria == "IMPUESTO_A_CARGO"
+    assert guardada.valor == Decimal("10000000.00")
+    session.close()
+
+
+def test_guarda_sancion_extemporaneidad_con_meses_de_atraso(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("SANCION_EXTEMPORANEIDAD")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Sancion extemporaneidad renta 2024")
+    dialog.campo_base_sancion.setText("10000000.00")
+    dialog.campo_meses_extemporaneidad.setValue(2)
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.categoria == "SANCION_EXTEMPORANEIDAD"
+    assert guardada.base_sancion_tributaria == Decimal("10000000.00")
+    assert guardada.meses_extemporaneidad == 2
+    session.close()
+
+
+def test_guarda_sancion_inexactitud_agravada(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("SANCION_INEXACTITUD")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Sancion inexactitud renta 2024")
+    dialog.campo_base_sancion.setText("5000000.00")
+    dialog.check_sancion_agravada.setChecked(True)
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.categoria == "SANCION_INEXACTITUD"
+    assert guardada.sancion_agravada is True
+    session.close()
+
+
+def test_guarda_renta_liquida_con_los_5_campos(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("RENTA_LIQUIDA")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Renta liquida gravable 2024")
+    dialog.campo_ingresos_brutos.setText("100000000.00")
+    dialog.campo_devoluciones.setText("0.00")
+    dialog.campo_costos.setText("40000000.00")
+    dialog.campo_deducciones.setText("20000000.00")
+    dialog.campo_rentas_exentas.setText("5000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.categoria == "RENTA_LIQUIDA"
+    assert guardada.ingresos_brutos == Decimal("100000000.00")
+    assert guardada.rentas_exentas == Decimal("5000000.00")
+    session.close()
+
+
+def test_campos_de_sancion_ocultos_al_elegir_impuesto_a_cargo(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    indice = dialog.combo_categoria.findData("IMPUESTO_A_CARGO")
+    dialog.combo_categoria.setCurrentIndex(indice)
+
+    assert dialog.campo_valor.isVisible()
+    assert not dialog.campo_base_sancion.isVisible()
+    assert not dialog.campo_ingresos_brutos.isVisible()
