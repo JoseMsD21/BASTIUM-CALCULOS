@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import List
@@ -21,8 +22,6 @@ from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
 from app.engine.indexation.ipc import IPCIndexation
 from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import get_parametro
-
-from dataclasses import replace
 from app.engine.tax.moratory_interest import construir_rate_provider_moratorio_tributario
 from app.engine.tax.renta_liquida import depurar_renta_liquida_gravable
 from app.engine.tax.sanciones import (

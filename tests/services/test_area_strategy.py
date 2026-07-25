@@ -1014,3 +1014,6 @@ class TestTributarioStrategy:
             TributarioStrategy().liquidar(
                 obligaciones=[renta_1, renta_2], abonos=[], fecha_corte=date(2024, 3, 1)
             )
+
+    def test_soporta_indexacion_ipc_es_false(self):
+        assert TributarioStrategy().soporta_indexacion_ipc is False
