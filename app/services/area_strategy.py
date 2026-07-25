@@ -322,8 +322,9 @@ class LaboralStrategy(AreaStrategy):
     prestaciones sociales se liquidan sobre el salario nominal vigente al
     momento de la causacion, no se indexan por perdida de poder adquisitivo.
 
-    Seguridad social (cotizaciones IBC, pension, salud, ARL, FSP) queda fuera
-    de alcance de este sprint -- ver Pendientes.md, Sprint 3, y
+    Seguridad social (cotizaciones IBC, pension, salud, ARL, FSP) es opt-in
+    via el flag `incluir_seguridad_social` de la obligacion (requiere ademas
+    `nivel_riesgo_arl`, I-V) -- ver Pendientes.md, Sprint 16, y
     docs/superpowers/specs/2026-07-18-area-laboral-design.md.
     """
 

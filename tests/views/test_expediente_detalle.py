@@ -546,6 +546,92 @@ def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbo
     assert resultado.final_balance().principal == Decimal("7974236.10")
 
 
+def _expediente_laboral_con_seguridad_social(monkeypatch) -> int:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-062",
+        demandante="Trabajador",
+        demandado="Empleador SAS",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2021, 6, 1),
+    )
+    session.add(expediente)
+    session.flush()
+    session.add(
+        Obligacion(
+            expediente_id=expediente.id,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto="Liquidacion de contrato",
+            categoria="LIQUIDACION_CONTRATO_LABORAL",
+            fecha_origen=date(2020, 1, 1),
+            valor=Decimal("3000000.00"),
+            tasa_efectiva_anual=Decimal("0.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+            pagada=True,
+            fecha_pago_total=date(2020, 12, 31),
+            incluir_seguridad_social=True,
+            nivel_riesgo_arl="I",
+        )
+    )
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=Decimal("877803.00"), vigente_desde=date(2020, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    for clave, valor in {
+        "SS_PENSION_PCT": Decimal("0.16"),
+        "SS_SALUD_PCT": Decimal("0.125"),
+        "SS_ARL_NIVEL_I_PCT": Decimal("0.00522"),
+    }.items():
+        session.add(ParametroLegal(
+            clave=clave, valor=valor, vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+        ))
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+    return expediente_id
+
+
+def test_liquidar_area_laboral_con_seguridad_social_no_lanza_detached_instance_error(qtbot, monkeypatch):
+    # Regresion: obligacion.eventos_laborales se accede por primera vez dentro
+    # de LaboralStrategy.liquidar() (para calcular dias_suspension) cuando
+    # incluir_seguridad_social=True. _liquidar() debe forzar ese lazy-load
+    # ANTES de session.close(), igual que ya hacia con abonos -- de lo
+    # contrario SQLAlchemy lanza DetachedInstanceError en la GUI real (no se
+    # ve en tests que usan una Obligacion transiente, nunca adjunta a sesion).
+    expediente_id = _expediente_laboral_con_seguridad_social(monkeypatch)
+
+    resultados_recibidos = []
+
+    def capturar(resultado, exp_id):
+        resultados_recibidos.append((resultado, exp_id))
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    page = ExpedienteDetallePage(on_liquidado=capturar)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._liquidar()  # no debe lanzar DetachedInstanceError
+
+    assert len(avisos) == 0
+    assert len(resultados_recibidos) == 1
+    resultado, exp_id = resultados_recibidos[0]
+    assert exp_id == expediente_id
+
+    tipos_evento = {item.balance.event_type for item in resultado.items}
+    assert "COTIZACION_PENSION" in tipos_evento
+
+
 from app.engine.audit.service import registrar_liquidacion
 from app.engine.liquidation.registry import AreaRegistry
 

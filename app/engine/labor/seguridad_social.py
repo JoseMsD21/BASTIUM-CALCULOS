@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 from app.services.parametro_service import get_parametro
 
@@ -38,7 +39,7 @@ class SeguridadSocialCalculator:
         dias_trab = Decimal(str(dias_trabajados))
         dias_susp = Decimal(str(dias_suspension))
 
-        smmlv = get_parametro("SMLMV", date(fecha_referencia.year, 1, 1))
+        smmlv = get_smlmv_for_year(fecha_referencia.year)
         ibc = min(max(salario_base, smmlv), smmlv * Decimal("25"))  # PDF pag. 51: 1-25 SMMLV
 
         monto_pension = Rounding.money(

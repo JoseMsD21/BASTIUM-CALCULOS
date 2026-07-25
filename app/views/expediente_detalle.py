@@ -161,6 +161,8 @@ class ExpedienteDetallePage(QWidget):
         expediente = session.get(Expediente, self._expediente_id)
         obligaciones = list(expediente.obligaciones)
         abonos = [abono for obligacion in obligaciones for abono in obligacion.abonos]
+        for obligacion in obligaciones:
+            list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
         fecha_corte = expediente.fecha_corte_default
         area = expediente.area_derecho.value
         session.close()
