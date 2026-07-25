@@ -95,6 +95,30 @@ def _parametros_legales_en_memoria(monkeypatch):
             clave="USURA_CONSUMO_ORDINARIO", valor=tramo.usura_anual, vigente_desde=tramo.inicio,
             vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
         ))
+    session.add(ParametroLegal(
+        clave="SS_PENSION_PCT", valor=_Decimal("0.16"), vigente_desde=_date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="SS_SALUD_PCT", valor=_Decimal("0.125"), vigente_desde=_date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    for nivel, valor in {
+        "I": _Decimal("0.00522"), "II": _Decimal("0.01044"), "III": _Decimal("0.02436"),
+        "IV": _Decimal("0.04350"), "V": _Decimal("0.06960"),
+    }.items():
+        session.add(ParametroLegal(
+            clave=f"SS_ARL_NIVEL_{nivel}_PCT", valor=valor, vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+    for i, valor in enumerate(
+        [_Decimal("0.01"), _Decimal("0.012"), _Decimal("0.014"), _Decimal("0.016"),
+         _Decimal("0.018"), _Decimal("0.02")], start=1
+    ):
+        session.add(ParametroLegal(
+            clave=f"SS_FSP_TRAMO_{i}_PCT", valor=valor, vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
     session.commit()
     session.close()
 
@@ -867,3 +891,35 @@ class TestLaboralStrategy:
             LaboralStrategy().liquidar(
                 obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
             )
+
+    def test_incluir_seguridad_social_agrega_cotizaciones_a_la_deuda(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "COTIZACION_PENSION" in tipos_evento
+        assert "COTIZACION_SALUD" in tipos_evento
+        assert "COTIZACION_ARL" in tipos_evento
+        # 7974236.10 (prestaciones existentes) + cotizaciones sobre 365 dias,
+        # IBC 3000000.00, nivel I, sin suspension ni FSP (ver SeguridadSocialCalculator):
+        # pension = 3000000*0.16*365/30 = 5840000.00
+        # salud   = 3000000*0.125*365/30 = 4562500.00
+        # arl     = 3000000*0.00522*365/30 = 190530.00
+        assert resultado.final_balance().principal == Decimal("18567266.10")
+
+    def test_sin_incluir_seguridad_social_no_hay_regresion(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        # incluir_seguridad_social queda en su default (False)
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "COTIZACION_PENSION" not in tipos_evento
+        assert resultado.final_balance().principal == Decimal("7974236.10")

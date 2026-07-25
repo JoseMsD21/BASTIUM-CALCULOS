@@ -11,6 +11,7 @@ from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.currency.converter import convertir_a_pesos
 from app.engine.currency.trm_provider import ManualTRMProvider
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+from app.engine.labor.seguridad_social import SeguridadSocialCalculator
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
@@ -345,6 +346,30 @@ class LaboralStrategy(AreaStrategy):
             dias_trabajados=dias_trabajados,
             fecha_liquidacion=obligacion.fecha_fin,
         ).generate()
+
+        if obligacion.incluir_seguridad_social:
+            dias_suspension = sum(
+                (evento.fecha_fin - evento.fecha_inicio).days
+                for evento in obligacion.eventos_laborales
+                if evento.tipo.value == "SUSPENSION"
+            )
+            cotizaciones = SeguridadSocialCalculator.calcular(
+                salario_base=obligacion.valor,
+                dias_trabajados=dias_trabajados,
+                dias_suspension=dias_suspension,
+                nivel_riesgo_arl=obligacion.nivel_riesgo_arl,
+                fecha_referencia=obligacion.fecha_fin,
+            )
+            for concepto, monto in [
+                ("COTIZACION_PENSION", cotizaciones.monto_pension),
+                ("COTIZACION_SALUD", cotizaciones.monto_salud),
+                ("COTIZACION_ARL", cotizaciones.monto_arl),
+                ("COTIZACION_FSP", cotizaciones.monto_fsp),
+            ]:
+                if monto > Decimal("0.00"):
+                    eventos.append(Event(
+                        date=obligacion.fecha_fin, payload={"amount": monto}, event_type=concepto,
+                    ))
 
         # fecha_pago_total (si existe) es cuando realmente se extinguio la
         # deuda; nunca puede ser posterior a fecha_corte para efectos de este
