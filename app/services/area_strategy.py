@@ -629,6 +629,18 @@ class TributarioStrategy(AreaStrategy):
     no una deuda exigible) y se adjunta aparte en LiquidationResult.renta_liquida. Un
     expediente admite como maximo una obligacion "RENTA_LIQUIDA" (un solo periodo gravable
     por liquidacion).
+
+    No es compatible con indexacion IPC (soporta_indexacion_ipc = False). El PDF (pag. 40)
+    advierte que no se pueden cobrar simultaneamente intereses moratorios y actualizacion
+    monetaria si eso conduce a una tasa usuraria o doble pago por el mismo concepto (mismo
+    criterio ya exigido en Sprint 2 para la incompatibilidad interes-comercial + IPC). Aqui
+    esa combinacion no requiere un guard en tiempo de ejecucion: el formulario de la GUI
+    oculta el checkbox "aplica indexacion IPC" para el area TRIBUTARIO (ver obligaciones.py)
+    y _evento_de_obligacion, a diferencia de CivilFamiliaStrategy, nunca lee
+    obligacion.aplica_indexacion_ipc -- por lo que ninguna obligacion tributaria puede
+    generar a la vez el interes automatico E.T. 635 y un evento de correccion monetaria IPC
+    sobre el mismo hecho. La advertencia del PDF no aplica por construccion, no por una
+    validacion explicita en tiempo de ejecucion.
     """
 
     soporta_indexacion_ipc = False
