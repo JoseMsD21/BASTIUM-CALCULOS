@@ -424,6 +424,58 @@ def test_guarda_obligacion_sin_marcar_indexacion_queda_en_false(qtbot, monkeypat
     session.close()
 
 
+def test_guarda_obligacion_laboral_con_seguridad_social(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+    dialog.check_incluir_seguridad_social.setChecked(True)
+    dialog.combo_nivel_riesgo_arl.setCurrentIndex(0)  # "I"
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.incluir_seguridad_social is True
+    assert guardada.nivel_riesgo_arl == "I"
+    session.close()
+
+
+def test_guarda_obligacion_laboral_sin_seguridad_social_por_defecto(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.incluir_seguridad_social is False
+    assert guardada.nivel_riesgo_arl is None
+    session.close()
+
+
+def test_combo_nivel_riesgo_arl_visible_solo_si_checkbox_activo(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.combo_nivel_riesgo_arl.isVisible() is False
+    dialog.check_incluir_seguridad_social.setChecked(True)
+    assert dialog.combo_nivel_riesgo_arl.isVisible() is True
+
+
 def test_label_fecha_origen_cambia_para_area_laboral(qtbot, monkeypatch):
     expediente_id_laboral = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
     expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
