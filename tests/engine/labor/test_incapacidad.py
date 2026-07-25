@@ -82,3 +82,21 @@ def test_incapacidad_laboral_arl_paga_100pct_desde_dia_1_nada_a_cargo_empleador(
     assert resultado.tramos[0].pagador == "ARL"
     assert resultado.tramos[0].porcentaje == Decimal("1.00")
     assert resultado.tramos[0].monto == Decimal("1000000.00")
+
+
+def test_incapacidad_comun_cero_dias_no_genera_tramos():
+    resultado = IncapacidadCalculator.calcular(
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=0,
+    )
+
+    assert resultado.tramos == []
+    assert resultado.monto_a_cargo_empleador == Decimal("0.00")
+
+
+def test_incapacidad_laboral_cero_dias_no_genera_tramos():
+    resultado = IncapacidadCalculator.calcular(
+        tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=0,
+    )
+
+    assert resultado.tramos == []
+    assert resultado.monto_a_cargo_empleador == Decimal("0.00")

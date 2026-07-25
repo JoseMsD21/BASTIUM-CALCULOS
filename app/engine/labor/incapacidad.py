@@ -15,7 +15,7 @@ class TramoIncapacidad:
 
 @dataclass(frozen=True)
 class IncapacidadResult:
-    tramos: list
+    tramos: list[TramoIncapacidad]
     monto_a_cargo_empleador: Decimal
 
 
@@ -40,9 +40,11 @@ class IncapacidadCalculator:
         ibc_diario = ibc_mensual / Decimal("30")
 
         if tipo == TipoEventoLaboral.INCAPACIDAD_LABORAL:
-            monto = Rounding.money(ibc_diario * dias_incapacidad)
-            tramo = TramoIncapacidad(dias_incapacidad, "ARL", Decimal("1.00"), monto)
-            return IncapacidadResult([tramo], Decimal("0.00"))
+            if dias_incapacidad > 0:
+                monto = Rounding.money(ibc_diario * dias_incapacidad)
+                tramo = TramoIncapacidad(dias_incapacidad, "ARL", Decimal("1.00"), monto)
+                return IncapacidadResult([tramo], Decimal("0.00"))
+            return IncapacidadResult([], Decimal("0.00"))
 
         tramos = []
         dias_1_2 = min(dias_incapacidad, 2)
