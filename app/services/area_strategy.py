@@ -10,6 +10,7 @@ from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.currency.converter import convertir_a_pesos
 from app.engine.currency.trm_provider import ManualTRMProvider
+from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.seguridad_social import SeguridadSocialCalculator
 from app.engine.liquidation.result import LiquidationResult
@@ -371,6 +372,39 @@ class LaboralStrategy(AreaStrategy):
                     eventos.append(Event(
                         date=obligacion.fecha_fin, payload={"amount": monto}, event_type=concepto,
                     ))
+
+            for evento in obligacion.eventos_laborales:
+                if evento.tipo.value == "SUSPENSION":
+                    eventos.append(Event(
+                        date=evento.fecha_fin,
+                        payload={
+                            "amount": Decimal("0.00"),
+                            "label": (
+                                f"Suspension ({evento.motivo_suspension.value}) "
+                                f"{evento.fecha_inicio}-{evento.fecha_fin}: no causa ARL"
+                            ),
+                        },
+                        event_type="SUSPENSION_INFORMATIVA",
+                    ))
+                else:
+                    dias_incapacidad = (evento.fecha_fin - evento.fecha_inicio).days
+                    desglose = IncapacidadCalculator.calcular(
+                        tipo=evento.tipo, ibc_mensual=cotizaciones.ibc_mensual,
+                        dias_incapacidad=dias_incapacidad,
+                    )
+                    for tramo in desglose.tramos:
+                        es_empleador = tramo.pagador == "EMPLEADOR"
+                        eventos.append(Event(
+                            date=evento.fecha_fin,
+                            payload={
+                                "amount": tramo.monto if es_empleador else Decimal("0.00"),
+                                "label": (
+                                    f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
+                                    f"{tramo.pagador} ({tramo.porcentaje:.2%}): ${tramo.monto}"
+                                ),
+                            },
+                            event_type="INCAPACIDAD_EMPLEADOR" if es_empleador else "INCAPACIDAD_INFORMATIVA",
+                        ))
 
         # fecha_pago_total (si existe) es cuando realmente se extinguio la
         # deuda; nunca puede ser posterior a fecha_corte para efectos de este

@@ -923,3 +923,70 @@ class TestLaboralStrategy:
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "COTIZACION_PENSION" not in tipos_evento
         assert resultado.final_balance().principal == Decimal("7974236.10")
+
+    def test_incapacidad_comun_agrega_solo_el_monto_del_empleador_a_la_deuda(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),  # 3 dias
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INCAPACIDAD_EMPLEADOR" in tipos_evento
+        assert "INCAPACIDAD_INFORMATIVA" in tipos_evento
+        # IBC = 3000000.00 (sin suspension, sin FSP); dias 1-2 empleador
+        # 66.67% = 133340.00; dia 3 EPS 66.67% = 66670.00 (informativo, no suma).
+        eventos_incapacidad_empleador = [
+            item for item in resultado.items if item.balance.event_type == "INCAPACIDAD_EMPLEADOR"
+        ]
+        assert eventos_incapacidad_empleador[0].capital_base >= Decimal("133340.00")
+
+    def test_incapacidad_laboral_no_agrega_nada_a_la_deuda_pero_deja_traza(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL,
+            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 11),  # 10 dias
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INCAPACIDAD_INFORMATIVA" in tipos_evento
+        assert "INCAPACIDAD_EMPLEADOR" not in tipos_evento
+
+    def test_suspension_excluye_arl_de_esos_dias_y_deja_traza(self):
+        from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.SUSPENSION,
+            fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 31),  # 30 dias
+            motivo_suspension=MotivoSuspension.HUELGA,
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SUSPENSION_INFORMATIVA" in tipos_evento
+        assert "COTIZACION_ARL" in tipos_evento
+        eventos_arl = [item for item in resultado.items if item.balance.event_type == "COTIZACION_ARL"]
+        # dias_trabajados=365, dias_suspension=30: arl = 3000000*0.00522*(365-30)/30
+        assert eventos_arl[0].capital_base > Decimal("0.00")
