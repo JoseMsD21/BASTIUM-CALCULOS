@@ -407,6 +407,11 @@ class LaboralStrategy(AreaStrategy):
             raise ValueError(
                 "Una obligacion marcada como pagada debe tener 'fecha_pago_total'."
             )
+        if obligacion.incluir_seguridad_social and not obligacion.nivel_riesgo_arl:
+            raise ValueError(
+                "Si se incluyen cotizaciones de seguridad social, 'nivel_riesgo_arl' "
+                "(I-V) es obligatorio."
+            )
 
 
 class SancionatorioStrategy(AreaStrategy):

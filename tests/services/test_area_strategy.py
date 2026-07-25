@@ -846,3 +846,13 @@ class TestLaboralStrategy:
 
     def test_soporta_indexacion_ipc_es_false(self):
         assert LaboralStrategy().soporta_indexacion_ipc is False
+
+    def test_incluir_seguridad_social_sin_nivel_riesgo_lanza_value_error(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = None
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
