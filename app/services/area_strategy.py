@@ -400,7 +400,7 @@ class LaboralStrategy(AreaStrategy):
                                 "amount": tramo.monto if es_empleador else Decimal("0.00"),
                                 "label": (
                                     f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
-                                    f"{tramo.pagador} ({tramo.porcentaje:.2%}): ${tramo.monto}"
+                                    f"{tramo.pagador} ({tramo.porcentaje:.2%}): ${tramo.monto:,.2f}"
                                 ),
                             },
                             event_type="INCAPACIDAD_EMPLEADOR" if es_empleador else "INCAPACIDAD_INFORMATIVA",

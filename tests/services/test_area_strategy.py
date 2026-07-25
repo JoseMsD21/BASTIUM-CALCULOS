@@ -990,3 +990,31 @@ class TestLaboralStrategy:
         eventos_arl = [item for item in resultado.items if item.balance.event_type == "COTIZACION_ARL"]
         # dias_trabajados=365, dias_suspension=30: arl = 3000000*0.00522*(365-30)/30
         assert eventos_arl[0].capital_base > Decimal("0.00")
+
+    def test_suspension_e_incapacidad_combinadas_en_el_mismo_contrato(self):
+        from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.SUSPENSION,
+                fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 31),
+                motivo_suspension=MotivoSuspension.HUELGA,
+            ),
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+            ),
+        ]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SUSPENSION_INFORMATIVA" in tipos_evento
+        assert "INCAPACIDAD_EMPLEADOR" in tipos_evento
+        assert "INCAPACIDAD_INFORMATIVA" in tipos_evento
+        assert "COTIZACION_ARL" in tipos_evento
