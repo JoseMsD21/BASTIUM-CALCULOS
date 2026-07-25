@@ -99,11 +99,26 @@ def test_migrar_es_idempotente():
     assert segunda == 0
 
 
-def test_migrar_ss_pension_pct_coincide_con_el_pdf():
+@pytest.mark.parametrize("clave,valor_esperado", [
+    ("SS_PENSION_PCT", Decimal("0.16")),
+    ("SS_SALUD_PCT", Decimal("0.125")),
+    ("SS_ARL_NIVEL_I_PCT", Decimal("0.00522")),
+    ("SS_ARL_NIVEL_II_PCT", Decimal("0.01044")),
+    ("SS_ARL_NIVEL_III_PCT", Decimal("0.02436")),
+    ("SS_ARL_NIVEL_IV_PCT", Decimal("0.04350")),
+    ("SS_ARL_NIVEL_V_PCT", Decimal("0.06960")),
+    ("SS_FSP_TRAMO_1_PCT", Decimal("0.01")),
+    ("SS_FSP_TRAMO_2_PCT", Decimal("0.012")),
+    ("SS_FSP_TRAMO_3_PCT", Decimal("0.014")),
+    ("SS_FSP_TRAMO_4_PCT", Decimal("0.016")),
+    ("SS_FSP_TRAMO_5_PCT", Decimal("0.018")),
+    ("SS_FSP_TRAMO_6_PCT", Decimal("0.02")),
+])
+def test_migrar_valores_seguridad_social_coinciden_con_el_pdf(clave, valor_esperado):
     from scripts.migrate_parametros_legales import migrar
 
     migrar()
     session = session_module.get_session()
-    fila = session.query(ParametroLegal).filter_by(clave="SS_PENSION_PCT").one()
+    fila = session.query(ParametroLegal).filter_by(clave=clave).one()
     session.close()
-    assert fila.valor == Decimal("0.16")
+    assert fila.valor == valor_esperado

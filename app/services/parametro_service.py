@@ -109,7 +109,7 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Unidad de Valor Tributario (UVT)", "Indicadores historicos",
         "DIAN, resolucion anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
     ),
-    # NOTA DE COORDINACION (Sprint 16, Task 3): las siguientes claves SS_* (12 en
+    # NOTA DE COORDINACION (Sprint 16, Task 3): las siguientes claves SS_* (13 en
     # total: SS_PENSION_PCT, SS_SALUD_PCT, SS_ARL_NIVEL_I..V_PCT y
     # SS_FSP_TRAMO_1..6_PCT) ya fueron agregadas en esta tarea con citas
     # verificadas contra Ley 100/1993 art. 20 (pension/salud), Decreto 1772/1994
