@@ -9,7 +9,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-21)
+## Estado actual (2026-07-25)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -23,9 +23,14 @@ según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tab
 profesionales y cuota litis, validando simultáneamente el tope del 30% del beneficio obtenido para la
 cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
 se ingresan como un porcentaje manual, porque no existe una tabla estructurada confiable de los rangos
-del Consejo Superior de la Judicatura) y **Laboral** (liquidación final —finiquito— de un contrato:
+del Consejo Superior de la Judicatura), **Laboral** (liquidación final —finiquito— de un contrato:
 cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, e indemnización moratoria
-bifásica del Art. 65 CST si hubo retardo en el pago). El resultado de cualquier liquidación se puede
+bifásica del Art. 65 CST si hubo retardo en el pago) y **Tributario** (impuesto a cargo; sanciones por
+extemporaneidad, inexactitud y error aritmético, todas con un piso legal de 10 UVT sin importar el
+cálculo porcentual; imputación de pagos propia del área —sanciones → intereses → impuesto, distinta del
+orden civil de intereses → capital—; interés automático del E.T. art. 635 —usura vigente menos dos
+puntos—, que nunca se pacta manualmente; y depuración de Renta Líquida Gravable informativa, que se
+muestra aparte y no se suma al saldo de la deuda). El resultado de cualquier liquidación se puede
 exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación. Cada liquidación ejecutada
 queda registrada en un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de
 corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
@@ -44,16 +49,13 @@ también están pendientes. El motor de prescripción y caducidad
 (`app/engine/temporal/prescripcion.py`) ya existe y está probado — calcula fechas límite por tipo de
 acción (ejecutiva, ordinaria, honorarios profesionales, cambiaria directa/de regreso), soporta
 prescripción parcial cuota a cuota en obligaciones de tracto sucesivo e interrupción por demanda — pero
-todavía no está conectado a ninguna pantalla ni al motor de liquidación (`Pendientes.md`, Sprint 7). Dos
-motores de cálculo tributario también existen y están probados sin estar conectados a ninguna
-pantalla: interés moratorio tributario (`app/engine/tax/moratory_interest.py`, E.T. art. 635, usura
-vigente menos dos puntos, resuelto por tramos históricos) y depuración de Renta Líquida Gravable
-(`app/engine/tax/renta_liquida.py`, pipeline de 8 pasos) (`Pendientes.md`, Sprint 11). Las
+todavía no está conectado a ninguna pantalla ni al motor de liquidación (`Pendientes.md`, Sprint 7). Las
 series históricas de SMLMV, IPC, IBC/Tasa de Usura y UVT (1984-2026, 1967-2025, 1997-2026 y 2006-2026
 respectivamente) ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en
 Comercial y en la fase 2 de la indemnización moratoria laboral, IPC ya está conectado a la indexación de
 Civil/Familia (Sprint 8), y UVT ya está conectada a la conversión SMLMV→UVT del área Sancionatorio
-(Sprint 14); SMLMV sigue sin un consumidor propio. El plan completo, sprint por sprint, está en
+(Sprint 14) y al piso legal de 10 UVT de las sanciones tributarias (Sprint 15); SMLMV sigue sin un
+consumidor propio. El plan completo, sprint por sprint, está en
 **[Pendientes.md](Pendientes.md)**.
 
 ## Instalación rápida
