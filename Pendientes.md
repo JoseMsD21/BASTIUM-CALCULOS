@@ -1104,6 +1104,43 @@ tributarias a UVT no se pueden probar con casos reales sin esa serie.
 - `TributarioStrategy` liquida con TDD siguiendo el mismo patrón que `tests/services/test_area_strategy.py`.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-07-25):** Completado — ver
+`docs/superpowers/specs/2026-07-24-sprint15-tributario-11b-design.md` y
+`docs/superpowers/plans/2026-07-24-sprint15-tributario-11b.md`. Se agregó el motor de sanciones
+(`app/engine/tax/sanciones.py`) con las tres funciones puras del PDF —
+`calcular_sancion_extemporaneidad` (5% mensual del impuesto a cargo, tope 100%),
+`calcular_sancion_inexactitud` (160%, o 200% si es agravada, de la diferencia determinada) y
+`calcular_sancion_error_aritmetico` (30% de la diferencia) — más `aplicar_piso_sancion_minima`, que
+centraliza el piso legal de 10 UVT en un solo lugar en vez de repetirlo en cada función.
+
+El modelo de "Obligación Tributaria" no se separó en una tabla nueva: se extendió la tabla `Obligacion`
+existente con 8 columnas (`base_sancion_tributaria`, `meses_extemporaneidad`, `sancion_agravada`,
+`ingresos_brutos`, `devoluciones_rebajas_descuentos`, `costos`, `deducciones`, `rentas_exentas`), migradas
+vía `scripts/migrate_tributario.py`, y se registró `AreaDerecho.TRIBUTARIO` junto con `"TRIBUTARIO"` en
+`AREAS_DERECHO`. `TributarioStrategy` queda operable en la GUI como sexta área del sistema, con 5
+categorías de obligación: `IMPUESTO_A_CARGO`, las 3 sanciones (`SANCION_EXTEMPORANEIDAD`,
+`SANCION_INEXACTITUD`, `SANCION_ERROR_ARITMETICO`) y `RENTA_LIQUIDA`.
+
+Contra lo previsto en el plan original de este sprint, no se construyó un motor de imputación tributaria
+dedicado (`app/engine/tax/imputacion.py`): se reutiliza el motor genérico de liquidación
+(`UniversalLiquidationService`/`LiquidationCore`) sin modificarlo. El impuesto a cargo se agrega a
+`_capital_concepts` y cae en el bucket `principal`; las 3 sanciones se normalizan a un único
+`event_type` `"SANCION_TRIBUTARIA"` que cae en el bucket `indexation`. El orden de pago que ya aplica
+`AllocationEngine` (indexación → interés → capital) coincide exactamente con el orden exigido por el PDF
+para tributario (sanciones → intereses → impuesto), así que no hacía falta un motor de imputación aparte
+— ver la spec, sección "Arquitectura", para el detalle de esa decisión. La Renta Líquida Gravable
+(`depurar_renta_liquida_gravable`, ya existente desde el Sprint 11a) es puramente informativa: no genera
+evento de causación, se adjunta aparte en `LiquidationResult.renta_liquida` y un expediente admite como
+máximo una obligación `RENTA_LIQUIDA` por liquidación.
+
+De paso se corrigió un defecto de reporting preexistente: el bucket de indexación (el mismo que usan las
+sanciones tributarias) se calculaba desde Civil/Familia en `ReportTableBuilder`/`ReportSummaryBuilder`
+pero nunca se mostraba en ningún canal. Tributario es la primera área donde ese bucket contiene montos
+relevantes, así que se agregó la columna/fila faltante en los 3 canales: la tabla de la GUI
+(`app/views/liquidaciones.py`), el PDF (`app/reports/pdf.py`) y el Word (`app/reports/word.py`).
+
+`README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (404 passed, 1 skipped).
+
 ---
 
 ## Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral)
