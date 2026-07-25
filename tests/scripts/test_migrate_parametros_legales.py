@@ -18,7 +18,7 @@ def _db_en_memoria(monkeypatch):
     return engine
 
 
-def test_migrar_siembra_las_17_claves_del_catalogo():
+def test_migrar_siembra_las_30_claves_del_catalogo():
     from scripts.migrate_parametros_legales import migrar
 
     migrar()
@@ -35,6 +35,11 @@ def test_migrar_siembra_las_17_claves_del_catalogo():
         "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES",
         "SMLMV", "IPC_INDICE_ACUMULADO", "IBC_CONSUMO_ORDINARIO", "USURA_CONSUMO_ORDINARIO",
         "UVT",
+        "SS_PENSION_PCT", "SS_SALUD_PCT",
+        "SS_ARL_NIVEL_I_PCT", "SS_ARL_NIVEL_II_PCT", "SS_ARL_NIVEL_III_PCT",
+        "SS_ARL_NIVEL_IV_PCT", "SS_ARL_NIVEL_V_PCT",
+        "SS_FSP_TRAMO_1_PCT", "SS_FSP_TRAMO_2_PCT", "SS_FSP_TRAMO_3_PCT",
+        "SS_FSP_TRAMO_4_PCT", "SS_FSP_TRAMO_5_PCT", "SS_FSP_TRAMO_6_PCT",
     }
 
 
@@ -90,5 +95,15 @@ def test_migrar_es_idempotente():
 
     primera = migrar()
     segunda = migrar()
-    assert primera == 17
+    assert primera == 30
     assert segunda == 0
+
+
+def test_migrar_ss_pension_pct_coincide_con_el_pdf():
+    from scripts.migrate_parametros_legales import migrar
+
+    migrar()
+    session = session_module.get_session()
+    fila = session.query(ParametroLegal).filter_by(clave="SS_PENSION_PCT").one()
+    session.close()
+    assert fila.valor == Decimal("0.16")
