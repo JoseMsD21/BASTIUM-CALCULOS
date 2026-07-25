@@ -302,6 +302,17 @@ def test_capital_concepts_incluye_vacaciones():
     assert "VACACIONES" in core._capital_concepts
 
 
+def test_capital_concepts_incluye_seguridad_social_e_incapacidad():
+    core = LiquidationCore()
+    assert "COTIZACION_PENSION" in core._capital_concepts
+    assert "COTIZACION_SALUD" in core._capital_concepts
+    assert "COTIZACION_ARL" in core._capital_concepts
+    assert "COTIZACION_FSP" in core._capital_concepts
+    assert "INCAPACIDAD_EMPLEADOR" in core._capital_concepts
+    assert "SUSPENSION_INFORMATIVA" in core._capital_concepts
+    assert "INCAPACIDAD_INFORMATIVA" in core._capital_concepts
+
+
 from app.core.exceptions import TasaUsurariaError
 
 
