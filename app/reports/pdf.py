@@ -103,6 +103,7 @@ class JudicialPDFGenerator:
             ("Intereses Generados", summary["total_intereses_generados"]),
             ("Saldo Final Capital", summary["saldo_final_capital"]),
             ("Saldo Final Intereses", summary["saldo_final_intereses"]),
+            ("Saldo Final Indexación/Sanciones", summary["saldo_final_indexacion"]),
             ("GRAN TOTAL ADEUDADO", summary["gran_total_adeudado"]),
         ]
         datos_resumen = [["Rubro Financiero", "Monto Liquidado"]]
@@ -126,7 +127,7 @@ class JudicialPDFGenerator:
         elementos.append(Paragraph("<b>Cronología Detallada de Imputaciones y Saldos</b>", self.styles['BastiumTitle']))
 
         datos_cronologia = [[
-            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Pago",
+            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
             "Saldo Capital", "Saldo Interés", "Saldo Total",
         ]]
         for fila in table_data:
@@ -136,6 +137,7 @@ class JudicialPDFGenerator:
                 fila["base_capital"],
                 fila["tasa"],
                 fila["interes"],
+                fila["indexacion"],
                 fila["pago"],
                 fila["saldo_capital"],
                 fila["saldo_interes"],

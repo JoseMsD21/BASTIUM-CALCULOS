@@ -33,6 +33,7 @@ class WordReportGenerator:
             ("Intereses Generados", summary["total_intereses_generados"]),
             ("Saldo Final Capital", summary["saldo_final_capital"]),
             ("Saldo Final Intereses", summary["saldo_final_intereses"]),
+            ("Saldo Final Indexación/Sanciones", summary["saldo_final_indexacion"]),
             ("GRAN TOTAL ADEUDADO", summary["gran_total_adeudado"]),
         ]
         tabla_resumen = documento.add_table(rows=1, cols=2)
@@ -52,7 +53,7 @@ class WordReportGenerator:
         run_subtitulo.font.color.rgb = self.c_burgundy
 
         columnas_cronologia = [
-            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Pago",
+            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
             "Saldo Capital", "Saldo Interés", "Saldo Total",
         ]
         tabla_cronologia = documento.add_table(rows=1, cols=len(columnas_cronologia))
@@ -66,9 +67,10 @@ class WordReportGenerator:
             celdas_fila[2].text = fila_datos["base_capital"]
             celdas_fila[3].text = fila_datos["tasa"]
             celdas_fila[4].text = fila_datos["interes"]
-            celdas_fila[5].text = fila_datos["pago"]
-            celdas_fila[6].text = fila_datos["saldo_capital"]
-            celdas_fila[7].text = fila_datos["saldo_interes"]
-            celdas_fila[8].text = fila_datos["saldo_total"]
+            celdas_fila[5].text = fila_datos["indexacion"]
+            celdas_fila[6].text = fila_datos["pago"]
+            celdas_fila[7].text = fila_datos["saldo_capital"]
+            celdas_fila[8].text = fila_datos["saldo_interes"]
+            celdas_fila[9].text = fila_datos["saldo_total"]
 
         documento.save(self.output_path)

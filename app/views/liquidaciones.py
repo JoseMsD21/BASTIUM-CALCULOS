@@ -34,9 +34,9 @@ class ResultadoLiquidacionView(QWidget):
         self._resultado = None
         self._expediente_id = None
 
-        self.tabla = QTableWidget(0, 7)
+        self.tabla = QTableWidget(0, 8)
         self.tabla.setHorizontalHeaderLabels(
-            ["Fecha", "Concepto", "Capital base", "Tasa %", "Interes", "Pago", "Saldo"]
+            ["Fecha", "Concepto", "Capital base", "Tasa %", "Interes", "Indexacion/Sanciones", "Pago", "Saldo"]
         )
 
         self.etiqueta_interes_total = QLabel("Interes acumulado: 0.00")
@@ -71,8 +71,9 @@ class ResultadoLiquidacionView(QWidget):
             self.tabla.setItem(fila, 2, QTableWidgetItem(str(item.capital_base)))
             self.tabla.setItem(fila, 3, QTableWidgetItem(str(item.interest_rate)))
             self.tabla.setItem(fila, 4, QTableWidgetItem(str(item.interest_amount)))
-            self.tabla.setItem(fila, 5, QTableWidgetItem(str(item.payment_amount)))
-            self.tabla.setItem(fila, 6, QTableWidgetItem(str(item.balance.debt.total())))
+            self.tabla.setItem(fila, 5, QTableWidgetItem(str(item.indexation_amount)))
+            self.tabla.setItem(fila, 6, QTableWidgetItem(str(item.payment_amount)))
+            self.tabla.setItem(fila, 7, QTableWidgetItem(str(item.balance.debt.total())))
 
         self.etiqueta_interes_total.setText(f"Interes acumulado: {resultado.total_interest_accrued()}")
         self.etiqueta_pagos_total.setText(f"Pagos aplicados: {resultado.total_payments_applied()}")

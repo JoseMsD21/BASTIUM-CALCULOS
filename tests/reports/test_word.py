@@ -51,7 +51,7 @@ def test_generate_incluye_titulo_encabezado_y_tabla_cronologica(tmp_path):
     tabla_cronologia = documento.tables[1]
     encabezados_columna = [celda.text for celda in tabla_cronologia.rows[0].cells]
     assert encabezados_columna == [
-        "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Pago",
+        "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
         "Saldo Capital", "Saldo Interés", "Saldo Total",
     ]
     fila_datos = [celda.text for celda in tabla_cronologia.rows[1].cells]
@@ -66,3 +66,17 @@ def test_generate_sin_encabezado_no_falla(tmp_path):
 
     assert ruta.exists()
     assert ruta.stat().st_size > 0
+
+
+def test_generate_incluye_columna_de_indexacion_sanciones(tmp_path):
+    ruta = tmp_path / "liquidacion.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO", _summary(), _table_data())
+
+    documento = Document(str(ruta))
+    tabla_cronologia = documento.tables[1]
+    encabezados = [celda.text for celda in tabla_cronologia.rows[0].cells]
+    assert "Indexación/Sanciones" in encabezados
+    fila_datos = [celda.text for celda in tabla_cronologia.rows[1].cells]
+    assert "$0.00" in fila_datos
