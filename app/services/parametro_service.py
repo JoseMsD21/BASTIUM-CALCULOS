@@ -162,8 +162,10 @@ def get_parametro(clave: str, fecha: date) -> Decimal:
     declarado en CATALOGO_PARAMETROS (ver Adenda de diseno de la spec)."""
     fila = _resolver_fila(clave, fecha)
     if fila is None:
+        info = _validar_clave(clave)
         raise ParametroNoDisponibleError(
-            f"No hay valor de '{clave}' disponible para la fecha {fecha}."
+            f"No hay valor configurado para '{info.descripcion}' (clave '{clave}') "
+            f"en la fecha {fecha}."
         )
     return fila.valor
 
