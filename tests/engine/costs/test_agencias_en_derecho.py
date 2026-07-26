@@ -226,6 +226,51 @@ def test_calcular_combinacion_no_registrada_lanza_tarifa_no_disponible():
         )
 
 
+def test_expropiacion_primera_instancia():
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EXPROPIACION, Instancia.PRIMERA, None, True)]
+    assert rango == RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE)
+
+
+def test_expropiacion_segunda_instancia():
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EXPROPIACION, Instancia.SEGUNDA, None, True)]
+    assert rango == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_deslinde_amojonamiento_todas_las_instancias():
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.UNICA, CuantiaTier.MINIMA, True)
+    ] == RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.PRIMERA, CuantiaTier.MENOR, True)
+    ] == RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.PRIMERA, CuantiaTier.MAYOR, True)
+    ] == RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.SEGUNDA, None, True)
+    ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_divisorio_todas_las_instancias():
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DIVISORIO, Instancia.UNICA, CuantiaTier.MINIMA, True)
+    ] == RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DIVISORIO, Instancia.PRIMERA, CuantiaTier.MENOR, True)
+    ] == RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DIVISORIO, Instancia.PRIMERA, CuantiaTier.MAYOR, True)
+    ] == RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.DIVISORIO, Instancia.SEGUNDA, None, True)
+    ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_monitorio_hasta_5_por_ciento():
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.MONITORIO, Instancia.UNICA, None, True)]
+    assert rango == RangoTarifa(Decimal("0"), Decimal("5"), UnidadTarifa.PORCENTAJE)
+
+
 def test_calcular_tarifa_tier_agnostica_no_interpola_incluso_con_pretension_grande(monkeypatch):
     # Regresion: una tarifa que no distingue por cuantia (ej. MONITORIO, "hasta
     # el 5%") no debe interpolarse usando los limites del tier resuelto -- debe

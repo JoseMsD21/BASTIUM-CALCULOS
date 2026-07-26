@@ -103,6 +103,37 @@ TARIFAS_AGENCIAS_EN_DERECHO: dict[
         RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
     (TipoProceso.DECLARATIVO_GENERAL, Instancia.SEGUNDA, None, False):
         RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 2.1. PROCESOS DE EXPROPIACION (art. 5.2.1)
+    (TipoProceso.EXPROPIACION, Instancia.PRIMERA, None, True):
+        RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.EXPROPIACION, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 2.2. PROCESOS DE DESLINDE Y AMOJONAMIENTO (art. 5.2.2)
+    (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.UNICA, CuantiaTier.MINIMA, True):
+        RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.PRIMERA, CuantiaTier.MENOR, True):
+        RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.PRIMERA, CuantiaTier.MAYOR, True):
+        RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.DESLINDE_AMOJONAMIENTO, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 2.3. PROCESOS DIVISORIOS (art. 5.2.3)
+    (TipoProceso.DIVISORIO, Instancia.UNICA, CuantiaTier.MINIMA, True):
+        RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.DIVISORIO, Instancia.PRIMERA, CuantiaTier.MENOR, True):
+        RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.DIVISORIO, Instancia.PRIMERA, CuantiaTier.MAYOR, True):
+        RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.DIVISORIO, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 3. PROCESO MONITORIO (art. 5.3): "hasta el 5%" -- sin piso explicito en
+    # el texto, se modela con piso 0 (lectura razonable de "hasta").
+    (TipoProceso.MONITORIO, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("0"), Decimal("5"), UnidadTarifa.PORCENTAJE),
 }
 
 
