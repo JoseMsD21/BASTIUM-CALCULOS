@@ -20,8 +20,9 @@ from app.core.exceptions import (
 from app.engine.audit.service import historial_de_expediente, reconstruir_liquidacion, registrar_liquidacion
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
+from app.views.eventos_laborales import EventoLaboralFormDialog
 from app.views.obligaciones import ObligacionFormDialog
-from database.models import Expediente
+from database.models import AreaDerecho, Expediente
 
 
 class ExpedienteDetallePage(QWidget):
@@ -53,6 +54,17 @@ class ExpedienteDetallePage(QWidget):
         layout_abonos.addWidget(self.tabla_abonos)
         grupo_abonos.setLayout(layout_abonos)
 
+        self.tabla_eventos_laborales = QTableWidget(0, 3)
+        self.tabla_eventos_laborales.setHorizontalHeaderLabels(["Tipo", "Fecha inicio", "Fecha fin"])
+        boton_agregar_evento_laboral = QPushButton("Agregar evento")
+        boton_agregar_evento_laboral.clicked.connect(self._abrir_dialogo_evento_laboral)
+
+        self.grupo_eventos_laborales = QGroupBox("Eventos contractuales")
+        layout_eventos_laborales = QVBoxLayout()
+        layout_eventos_laborales.addWidget(boton_agregar_evento_laboral)
+        layout_eventos_laborales.addWidget(self.tabla_eventos_laborales)
+        self.grupo_eventos_laborales.setLayout(layout_eventos_laborales)
+
         boton_liquidar = QPushButton("Liquidar")
         boton_liquidar.clicked.connect(self._liquidar)
 
@@ -72,6 +84,7 @@ class ExpedienteDetallePage(QWidget):
         columnas = QHBoxLayout()
         columnas.addWidget(grupo_obligaciones)
         columnas.addWidget(grupo_abonos)
+        columnas.addWidget(self.grupo_eventos_laborales)
 
         layout_principal = QVBoxLayout()
         layout_principal.addLayout(columnas)
@@ -81,9 +94,17 @@ class ExpedienteDetallePage(QWidget):
 
     def cargar_expediente(self, expediente_id: int) -> None:
         self._expediente_id = expediente_id
+        session = session_module.get_session()
+        expediente = session.get(Expediente, expediente_id)
+        es_laboral = expediente.area_derecho == AreaDerecho.LABORAL
+        session.close()
+
+        self.grupo_eventos_laborales.setVisible(es_laboral)
         self._refrescar_obligaciones()
         self._refrescar_abonos()
         self._refrescar_historial()
+        if es_laboral:
+            self._refrescar_eventos_laborales()
 
     def _refrescar_obligaciones(self) -> None:
         session = session_module.get_session()
@@ -109,6 +130,20 @@ class ExpedienteDetallePage(QWidget):
             self.tabla_abonos.setItem(fila, 0, QTableWidgetItem(abono.fecha.isoformat()))
             self.tabla_abonos.setItem(fila, 1, QTableWidgetItem(str(abono.monto)))
             self.tabla_abonos.setItem(fila, 2, QTableWidgetItem(abono.referencia or ""))
+        session.close()
+
+    def _refrescar_eventos_laborales(self) -> None:
+        session = session_module.get_session()
+        expediente = session.get(Expediente, self._expediente_id)
+        eventos = [
+            evento for obligacion in expediente.obligaciones for evento in obligacion.eventos_laborales
+        ]
+
+        self.tabla_eventos_laborales.setRowCount(len(eventos))
+        for fila, evento in enumerate(eventos):
+            self.tabla_eventos_laborales.setItem(fila, 0, QTableWidgetItem(evento.tipo.value))
+            self.tabla_eventos_laborales.setItem(fila, 1, QTableWidgetItem(evento.fecha_inicio.isoformat()))
+            self.tabla_eventos_laborales.setItem(fila, 2, QTableWidgetItem(evento.fecha_fin.isoformat()))
         session.close()
 
     def _refrescar_historial(self) -> None:
@@ -155,6 +190,20 @@ class ExpedienteDetallePage(QWidget):
         dialogo = AbonoFormDialog(obligacion_id=obligacion_id, parent=self)
         if dialogo.exec():
             self._refrescar_abonos()
+
+    def _abrir_dialogo_evento_laboral(self) -> None:
+        fila_seleccionada = self.tabla_obligaciones.currentRow()
+        if fila_seleccionada < 0:
+            QMessageBox.warning(
+                self, "Seleccion requerida",
+                "Selecciona una obligacion antes de agregar un evento contractual.",
+            )
+            return
+
+        obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
+        dialogo = EventoLaboralFormDialog(obligacion_id=obligacion_id, parent=self)
+        if dialogo.exec():
+            self._refrescar_eventos_laborales()
 
     def _liquidar(self) -> None:
         session = session_module.get_session()

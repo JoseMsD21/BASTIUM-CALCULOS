@@ -686,3 +686,70 @@ def test_doble_clic_en_historial_reconstruye_liquidacion(qtbot, monkeypatch):
     resultado, exp_id = resultados_recibidos[0]
     assert exp_id == expediente_id
     assert resultado.final_balance().principal == Decimal("427900.00")
+
+
+def _expediente_laboral_sin_mora(monkeypatch) -> int:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-070", demandante="Trabajador", demandado="Empleador SAS",
+        area_derecho=AreaDerecho.LABORAL, fecha_corte_default=date(2026, 6, 1),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato", categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1), valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+    )
+    session.add(obligacion)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+    return expediente_id
+
+
+def test_grupo_eventos_contractuales_visible_solo_para_area_laboral(qtbot, monkeypatch):
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.show()
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.grupo_eventos_laborales.isVisible() is True
+
+
+def test_grupo_eventos_contractuales_oculto_para_area_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)  # CIVIL_FAMILIA, ya existe en este archivo
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.show()
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.grupo_eventos_laborales.isVisible() is False
+
+
+def test_refrescar_eventos_laborales_lista_los_eventos_de_todas_las_obligaciones(qtbot, monkeypatch):
+    from database.models import EventoLaboral, TipoEventoLaboral
+
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    session.add(EventoLaboral(
+        obligacion_id=obligacion.id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+    ))
+    session.commit()
+    session.close()
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.tabla_eventos_laborales.rowCount() == 1
