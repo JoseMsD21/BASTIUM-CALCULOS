@@ -181,13 +181,14 @@ En la parte superior de la ventana hay botones de navegación:
    - **Demandante**: nombre de quien reclama.
    - **Demandado**: nombre de quien debe.
    - **Área del derecho**: elige **"Civil / Familia"**, **"Comercial"**, **"Sancionatorio"**,
-     **"Honorarios / Litigio"** o **"Laboral"** (las cinco opciones calculan de verdad hoy, ver
-     [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)). Si eliges Comercial, Sancionatorio,
-     Honorarios o Laboral, el formulario de "Agregar obligación" muestra campos adicionales — ver
-     [sección 5.7](#57-agregar-una-obligación-comercial),
+     **"Honorarios / Litigio"**, **"Laboral"** o **"Tributario"** (las seis opciones calculan de verdad
+     hoy, ver [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)). Si eliges Comercial, Sancionatorio,
+     Honorarios, Laboral o Tributario, el formulario de "Agregar obligación" muestra campos adicionales —
+     ver [sección 5.7](#57-agregar-una-obligación-comercial),
      [5.9](#59-agregar-una-obligación-sancionatoria),
-     [5.10](#510-agregar-una-obligación-de-honorarios--litigio) o
-     [5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado) según el área.
+     [5.10](#510-agregar-una-obligación-de-honorarios--litigio),
+     [5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado) o
+     [5.14](#514-agregar-una-obligación-tributaria) según el área.
    - **Juzgado**: opcional, el juzgado donde está el proceso, si aplica.
    - **Fecha de corte**: la fecha hasta la cual se va a calcular el interés (normalmente, hoy o la fecha
      en que se necesita presentar la liquidación).
