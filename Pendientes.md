@@ -919,7 +919,7 @@ corrigió con un `TypeDecorator` `DecimalExacto` a nivel de columna (usado en `p
 
 ---
 
-## Sprint 14 — Tabla histórica de UVT (DIAN)
+## Sprint 14 — Tabla histórica de UVT (DIAN) ✅ Completado
 
 **Prioridad sugerida:** Alta — es el desbloqueador común de dos piezas ya pendientes: la conversión
 SMLMV→UVT del Sprint 4 (hoy lanza `UVTNoDisponibleError` para hechos posteriores a 2020-01-01) y el
