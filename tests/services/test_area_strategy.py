@@ -1018,3 +1018,80 @@ class TestLaboralStrategy:
         assert "INCAPACIDAD_EMPLEADOR" in tipos_evento
         assert "INCAPACIDAD_INFORMATIVA" in tipos_evento
         assert "COTIZACION_ARL" in tipos_evento
+
+    def test_mora_fase2_no_incluye_cotizaciones_de_seguridad_social_en_la_base(self):
+        # Regresion: con incluir_seguridad_social=True y retardo suficiente
+        # para cruzar a fase 2 del Art. 65 CST, la base de la indemnizacion
+        # moratoria (monto_adeudado) debe seguir siendo solo prestaciones
+        # sociales -- NO debe incluir las cotizaciones de seguridad social no
+        # pagadas (esas tienen consecuencias legales separadas, fuera de
+        # alcance de este sprint).
+        obligacion = _obligacion_laboral()
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        fecha_corte = obligacion.fecha_fin + timedelta(days=800)
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        monto_prestaciones = Decimal("7974236.10")
+        mora_esperada = MoratoryIndemnityCalculator.calcular(
+            salario_mensual=obligacion.valor,
+            monto_adeudado=monto_prestaciones,
+            fecha_terminacion=obligacion.fecha_fin,
+            fecha_pago_o_corte=fecha_corte,
+        )
+        assert mora_esperada.dias_fase2 > 0
+
+        # prestaciones (7974236.10) + cotizaciones (pension+salud+arl sobre
+        # 365 dias, IBC 3000000.00, nivel I, sin suspension/FSP -- mismo
+        # valor que test_incluir_seguridad_social_agrega_cotizaciones_a_la_
+        # deuda) + mora calculada SOLO sobre prestaciones (el fix).
+        monto_prestaciones_y_cotizaciones = Decimal("18567266.10")
+        assert (
+            resultado.final_balance().principal
+            == monto_prestaciones_y_cotizaciones + mora_esperada.total
+        )
+
+        # Si la mora hubiera usado (bug) prestaciones+cotizaciones como base,
+        # el total de la mora seria mayor -- confirma que el fix realmente
+        # cambia el resultado y no es una coincidencia numerica.
+        mora_con_bug = MoratoryIndemnityCalculator.calcular(
+            salario_mensual=obligacion.valor,
+            monto_adeudado=monto_prestaciones_y_cotizaciones,
+            fecha_terminacion=obligacion.fecha_fin,
+            fecha_pago_o_corte=fecha_corte,
+        )
+        assert mora_con_bug.total > mora_esperada.total
+
+    def test_cotizacion_pension_expone_label_amigable_como_concept(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        eventos_pension = [
+            item for item in resultado.items if item.balance.event_type == "COTIZACION_PENSION"
+        ]
+        assert len(eventos_pension) == 1
+        assert "COTIZACION_PENSION" not in eventos_pension[0].concept
+        assert "Pension" in eventos_pension[0].concept
+
+    def test_eventos_laborales_sin_incluir_seguridad_social_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        # incluir_seguridad_social queda en su default (False) a proposito.
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+        )]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )

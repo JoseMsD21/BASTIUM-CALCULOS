@@ -349,6 +349,8 @@ class LaboralStrategy(AreaStrategy):
             fecha_liquidacion=obligacion.fecha_fin,
         ).generate()
 
+        monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+
         if obligacion.incluir_seguridad_social:
             dias_suspension = sum(
                 (evento.fecha_fin - evento.fecha_inicio).days
@@ -362,15 +364,17 @@ class LaboralStrategy(AreaStrategy):
                 nivel_riesgo_arl=obligacion.nivel_riesgo_arl,
                 fecha_referencia=obligacion.fecha_fin,
             )
-            for concepto, monto in [
-                ("COTIZACION_PENSION", cotizaciones.monto_pension),
-                ("COTIZACION_SALUD", cotizaciones.monto_salud),
-                ("COTIZACION_ARL", cotizaciones.monto_arl),
-                ("COTIZACION_FSP", cotizaciones.monto_fsp),
+            for concepto, monto, etiqueta in [
+                ("COTIZACION_PENSION", cotizaciones.monto_pension, "Cotizacion Pension (seguridad social no pagada)"),
+                ("COTIZACION_SALUD", cotizaciones.monto_salud, "Cotizacion Salud (seguridad social no pagada)"),
+                ("COTIZACION_ARL", cotizaciones.monto_arl, "Cotizacion ARL (seguridad social no pagada)"),
+                ("COTIZACION_FSP", cotizaciones.monto_fsp, "Cotizacion FSP (Fondo de Solidaridad Pensional)"),
             ]:
                 if monto > Decimal("0.00"):
                     eventos.append(Event(
-                        date=obligacion.fecha_fin, payload={"amount": monto}, event_type=concepto,
+                        date=obligacion.fecha_fin,
+                        payload={"amount": monto, "label": etiqueta},
+                        event_type=concepto,
                     ))
 
             for evento in obligacion.eventos_laborales:
@@ -416,7 +420,7 @@ class LaboralStrategy(AreaStrategy):
             fecha_referencia_mora = fecha_corte
 
         if fecha_referencia_mora > obligacion.fecha_fin:
-            monto_adeudado = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+            monto_adeudado = monto_prestaciones
             mora = MoratoryIndemnityCalculator.calcular(
                 salario_mensual=obligacion.valor,
                 monto_adeudado=monto_adeudado,
@@ -471,6 +475,13 @@ class LaboralStrategy(AreaStrategy):
             raise ValueError(
                 "Si se incluyen cotizaciones de seguridad social, 'nivel_riesgo_arl' "
                 "(I-V) es obligatorio."
+            )
+        if obligacion.eventos_laborales and not obligacion.incluir_seguridad_social:
+            raise ValueError(
+                "Hay eventos contractuales (suspension/incapacidad) registrados, pero "
+                "'incluir_seguridad_social' no esta activado. Marca la casilla 'Incluir "
+                "cotizaciones de seguridad social no pagadas' para que estos eventos se "
+                "reflejen en la liquidacion."
             )
 
 
