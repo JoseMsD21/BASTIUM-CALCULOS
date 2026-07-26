@@ -21,3 +21,9 @@ class CuotaLitisExcedeTopeError(Exception):
 class ParametroNoDisponibleError(Exception):
     """Se lanza cuando no hay un valor de un parametro legal versionado disponible
     para la fecha pedida (ver app/services/parametro_service.py)."""
+
+
+class TarifaNoDisponibleError(Exception):
+    """Se lanza cuando no hay una tarifa de agencias en derecho registrada (Acuerdo
+    PSAA16-10554) para la combinacion tipo_proceso/instancia/cuantia pedida -- nunca
+    se inventa un rango."""
