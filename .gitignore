@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 .pytest_cache/
 *.db
+*.db.bak-*
 *.sqlite3
 
 # Salidas generadas por corridas de ejemplo (main.py)
