@@ -1346,6 +1346,21 @@ sin adaptarla.
   comercial de 360, documentando la diferencia.
 - Suite completa en verde.
 
+**Estado:** Implementado (2026-07-26) — ver
+`docs/superpowers/plans/2026-07-26-sprint17-modulo-pensional.md` y
+`docs/superpowers/specs/2026-07-26-sprint17-modulo-pensional-design.md`. Se agregaron las 3 funciones puras
+en `app/engine/labor/ibl.py` (`calcular_ibl`, `calcular_tasa_reemplazo`, `calcular_densidad_semanas`), sin
+`PensionalStrategy` ni wiring de GUI (mismo patrón standalone que `app/engine/tax/*` del Sprint 11a).
+Decisiones tomadas con el usuario durante el brainstorming previo: (a) el IBL recibe historial mensual
+(hasta 120 registros), no anual; (b) la densidad de semanas une periodos solapados antes de contar, para no
+cotizar "doble" el mismo día; (c) la tasa de reemplazo implementa la fórmula completa real (Ley 100 art.
+34: piso 65%, techo 80%, bono +1.5% por cada 50 semanas sobre 1.300), no solo la línea base que trae el PDF
+de BASTIUM — el hueco entre ambas quedó documentado en `Preguntas-Para-Abogado.md` (sección Sprint 17) para
+confirmación jurídica formal; (d) el caso de validación real usado en los tests es la Sentencia SL138-2024
+(348 días calendario → 49,71 semanas → 50), en vez de un caso aportado directamente por el usuario. Se creó
+además `Preguntas-Para-Abogado.md` (documento nuevo en la raíz del proyecto), que recoge esta brecha junto
+con todas las decisiones/huecos legales sin confirmar de los Sprints 2-16, 18 y 30.
+
 ---
 
 ## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PCSJA20-11556)
