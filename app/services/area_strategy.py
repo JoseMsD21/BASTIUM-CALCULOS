@@ -484,6 +484,23 @@ class LaboralStrategy(AreaStrategy):
                 "reflejen en la liquidacion."
             )
 
+        for evento in obligacion.eventos_laborales:
+            if evento.fecha_inicio < obligacion.fecha_inicio or evento.fecha_fin > obligacion.fecha_fin:
+                raise ValueError(
+                    f"El evento contractual del {evento.fecha_inicio} al {evento.fecha_fin} "
+                    "cae fuera del rango del contrato "
+                    f"({obligacion.fecha_inicio} a {obligacion.fecha_fin})."
+                )
+
+        eventos_ordenados = sorted(obligacion.eventos_laborales, key=lambda e: e.fecha_inicio)
+        for anterior, siguiente in zip(eventos_ordenados, eventos_ordenados[1:]):
+            if anterior.fecha_fin > siguiente.fecha_inicio:
+                raise ValueError(
+                    "Dos eventos contractuales se solapan en el tiempo: "
+                    f"{anterior.fecha_inicio}-{anterior.fecha_fin} y "
+                    f"{siguiente.fecha_inicio}-{siguiente.fecha_fin}."
+                )
+
 
 class SancionatorioStrategy(AreaStrategy):
     """

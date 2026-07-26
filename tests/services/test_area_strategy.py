@@ -1095,3 +1095,80 @@ class TestLaboralStrategy:
             LaboralStrategy().liquidar(
                 obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
             )
+
+    def test_evento_laboral_con_fecha_fuera_del_contrato_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2021, 1, 1), fecha_fin=date(2021, 1, 5),  # posterior a fecha_fin del contrato (2020-12-31)
+        )]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_evento_laboral_con_fecha_inicio_anterior_al_contrato_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2019, 12, 20), fecha_fin=date(2019, 12, 25),  # anterior a fecha_inicio del contrato (2020-01-01)
+        )]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_dos_eventos_laborales_solapados_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 10),
+            ),
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 5), fecha_fin=date(2020, 5, 15),  # se solapa con el anterior (5/5 - 5/10)
+            ),
+        ]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_eventos_laborales_consecutivos_no_solapados_no_lanza_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 10),
+            ),
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 10), fecha_fin=date(2020, 5, 15),  # empieza justo cuando termina el anterior, no se solapa
+            ),
+        ]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        assert resultado is not None  # no lanza error
