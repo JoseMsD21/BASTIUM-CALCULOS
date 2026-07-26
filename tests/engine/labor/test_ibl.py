@@ -97,3 +97,56 @@ def test_tasa_reemplazo_smlmv_cero_lanza_error():
         calcular_tasa_reemplazo(
             ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("0.00"), semanas_cotizadas=1300,
         )
+
+
+def test_densidad_semanas_calendario_real_vs_ano_comercial_360():
+    from app.engine.labor.ibl import calcular_densidad_semanas
+
+    periodo = [(date(2024, 1, 1), date(2025, 2, 1))]  # 13 meses cruzando un ano bisiesto (2024)
+
+    semanas_calendario_real = calcular_densidad_semanas(periodo)
+
+    # Metodo pre-SL138-2024 (ano comercial de 360, mes de 30 dias): 13*30=390 dias.
+    dias_ano_comercial_360 = 13 * 30
+    semanas_ano_comercial_360 = round(dias_ano_comercial_360 / 7)
+
+    assert semanas_calendario_real == 57  # (2025-02-01 - 2024-01-01).days == 397; 397/7 = 56.71 -> 57
+    assert semanas_ano_comercial_360 == 56
+    assert semanas_calendario_real != semanas_ano_comercial_360  # documenta la diferencia real de 1 semana
+
+
+def test_densidad_semanas_caso_real_sentencia_sl138_2024():
+    from app.engine.labor.ibl import calcular_densidad_semanas
+
+    inicio = date(2020, 1, 1)
+    fin = inicio + timedelta(days=348)  # caso citado en la Sentencia SL138-2024
+
+    resultado = calcular_densidad_semanas([(inicio, fin)])
+
+    assert resultado == 50  # 348/7 = 49.71 -> redondea a 50 (segun la sentencia)
+
+
+def test_densidad_semanas_periodos_solapados_no_se_cuentan_doble():
+    from app.engine.labor.ibl import calcular_densidad_semanas
+
+    periodos = [
+        (date(2023, 1, 1), date(2023, 1, 31)),
+        (date(2023, 1, 15), date(2023, 2, 15)),  # se solapa 17 dias con el anterior
+    ]
+
+    resultado = calcular_densidad_semanas(periodos)
+
+    assert resultado == 6  # union (2023-01-01, 2023-02-15) = 45 dias -> 45/7 = 6.43 -> 6, no 9
+
+
+def test_densidad_semanas_lista_vacia_retorna_cero():
+    from app.engine.labor.ibl import calcular_densidad_semanas
+
+    assert calcular_densidad_semanas([]) == 0
+
+
+def test_densidad_semanas_periodo_invalido_lanza_error():
+    from app.engine.labor.ibl import calcular_densidad_semanas
+
+    with pytest.raises(ValueError):
+        calcular_densidad_semanas([(date(2023, 2, 1), date(2023, 1, 1))])

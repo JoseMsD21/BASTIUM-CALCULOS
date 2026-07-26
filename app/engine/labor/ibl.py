@@ -46,3 +46,28 @@ def calcular_tasa_reemplazo(
 
     r = max(Decimal("65"), min(Decimal("80"), r))
     return Rounding.money(r)
+
+
+def calcular_densidad_semanas(periodos_cotizados: list[tuple[date, date]]) -> int:
+    """Semanas de cotizacion en dias calendario reales (365/366), no dias
+    habiles ni ano comercial de 360 (Sentencia SL138-2024). Los periodos
+    solapados se unen antes de contar, para no cotizar "doble" el mismo dia
+    calendario."""
+    if not periodos_cotizados:
+        return 0
+    for inicio, fin in periodos_cotizados:
+        if fin < inicio:
+            raise ValueError(f"Periodo invalido: fin ({fin}) es anterior a inicio ({inicio}).")
+
+    periodos_ordenados = sorted(periodos_cotizados)
+    fusionados: list[tuple[date, date]] = [periodos_ordenados[0]]
+    for inicio, fin in periodos_ordenados[1:]:
+        ultimo_inicio, ultimo_fin = fusionados[-1]
+        if inicio <= ultimo_fin:
+            fusionados[-1] = (ultimo_inicio, max(ultimo_fin, fin))
+        else:
+            fusionados.append((inicio, fin))
+
+    dias_totales = sum((fin - inicio).days for inicio, fin in fusionados)
+    semanas = (Decimal(dias_totales) / Decimal("7")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    return int(semanas)
