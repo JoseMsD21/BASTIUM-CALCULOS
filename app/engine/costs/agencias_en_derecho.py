@@ -134,6 +134,31 @@ TARIFAS_AGENCIAS_EN_DERECHO: dict[
     # el texto, se modela con piso 0 (lectura razonable de "hasta").
     (TipoProceso.MONITORIO, Instancia.UNICA, None, True):
         RangoTarifa(Decimal("0"), Decimal("5"), UnidadTarifa.PORCENTAJE),
+
+    # 4. PROCESOS EJECUTIVOS (art. 5.4). El acuerdo agrupa "unica y primera
+    # instancia" bajo el mismo encabezado con 3 tiers explicitos; los dos
+    # resultados posibles (sentencia sigue adelante / excepciones favorables)
+    # dan el mismo porcentaje por tier, se registra una sola vez por tier.
+    (TipoProceso.EJECUTIVO, Instancia.UNICA, CuantiaTier.MINIMA, True):
+        RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.EJECUTIVO, Instancia.PRIMERA, CuantiaTier.MINIMA, True):
+        RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.EJECUTIVO, Instancia.UNICA, CuantiaTier.MENOR, True):
+        RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.EJECUTIVO, Instancia.PRIMERA, CuantiaTier.MENOR, True):
+        RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.EJECUTIVO, Instancia.UNICA, CuantiaTier.MAYOR, True):
+        RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.EJECUTIVO, Instancia.PRIMERA, CuantiaTier.MAYOR, True):
+        RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.EJECUTIVO, Instancia.UNICA, None, False):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+    (TipoProceso.EJECUTIVO, Instancia.PRIMERA, None, False):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+    (TipoProceso.EJECUTIVO, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+    (TipoProceso.EJECUTIVO, Instancia.SEGUNDA, None, False):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
 }
 
 

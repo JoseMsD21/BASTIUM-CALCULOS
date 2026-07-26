@@ -271,6 +271,36 @@ def test_monitorio_hasta_5_por_ciento():
     assert rango == RangoTarifa(Decimal("0"), Decimal("5"), UnidadTarifa.PORCENTAJE)
 
 
+@pytest.mark.parametrize("instancia", [Instancia.UNICA, Instancia.PRIMERA])
+def test_ejecutivo_minima_cuantia_unica_y_primera(instancia):
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, instancia, CuantiaTier.MINIMA, True)]
+    assert rango == RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+
+
+@pytest.mark.parametrize("instancia", [Instancia.UNICA, Instancia.PRIMERA])
+def test_ejecutivo_menor_cuantia_unica_y_primera(instancia):
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, instancia, CuantiaTier.MENOR, True)]
+    assert rango == RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE)
+
+
+@pytest.mark.parametrize("instancia", [Instancia.UNICA, Instancia.PRIMERA])
+def test_ejecutivo_mayor_cuantia_unica_y_primera(instancia):
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, instancia, CuantiaTier.MAYOR, True)]
+    assert rango == RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE)
+
+
+@pytest.mark.parametrize("instancia", [Instancia.UNICA, Instancia.PRIMERA])
+def test_ejecutivo_sin_contenido_dinerario(instancia):
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, instancia, None, False)]
+    assert rango == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+@pytest.mark.parametrize("pecuniaria", [True, False])
+def test_ejecutivo_segunda_instancia(pecuniaria):
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, Instancia.SEGUNDA, None, pecuniaria)]
+    assert rango == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
 def test_calcular_tarifa_tier_agnostica_no_interpola_incluso_con_pretension_grande(monkeypatch):
     # Regresion: una tarifa que no distingue por cuantia (ej. MONITORIO, "hasta
     # el 5%") no debe interpolarse usando los limites del tier resuelto -- debe
