@@ -104,3 +104,19 @@ TARIFAS_AGENCIAS_EN_DERECHO: dict[
     (TipoProceso.DECLARATIVO_GENERAL, Instancia.SEGUNDA, None, False):
         RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
 }
+
+
+def _interpolar_dentro_de_rango(
+    minimo: Decimal, maximo: Decimal, valor: Decimal, floor: Decimal, ceiling: Decimal | None
+) -> Decimal:
+    """Paragrafo 3, articulo 3, Acuerdo PSAA16-10554: 'a mayor valor menor
+    porcentaje, a menor valor mayor porcentaje'. Interpolacion lineal entre
+    los limites del tier de cuantia -- el acuerdo exige el principio pero no
+    da la formula matematica exacta (aproximacion documentada, ver design
+    spec). Si el tier no tiene techo (mayor cuantia), no hay base para
+    interpolar: se devuelve el minimo del rango."""
+    if ceiling is None:
+        return minimo
+    posicion = (valor - floor) / (ceiling - floor)
+    posicion = max(Decimal("0"), min(Decimal("1"), posicion))
+    return maximo - posicion * (maximo - minimo)
