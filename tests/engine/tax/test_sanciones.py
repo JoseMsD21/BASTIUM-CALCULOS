@@ -80,6 +80,20 @@ def test_extemporaneidad_por_debajo_del_piso_queda_en_10_uvt():
     assert resultado == Decimal("470650.00")
 
 
+def test_extemporaneidad_el_piso_de_10_uvt_puede_superar_el_tope_del_100_pct_para_impuestos_pequenos():
+    # Impuesto a cargo pequeño (100,000), 1 mes de atraso: 5% = 5,000, ya por debajo del tope del
+    # 100% (min(5000, 100000) = 5000 sin efecto real del tope aqui), pero el piso de 10 UVT 2024
+    # (470,650.00) es mayor que ese monto -- el resultado final termina siendo ~4.7x el impuesto a
+    # cargo original. Esto es intencional y coincide con el criterio ya usado en el resto del motor
+    # (el piso del Estatuto Tributario, art. 639, es un minimo absoluto que no se exime para
+    # impuestos pequeños) -- este test documenta explicitamente esta interaccion piso/tope, que no
+    # tenia cobertura dedicada antes (encontrado en la revision final de rama completa del Sprint 15).
+    resultado = calcular_sancion_extemporaneidad(
+        impuesto_a_cargo=Decimal("100000.00"), meses_o_fraccion=1, fecha_referencia=date(2024, 6, 1)
+    )
+    assert resultado == Decimal("470650.00")
+
+
 def test_inexactitud_160_pct_de_la_diferencia_sin_agravante():
     resultado = calcular_sancion_inexactitud(
         diferencia=Decimal("5000000.00"), agravada=False, fecha_referencia=date(2024, 6, 1)
