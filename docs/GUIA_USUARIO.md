@@ -423,8 +423,21 @@ fase — hasta el día 720 cobra un día de salario por cada día de retardo; de
 intereses sobre lo adeudado a la tasa de usura histórica certificada por la Superintendencia Financiera
 (la misma serie de datos que usa el área Comercial). No hay nada que configurar manualmente para esto.
 
-**Qué NO calcula todavía esta área:** cotizaciones a seguridad social (pensión, salud, ARL, fondo de
-solidaridad pensional), incapacidades, suspensiones contractuales, ni nada relacionado con pensiones —
+**Cotizaciones de seguridad social no pagadas (opcional):** si el caso incluye una reclamación de
+aportes que el empleador nunca consignó, marca la casilla **"Incluir cotizaciones de seguridad social no
+pagadas"** y elige el **Nivel de riesgo ARL** (I a V, según la actividad). El resultado agrega Pensión
+(16%), Salud (12.5%), ARL (según el nivel elegido) y, si el salario base es de al menos 4 salarios
+mínimos, el Fondo de Solidaridad Pensional (FSP). Si no marcas la casilla, el expediente se liquida
+exactamente igual que antes (solo prestaciones sociales y, si aplica, la indemnización moratoria).
+
+**Suspensiones e incapacidades (opcional, requiere la casilla anterior activada):** en el Detalle del
+expediente, el grupo **"Eventos contractuales"** permite registrar suspensiones (huelga, licencia no
+remunerada, disciplinaria) e incapacidades (común o laboral) del contrato. Una suspensión excluye el
+aporte a ARL de esos días (Salud y Pensión se siguen cotizando). Una incapacidad muestra en la
+liquidación el desglose completo de quién paga cada tramo de días (empleador, EPS o ARL, según las reglas
+legales) — solo la porción a cargo del empleador se suma a la deuda del expediente.
+
+**Qué NO calcula todavía esta área:** régimen pensional (IBL, densidad de semanas, tasa de reemplazo) —
 ver [sección 8](#8-funciones-pendientes-o-en-desarrollo).
 
 ### 5.12. Editar o eliminar un expediente
@@ -556,7 +569,7 @@ hoy**:
 |---|---|
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
 | Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después, validación de tope de usura (1.5× el IBC que ingreses). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
-| Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, e indemnización moratoria bifásica del Art. 65 CST si hubo retardo en el pago. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). Seguridad social no está incluida (ver sección 8). |
+| Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, y opcionalmente cotizaciones de seguridad social (pensión, salud, ARL, FSP) más incapacidades y suspensiones contractuales. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). |
 | Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
 | Honorarios / Litigio | ✅ Sí, con una limitación — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual porque no existe una tabla estructurada confiable del Consejo Superior de la Judicatura. Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
 
@@ -706,11 +719,11 @@ Estas funciones están planeadas pero **todavía no existen o no están conectad
 completo de cada una (qué construir, qué documentos consultar, en qué orden) está en
 [`Pendientes.md`](../Pendientes.md), organizado en sprints. Aquí un resumen en lenguaje simple:
 
-- 🚧 **Seguridad social en el área Laboral** (cotizaciones a pensión, salud, ARL, fondo de solidaridad
-  pensional) — decisión tomada con el usuario de dejarlo fuera del Sprint 3: BASTIUM liquida procesos
-  judiciales, no es un sistema de nómina corriente (`Pendientes.md`, Sprint 3).
-- 🚧 **Incapacidades y suspensiones contractuales en el área Laboral** — no modeladas (`Pendientes.md`,
-  Sprint 3).
+- ✅ **Seguridad social, incapacidades y suspensiones en el área Laboral** — cotizaciones de pensión,
+  salud, ARL y FSP, más incapacidades (común/laboral) y suspensiones contractuales, ya calculan como
+  parte de la liquidación judicial de un contrato Laboral. Ver
+  [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado)
+  (`Pendientes.md`, Sprint 16).
 - ✅ **Tabla histórica de UVT** (2006-2026) ya está cargada y conectada — el área Sancionatorio convierte
   a pesos tanto los hechos anteriores al 2020-01-01 (vía SMLMV) como los posteriores (vía UVT). Ver
   [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias) (`Pendientes.md`, Sprint 14).

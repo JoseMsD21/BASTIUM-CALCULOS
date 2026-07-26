@@ -24,8 +24,10 @@ profesionales y cuota litis, validando simultáneamente el tope del 30% del bene
 cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
 se ingresan como un porcentaje manual, porque no existe una tabla estructurada confiable de los rangos
 del Consejo Superior de la Judicatura) y **Laboral** (liquidación final —finiquito— de un contrato:
-cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, e indemnización moratoria
-bifásica del Art. 65 CST si hubo retardo en el pago). El resultado de cualquier liquidación se puede
+cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, indemnización moratoria
+bifásica del Art. 65 CST si hubo retardo en el pago y, opcionalmente, cotizaciones de seguridad social
+—pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales). El resultado de cualquier
+liquidación se puede
 exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación. Cada liquidación ejecutada
 queda registrada en un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de
 corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
@@ -38,9 +40,8 @@ IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo ag
 ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
 queda siempre disponible con doble clic.
 
-🚧 **En desarrollo:** seguridad social (cotizaciones a pensión, salud, ARL, fondo de solidaridad
-pensional) en el área Laboral, anatocismo comercial condicionado (Art. 886 C.Co.) y varios módulos más
-también están pendientes. El motor de prescripción y caducidad
+🚧 **En desarrollo:** anatocismo comercial condicionado (Art. 886 C.Co.) y varios módulos más también
+están pendientes. El motor de prescripción y caducidad
 (`app/engine/temporal/prescripcion.py`) ya existe y está probado — calcula fechas límite por tipo de
 acción (ejecutiva, ordinaria, honorarios profesionales, cambiaria directa/de regreso), soporta
 prescripción parcial cuota a cuota en obligaciones de tracto sucesivo e interrupción por demanda — pero
