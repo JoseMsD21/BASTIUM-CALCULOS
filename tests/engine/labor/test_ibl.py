@@ -48,3 +48,52 @@ def test_calcular_ibl_historial_vacio_lanza_error():
 
     with pytest.raises(ValueError):
         calcular_ibl([], fecha_calculo=date(2026, 12, 31))
+
+
+def test_tasa_reemplazo_s_uno_sin_bono_toca_el_piso_exacto():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+    )
+
+    assert resultado == Decimal("65.00")
+
+
+def test_tasa_reemplazo_s_uno_con_bono_de_dos_bloques():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1400,
+    )
+
+    assert resultado == Decimal("68.00")
+
+
+def test_tasa_reemplazo_s_alto_sin_bono_no_baja_del_piso_65():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("10000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+    )
+
+    assert resultado == Decimal("65.00")
+
+
+def test_tasa_reemplazo_bono_grande_no_sube_del_techo_80():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("2000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=3800,
+    )
+
+    assert resultado == Decimal("80.00")
+
+
+def test_tasa_reemplazo_smlmv_cero_lanza_error():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    with pytest.raises(ValueError):
+        calcular_tasa_reemplazo(
+            ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("0.00"), semanas_cotizadas=1300,
+        )
