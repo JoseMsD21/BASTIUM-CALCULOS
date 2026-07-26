@@ -18,6 +18,10 @@ from app.core.exceptions import TarifaNoDisponibleError
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 
+from app.core.exceptions import TarifaNoDisponibleError
+from app.engine.indexation.historical_index import get_smlmv_for_year
+from app.engine.math.rounding import Rounding
+
 
 class TipoProceso(str, Enum):
     DECLARATIVO_GENERAL = "declarativo_general"
@@ -120,3 +124,54 @@ def _interpolar_dentro_de_rango(
     posicion = (valor - floor) / (ceiling - floor)
     posicion = max(Decimal("0"), min(Decimal("1"), posicion))
     return maximo - posicion * (maximo - minimo)
+
+
+def _limites_pesos_tier(tier: CuantiaTier, smlmv_vigente: Decimal) -> tuple[Decimal, Decimal | None]:
+    if tier == CuantiaTier.MINIMA:
+        return Decimal("0"), UMBRAL_MINIMA_CUANTIA_SMLMV * smlmv_vigente
+    if tier == CuantiaTier.MENOR:
+        return UMBRAL_MINIMA_CUANTIA_SMLMV * smlmv_vigente, UMBRAL_MENOR_CUANTIA_SMLMV * smlmv_vigente
+    return UMBRAL_MENOR_CUANTIA_SMLMV * smlmv_vigente, None  # MAYOR: sin techo
+
+
+def calcular_agencias_en_derecho(
+    tipo_proceso: TipoProceso,
+    instancia: Instancia,
+    pretensiones_reconocidas: Decimal,
+    fecha_radicacion: date,
+    tiene_pretension_pecuniaria: bool = True,
+) -> Decimal:
+    """Calcula agencias en derecho segun el Acuerdo PSAA16-10554. Busca primero
+    la tarifa especifica del tier de cuantia resuelto; si la categoria no
+    distingue por cuantia (la mayoria de segundas instancias, recursos,
+    incidentes, y varias categorias de liquidacion), cae al registro sin tier.
+    Lanza TarifaNoDisponibleError si ninguna de las dos claves esta registrada
+    -- nunca inventa un rango."""
+    if pretensiones_reconocidas is None or pretensiones_reconocidas <= Decimal("0.00"):
+        raise ValueError("pretensiones_reconocidas debe ser mayor que cero.")
+
+    smlmv_vigente = get_smlmv_for_year(fecha_radicacion.year)
+    tier = resolver_cuantia_tier(pretensiones_reconocidas, smlmv_vigente) if tiene_pretension_pecuniaria else None
+
+    rango = TARIFAS_AGENCIAS_EN_DERECHO.get((tipo_proceso, instancia, tier, tiene_pretension_pecuniaria))
+    if rango is None and tier is not None:
+        rango = TARIFAS_AGENCIAS_EN_DERECHO.get((tipo_proceso, instancia, None, tiene_pretension_pecuniaria))
+    if rango is None:
+        raise TarifaNoDisponibleError(
+            f"No hay tarifa de agencias en derecho (Acuerdo PSAA16-10554) registrada para "
+            f"{tipo_proceso.value}/{instancia.value} (pecuniaria={tiene_pretension_pecuniaria})."
+        )
+
+    if rango.unidad == UnidadTarifa.PORCENTAJE and tier is not None:
+        floor, ceiling = _limites_pesos_tier(tier, smlmv_vigente)
+        porcentaje = _interpolar_dentro_de_rango(rango.minimo, rango.maximo, pretensiones_reconocidas, floor, ceiling)
+        monto = pretensiones_reconocidas * porcentaje / Decimal("100")
+    elif rango.unidad == UnidadTarifa.PORCENTAJE:
+        porcentaje = (rango.minimo + rango.maximo) / Decimal("2")
+        monto = pretensiones_reconocidas * porcentaje / Decimal("100")
+    else:  # SMLMV, sin tier de cuantia aplicable -> punto medio del rango
+        cantidad_smlmv = (rango.minimo + rango.maximo) / Decimal("2")
+        monto = cantidad_smlmv * smlmv_vigente
+
+    tope = TOPE_MAXIMO_SMLMV * smlmv_vigente
+    return Rounding.money(min(monto, tope))

@@ -1,5 +1,12 @@
+from datetime import date, datetime
 from decimal import Decimal
 
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import database.session as session_module
+from app.core.exceptions import TarifaNoDisponibleError
 from app.engine.costs.agencias_en_derecho import (
     CuantiaTier,
     Instancia,
@@ -11,10 +18,26 @@ from app.engine.costs.agencias_en_derecho import (
     UnidadTarifa,
     TARIFAS_AGENCIAS_EN_DERECHO,
     _interpolar_dentro_de_rango,
+    calcular_agencias_en_derecho,
     resolver_cuantia_tier,
 )
+from database.models import Base, ParametroLegal
 
 _SMLMV_2024 = Decimal("1300000.00")  # historical_index._SMLMV_POR_ANIO[2024]
+
+
+@pytest.fixture(autouse=True)
+def _db_en_memoria(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=_SMLMV_2024, vigente_desde=date(2024, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    session.commit()
+    session.close()
 
 
 def test_umbrales_cgp_articulo_25():
@@ -126,3 +149,78 @@ def test_interpolar_sin_techo_devuelve_siempre_el_minimo():
         valor=Decimal("999999999"), floor=Decimal("100"), ceiling=None,
     )
     assert resultado == Decimal("3")
+
+
+def test_calcular_minima_cuantia_declarativo_unica_instancia():
+    # Punto medio del tier minima (0 a 52.000.000): 26.000.000 -> posicion=0.5
+    # -> pct = 15 - 0.5*10 = 10% -> 2.600.000
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.UNICA,
+        pretensiones_reconocidas=Decimal("26000000.00"), fecha_radicacion=date(2024, 6, 1),
+    )
+    assert resultado == Decimal("2600000.00")
+
+
+def test_calcular_menor_cuantia_cerca_del_piso_del_tier_da_un_porcentaje_alto():
+    # 87.750.000 esta al 25% del recorrido del tier menor cuantia (52.000.000
+    # a 195.000.000): posicion=0.25 -> pct = 10 - 0.25*6 = 8.5%. No se usa
+    # exactamente el piso (52.000.000 = 40 SMLMV) porque ese valor cae en el
+    # limite inclusivo de minima cuantia (resolver_cuantia_tier usa "<="), no
+    # en menor cuantia -- la matematica exacta del piso/techo ya esta cubierta
+    # por los tests puros de _interpolar_dentro_de_rango (Task 3).
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("87750000.00"), fecha_radicacion=date(2024, 6, 1),
+    )
+    assert resultado == Decimal("7458750.00")  # 87.750.000 * 8.5%
+
+
+def test_calcular_menor_cuantia_en_el_techo_del_tier_da_el_porcentaje_minimo():
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("195000000.00"), fecha_radicacion=date(2024, 6, 1),
+    )
+    assert resultado == Decimal("7800000.00")  # 195.000.000 * 4%
+
+
+def test_calcular_mayor_cuantia_usa_siempre_el_porcentaje_minimo():
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("300000000.00"), fecha_radicacion=date(2024, 6, 1),
+    )
+    assert resultado == Decimal("9000000.00")  # 300.000.000 * 3%
+
+
+def test_calcular_aplica_tope_de_20_smlmv():
+    # 3% de 1.000.000.000 = 30.000.000, pero el tope es 20 * 1.300.000 = 26.000.000.
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("1000000000.00"), fecha_radicacion=date(2024, 6, 1),
+    )
+    assert resultado == Decimal("26000000.00")
+
+
+def test_calcular_no_pecuniaria_usa_punto_medio_en_smlmv():
+    # Primera instancia, sin pretension pecuniaria: 1-10 SMLMV -> punto medio 5.5 SMLMV.
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("1.00"), fecha_radicacion=date(2024, 6, 1),
+        tiene_pretension_pecuniaria=False,
+    )
+    assert resultado == Decimal("7150000.00")  # 5.5 * 1.300.000
+
+
+def test_calcular_pretensiones_no_positivas_lanza_value_error():
+    with pytest.raises(ValueError):
+        calcular_agencias_en_derecho(
+            tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.UNICA,
+            pretensiones_reconocidas=Decimal("0.00"), fecha_radicacion=date(2024, 6, 1),
+        )
+
+
+def test_calcular_combinacion_no_registrada_lanza_tarifa_no_disponible():
+    with pytest.raises(TarifaNoDisponibleError):
+        calcular_agencias_en_derecho(
+            tipo_proceso=TipoProceso.EXPROPIACION, instancia=Instancia.UNICA,
+            pretensiones_reconocidas=Decimal("10000000.00"), fecha_radicacion=date(2024, 6, 1),
+        )
