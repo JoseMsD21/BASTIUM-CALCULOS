@@ -1,8 +1,8 @@
 # Motor Financiero (Interes)
 
 ## Que hace
-Calcula intereses simples dia a dia sobre un capital, y mantiene el estado inmutable de una deuda
-(capital + interes + indexacion) a lo largo del tiempo.
+Calcula intereses simples dia a dia sobre un capital, valida el tope de usura, y mantiene el estado
+inmutable de una deuda (capital + interes + indexacion) a lo largo del tiempo.
 
 ## Componentes
 - `app/engine/financial/rate.py`: `Rate(value)` envuelve una **fraccion** (0.06 = 6%), no un numero de
@@ -16,6 +16,12 @@ Calcula intereses simples dia a dia sobre un capital, y mantiene el estado inmut
   tramos de tasa (`RatePeriod`) para que el motor calcule interes por tramos historicos cuando la tasa
   cambia en el tiempo. **Si se usa un `rate_provider`, debe cubrir todo el rango de fechas de la
   liquidacion**, o `get_rate` lanza `ValueError`.
+- `app/engine/interest/usury_validator.py`: `validar_tasa_usura` — valida el tope de usura (1.5x IBC, Ley
+  45/1990 art. 72) contra un IBC consultado en `parametro_service` (Sprint 13). Se invoca automaticamente al
+  liquidar para las areas Comercial y Tributario; lanza el error "Tasa usuraria" sin truncar nada
+  silenciosamente.
+- `app/engine/tax/moratory_interest.py`: interes moratorio del E.T. art. 635 para el area Tributario,
+  reutilizando el mismo motor de tramos historicos.
 - `app/engine/liquidation/models.py`: `PendingDebt(principal, interest, indexation)` — inmutable, con
   `.total()`.
 - `app/engine/liquidation/balance.py`: `BalanceEngine` — funciones puras `add_principal`, `add_interest`,
@@ -25,14 +31,14 @@ Calcula intereses simples dia a dia sobre un capital, y mantiene el estado inmut
   en `LiquidationItem`.
 
 ## Como se usa en el MVP
-`CivilFamiliaStrategy` construye un `MemoryRateProvider` con un unico tramo (la tasa efectiva anual pactada
-de la primera obligacion del expediente, convertida a diaria) que cubre desde la obligacion mas antigua
-hasta la fecha de corte.
+Cada `AreaStrategy` construye un `MemoryRateProvider` con la(s) tasa(s) efectiva(s) anual(es) pactadas
+(convertidas a diaria), y delega en `UniversalLiquidationService.liquidar(...)`.
 
 ## Pendiente (no implementado aun)
-- Validacion de tope de usura (1.5x IBC) — necesaria para el area Comercial.
-- Anatocismo (interes sobre interes) — prohibido por defecto, el motor actual no lo aplica en ningun caso
-  (comportamiento correcto para Civil, pero el area Comercial necesitara habilitarlo bajo condiciones).
-- Multiples tasas por obligacion dentro del mismo expediente (hoy se usa una sola tasa por expediente).
+- Anatocismo comercial condicionado (Art. 886 C.Co.) — el motor actual no aplica interes sobre interes en
+  ningun caso (comportamiento correcto para Civil, pero el area Comercial lo necesitara bajo condiciones) —
+  ver `Pendientes.md`, Sprint 19.
+- Multiples tasas de interes simultaneas por expediente — ver `Pendientes.md`, Sprint 21.
+- Indexacion sobre capital ya indexado (algoritmo "Suma Unica") — ver `Pendientes.md`, Sprint 20.
 
 Ver `Pendientes.md`.

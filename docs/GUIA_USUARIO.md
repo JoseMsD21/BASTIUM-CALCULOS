@@ -111,8 +111,10 @@ Si instalas BASTIUM en otro computador y te aparece este mismo error, repite est
 ```
 
 Este comando corre todas las pruebas automáticas del programa. Si al final ves algo como
-`81 passed` (un número seguido de "passed", sin ningún "failed"), significa que todo está instalado y
-funcionando correctamente. Si ves errores, revisa la [sección 9](#9-preguntas-frecuentes-y-solución-de-problemas).
+`489 passed, 1 skipped` (un número seguido de "passed", sin ningún "failed"), significa que todo está
+instalado y funcionando correctamente. El número exacto sube con cada sprint nuevo, así que no te
+preocupes si no coincide exactamente — lo que importa es que no aparezca ningún "failed". Si ves errores,
+revisa la [sección 9](#9-preguntas-frecuentes-y-solución-de-problemas).
 
 ---
 
@@ -154,7 +156,7 @@ hay un menú de navegación separado); a la cuarta se entra con un botón de la 
 
 4. **⚙ Parámetros** — la pantalla de parámetros legales versionados (tasas, topes, plazos e indicadores
    históricos). Se abre desde el botón **"⚙ Parámetros"** de la barra superior, disponible siempre, sin
-   importar en qué otra pantalla estés. Ver [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros)
+   importar en qué otra pantalla estés. Ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)
    para el detalle completo.
 
 En la parte superior de la ventana hay botones de navegación:
@@ -188,7 +190,7 @@ En la parte superior de la ventana hay botones de navegación:
      [5.9](#59-agregar-una-obligación-sancionatoria),
      [5.10](#510-agregar-una-obligación-de-honorarios--litigio),
      [5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado) o
-     [5.14](#514-agregar-una-obligación-tributaria) según el área.
+     [5.15](#515-agregar-una-obligación-tributaria) según el área.
    - **Juzgado**: opcional, el juzgado donde está el proceso, si aplica.
    - **Fecha de corte**: la fecha hasta la cual se va a calcular el interés (normalmente, hoy o la fecha
      en que se necesita presentar la liquidación).
@@ -438,6 +440,15 @@ aporte a ARL de esos días (Salud y Pensión se siguen cotizando). Una incapacid
 liquidación el desglose completo de quién paga cada tramo de días (empleador, EPS o ARL, según las reglas
 legales) — solo la porción a cargo del empleador se suma a la deuda del expediente.
 
+**Ejemplo numérico completo:** un contrato con salario base de **$1.300.000** y **180 días trabajados**
+liquida así (base de 360 días/año, 720 para vacaciones):
+- Cesantías: `1.300.000 × 180 / 360 = $650.000`.
+- Intereses a las cesantías (12% anual, prorrateado): `650.000 × 180 × 0,12 / 360 = $39.000`.
+- Prima de junio y prima de diciembre (15 días por semestre cada una): `1.300.000 × 90 / 360 = $325.000`
+  cada una.
+- Vacaciones: `1.300.000 × 180 / 720 = $325.000`.
+- Total de prestaciones (sin mora, sin seguridad social): `$1.664.000`.
+
 **Qué NO calcula todavía esta área:** régimen pensional (IBL, densidad de semanas, tasa de reemplazo) —
 ver [sección 8](#8-funciones-pendientes-o-en-desarrollo).
 
@@ -467,7 +478,7 @@ asociados, de forma permanente — por eso el programa pide confirmación en dos
    ventana sin escribir nada), el programa avisa "Eliminación cancelada" y **no borra nada**.
 4. Si el radicado coincide, el expediente se elimina de inmediato y desaparece de la tabla.
 
-### 5.12. Ver el historial de auditoría y reconstruir una liquidación pasada
+### 5.13. Ver el historial de auditoría y reconstruir una liquidación pasada
 
 Cada vez que liquidas un expediente, el programa guarda automáticamente un
 registro: quién lo hizo, cuándo, con qué área del derecho y con qué fecha de
@@ -484,9 +495,9 @@ corte. Esto queda visible en la pantalla de Detalle, debajo del botón
 
 El historial de auditoría es de solo lectura: no se puede editar ni borrar
 una fila individualmente (solo desaparece si se elimina el expediente
-completo, ver [sección 5.11](#511-editar-o-eliminar-un-expediente)).
+completo, ver [sección 5.12](#512-editar-o-eliminar-un-expediente)).
 
-### 5.13. Editar tasas y topes legales (pantalla "⚙ Parámetros")
+### 5.14. Editar tasas y topes legales (pantalla "⚙ Parámetros")
 
 Antes, si el multiplicador de usura, un tope de cuota litis, un plazo de prescripción o el valor del
 SMLMV de un año nuevo cambiaban, había que pedirle a un programador que editara el código. Ya no: desde
@@ -554,12 +565,12 @@ inválidos" y no deja guardar.
 
 **Nada se edita ni se borra — solo se agrega:** cuando cambias un valor legal, no estás corrigiendo la
 fila anterior, estás agregando una fila nueva. La fila vieja se queda intacta para siempre, para que
-cualquier liquidación calculada en el pasado (ver [sección 5.12](#512-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada))
+cualquier liquidación calculada en el pasado (ver [sección 5.13](#513-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada))
 se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
 Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
 vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
 
-### 5.14. Agregar una obligación tributaria
+### 5.15. Agregar una obligación tributaria
 
 Cuando el expediente tiene **Área del derecho = Tributario**, el formulario de "Agregar obligación"
 oculta el campo "Tipo" (toda obligación tributaria se guarda como Puntual — un impuesto o una sanción es
@@ -625,7 +636,7 @@ hoy**:
 | Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, y opcionalmente cotizaciones de seguridad social (pensión, salud, ARL, FSP) más incapacidades y suspensiones contractuales. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). |
 | Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
 | Honorarios / Litigio | ✅ Sí, con una limitación — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual porque no existe una tabla estructurada confiable del Consejo Superior de la Judicatura. Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
-| Tributario | ✅ Sí — impuesto a cargo, sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), imputación propia (sanciones → intereses → impuesto, distinta del orden civil), y depuración de Renta Líquida Gravable informativa. Ver [sección 5.14](#514-agregar-una-obligación-tributaria). |
+| Tributario | ✅ Sí — impuesto a cargo, sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), imputación propia (sanciones → intereses → impuesto, distinta del orden civil), y depuración de Renta Líquida Gravable informativa. Ver [sección 5.15](#515-agregar-una-obligación-tributaria). |
 
 Si en algún momento se intenta liquidar un área cuya lógica todavía no esté lista (ver
 [sección 8](#8-funciones-pendientes-o-en-desarrollo)), el programa muestra el mensaje "Área no
@@ -642,7 +653,7 @@ exactamente dónde encontrarlos y qué significa cada uno.
 **Nota:** varios de los valores descritos abajo (el multiplicador de usura, los topes de cuota litis, los
 plazos de prescripción/caducidad, la tasa civil legal, el descuento del interés moratorio tributario, y
 las series de SMLMV/IPC/IBC-Usura) ya no requieren tocar código para cambiarse — se administran desde la
-pantalla **"⚙ Parámetros"**, ver [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros).
+pantalla **"⚙ Parámetros"**, ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros).
 Lo que sigue documenta además dónde vive cada valor por dentro, para quien programa.
 
 ### 7.1. Tasa de interés civil (6% anual, Art. 1617 C.C.)
@@ -654,6 +665,9 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   `self.campo_tasa = QLineEdit("6.00")`.
 - **Cómo se convierte esa tasa anual a diaria**: `app/engine/interest/rate_conversion.py`, clase
   `EffectiveRateConverter`, usando la fórmula `i_diario = (1 + i_anual)^(1/365) - 1`.
+- **Ejemplo numérico completo**: con la tasa por defecto del 6% anual, `i_diario = (1.06)^(1/365) - 1 ≈
+  0,00015965` (0,015965% diario). Sobre un capital de **$10.000.000** durante **30 días**, el interés es
+  `I = C × i × t = 10.000.000 × 0,00015965 × 30 ≈ $47.896`.
 
 ### 7.1.1. Tope de usura comercial (1.5x IBC, Ley 45/1990 art. 72)
 
@@ -701,7 +715,7 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   `app/services/area_strategy.py`). Los valores de SMLMV y de UVT por año están en
   `app/engine/indexation/historical_index.py` (funciones `get_smlmv_for_year` y `get_uvt_for_year`), y
   también se pueden consultar o corregir desde la pantalla "⚙ Parámetros" (claves `SMLMV` y `UVT`, ver
-  [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros)).
+  [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)).
 - **Qué pasa si el hecho es posterior al 2020-01-01**: la ley pasó de expresar estas multas en SMLMV a
   expresarlas en UVT a partir de esa fecha; el programa ya tiene cargada la tabla histórica de UVT
   (2006-2026, ver `Pendientes.md`, Sprint 14) y convierte automáticamente. Solo lanza el error "UVT no
@@ -714,8 +728,11 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   Honorarios, los campos **"% Cuota litis pactada"** y **"Beneficio obtenido por el cliente"** — ver
   [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). No hay valores por defecto.
 - **Dónde vive la lógica en el código**: `app/services/area_strategy.py`, clase `HonorariosStrategy`,
-  constantes `TOPE_CUOTA_LITIS_INDIVIDUAL_PCT` (30) y `TOPE_HONORARIOS_TOTAL_PCT` (50), validadas en
-  `_validar_obligacion_honorarios`. Ambos topes se aplican **simultáneamente** (no son alternativos):
+  método `_validar_obligacion_honorarios`. Los dos topes ya no son constantes fijas en el código — desde
+  el Sprint 13 se leen como parámetros legales versionados (`get_parametro("CUOTA_LITIS_INDIVIDUAL_PCT",
+  ...)` y `get_parametro("HONORARIOS_TOTAL_PCT", ...)`), consultables y editables desde la pantalla
+  "⚙ Parámetros" (ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)) sin tocar
+  código. Ambos topes se aplican **simultáneamente** (no son alternativos):
   la cuota litis sola no puede superar el 30% del beneficio obtenido, y la suma de honorarios fijos +
   cuota litis no puede superar el 50% del mismo beneficio.
 - **Qué pasa si se excede alguno de los dos topes**: el programa lanza el error "Cuota litis excede el
@@ -736,6 +753,10 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   **Recurrente** (cuotas mensuales), cada cuota se indexa individualmente desde su propia fecha de
   vencimiento — no todas desde el inicio de la obligación — porque cada cuota se deprecia un tiempo
   distinto.
+- **Ejemplo numérico completo**: una obligación Puntual de **$5.000.000** con fecha de origen cuando el
+  IPC acumulado era **100** (IPC_inicial), liquidada a una fecha de corte donde el IPC acumulado es
+  **110** (IPC_final), queda indexada en `Va = 5.000.000 × (110 / 100) = $5.500.000` — el rubro de
+  indexación que se suma a la liquidación es la diferencia, `$500.000`.
 - **Limitación conocida**: la fuente de datos (Sprint 5) solo trae el IPC de cierre de cada año, no mes a
   mes como certifica el DANE en la vida real. Para una fecha intermedia dentro del año, el programa
   interpola linealmente entre el índice de cierre del año anterior y el del año actual — es una
@@ -757,6 +778,10 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   valor en dólares por la TRM que ingresó el abogado, antes de que empiece a correr cualquier interés. A
   partir de ahí, la obligación se liquida exactamente igual que cualquier obligación comercial en pesos —
   interés remuneratorio, mora y validación de usura no cambian.
+- **Ejemplo numérico completo**: un pagaré de **USD 2.000** con TRM aplicable de **$4.100 COP/USD** se
+  convierte una sola vez a `2.000 × 4.100 = $8.200.000` COP; a partir de ahí, ese valor en pesos es el
+  capital sobre el que corren el interés remuneratorio, la mora y la validación de usura, exactamente
+  igual que una obligación pactada en pesos desde el inicio.
 - **De dónde sale la TRM**: el abogado la ingresa directamente. El PDF fuente de BASTIUM (a diferencia de
   SMLMV, IPC e IBC/Usura) no trae una serie histórica de TRM diaria, así que el programa no la busca
   automáticamente — Art. 874 C.Co. permite usar la TRM de la fecha de la obligación o la de la fecha de
@@ -801,7 +826,7 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
 - ✅ **Derecho Tributario** ya está conectado como sexta área operable: impuesto a cargo, las tres
   sanciones (extemporaneidad, inexactitud, error aritmético, con piso legal de 10 UVT), imputación de
   pagos propia (sanciones → intereses → impuesto), interés moratorio automático del E.T. art. 635 y
-  depuración de Renta Líquida Gravable informativa. Ver [sección 5.14](#514-agregar-una-obligación-tributaria)
+  depuración de Renta Líquida Gravable informativa. Ver [sección 5.15](#515-agregar-una-obligación-tributaria)
   y [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy) (`Pendientes.md`, Sprint 15). **Qué queda
   explícitamente fuera de alcance:** el cálculo de la tarifa del impuesto sobre la renta líquida gravable
   (el usuario ingresa el impuesto a cargo ya determinado, el programa no aplica una tarifa
@@ -814,7 +839,7 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
 - ✅ **Parámetros legales versionados** (pantalla "⚙ Parámetros") — el Sprint 13, planeado originalmente
   como un motor de reglas configurable de alcance mucho mayor, se reemplazó por este dominio más acotado:
   tasas, topes, plazos e indicadores históricos editables desde la GUI, con historial completo. Ver
-  [sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros).
+  [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros).
 
 ---
 
@@ -845,7 +870,7 @@ reconocen como vigentes si "Vigente desde" quedó en **exactamente el 1 de enero
 cargar (ej. `01/01/2027`, no el `15/01/2027` ni el `01/01/2026`). El programa guarda el valor igual, sin
 avisar del error — ábrelo con doble clic en la tabla de "⚙ Parámetros" para revisar la fecha exacta con
 la que quedó, y si está mal, agrega un valor nuevo con la fecha correcta. Ver la advertencia completa en
-[sección 5.13](#513-editar-tasas-y-topes-legales-pantalla--parámetros).
+[sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros).
 
 **"¿Dónde quedan guardados mis expedientes si cierro el programa?"**
 En el archivo `bastium.db` dentro de la carpeta del proyecto. No lo borres si quieres conservar la
@@ -872,6 +897,6 @@ No. Todo el cálculo y almacenamiento ocurre en tu computador.
 .venv\Scripts\python.exe -m pytest tests/views/test_expedientes.py -v
 ```
 
-Para entender la arquitectura del código, empezar por `specifications/` (un archivo por motor interno) y
+Para entender la arquitectura del código, empezar por `docs/specifications/` (un archivo por motor interno) y
 `docs/superpowers/specs/2026-07-14-mvp-captura-liquidacion-civil-familia-design.md` (diseño del MVP). El
 trabajo futuro está en [`Pendientes.md`](../Pendientes.md), organizado en sprints autocontenidos.

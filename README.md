@@ -98,9 +98,9 @@ database/               Modelos y acceso a la base de datos (SQLite)
 tests/                  Suite de pruebas automatizadas (pytest)
 docs/
   GUIA_USUARIO.md         Guía de uso completa, para cualquier persona
+  specifications/         Documentación técnica de cada motor interno
   superpowers/specs/      Documento de diseño del MVP
   superpowers/plans/      Plan de implementación tarea por tarea (histórico)
-specifications/         Documentación técnica de cada motor interno
 Pendientes.md            Backlog de trabajo futuro, organizado en sprints
 REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf
                           Documento maestro de requisitos jurídicos (alcance completo del producto)

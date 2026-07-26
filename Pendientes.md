@@ -20,11 +20,13 @@ al código real.
 - `docs/superpowers/plans/2026-07-14-mvp-captura-liquidacion-civil-familia.md` — plan TDD tarea por tarea,
   las 17 tareas están marcadas `✅ COMPLETADA` con notas de ejecución real (bugs encontrados y cómo se
   resolvieron).
-- `specifications/01_motor_temporal.md` … `07_motor_juridico_familia.md` — qué hace cada motor hoy.
+- `docs/specifications/01_motor_temporal.md` … `07_motor_juridico_familia.md` — qué hace cada motor hoy.
 - `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf` (raíz del repo) — documento maestro de
-  requisitos de TODO el sistema jurídico previsto (todas las áreas, motor de reglas EFDJ, datos
-  históricos, tributario, auditoría). El MVP solo implementó una fracción pequeña de este documento
-  (interés civil sin indexación). Cada sprint abajo cita las páginas exactas de este PDF que aplican.
+  requisitos de TODO el sistema jurídico previsto (todas las áreas, motor de reglas **EFDJ** —
+  **E**specificación **F**uncional del **D**ominio **J**urídico, el nombre que el propio PDF usa en su
+  página 63 para el catálogo de reglas versionadas —, datos históricos, tributario, auditoría). El MVP
+  solo implementó una fracción pequeña de este documento (interés civil sin indexación). Cada sprint abajo
+  cita las páginas exactas de este PDF que aplican.
 - Suite de tests: 81 passed a fecha 2026-07-15 (`pytest.ini` usa `--import-mode=importlib` +
   `consider_namespace_packages=true` para evitar colisión de nombre `tests/database` vs `database/` — no
   tocar esa config sin necesidad). 367 passed, 1 skipped a fecha 2026-07-21, tras cerrar los Sprints 2-13.
@@ -38,8 +40,7 @@ autocontenidos para poder trabajarlos uno por uno: Sprint 14 (tabla UVT, desbloq
 condicionado), Sprint 20 (indexación sobre capital indexado, "Suma Única"), Sprint 21 (múltiples tasas
 simultáneas por expediente) y Sprint 22 (limpieza técnica acumulada, sin relación con el PDF de
 requisitos). Varios de estos (16, 20) requieren una conversación previa con el usuario antes de codificar,
-igual que exigió el Sprint 13 con el EFDJ (Especificación Funcional del Dominio Jurídico, el nombre que el
-propio PDF usa en su página 63) — no arrancarlos sin esa validación.
+igual que exigió el Sprint 13 con el EFDJ — no arrancarlos sin esa validación.
 
 **Sprints 23-30 (nuevos, 2026-07-21):** auditoría transversal de calidad de código y documentación (bugs
 de ejecución, lógica, concurrencia, dependencias, rendimiento, seguridad, escalabilidad, mantenibilidad,
@@ -63,6 +64,47 @@ breadcrumb y atajos), Sprint 33 (dashboard real de inicio), Sprint 34 (UX de for
 (búsqueda/filtros/estados vacíos en listados), Sprint 36 (feedback no bloqueante y jerarquía de botones) y
 Sprint 37 (persistencia de ventana y accesibilidad de teclado). Ninguno depende del PDF de requisitos — son
 mejoras de experiencia de usuario sobre una app ya funcional.
+
+---
+
+## Índice de sprints
+
+- [Sprint 2 — Área Comercial ✅ Completado](#sprint-2--área-comercial--completado)
+- [Sprint 3 — Área Laboral ✅ Completado](#sprint-3--área-laboral--completado)
+- [Sprint 4 — Área Sancionatorio y Honorarios ✅ Completado](#sprint-4--área-sancionatorio-y-honorarios--completado)
+- [Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado](#sprint-5--carga-de-datos-históricos-ipc-smlmv-ibc-tasa-de-usura-uvt--completado)
+- [Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado](#sprint-6--calendario-de-días-hábiles-judiciales-y-términos-procesales--completado)
+- [Sprint 7 — Motor de prescripción y caducidad ✅ Completado](#sprint-7--motor-de-prescripción-y-caducidad--completado)
+- [Sprint 8 — Conectar indexación IPC al área Civil/Familia ✅ Completado](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--completado)
+- [Sprint 9 — Motor de auditoría / bitácora ✅ Completado](#sprint-9--motor-de-auditoría--bitácora--completado)
+- [Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado](#sprint-10--exportación-de-liquidación-a-pdfword--completado)
+- [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a)
+- [Sprint 12 — TRM y obligaciones en moneda extranjera ✅ Completado](#sprint-12--trm-y-obligaciones-en-moneda-extranjera--completado)
+- [Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) ✅ Completado](#sprint-13--arquitectura-de-motor-de-reglas-versionado-efdj--completado)
+- [Sprint 14 — Tabla histórica de UVT (DIAN) ✅ Completado](#sprint-14--tabla-histórica-de-uvt-dian--completado)
+- [Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado](#sprint-15--tributario-completo-sanciones-imputación-y-modelo-de-obligación-tributaria-cierre-del-sprint-11b--completado)
+- [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
+- [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas)](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas)
+- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PCSJA20-11556)](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-pcsja20-11556)
+- [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.)](#sprint-19--anatocismo-comercial-condicionado-art-886-cco)
+- [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única)
+- [Sprint 21 — Múltiples tasas de interés simultáneas por expediente](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente)
+- [Sprint 22 — Limpieza técnica acumulada](#sprint-22--limpieza-técnica-acumulada)
+- [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
+- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
+- [Sprint 25 — Rendimiento del motor de tasas, índices e historial](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial)
+- [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui)
+- [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional)
+- [Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests](#sprint-28--cicd-versionado-housekeeping-de-repositorio-e-higiene-de-tests)
+- [Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos ✅ Completado](#sprint-29--corrección-de-documentación-desactualizada-inconsistente-y-con-enlaces-rotos--completado)
+- [Sprint 30 — Verificación de reglas de dominio con posible error de un día](#sprint-30--verificación-de-reglas-de-dominio-con-posible-error-de-un-día)
+- [Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI](#sprint-31--sistema-de-diseño-visual-tema-color-tipografía-e-íconos-en-la-gui)
+- [Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado](#sprint-32--navegación-barra-mejorada-breadcrumb-y-atajos-de-teclado)
+- [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas)
+- [Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real](#sprint-34--ux-de-formularios-agrupación-ayuda-contextual-y-feedback-en-tiempo-real)
+- [Sprint 35 — Búsqueda, filtros y estados vacíos en listados](#sprint-35--búsqueda-filtros-y-estados-vacíos-en-listados)
+- [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones)
+- [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado)
 
 ---
 
@@ -532,8 +574,8 @@ de uso en el sprint que la requiera todavía.
 automáticamente a partir de una fecha).
 
 **Documentos a consultar:**
-- `specifications/03_motor_indexacion.md` (ya documenta el estado actual: implementado y probado, pero no
-  conectado).
+- `docs/specifications/03_motor_indexacion.md` (ya documenta el estado actual: implementado y probado, pero
+  no conectado).
 - `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, sección "SISTEMA DE CLASIFICACIÓN TÉCNICA DE
   INDEXACIÓN" completa (páginas 20-22) — trae la fórmula, cuándo procede, cuándo NO procede, y el
   protocolo de interpolación cuando la fecha no coincide con el cierre de un mes certificado.
@@ -610,7 +652,7 @@ un solo abogado, el valor es menor).
   redondeo debe ser parametrizable y registrarse; todo cambio manual debe generar bitácora (usuario,
   fecha, motivo, evidencia); debe existir reconstrucción exacta de una liquidación histórica aunque las
   tasas hayan cambiado desde entonces.
-- `specifications/05_motor_auditoria.md` (documenta el estado actual: vacío).
+- `docs/specifications/05_motor_auditoria.md` (documenta el motor completo, actualizado en el Sprint 9).
 
 **Código existente a reutilizar:**
 - `app/engine/audit/` — hoy solo tiene un `__init__.py` vacío, es el punto de partida.
@@ -664,7 +706,7 @@ hacer doble clic (ver
 **Depende de:** Nada (usa el `LiquidationResult` que ya existe).
 
 **Documentos a consultar:**
-- `specifications/06_motor_reportes.md`.
+- `docs/specifications/06_motor_reportes.md`.
 - `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, "7. Presentación ante Autoridades (Protocolo
   de UI)" (página 22) — requisitos formales para que una indexación sea aceptada por una autoridad:
   citar la fuente (DANE/Banco de la República), listar variables (Vh, fechas), desglosar el índice
@@ -829,7 +871,7 @@ no romper ninguna obligación Comercial existente en la suite de pruebas.
 
 ---
 
-## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) ⛔ Cerrado (EFDJ completo), ✅ "Parámetros legales versionados" implementado
+## Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) ✅ Completado
 
 **Prioridad sugerida:** Decisión arquitectónica, no un sprint de features — leer la nota antes de
 planificar nada.
@@ -1012,7 +1054,7 @@ cualquier fecha posterior a 2020 como antes.
 
 ---
 
-## Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b)
+## Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado
 
 **Prioridad sugerida:** Media — es la continuación directa y ya presupuestada del Sprint 11 (11a se
 completó el 2026-07-20; esta es la segunda mitad, aplazada a propósito para trabajarla con calma en su
@@ -1920,7 +1962,7 @@ resto (housekeeping).
 
 ---
 
-## Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos
+## Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos ✅ Completado
 
 **Prioridad sugerida:** Alta para las rutas rotas y la numeración duplicada de la guía (afectan
 directamente al usuario final); media para el resto.
@@ -1988,6 +2030,21 @@ directamente al usuario final); media para el resto.
   `docs/`.
 - `docs/GUIA_USUARIO.md` no tiene números de sección duplicados (verificar con `grep -n "^### "`).
 - Los 4 specs actualizados coinciden con el código real.
+
+**Cierre de implementación (2026-07-26):** Completado — los 7 hallazgos corregidos. Rutas `specifications/`
+arregladas a `docs/specifications/` en README, GUIA_USUARIO y las 4 apariciones de Pendientes.md.
+`docs/GUIA_USUARIO.md` renumerado desde la sección 5.12 duplicada (todo lo que seguía corrió +1, hasta
+5.15), con los 8 enlaces internos que apuntaban a esas secciones corregidos uno por uno. Sección 2.6
+actualizada al conteo de tests real (489 passed, 1 skipped) con una nota de que el número exacto sube con
+cada sprint. Sección 7.6 actualizada: ya no cita las constantes `TOPE_CUOTA_LITIS_INDIVIDUAL_PCT`/
+`TOPE_HONORARIOS_TOTAL_PCT` (no existen desde el Sprint 13), describe el `get_parametro(...)` real. Los 4
+specs (`01`, `02`, `06`, `07`) reescritos para reflejar el estado post-Sprint 16: calendario de días
+hábiles, prescripción/caducidad, validación de usura, exportación PDF/Word y las 6 áreas del derecho
+operables, todos conectados y probados. "EFDJ" definido la primera vez que aparece (línea 24-27). Índice de
+sprints agregado al inicio del archivo. Encabezado del Sprint 13 uniformado a "✅ Completado". Nota del
+Sprint 9 sobre `05_motor_auditoria.md` corregida (ya no dice "vacío"). Ejemplos numéricos completos
+agregados en GUIA_USUARIO.md secciones 7.1 (interés civil), 7.7 (indexación IPC), 7.8 (TRM) y 5.11
+(liquidación laboral).
 
 ---
 
