@@ -66,6 +66,34 @@ def test_muestra_los_totales(qtbot):
     assert "429400.50" in view.etiqueta_saldo_final.text()
 
 
+def test_muestra_bloque_de_renta_liquida_cuando_esta_presente(qtbot):
+    from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
+
+    renta = RentaLiquidaGravableResult(
+        ingresos_netos=Decimal("100000000.00"), renta_bruta=Decimal("60000000.00"),
+        renta_liquida=Decimal("40000000.00"), hubo_perdida_liquida=False,
+        renta_liquida_gravable=Decimal("35000000.00"),
+    )
+    resultado = LiquidationResult(items=[], renta_liquida=renta)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+    view.mostrar(resultado, expediente_id=1)
+
+    assert view.grupo_renta_liquida.isVisible()
+    assert "35000000.00" in view.etiqueta_renta_liquida_gravable.text()
+
+
+def test_oculta_bloque_de_renta_liquida_cuando_no_esta_presente(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.grupo_renta_liquida.isVisible()
+
+
 def _expediente_para_exportar(monkeypatch) -> int:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)

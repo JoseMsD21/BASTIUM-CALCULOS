@@ -80,7 +80,10 @@ class JudicialPDFGenerator:
         # Compilar el PDF
         doc.build(elementos)
 
-    def generate(self, title: str, summary: dict, table_data: list, encabezado: dict | None = None):
+    def generate(
+        self, title: str, summary: dict, table_data: list, encabezado: dict | None = None,
+        renta_liquida: dict | None = None,
+    ):
         """Genera el dictamen a partir de la salida del motor LiquidationCore
         (ReportSummaryBuilder.build_summary + ReportTableBuilder.build_matrix)."""
         doc = SimpleDocTemplate(self.output_path, pagesize=letter)
@@ -156,5 +159,29 @@ class JudicialPDFGenerator:
             ('GRID', (0, 0), (-1, -1), 0.5, self.c_burgundy),
         ]))
         elementos.append(tabla_cronologia)
+
+        if renta_liquida is not None:
+            elementos.append(Spacer(1, 30))
+            elementos.append(Paragraph("<b>Depuración de Renta Líquida Gravable</b>", self.styles['BastiumTitle']))
+            datos_renta_liquida = [
+                ["Rubro", "Monto"],
+                ["Ingresos Netos", renta_liquida["ingresos_netos"]],
+                ["Renta Bruta", renta_liquida["renta_bruta"]],
+                ["Renta Líquida", renta_liquida["renta_liquida"]],
+                ["¿Hubo Pérdida Líquida?", renta_liquida["hubo_perdida_liquida"]],
+                ["RENTA LÍQUIDA GRAVABLE", renta_liquida["renta_liquida_gravable"]],
+            ]
+            tabla_renta_liquida = Table(datos_renta_liquida, colWidths=[250, 150])
+            tabla_renta_liquida.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), self.c_black),
+                ('TEXTCOLOR', (0, 0), (-1, 0), self.c_cream),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('BACKGROUND', (0, 1), (-1, -1), self.c_cream),
+                ('TEXTCOLOR', (0, 1), (-1, -1), self.c_black),
+                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+                ('GRID', (0, 0), (-1, -1), 1, self.c_burgundy),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ]))
+            elementos.append(tabla_renta_liquida)
 
         doc.build(elementos)

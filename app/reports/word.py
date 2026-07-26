@@ -8,7 +8,10 @@ class WordReportGenerator:
         self.output_path = output_path
         self.c_burgundy = RGBColor(0xAE, 0x1C, 0x21)
 
-    def generate(self, title: str, summary: dict, table_data: list, encabezado: dict | None = None) -> None:
+    def generate(
+        self, title: str, summary: dict, table_data: list, encabezado: dict | None = None,
+        renta_liquida: dict | None = None,
+    ) -> None:
         documento = Document()
 
         parrafo_titulo = documento.add_paragraph()
@@ -72,5 +75,29 @@ class WordReportGenerator:
             celdas_fila[7].text = fila_datos["saldo_capital"]
             celdas_fila[8].text = fila_datos["saldo_interes"]
             celdas_fila[9].text = fila_datos["saldo_total"]
+
+        if renta_liquida is not None:
+            documento.add_paragraph()
+            parrafo_renta_liquida = documento.add_paragraph()
+            run_renta_liquida = parrafo_renta_liquida.add_run("Depuración de Renta Líquida Gravable")
+            run_renta_liquida.bold = True
+            run_renta_liquida.font.color.rgb = self.c_burgundy
+
+            filas_renta_liquida = [
+                ("Ingresos Netos", renta_liquida["ingresos_netos"]),
+                ("Renta Bruta", renta_liquida["renta_bruta"]),
+                ("Renta Líquida", renta_liquida["renta_liquida"]),
+                ("¿Hubo Pérdida Líquida?", renta_liquida["hubo_perdida_liquida"]),
+                ("RENTA LÍQUIDA GRAVABLE", renta_liquida["renta_liquida_gravable"]),
+            ]
+            tabla_renta_liquida = documento.add_table(rows=1, cols=2)
+            tabla_renta_liquida.style = "Table Grid"
+            celdas_encabezado_rl = tabla_renta_liquida.rows[0].cells
+            celdas_encabezado_rl[0].text = "Rubro"
+            celdas_encabezado_rl[1].text = "Monto"
+            for etiqueta, valor in filas_renta_liquida:
+                celdas_fila_rl = tabla_renta_liquida.add_row().cells
+                celdas_fila_rl[0].text = etiqueta
+                celdas_fila_rl[1].text = valor
 
         documento.save(self.output_path)
