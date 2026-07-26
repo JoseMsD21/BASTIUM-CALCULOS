@@ -84,7 +84,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 14 — Tabla histórica de UVT (DIAN) ✅ Completado](#sprint-14--tabla-histórica-de-uvt-dian--completado)
 - [Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado](#sprint-15--tributario-completo-sanciones-imputación-y-modelo-de-obligación-tributaria-cierre-del-sprint-11b--completado)
 - [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
-- [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas)](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas)
+- [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
 - [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PCSJA20-11556)](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-pcsja20-11556)
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.)](#sprint-19--anatocismo-comercial-condicionado-art-886-cco)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única)
@@ -1288,7 +1288,7 @@ la escala progresiva completa del FSP por tramos de SMMLV (Ley 797/2003 art. 8 �
 
 ---
 
-## Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas)
+## Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado
 
 **Prioridad sugerida:** Baja — el propio Sprint 3 lo señaló como "un dominio aparte", y el PDF lo trata
 como un régimen de liquidación mucho más largo (vida laboral completa) que el resto de obligaciones
