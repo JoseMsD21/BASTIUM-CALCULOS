@@ -1139,7 +1139,10 @@ pero nunca se mostraba en ningún canal. Tributario es la primera área donde es
 relevantes, así que se agregó la columna/fila faltante en los 3 canales: la tabla de la GUI
 (`app/views/liquidaciones.py`), el PDF (`app/reports/pdf.py`) y el Word (`app/reports/word.py`).
 
-`README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (404 passed, 1 skipped).
+`README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (415 passed, 1 skipped tras la
+revisión final de rama completa y sus correcciones: bloque de Renta Líquida Gravable visible en GUI/PDF/
+Word, siembra de los 4 parámetros de sanciones y manejo amigable de `ParametroNoDisponibleError`, y dos
+ajustes menores de documentación/pruebas).
 
 ---
 
