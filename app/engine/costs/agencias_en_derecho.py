@@ -18,10 +18,6 @@ from app.core.exceptions import TarifaNoDisponibleError
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 
-from app.core.exceptions import TarifaNoDisponibleError
-from app.engine.indexation.historical_index import get_smlmv_for_year
-from app.engine.math.rounding import Rounding
-
 
 class TipoProceso(str, Enum):
     DECLARATIVO_GENERAL = "declarativo_general"
