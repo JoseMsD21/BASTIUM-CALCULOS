@@ -1,15 +1,23 @@
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 from app.engine.liquidation.models import LiquidationItem, PendingDebt
+from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
 
 @dataclass(frozen=True)
 class LiquidationResult:
     """
     Representa el veredicto y cronología final del proceso de liquidación.
     Expone métodos para extraer métricas listas para interfaces y PDFs.
+
+    `renta_liquida` (Sprint 15): resultado opcional de depurar_renta_liquida_gravable(),
+    poblado solo por TributarioStrategy cuando el expediente tiene una obligacion
+    "RENTA_LIQUIDA". No participa del balance de deuda (items/PendingDebt) -- es
+    informativo, deliberadamente separado (ver design spec, seccion "Renta Liquida
+    Gravable no se mezcla con el saldo de deuda").
     """
     items: List[LiquidationItem]
+    renta_liquida: Optional[RentaLiquidaGravableResult] = None
 
     def total_interest_accrued(self) -> Decimal:
         return sum((item.interest_amount for item in self.items), Decimal("0.00"))

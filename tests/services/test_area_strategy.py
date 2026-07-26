@@ -20,6 +20,7 @@ from app.services.area_strategy import (
     HonorariosStrategy,
     LaboralStrategy,
     SancionatorioStrategy,
+    TributarioStrategy,
 )
 from database.models import Base, ParametroLegal
 
@@ -81,6 +82,16 @@ def _parametros_legales_en_memoria(monkeypatch):
             clave="UVT", valor=valor, vigente_desde=_date(anio, 1, 1),
             vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
         ))
+    for clave, valor in {
+        "EXTEMPORANEIDAD_PCT_MENSUAL": Decimal("5"),
+        "INEXACTITUD_PCT": Decimal("160"),
+        "INEXACTITUD_AGRAVADA_PCT": Decimal("200"),
+        "ERROR_ARITMETICO_PCT": Decimal("30"),
+    }.items():
+        session.add(ParametroLegal(
+            clave=clave, valor=valor, vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
     for anio, valor in _IPC_INDICE_ACUMULADO.items():
         session.add(ParametroLegal(
             clave="IPC_INDICE_ACUMULADO", valor=valor, vigente_desde=_date(anio, 1, 1),
@@ -99,7 +110,7 @@ def _parametros_legales_en_memoria(monkeypatch):
     session.close()
 
 
-def test_registry_expone_las_5_areas():
+def test_registry_expone_las_6_areas():
     areas = AreaRegistry.get_available_areas()
     assert set(areas.keys()) == {
         "CIVIL_FAMILIA",
@@ -107,6 +118,7 @@ def test_registry_expone_las_5_areas():
         "LABORAL",
         "SANCIONATORIO",
         "HONORARIOS",
+        "TRIBUTARIO",
     }
 
 
@@ -846,3 +858,162 @@ class TestLaboralStrategy:
 
     def test_soporta_indexacion_ipc_es_false(self):
         assert LaboralStrategy().soporta_indexacion_ipc is False
+
+
+def _obligacion_tributaria(
+    expediente_id=1,
+    categoria="IMPUESTO_A_CARGO",
+    fecha_origen=date(2024, 3, 1),
+    valor=Decimal("0.00"),
+    base_sancion_tributaria=None,
+    meses_extemporaneidad=None,
+    sancion_agravada=False,
+    ingresos_brutos=None,
+    devoluciones_rebajas_descuentos=None,
+    costos=None,
+    deducciones=None,
+    rentas_exentas=None,
+):
+    return Obligacion(
+        id=1,
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Impuesto de renta 2024",
+        categoria=categoria,
+        fecha_origen=fecha_origen,
+        valor=valor,
+        tasa_efectiva_anual=Decimal("0.00"),
+        base_sancion_tributaria=base_sancion_tributaria,
+        meses_extemporaneidad=meses_extemporaneidad,
+        sancion_agravada=sancion_agravada,
+        ingresos_brutos=ingresos_brutos,
+        devoluciones_rebajas_descuentos=devoluciones_rebajas_descuentos,
+        costos=costos,
+        deducciones=deducciones,
+        rentas_exentas=rentas_exentas,
+    )
+
+
+class TestTributarioStrategy:
+    def test_impuesto_a_cargo_sin_sanciones_ni_abonos_liquida_el_valor(self):
+        obligacion = _obligacion_tributaria(categoria="IMPUESTO_A_CARGO", valor=Decimal("10000000.00"))
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 3, 1)
+        )
+
+        assert resultado.final_balance().principal == Decimal("10000000.00")
+
+    def test_sancion_extemporaneidad_liquida_el_monto_calculado(self):
+        obligacion = _obligacion_tributaria(
+            categoria="SANCION_EXTEMPORANEIDAD",
+            base_sancion_tributaria=Decimal("10000000.00"),
+            meses_extemporaneidad=2,
+            fecha_origen=date(2024, 3, 1),
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 3, 1)
+        )
+
+        # 5% x 2 meses = 10% de 10,000,000 = 1,000,000 (por encima del piso de 10 UVT).
+        assert resultado.final_balance().indexation == Decimal("1000000.00")
+
+    def test_falta_categoria_no_reconocida_lanza_value_error(self):
+        obligacion = _obligacion_tributaria(categoria="CATEGORIA_INEXISTENTE")
+
+        with pytest.raises(ValueError):
+            TributarioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 3, 1)
+            )
+
+    def test_falta_base_sancion_en_extemporaneidad_lanza_value_error(self):
+        obligacion = _obligacion_tributaria(
+            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=None, meses_extemporaneidad=2
+        )
+
+        with pytest.raises(ValueError):
+            TributarioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 3, 1)
+            )
+
+    def test_obligacion_recurrente_lanza_value_error(self):
+        obligacion = _obligacion_tributaria(categoria="IMPUESTO_A_CARGO", valor=Decimal("100.00"))
+        obligacion.tipo = TipoObligacion.RECURRENTE
+
+        with pytest.raises(ValueError):
+            TributarioStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 3, 1)
+            )
+
+    def test_orden_de_imputacion_sanciones_intereses_impuesto(self):
+        # Impuesto a cargo de 1,000,000 y sancion de extemporaneidad de 1,000,000 (5% x 1
+        # mes = 50,000, muy por debajo del piso de 10 UVT 2024 = 470,650.00, asi que la
+        # sancion efectiva queda en 470,650.00), ambos con fecha_origen 2024-03-01. El abono
+        # tambien cae el 2024-03-01 (mismo dia que fecha_corte) para que la acumulacion
+        # automatica de interes (que corre por dias transcurridos) no aplique -- asi el
+        # resultado es 100% aritmetica de imputacion, sin depender de tasas historicas de
+        # usura para un rango de fechas.
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO", valor=Decimal("1000000.00"), fecha_origen=date(2024, 3, 1)
+        )
+        sancion = _obligacion_tributaria(
+            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=Decimal("1000000.00"),
+            meses_extemporaneidad=1, fecha_origen=date(2024, 3, 1),
+        )
+        abono = Abono(
+            id=1, obligacion_id=1, fecha=date(2024, 3, 1), monto=Decimal("500000.00"),
+            referencia="Abono parcial",
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[impuesto, sancion], abonos=[abono], fecha_corte=date(2024, 3, 1)
+        )
+
+        saldo = resultado.final_balance()
+        # El abono de 500,000 paga primero la sancion completa (470,650.00, bucket
+        # 'indexation'), y el remanente (500,000 - 470,650 = 29,350) va al impuesto (bucket
+        # 'principal', pagado de ultimo): 1,000,000 - 29,350 = 970,650.00. Sin intereses
+        # (mismo dia, cero dias transcurridos), asi que el bucket 'interest' no interviene.
+        assert saldo.indexation == Decimal("0.00")
+        assert saldo.interest == Decimal("0.00")
+        assert saldo.principal == Decimal("970650.00")
+
+    def test_renta_liquida_no_genera_evento_y_queda_en_resultado_renta_liquida(self):
+        obligacion = _obligacion_tributaria(
+            categoria="RENTA_LIQUIDA",
+            ingresos_brutos=Decimal("100000000.00"),
+            devoluciones_rebajas_descuentos=Decimal("0.00"),
+            costos=Decimal("40000000.00"),
+            deducciones=Decimal("20000000.00"),
+            rentas_exentas=Decimal("5000000.00"),
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 3, 1)
+        )
+
+        assert resultado.is_empty()
+        assert resultado.renta_liquida is not None
+        assert resultado.renta_liquida.renta_liquida_gravable == Decimal("35000000.00")
+        assert resultado.final_balance().total() == Decimal("0.00")
+
+    def test_dos_obligaciones_renta_liquida_en_el_mismo_expediente_lanza_value_error(self):
+        renta_1 = _obligacion_tributaria(
+            categoria="RENTA_LIQUIDA", ingresos_brutos=Decimal("1.00"),
+            devoluciones_rebajas_descuentos=Decimal("0.00"), costos=Decimal("0.00"),
+            deducciones=Decimal("0.00"), rentas_exentas=Decimal("0.00"),
+        )
+        renta_2 = _obligacion_tributaria(
+            categoria="RENTA_LIQUIDA", ingresos_brutos=Decimal("2.00"),
+            devoluciones_rebajas_descuentos=Decimal("0.00"), costos=Decimal("0.00"),
+            deducciones=Decimal("0.00"), rentas_exentas=Decimal("0.00"),
+        )
+
+        with pytest.raises(ValueError):
+            TributarioStrategy().liquidar(
+                obligaciones=[renta_1, renta_2], abonos=[], fecha_corte=date(2024, 3, 1)
+            )
+
+    def test_soporta_indexacion_ipc_es_false(self):
+        assert TributarioStrategy().soporta_indexacion_ipc is False

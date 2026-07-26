@@ -49,3 +49,30 @@ def test_generate_acepta_encabezado_opcional(tmp_path):
 
     assert ruta.exists()
     assert ruta.stat().st_size > 0
+
+
+def test_generate_incluye_bloque_de_renta_liquida_cuando_se_provee(tmp_path):
+    ruta = tmp_path / "liquidacion_renta.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+    renta_liquida = {
+        "ingresos_netos": "$100,000,000.00", "renta_bruta": "$60,000,000.00",
+        "renta_liquida": "$40,000,000.00", "hubo_perdida_liquida": "No",
+        "renta_liquida_gravable": "$35,000,000.00",
+    }
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO", _summary(), _table_data(),
+        renta_liquida=renta_liquida,
+    )
+
+    assert ruta.exists()
+    assert ruta.stat().st_size > 0
+
+
+def test_generate_sin_renta_liquida_no_falla(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_renta.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+
+    assert ruta.exists()

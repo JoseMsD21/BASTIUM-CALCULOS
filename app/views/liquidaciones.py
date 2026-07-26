@@ -2,6 +2,7 @@ import re
 
 from PySide6.QtWidgets import (
     QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -34,14 +35,29 @@ class ResultadoLiquidacionView(QWidget):
         self._resultado = None
         self._expediente_id = None
 
-        self.tabla = QTableWidget(0, 7)
+        self.tabla = QTableWidget(0, 8)
         self.tabla.setHorizontalHeaderLabels(
-            ["Fecha", "Concepto", "Capital base", "Tasa %", "Interes", "Pago", "Saldo"]
+            ["Fecha", "Concepto", "Capital base", "Tasa %", "Interes", "Indexacion/Sanciones", "Pago", "Saldo"]
         )
 
         self.etiqueta_interes_total = QLabel("Interes acumulado: 0.00")
         self.etiqueta_pagos_total = QLabel("Pagos aplicados: 0.00")
         self.etiqueta_saldo_final = QLabel("Saldo final: 0.00")
+
+        self.grupo_renta_liquida = QGroupBox("Depuración de Renta Líquida Gravable")
+        self.etiqueta_ingresos_netos = QLabel("Ingresos netos: -")
+        self.etiqueta_renta_bruta = QLabel("Renta bruta: -")
+        self.etiqueta_renta_liquida = QLabel("Renta líquida: -")
+        self.etiqueta_hubo_perdida = QLabel("¿Hubo pérdida líquida?: -")
+        self.etiqueta_renta_liquida_gravable = QLabel("Renta líquida gravable: -")
+        layout_renta_liquida = QVBoxLayout()
+        layout_renta_liquida.addWidget(self.etiqueta_ingresos_netos)
+        layout_renta_liquida.addWidget(self.etiqueta_renta_bruta)
+        layout_renta_liquida.addWidget(self.etiqueta_renta_liquida)
+        layout_renta_liquida.addWidget(self.etiqueta_hubo_perdida)
+        layout_renta_liquida.addWidget(self.etiqueta_renta_liquida_gravable)
+        self.grupo_renta_liquida.setLayout(layout_renta_liquida)
+        self.grupo_renta_liquida.setVisible(False)
 
         self.boton_exportar_pdf = QPushButton("Exportar a PDF")
         self.boton_exportar_pdf.clicked.connect(self._exportar_pdf)
@@ -57,6 +73,7 @@ class ResultadoLiquidacionView(QWidget):
         layout.addWidget(self.etiqueta_interes_total)
         layout.addWidget(self.etiqueta_pagos_total)
         layout.addWidget(self.etiqueta_saldo_final)
+        layout.addWidget(self.grupo_renta_liquida)
         layout.addLayout(layout_botones)
         self.setLayout(layout)
 
@@ -71,12 +88,28 @@ class ResultadoLiquidacionView(QWidget):
             self.tabla.setItem(fila, 2, QTableWidgetItem(str(item.capital_base)))
             self.tabla.setItem(fila, 3, QTableWidgetItem(str(item.interest_rate)))
             self.tabla.setItem(fila, 4, QTableWidgetItem(str(item.interest_amount)))
-            self.tabla.setItem(fila, 5, QTableWidgetItem(str(item.payment_amount)))
-            self.tabla.setItem(fila, 6, QTableWidgetItem(str(item.balance.debt.total())))
+            self.tabla.setItem(fila, 5, QTableWidgetItem(str(item.indexation_amount)))
+            self.tabla.setItem(fila, 6, QTableWidgetItem(str(item.payment_amount)))
+            self.tabla.setItem(fila, 7, QTableWidgetItem(str(item.balance.debt.total())))
 
         self.etiqueta_interes_total.setText(f"Interes acumulado: {resultado.total_interest_accrued()}")
         self.etiqueta_pagos_total.setText(f"Pagos aplicados: {resultado.total_payments_applied()}")
         self.etiqueta_saldo_final.setText(f"Saldo final: {resultado.final_balance().total()}")
+
+        if resultado.renta_liquida is not None:
+            rl = resultado.renta_liquida
+            self.etiqueta_ingresos_netos.setText(f"Ingresos netos: {rl.ingresos_netos}")
+            self.etiqueta_renta_bruta.setText(f"Renta bruta: {rl.renta_bruta}")
+            self.etiqueta_renta_liquida.setText(f"Renta líquida: {rl.renta_liquida}")
+            self.etiqueta_hubo_perdida.setText(
+                f"¿Hubo pérdida líquida?: {'Sí' if rl.hubo_perdida_liquida else 'No'}"
+            )
+            self.etiqueta_renta_liquida_gravable.setText(
+                f"Renta líquida gravable: {rl.renta_liquida_gravable}"
+            )
+            self.grupo_renta_liquida.setVisible(True)
+        else:
+            self.grupo_renta_liquida.setVisible(False)
 
     def _construir_datos_reporte(self):
         session = session_module.get_session()
@@ -97,11 +130,12 @@ class ResultadoLiquidacionView(QWidget):
 
         summary = ReportSummaryBuilder().build_summary(self._resultado)
         table_data = ReportTableBuilder().build_matrix(self._resultado)
+        renta_liquida = ReportSummaryBuilder().build_renta_liquida(self._resultado)
 
-        return title, encabezado, summary, table_data, radicado
+        return title, encabezado, summary, table_data, radicado, renta_liquida
 
     def _exportar_pdf(self) -> None:
-        title, encabezado, summary, table_data, radicado = self._construir_datos_reporte()
+        title, encabezado, summary, table_data, radicado, renta_liquida = self._construir_datos_reporte()
         nombre_sugerido = f"Liquidacion_{_sanitizar_nombre_archivo(radicado)}.pdf"
 
         ruta, _filtro = QFileDialog.getSaveFileName(self, "Exportar a PDF", nombre_sugerido, "PDF (*.pdf)")
@@ -109,7 +143,7 @@ class ResultadoLiquidacionView(QWidget):
             return
 
         try:
-            JudicialPDFGenerator(ruta).generate(title, summary, table_data, encabezado)
+            JudicialPDFGenerator(ruta).generate(title, summary, table_data, encabezado, renta_liquida=renta_liquida)
         except Exception as error:
             QMessageBox.critical(self, "No se pudo exportar", str(error))
             return
@@ -117,7 +151,7 @@ class ResultadoLiquidacionView(QWidget):
         QMessageBox.information(self, "Exportación completa", f"PDF guardado en: {ruta}")
 
     def _exportar_word(self) -> None:
-        title, encabezado, summary, table_data, radicado = self._construir_datos_reporte()
+        title, encabezado, summary, table_data, radicado, renta_liquida = self._construir_datos_reporte()
         nombre_sugerido = f"Liquidacion_{_sanitizar_nombre_archivo(radicado)}.docx"
 
         ruta, _filtro = QFileDialog.getSaveFileName(self, "Exportar a Word", nombre_sugerido, "Word (*.docx)")
@@ -125,7 +159,7 @@ class ResultadoLiquidacionView(QWidget):
             return
 
         try:
-            WordReportGenerator(ruta).generate(title, summary, table_data, encabezado)
+            WordReportGenerator(ruta).generate(title, summary, table_data, encabezado, renta_liquida=renta_liquida)
         except Exception as error:
             QMessageBox.critical(self, "No se pudo exportar", str(error))
             return

@@ -109,6 +109,22 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Unidad de Valor Tributario (UVT)", "Indicadores historicos",
         "DIAN, resolucion anual (Ley 1111 de 2006)", ModoResolucion.ANUAL_EXACTO,
     ),
+    "EXTEMPORANEIDAD_PCT_MENSUAL": InfoParametro(
+        "Sanción por extemporaneidad, porcentaje mensual del impuesto a cargo", "Topes legales",
+        "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
+    "INEXACTITUD_PCT": InfoParametro(
+        "Sanción por inexactitud, porcentaje de la diferencia (sin agravante)", "Topes legales",
+        "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
+    "INEXACTITUD_AGRAVADA_PCT": InfoParametro(
+        "Sanción por inexactitud, porcentaje agravado (omisión de activos/pasivos inexistentes)",
+        "Topes legales", "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
+    "ERROR_ARITMETICO_PCT": InfoParametro(
+        "Sanción por error aritmético, porcentaje de la diferencia generada", "Topes legales",
+        "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
+    ),
 }
 
 
@@ -146,8 +162,10 @@ def get_parametro(clave: str, fecha: date) -> Decimal:
     declarado en CATALOGO_PARAMETROS (ver Adenda de diseno de la spec)."""
     fila = _resolver_fila(clave, fecha)
     if fila is None:
+        info = _validar_clave(clave)
         raise ParametroNoDisponibleError(
-            f"No hay valor de '{clave}' disponible para la fecha {fecha}."
+            f"No hay valor configurado para '{info.descripcion}' (clave '{clave}') "
+            f"en la fecha {fecha}."
         )
     return fila.valor
 

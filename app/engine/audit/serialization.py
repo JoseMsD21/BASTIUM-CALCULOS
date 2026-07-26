@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
 from app.engine.liquidation.result import LiquidationResult
+from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
 
 
 def _encode(value):
@@ -18,14 +19,21 @@ def _encode(value):
 def serializar_resultado(resultado: LiquidationResult) -> str:
     """Snapshot JSON exacto de un LiquidationResult, para reconstrucción sin recalcular."""
     items = [asdict(item) for item in resultado.items]
-    return json.dumps({"items": items}, default=_encode, ensure_ascii=False)
+    renta_liquida = asdict(resultado.renta_liquida) if resultado.renta_liquida is not None else None
+    return json.dumps(
+        {"items": items, "renta_liquida": renta_liquida}, default=_encode, ensure_ascii=False
+    )
 
 
 def deserializar_resultado(json_str: str) -> LiquidationResult:
-    """Reconstruye un LiquidationResult exactamente desde un snapshot de serializar_resultado."""
+    """Reconstruye un LiquidationResult exactamente desde un snapshot de serializar_resultado.
+    Usa .get() para 'renta_liquida' porque los snapshots guardados antes del Sprint 15 no
+    tienen esa clave -- debe seguir reconstruyendo sin KeyError (misma cautela que ya motivo
+    el bug de auditoria documentado en el Sprint 23)."""
     data = json.loads(json_str)
     items = [_item_desde_dict(item) for item in data["items"]]
-    return LiquidationResult(items)
+    renta_liquida = _renta_liquida_desde_dict(data.get("renta_liquida"))
+    return LiquidationResult(items=items, renta_liquida=renta_liquida)
 
 
 def _item_desde_dict(data: dict) -> LiquidationItem:
@@ -52,4 +60,16 @@ def _item_desde_dict(data: dict) -> LiquidationItem:
         payment_amount=Decimal(data["payment_amount"]),
         balance=balance,
         rate_source=data["rate_source"],
+    )
+
+
+def _renta_liquida_desde_dict(data: dict | None) -> RentaLiquidaGravableResult | None:
+    if data is None:
+        return None
+    return RentaLiquidaGravableResult(
+        ingresos_netos=Decimal(data["ingresos_netos"]),
+        renta_bruta=Decimal(data["renta_bruta"]),
+        renta_liquida=Decimal(data["renta_liquida"]),
+        hubo_perdida_liquida=data["hubo_perdida_liquida"],
+        renta_liquida_gravable=Decimal(data["renta_liquida_gravable"]),
     )

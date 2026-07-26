@@ -50,6 +50,7 @@ class AreaDerecho(enum.Enum):
     LABORAL = "LABORAL"
     SANCIONATORIO = "SANCIONATORIO"
     HONORARIOS = "HONORARIOS"
+    TRIBUTARIO = "TRIBUTARIO"
 
 
 class TipoObligacion(enum.Enum):
@@ -104,6 +105,14 @@ class Obligacion(Base):
     moneda: Mapped[str] = mapped_column(String(3), default="COP")
     trm_aplicable: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
     trm_fecha_referencia: Mapped[date | None] = mapped_column(Date, nullable=True)
+    base_sancion_tributaria: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    meses_extemporaneidad: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sancion_agravada: Mapped[bool] = mapped_column(Boolean, default=False)
+    ingresos_brutos: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    devoluciones_rebajas_descuentos: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    costos: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    deducciones: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    rentas_exentas: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
 
     expediente: Mapped["Expediente"] = relationship(back_populates="obligaciones")
     abonos: Mapped[list["Abono"]] = relationship(

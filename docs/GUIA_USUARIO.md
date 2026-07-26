@@ -5,11 +5,11 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-21 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
-> Honorarios/Litigio, Laboral, exportación de liquidaciones a PDF/Word, los botones de navegación
-> (Volver/Inicio) y de editar/eliminar expediente, y la pantalla "⚙ Parámetros" de parámetros legales
-> versionados. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md), esta guía
-> se actualiza para que nunca quede desactualizada respecto al programa real.
+> **Última actualización:** 2026-07-25 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, los botones de
+> navegación (Volver/Inicio) y de editar/eliminar expediente, y la pantalla "⚙ Parámetros" de parámetros
+> legales versionados. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md),
+> esta guía se actualiza para que nunca quede desactualizada respecto al programa real.
 
 ## Índice
 
@@ -181,13 +181,14 @@ En la parte superior de la ventana hay botones de navegación:
    - **Demandante**: nombre de quien reclama.
    - **Demandado**: nombre de quien debe.
    - **Área del derecho**: elige **"Civil / Familia"**, **"Comercial"**, **"Sancionatorio"**,
-     **"Honorarios / Litigio"** o **"Laboral"** (las cinco opciones calculan de verdad hoy, ver
-     [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)). Si eliges Comercial, Sancionatorio,
-     Honorarios o Laboral, el formulario de "Agregar obligación" muestra campos adicionales — ver
-     [sección 5.7](#57-agregar-una-obligación-comercial),
+     **"Honorarios / Litigio"**, **"Laboral"** o **"Tributario"** (las seis opciones calculan de verdad
+     hoy, ver [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy)). Si eliges Comercial, Sancionatorio,
+     Honorarios, Laboral o Tributario, el formulario de "Agregar obligación" muestra campos adicionales —
+     ver [sección 5.7](#57-agregar-una-obligación-comercial),
      [5.9](#59-agregar-una-obligación-sancionatoria),
-     [5.10](#510-agregar-una-obligación-de-honorarios--litigio) o
-     [5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado) según el área.
+     [5.10](#510-agregar-una-obligación-de-honorarios--litigio),
+     [5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado) o
+     [5.14](#514-agregar-una-obligación-tributaria) según el área.
    - **Juzgado**: opcional, el juzgado donde está el proceso, si aplica.
    - **Fecha de corte**: la fecha hasta la cual se va a calcular el interés (normalmente, hoy o la fecha
      en que se necesita presentar la liquidación).
@@ -545,11 +546,63 @@ se pueda reconstruir exactamente con el valor que estaba vigente en ese momento,
 Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
 vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
 
+### 5.14. Agregar una obligación tributaria
+
+Cuando el expediente tiene **Área del derecho = Tributario**, el formulario de "Agregar obligación"
+oculta el campo "Tipo" (toda obligación tributaria se guarda como Puntual — un impuesto o una sanción es
+un hecho único, no una cuota que se repite cada mes) y la "Tasa efectiva anual (%)" tampoco aplica (el
+interés de esta área nunca se pacta manualmente, ver más abajo). En su lugar, el campo **Categoría**
+ofrece 5 opciones, y cada una muestra sus propios campos:
+
+1. Dentro del Detalle de un expediente Tributario, haz clic en **"Agregar obligación"**.
+2. En **Categoría**, elige una de las 5 opciones:
+   - **Impuesto a cargo**: el impuesto ya determinado (por la DIAN o por el propio contribuyente). Llena
+     **Concepto**, **Fecha de origen** (la fecha del hecho que genera el cobro) y **Valor** (el monto del
+     impuesto en pesos). El programa no calcula una tarifa sobre una base gravable — el valor que
+     ingreses aquí ya es el impuesto determinado.
+   - **Sanción por extemporaneidad**: la multa por declarar o pagar tarde. Llena **Concepto**, **Fecha de
+     origen**, **Base de la sanción (impuesto a cargo o diferencia)** (el monto en pesos sobre el que se
+     calcula el 5% mensual) y **Meses o fracción de atraso (extemporaneidad)** (cuántos meses de atraso
+     hubo; cualquier fracción de mes se cobra como un mes completo).
+   - **Sanción por inexactitud**: la multa por declarar un valor distinto al que correspondía. Llena
+     **Concepto**, **Fecha de origen** y **Base de la sanción (impuesto a cargo o diferencia)** (la
+     diferencia entre lo declarado y lo que se determinó). Si el contribuyente omitió activos o incluyó
+     pasivos inexistentes, marca la casilla **"Agravada (omisión de activos o pasivos inexistentes)"** —
+     la sanción sube de 160% a 200% de esa diferencia.
+   - **Sanción por error aritmético**: la multa por un error de cálculo en la declaración. Llena
+     **Concepto**, **Fecha de origen** y **Base de la sanción (impuesto a cargo o diferencia)** (la
+     diferencia generada por el error).
+   - **Depuración de renta líquida gravable**: el cálculo informativo de la base gravable de un período.
+     Llena **Concepto**, **Fecha de origen** y los 5 campos de depuración, todos en pesos: **Ingresos
+     brutos**, **Devoluciones/rebajas/descuentos**, **Costos**, **Deducciones** y **Rentas exentas**.
+3. Haz clic en **"Guardar"**.
+
+**El piso de 10 UVT:** al liquidar, ninguna de las tres sanciones (extemporaneidad, inexactitud, error
+aritmético) puede quedar por debajo de 10 UVT del año del hecho — si el 5%, el 160%/200% o el 30%
+calculado da un monto menor a esas 10 UVT, el programa cobra 10 UVT en su lugar. Este piso se aplica
+automáticamente; no hay nada que marcar en el formulario para activarlo.
+
+**La renta líquida gravable no es una deuda:** a diferencia del impuesto a cargo y las tres sanciones, la
+obligación "Depuración de renta líquida gravable" no se suma al saldo de la liquidación — es informativa,
+y el resultado la muestra en un bloque aparte. Un expediente tributario admite como máximo una obligación
+de este tipo (un solo período gravable por expediente); si intentas liquidar un expediente con dos, el
+programa avisa el error en vez de calcular algo incorrecto.
+
+**El interés es automático, nunca pactado:** a diferencia de Comercial (donde tú ingresas la tasa
+remuneratoria y moratoria pactadas), en Tributario el programa siempre aplica el interés moratorio del
+E.T. art. 635 — la tasa de usura vigente menos dos puntos, resuelta automáticamente por tramos históricos
+— por eso el campo "Tasa efectiva anual (%)" ni siquiera aparece en el formulario de esta área.
+
+**Orden de pago (imputación) distinto al resto de las áreas:** al liquidar un expediente Tributario, los
+abonos se imputan primero a las sanciones, luego a los intereses y de último al impuesto a cargo — el
+orden inverso al que usan Civil/Familia y las demás áreas (que imputan primero a intereses y de último a
+capital).
+
 ---
 
 ## 6. Áreas del derecho: cuáles funcionan hoy
 
-Al crear un expediente, el campo "Área del derecho" muestra 5 opciones, y **las cinco calculan de verdad
+Al crear un expediente, el campo "Área del derecho" muestra 6 opciones, y **las seis calculan de verdad
 hoy**:
 
 | Área | ¿Funciona? |
@@ -559,6 +612,7 @@ hoy**:
 | Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, e indemnización moratoria bifásica del Art. 65 CST si hubo retardo en el pago. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). Seguridad social no está incluida (ver sección 8). |
 | Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
 | Honorarios / Litigio | ✅ Sí, con una limitación — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual porque no existe una tabla estructurada confiable del Consejo Superior de la Judicatura. Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
+| Tributario | ✅ Sí — impuesto a cargo, sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), imputación propia (sanciones → intereses → impuesto, distinta del orden civil), y depuración de Renta Líquida Gravable informativa. Ver [sección 5.14](#514-agregar-una-obligación-tributaria). |
 
 Si en algún momento se intenta liquidar un área cuya lógica todavía no esté lista (ver
 [sección 8](#8-funciones-pendientes-o-en-desarrollo)), el programa muestra el mensaje "Área no
@@ -731,13 +785,17 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   interrupción/suspensión/reanudación en `app/engine/temporal/terminos.py`), pero todavía no está
   conectado a ninguna pantalla — hoy sirve como base interna para el motor de prescripción y caducidad
   del Sprint 7 (`Pendientes.md`, Sprint 6).
-- 🚧 **Derecho Tributario** — dos motores de cálculo ya existen y están probados: interés moratorio
-  tributario (E.T. art. 635, tasa de usura vigente menos dos puntos, resuelta automáticamente por tramos
-  históricos) y depuración de Renta Líquida Gravable (el flujo de 8 pasos del impuesto de renta). Ninguno
-  está conectado todavía a un área operable — no existe una estrategia de liquidación tributaria ni el
-  área aparece en el selector de la GUI. Sanciones (extemporaneidad, inexactitud) e imputación tributaria
-  de pagos siguen sin construir y quedan pendientes para el Sprint 15 (Tributario 11b); la tabla
-  histórica de UVT que las bloqueaba ya está disponible (`Pendientes.md`, Sprint 14).
+- ✅ **Derecho Tributario** ya está conectado como sexta área operable: impuesto a cargo, las tres
+  sanciones (extemporaneidad, inexactitud, error aritmético, con piso legal de 10 UVT), imputación de
+  pagos propia (sanciones → intereses → impuesto), interés moratorio automático del E.T. art. 635 y
+  depuración de Renta Líquida Gravable informativa. Ver [sección 5.14](#514-agregar-una-obligación-tributaria)
+  y [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy) (`Pendientes.md`, Sprint 15). **Qué queda
+  explícitamente fuera de alcance:** el cálculo de la tarifa del impuesto sobre la renta líquida gravable
+  (el usuario ingresa el impuesto a cargo ya determinado, el programa no aplica una tarifa
+  automáticamente sobre la base gravable), la compensación de pérdidas fiscales de años anteriores, la
+  integración en vivo con la DIAN, y varios períodos gravables en un mismo expediente (un expediente
+  tributario admite una sola obligación "Depuración de renta líquida gravable" — un solo período gravable
+  por expediente).
 - ✅ **TRM y obligaciones en moneda extranjera** ya está conectada al área Comercial (Sprint 12) — ver
   [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera).
 - ✅ **Parámetros legales versionados** (pantalla "⚙ Parámetros") — el Sprint 13, planeado originalmente

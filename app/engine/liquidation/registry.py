@@ -31,6 +31,7 @@ def _register_default_areas():
         HonorariosStrategy,
         LaboralStrategy,
         SancionatorioStrategy,
+        TributarioStrategy,
     )
 
     AreaRegistry.register(
@@ -40,6 +41,9 @@ def _register_default_areas():
     AreaRegistry.register("LABORAL", "Obligaciones Laborales (Cesantias, Art. 65 CST)", LaboralStrategy)
     AreaRegistry.register("SANCIONATORIO", "Sanciones administrativas (SMLMV / UVT)", SancionatorioStrategy)
     AreaRegistry.register("HONORARIOS", "Cobro de honorarios y cuota litis", HonorariosStrategy)
+    AreaRegistry.register(
+        "TRIBUTARIO", "Impuesto a cargo, sanciones tributarias y renta liquida", TributarioStrategy
+    )
 
 
 _register_default_areas()

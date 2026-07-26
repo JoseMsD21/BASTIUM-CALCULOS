@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import List
@@ -21,6 +22,13 @@ from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
 from app.engine.indexation.ipc import IPCIndexation
 from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import get_parametro
+from app.engine.tax.moratory_interest import construir_rate_provider_moratorio_tributario
+from app.engine.tax.renta_liquida import depurar_renta_liquida_gravable
+from app.engine.tax.sanciones import (
+    calcular_sancion_error_aritmetico,
+    calcular_sancion_extemporaneidad,
+    calcular_sancion_inexactitud,
+)
 
 
 class AreaStrategy(ABC):
@@ -596,5 +604,186 @@ class HonorariosStrategy(AreaStrategy):
         provider = MemoryRateProvider()
         provider.add_rate_period(
             start=fecha_mas_antigua - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
+        )
+        return provider
+
+
+class TributarioStrategy(AreaStrategy):
+    """
+    Area Tributario (cierre del Sprint 11b): impuesto a cargo, 3 sanciones (extemporaneidad,
+    inexactitud, error aritmetico) y Renta Liquida Gravable informativa.
+
+    Reutiliza el motor generico de liquidacion (UniversalLiquidationService/LiquidationCore)
+    en vez de un motor de imputacion dedicado: el impuesto a cargo cae en el bucket
+    'principal' (event_type = obligacion.categoria = "IMPUESTO_A_CARGO", agregado a
+    _capital_concepts igual que cada area anterior), las 3 sanciones se normalizan a un unico
+    event_type "SANCION_TRIBUTARIA" que cae en el bucket 'indexation'. El orden de pago que
+    ya aplica AllocationEngine (indexacion -> interes -> capital) coincide exactamente con el
+    orden exigido para tributario (sanciones -> intereses -> impuesto) -- ver design spec,
+    seccion "Arquitectura".
+
+    El interes automatico (E.T. art. 635, nunca pactado) reutiliza
+    construir_rate_provider_moratorio_tributario del Sprint 11a.
+
+    "RENTA_LIQUIDA" no genera ningun evento de causacion -- es informativo (base gravable,
+    no una deuda exigible) y se adjunta aparte en LiquidationResult.renta_liquida. Un
+    expediente admite como maximo una obligacion "RENTA_LIQUIDA" (un solo periodo gravable
+    por liquidacion).
+
+    No es compatible con indexacion IPC (soporta_indexacion_ipc = False). El PDF (pag. 40)
+    advierte que no se pueden cobrar simultaneamente intereses moratorios y actualizacion
+    monetaria si eso conduce a una tasa usuraria o doble pago por el mismo concepto (mismo
+    criterio ya exigido en Sprint 2 para la incompatibilidad interes-comercial + IPC). Aqui
+    esa combinacion no requiere un guard en tiempo de ejecucion: el formulario de la GUI
+    oculta el checkbox "aplica indexacion IPC" para el area TRIBUTARIO (ver obligaciones.py)
+    y _evento_de_obligacion, a diferencia de CivilFamiliaStrategy, nunca lee
+    obligacion.aplica_indexacion_ipc -- por lo que ninguna obligacion tributaria puede
+    generar a la vez el interes automatico E.T. 635 y un evento de correccion monetaria IPC
+    sobre el mismo hecho. La advertencia del PDF no aplica por construccion, no por una
+    validacion explicita en tiempo de ejecucion.
+    """
+
+    soporta_indexacion_ipc = False
+
+    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+        if not obligaciones:
+            raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
+
+        obligaciones_renta_liquida = [o for o in obligaciones if o.categoria == "RENTA_LIQUIDA"]
+        if len(obligaciones_renta_liquida) > 1:
+            raise ValueError(
+                "Un expediente tributario admite una sola obligacion 'RENTA_LIQUIDA' "
+                "(un solo periodo gravable por liquidacion)."
+            )
+
+        obligaciones_deuda = [o for o in obligaciones if o.categoria != "RENTA_LIQUIDA"]
+        for obligacion in obligaciones_deuda:
+            self._validar_obligacion_tributaria(obligacion)
+
+        eventos_causacion = [self._evento_de_obligacion(o) for o in obligaciones_deuda]
+
+        pagos = [
+            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
+            for abono in abonos
+        ]
+
+        rate_provider = self._construir_rate_provider(obligaciones_deuda, fecha_corte)
+
+        service = UniversalLiquidationService()
+        resultado = service.liquidar(
+            eventos_causacion=eventos_causacion,
+            pagos=pagos,
+            fecha_corte=fecha_corte,
+            rate_provider=rate_provider,
+        )
+
+        if obligaciones_renta_liquida:
+            obligacion_renta = obligaciones_renta_liquida[0]
+            renta_liquida = depurar_renta_liquida_gravable(
+                ingresos_brutos=obligacion_renta.ingresos_brutos,
+                devoluciones_rebajas_descuentos=obligacion_renta.devoluciones_rebajas_descuentos,
+                costos=obligacion_renta.costos,
+                deducciones=obligacion_renta.deducciones,
+                rentas_exentas=obligacion_renta.rentas_exentas,
+            )
+            resultado = replace(resultado, renta_liquida=renta_liquida)
+
+        return resultado
+
+    def _validar_obligacion_tributaria(self, obligacion) -> None:
+        if obligacion.tipo.value != "PUNTUAL":
+            raise ValueError(
+                f"La obligacion tributaria '{obligacion.concepto}' debe ser PUNTUAL "
+                f"(un hecho tributario es un evento unico, no admite RECURRENTE)."
+            )
+
+        if obligacion.categoria == "IMPUESTO_A_CARGO":
+            if obligacion.valor is None or obligacion.valor <= Decimal("0.00"):
+                raise ValueError(
+                    f"El impuesto a cargo '{obligacion.concepto}' debe tener 'valor' mayor que cero."
+                )
+            return
+
+        if obligacion.categoria == "SANCION_EXTEMPORANEIDAD":
+            if obligacion.base_sancion_tributaria is None or obligacion.meses_extemporaneidad is None:
+                raise ValueError(
+                    f"La sancion por extemporaneidad '{obligacion.concepto}' necesita "
+                    f"'base_sancion_tributaria' y 'meses_extemporaneidad'."
+                )
+            return
+
+        if obligacion.categoria == "SANCION_INEXACTITUD":
+            if obligacion.base_sancion_tributaria is None:
+                raise ValueError(
+                    f"La sancion por inexactitud '{obligacion.concepto}' necesita "
+                    f"'base_sancion_tributaria' (la diferencia entre el saldo determinado y el declarado)."
+                )
+            return
+
+        if obligacion.categoria == "SANCION_ERROR_ARITMETICO":
+            if obligacion.base_sancion_tributaria is None:
+                raise ValueError(
+                    f"La sancion por error aritmetico '{obligacion.concepto}' necesita "
+                    f"'base_sancion_tributaria' (la diferencia generada por el error)."
+                )
+            return
+
+        raise ValueError(
+            f"Categoria tributaria desconocida: '{obligacion.categoria}'."
+        )
+
+    def _evento_de_obligacion(self, obligacion) -> Event:
+        if obligacion.categoria == "IMPUESTO_A_CARGO":
+            return Event(
+                date=obligacion.fecha_origen,
+                payload={"amount": obligacion.valor, "label": obligacion.concepto},
+                event_type=obligacion.categoria,
+            )
+
+        monto_sancion = self._calcular_monto_sancion(obligacion)
+        return Event(
+            date=obligacion.fecha_origen,
+            payload={"amount": monto_sancion, "label": obligacion.concepto},
+            event_type="SANCION_TRIBUTARIA",
+        )
+
+    def _calcular_monto_sancion(self, obligacion) -> Decimal:
+        if obligacion.categoria == "SANCION_EXTEMPORANEIDAD":
+            return calcular_sancion_extemporaneidad(
+                impuesto_a_cargo=obligacion.base_sancion_tributaria,
+                meses_o_fraccion=obligacion.meses_extemporaneidad,
+                fecha_referencia=obligacion.fecha_origen,
+            )
+        if obligacion.categoria == "SANCION_INEXACTITUD":
+            return calcular_sancion_inexactitud(
+                diferencia=obligacion.base_sancion_tributaria,
+                agravada=bool(obligacion.sancion_agravada),
+                fecha_referencia=obligacion.fecha_origen,
+            )
+        # SANCION_ERROR_ARITMETICO (unica categoria de sancion restante, ya validada arriba)
+        return calcular_sancion_error_aritmetico(
+            diferencia=obligacion.base_sancion_tributaria,
+            fecha_referencia=obligacion.fecha_origen,
+        )
+
+    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
+        if not obligaciones:
+            return MemoryRateProvider()
+        fecha_mas_antigua = min(o.fecha_origen for o in obligaciones)
+        provider = construir_rate_provider_moratorio_tributario(fecha_mas_antigua, fecha_corte)
+        # construir_rate_provider_moratorio_tributario solo cubre desde el dia siguiente a la
+        # exigibilidad (inicio_mora = fecha_mas_antigua + 1 dia, la mora nunca corre el mismo
+        # dia en que nace la obligacion -- ver docstring del modulo). LiquidationCore, sin
+        # embargo, consulta la tasa del propio dia de cada evento (incluyendo el evento de
+        # causacion del capital/sancion, que cae justo en fecha_mas_antigua) solo para
+        # trazabilidad/metadata, no para acumular interes ese dia. Sin este relleno, un
+        # MemoryRateProvider vacio (caso comun: fecha_corte == fecha_mas_antigua, sin mora
+        # todavia) lanzaria ValueError al liquidar. 0% es la tasa correcta para ese dia: no hay
+        # mora antes de que empiece a correr.
+        provider.add_rate_period(
+            start=fecha_mas_antigua,
+            end=fecha_mas_antigua,
+            rate=Rate(Decimal("0.0")),
+            source="Sin mora (fecha de exigibilidad, aun no corre el interes del E.T. art. 635)",
         )
         return provider

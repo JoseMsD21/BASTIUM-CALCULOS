@@ -45,12 +45,26 @@ CATEGORIAS_HONORARIOS = [
 # genera automaticamente como un segundo evento si costas_pct_manual esta seteado
 # (ver HonorariosStrategy._eventos_de_obligacion).
 
+CATEGORIAS_TRIBUTARIO = [
+    ("IMPUESTO_A_CARGO", "Impuesto a cargo"),
+    ("SANCION_EXTEMPORANEIDAD", "Sancion por extemporaneidad"),
+    ("SANCION_INEXACTITUD", "Sancion por inexactitud"),
+    ("SANCION_ERROR_ARITMETICO", "Sancion por error aritmetico"),
+    ("RENTA_LIQUIDA", "Depuracion de renta liquida gravable"),
+]
+# "IMPUESTO_A_CARGO" es el unico codigo de esta lista que debe existir tambien en
+# app.engine.liquidation.engine.LiquidationCore._capital_concepts (genera un evento de
+# capital). Las 3 sanciones generan un evento "SANCION_TRIBUTARIA" normalizado (ver
+# TributarioStrategy._evento_de_obligacion, Tarea 5) y "RENTA_LIQUIDA" no genera ningun
+# evento -- se procesa aparte (ver depurar_renta_liquida_gravable).
+
 AREAS_DERECHO = [
     ("CIVIL_FAMILIA", "Civil / Familia", True),
     ("COMERCIAL", "Comercial", True),
     ("LABORAL", "Laboral", True),
     ("SANCIONATORIO", "Sancionatorio", True),
     ("HONORARIOS", "Honorarios / Litigio", True),
+    ("TRIBUTARIO", "Tributario", True),
 ]
 # El tercer valor de cada tupla indica si el area esta habilitada para calcular
 # en este sprint. Ver Pendientes.md para el orden de habilitacion de las demas.

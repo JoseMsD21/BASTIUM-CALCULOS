@@ -12,7 +12,7 @@ from database.models import AreaDerecho, Base, Expediente
 
 
 def _resultado_de_prueba() -> LiquidationResult:
-    debt = PendingDebt(principal=Decimal("427900.00"), interest=Decimal("1200.50"), indexation=Decimal("0.00"))
+    debt = PendingDebt(principal=Decimal("427900.00"), interest=Decimal("1200.50"), indexation=Decimal("300.00"))
     balance = RunningBalance(date=date(2026, 1, 1), debt=debt, event_type="LIQUIDATION_CUTOFF")
     item = LiquidationItem(
         date=date(2026, 1, 1),
@@ -20,7 +20,7 @@ def _resultado_de_prueba() -> LiquidationResult:
         capital_base=Decimal("427900.00"),
         interest_rate=Decimal("6.00"),
         interest_amount=Decimal("1200.50"),
-        indexation_amount=Decimal("0.00"),
+        indexation_amount=Decimal("300.00"),
         payment_amount=Decimal("0.00"),
         balance=balance,
     )
@@ -37,6 +37,18 @@ def test_muestra_una_fila_por_item_de_liquidacion(qtbot):
     assert view.tabla.item(0, 1).text() == "Corte final de liquidacion"
 
 
+def test_muestra_columna_de_indexacion_sanciones(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert view.tabla.columnCount() == 8
+    header_indexacion = view.tabla.horizontalHeaderItem(5).text()
+    assert "ndexaci" in header_indexacion or "anci" in header_indexacion
+    assert view.tabla.item(0, 5).text() == "300.00"
+
+
 def test_muestra_los_totales(qtbot):
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
@@ -45,11 +57,41 @@ def test_muestra_los_totales(qtbot):
 
     assert "1200.50" in view.etiqueta_interes_total.text()
     # NOTA (bug detectado durante implementación): el plan original esperaba "427900.00"
-    # aquí, pero PendingDebt.total() = principal + interest + indexation = 429100.50, no
-    # solo el principal. El saldo final correcto incluye el interés acumulado, por lo que
-    # se corrige la aserción para reflejar el comportamiento real y matemáticamente
-    # correcto de final_balance().total(), en vez de forzar la vista a un cálculo erróneo.
-    assert "429100.50" in view.etiqueta_saldo_final.text()
+    # aquí, pero PendingDebt.total() = principal + interest + indexation, no solo el
+    # principal. El saldo final correcto incluye el interés acumulado y la indexación,
+    # por lo que se corrige la aserción para reflejar el comportamiento real y
+    # matemáticamente correcto de final_balance().total(), en vez de forzar la vista a un
+    # cálculo erróneo. Con indexation_amount = 300.00 (Task 6), el total pasa de
+    # 429100.50 a 429400.50 (427900.00 + 1200.50 + 300.00).
+    assert "429400.50" in view.etiqueta_saldo_final.text()
+
+
+def test_muestra_bloque_de_renta_liquida_cuando_esta_presente(qtbot):
+    from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
+
+    renta = RentaLiquidaGravableResult(
+        ingresos_netos=Decimal("100000000.00"), renta_bruta=Decimal("60000000.00"),
+        renta_liquida=Decimal("40000000.00"), hubo_perdida_liquida=False,
+        renta_liquida_gravable=Decimal("35000000.00"),
+    )
+    resultado = LiquidationResult(items=[], renta_liquida=renta)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+    view.mostrar(resultado, expediente_id=1)
+
+    assert view.grupo_renta_liquida.isVisible()
+    assert "35000000.00" in view.etiqueta_renta_liquida_gravable.text()
+
+
+def test_oculta_bloque_de_renta_liquida_cuando_no_esta_presente(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.grupo_renta_liquida.isVisible()
 
 
 def _expediente_para_exportar(monkeypatch) -> int:

@@ -18,7 +18,7 @@ def _db_en_memoria(monkeypatch):
     return engine
 
 
-def test_migrar_siembra_las_17_claves_del_catalogo():
+def test_migrar_siembra_las_21_claves_del_catalogo():
     from scripts.migrate_parametros_legales import migrar
 
     migrar()
@@ -35,6 +35,8 @@ def test_migrar_siembra_las_17_claves_del_catalogo():
         "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES",
         "SMLMV", "IPC_INDICE_ACUMULADO", "IBC_CONSUMO_ORDINARIO", "USURA_CONSUMO_ORDINARIO",
         "UVT",
+        "EXTEMPORANEIDAD_PCT_MENSUAL", "INEXACTITUD_PCT", "INEXACTITUD_AGRAVADA_PCT",
+        "ERROR_ARITMETICO_PCT",
     }
 
 
@@ -90,5 +92,17 @@ def test_migrar_es_idempotente():
 
     primera = migrar()
     segunda = migrar()
-    assert primera == 17
+    assert primera == 21
     assert segunda == 0
+
+
+def test_migrar_sancion_extemporaneidad_pct_mensual_coincide_con_el_valor_conocido():
+    from scripts.migrate_parametros_legales import migrar
+
+    migrar()
+    session = session_module.get_session()
+    fila = session.query(ParametroLegal).filter(
+        ParametroLegal.clave == "EXTEMPORANEIDAD_PCT_MENSUAL"
+    ).one()
+    session.close()
+    assert fila.valor == Decimal("5")

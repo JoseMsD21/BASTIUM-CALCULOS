@@ -24,6 +24,22 @@ class ReportSummaryBuilder:
             "gran_total_adeudado": self._format(final_debt.total())
         }
 
+    def build_renta_liquida(self, result: LiquidationResult) -> dict | None:
+        """Formatea LiquidationResult.renta_liquida para renderizar en un bloque separado del
+        balance de deuda (GUI/PDF/Word) -- None si el resultado no tiene una obligacion
+        RENTA_LIQUIDA (la inmensa mayoria de liquidaciones, de cualquier area distinta de
+        Tributario)."""
+        if result.renta_liquida is None:
+            return None
+        rl = result.renta_liquida
+        return {
+            "ingresos_netos": self._format(rl.ingresos_netos),
+            "renta_bruta": self._format(rl.renta_bruta),
+            "renta_liquida": self._format(rl.renta_liquida),
+            "hubo_perdida_liquida": "Sí" if rl.hubo_perdida_liquida else "No",
+            "renta_liquida_gravable": self._format(rl.renta_liquida_gravable),
+        }
+
     def _build_zero_summary(self) -> Dict[str, str]:
         zero = self._format(Decimal("0.00"))
         return {

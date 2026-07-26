@@ -51,7 +51,7 @@ def test_generate_incluye_titulo_encabezado_y_tabla_cronologica(tmp_path):
     tabla_cronologia = documento.tables[1]
     encabezados_columna = [celda.text for celda in tabla_cronologia.rows[0].cells]
     assert encabezados_columna == [
-        "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Pago",
+        "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
         "Saldo Capital", "Saldo Interés", "Saldo Total",
     ]
     fila_datos = [celda.text for celda in tabla_cronologia.rows[1].cells]
@@ -66,3 +66,49 @@ def test_generate_sin_encabezado_no_falla(tmp_path):
 
     assert ruta.exists()
     assert ruta.stat().st_size > 0
+
+
+def test_generate_incluye_bloque_de_renta_liquida_cuando_se_provee(tmp_path):
+    ruta = tmp_path / "liquidacion_renta.docx"
+    generador = WordReportGenerator(str(ruta))
+    renta_liquida = {
+        "ingresos_netos": "$100,000,000.00", "renta_bruta": "$60,000,000.00",
+        "renta_liquida": "$40,000,000.00", "hubo_perdida_liquida": "No",
+        "renta_liquida_gravable": "$35,000,000.00",
+    }
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO", _summary(), _table_data(),
+        renta_liquida=renta_liquida,
+    )
+
+    documento = Document(str(ruta))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Depuración de Renta Líquida Gravable" in texto_completo
+    tabla_renta_liquida = documento.tables[2]
+    fila_gravable = [celda.text for celda in tabla_renta_liquida.rows[-1].cells]
+    assert "$35,000,000.00" in fila_gravable
+
+
+def test_generate_sin_renta_liquida_no_agrega_el_bloque(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_renta.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+
+    documento = Document(str(ruta))
+    assert len(documento.tables) == 2
+
+
+def test_generate_incluye_columna_de_indexacion_sanciones(tmp_path):
+    ruta = tmp_path / "liquidacion.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO", _summary(), _table_data())
+
+    documento = Document(str(ruta))
+    tabla_cronologia = documento.tables[1]
+    encabezados = [celda.text for celda in tabla_cronologia.rows[0].cells]
+    assert "Indexación/Sanciones" in encabezados
+    fila_datos = [celda.text for celda in tabla_cronologia.rows[1].cells]
+    assert "$0.00" in fila_datos
