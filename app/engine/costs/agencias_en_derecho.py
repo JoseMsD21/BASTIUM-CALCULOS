@@ -71,6 +71,16 @@ UMBRAL_MENOR_CUANTIA_SMLMV = Decimal("150")   # CGP art. 25: 40 < pretensiones <
                                                 # (mayor cuantia: > 150 SMLMV, sin techo)
 TOPE_MAXIMO_SMLMV = Decimal("20")             # Acuerdo PSAA16-10554, Paragrafo 3 art. 3
 
+
+def resolver_cuantia_tier(pretensiones_reconocidas: Decimal, smlmv_vigente: Decimal) -> CuantiaTier:
+    """CGP art. 25: minima <= 40 SMLMV, menor entre 40 y 150 SMLMV, mayor > 150 SMLMV."""
+    if pretensiones_reconocidas <= UMBRAL_MINIMA_CUANTIA_SMLMV * smlmv_vigente:
+        return CuantiaTier.MINIMA
+    if pretensiones_reconocidas <= UMBRAL_MENOR_CUANTIA_SMLMV * smlmv_vigente:
+        return CuantiaTier.MENOR
+    return CuantiaTier.MAYOR
+
+
 # Clave: (TipoProceso, Instancia, CuantiaTier | None, tiene_pretension_pecuniaria)
 # CuantiaTier es None cuando la categoria no distingue por cuantia dentro de esa
 # instancia (segunda instancia, recursos, incidentes, y varias categorias de

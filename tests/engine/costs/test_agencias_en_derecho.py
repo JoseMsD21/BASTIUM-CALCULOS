@@ -10,7 +10,10 @@ from app.engine.costs.agencias_en_derecho import (
     UMBRAL_MINIMA_CUANTIA_SMLMV,
     UnidadTarifa,
     TARIFAS_AGENCIAS_EN_DERECHO,
+    resolver_cuantia_tier,
 )
+
+_SMLMV_2024 = Decimal("1300000.00")  # historical_index._SMLMV_POR_ANIO[2024]
 
 
 def test_umbrales_cgp_articulo_25():
@@ -64,3 +67,25 @@ def test_declarativo_general_segunda_instancia():
             (TipoProceso.DECLARATIVO_GENERAL, Instancia.SEGUNDA, None, pecuniaria)
         ]
         assert rango == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_resolver_cuantia_tier_minima_dentro_del_limite():
+    # 40 SMLMV exactos = limite superior de minima cuantia (CGP art. 25: "no exceda").
+    assert resolver_cuantia_tier(Decimal("52000000.00"), _SMLMV_2024) == CuantiaTier.MINIMA
+
+
+def test_resolver_cuantia_tier_menor_justo_sobre_el_limite_de_minima():
+    assert resolver_cuantia_tier(Decimal("52000001.00"), _SMLMV_2024) == CuantiaTier.MENOR
+
+
+def test_resolver_cuantia_tier_menor_en_su_limite_superior():
+    # 150 SMLMV exactos = limite superior de menor cuantia.
+    assert resolver_cuantia_tier(Decimal("195000000.00"), _SMLMV_2024) == CuantiaTier.MENOR
+
+
+def test_resolver_cuantia_tier_mayor_justo_sobre_el_limite_de_menor():
+    assert resolver_cuantia_tier(Decimal("195000001.00"), _SMLMV_2024) == CuantiaTier.MAYOR
+
+
+def test_resolver_cuantia_tier_mayor_valor_grande():
+    assert resolver_cuantia_tier(Decimal("5000000000.00"), _SMLMV_2024) == CuantiaTier.MAYOR
