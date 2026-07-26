@@ -23,6 +23,17 @@ parametros legales versionados), asi que ya no hay una fuente viva de la que
 leerlas. Los valores hardcodeados aqui son su ultimo valor conocido al
 momento de esta migracion, no una lectura en vivo.
 
+Igual pasa con EXTEMPORANEIDAD_PCT_MENSUAL, INEXACTITUD_PCT,
+INEXACTITUD_AGRAVADA_PCT y ERROR_ARITMETICO_PCT (sanciones tributarias,
+Sprint 15): se retranscriben a mano como Decimal("5")/Decimal("160")/
+Decimal("200")/Decimal("30"). Su caso es distinto al de las dos anteriores
+-- no hubo una constante Python que luego se borrara -- sino que
+app/engine/tax/sanciones.py se escribio desde el inicio leyendolas solo via
+get_parametro(), sin ningun Decimal a nivel de modulo que las acompañara.
+El resultado practico es el mismo: no hay una fuente viva de la que leerlas
+aqui, asi que se transcriben a mano su valor conocido al momento de esta
+migracion.
+
 Idempotente: si una clave ya tiene filas, no la vuelve a sembrar (mismo patron
 que scripts/migrate_aplica_indexacion_ipc.py, Sprint 8)."""
 
@@ -100,6 +111,13 @@ def migrar() -> int:
             ("HONORARIOS_TOTAL_PCT", Decimal("50"), ANCLA_SIN_FECHA_NORMA),
             ("ET635_PUNTOS_DESCUENTO", PUNTOS_DESCUENTO_ET_635, ANCLA_SIN_FECHA_NORMA),
             ("CIVIL_ANNUAL_RATE", LegalRates.CIVIL_ANNUAL_RATE, ANCLA_SIN_FECHA_NORMA),
+            # Hardcodeados (nunca hubo fuente viva): app/engine/tax/sanciones.py
+            # (Sprint 15) lee estas 4 claves solo via get_parametro(), sin ningun
+            # Decimal a nivel de modulo que las acompañe -- ver docstring del modulo.
+            ("EXTEMPORANEIDAD_PCT_MENSUAL", Decimal("5"), ANCLA_SIN_FECHA_NORMA),
+            ("INEXACTITUD_PCT", Decimal("160"), ANCLA_SIN_FECHA_NORMA),
+            ("INEXACTITUD_AGRAVADA_PCT", Decimal("200"), ANCLA_SIN_FECHA_NORMA),
+            ("ERROR_ARITMETICO_PCT", Decimal("30"), ANCLA_SIN_FECHA_NORMA),
         ]
         for clave, valor, vigente_desde in valores_unicos:
             if _clave_ya_sembrada(session, clave):

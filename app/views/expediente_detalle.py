@@ -14,6 +14,7 @@ import database.session as session_module
 from app.core.exceptions import (
     AreaNoImplementadaError,
     CuotaLitisExcedeTopeError,
+    ParametroNoDisponibleError,
     TasaUsurariaError,
     UVTNoDisponibleError,
 )
@@ -179,6 +180,9 @@ class ExpedienteDetallePage(QWidget):
             return
         except UVTNoDisponibleError as error:
             QMessageBox.warning(self, "UVT no disponible", str(error))
+            return
+        except ParametroNoDisponibleError as error:
+            QMessageBox.warning(self, "Parámetro legal no configurado", str(error))
             return
         except ValueError as error:
             QMessageBox.warning(self, "No se pudo liquidar", str(error))
