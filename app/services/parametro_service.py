@@ -125,6 +125,67 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Sanción por error aritmético, porcentaje de la diferencia generada", "Topes legales",
         "Estatuto Tributario (PDF pág. 39)", ModoResolucion.ABIERTO,
     ),
+    # NOTA DE COORDINACION (Sprint 16, Task 3): las siguientes claves SS_* (13 en
+    # total: SS_PENSION_PCT, SS_SALUD_PCT, SS_ARL_NIVEL_I..V_PCT y
+    # SS_FSP_TRAMO_1..6_PCT) ya fueron agregadas en esta tarea con citas
+    # verificadas contra Ley 100/1993 art. 20 (pension/salud), Decreto 1772/1994
+    # (ARL) y Ley 797/2003 art. 8 (tramos FSP). Si una tarea posterior (p.ej.
+    # Task 6) vuelve a tocar estas mismas claves con textos genericos tipo
+    # "PDF pagina 51/52", NO sobrescribir sin mas: reconciliar con estas citas
+    # mas precisas primero (los dict literals de Python dejan que la entrada
+    # posterior gane en silencio).
+    "SS_PENSION_PCT": InfoParametro(
+        "Cotizacion total a pension (% del IBC, empleador + trabajador)", "Seguridad social",
+        "Ley 100/1993, art. 20", ModoResolucion.ABIERTO,
+    ),
+    "SS_SALUD_PCT": InfoParametro(
+        "Cotizacion total a salud (% del IBC, empleador + trabajador)", "Seguridad social",
+        "Ley 100/1993, art. 204", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_I_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo I (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_II_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo II (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_III_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo III (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_IV_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo IV (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_ARL_NIVEL_V_PCT": InfoParametro(
+        "Cotizacion a ARL, nivel de riesgo V (% del IBC)", "Seguridad social",
+        "Decreto 1772/1994", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_1_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 1 (4-16 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_2_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 2 (16-17 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_3_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 3 (17-18 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_4_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 4 (18-19 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_5_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 5 (19-20 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
+    "SS_FSP_TRAMO_6_PCT": InfoParametro(
+        "Fondo de Solidaridad Pensional, tramo 6 (>20 SMMLV, % del IBC)",
+        "Seguridad social", "Ley 797/2003, art. 8", ModoResolucion.ABIERTO,
+    ),
 }
 
 

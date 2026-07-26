@@ -118,6 +118,19 @@ def migrar() -> int:
             ("INEXACTITUD_PCT", Decimal("160"), ANCLA_SIN_FECHA_NORMA),
             ("INEXACTITUD_AGRAVADA_PCT", Decimal("200"), ANCLA_SIN_FECHA_NORMA),
             ("ERROR_ARITMETICO_PCT", Decimal("30"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_PENSION_PCT", Decimal("0.16"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_SALUD_PCT", Decimal("0.125"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_ARL_NIVEL_I_PCT", Decimal("0.00522"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_ARL_NIVEL_II_PCT", Decimal("0.01044"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_ARL_NIVEL_III_PCT", Decimal("0.02436"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_ARL_NIVEL_IV_PCT", Decimal("0.04350"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_ARL_NIVEL_V_PCT", Decimal("0.06960"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_FSP_TRAMO_1_PCT", Decimal("0.01"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_FSP_TRAMO_2_PCT", Decimal("0.012"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_FSP_TRAMO_3_PCT", Decimal("0.014"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_FSP_TRAMO_4_PCT", Decimal("0.016"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_FSP_TRAMO_5_PCT", Decimal("0.018"), ANCLA_SIN_FECHA_NORMA),
+            ("SS_FSP_TRAMO_6_PCT", Decimal("0.02"), ANCLA_SIN_FECHA_NORMA),
         ]
         for clave, valor, vigente_desde in valores_unicos:
             if _clave_ya_sembrada(session, clave):

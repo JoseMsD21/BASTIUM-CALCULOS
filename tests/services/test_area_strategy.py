@@ -106,6 +106,30 @@ def _parametros_legales_en_memoria(monkeypatch):
             clave="USURA_CONSUMO_ORDINARIO", valor=tramo.usura_anual, vigente_desde=tramo.inicio,
             vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
         ))
+    session.add(ParametroLegal(
+        clave="SS_PENSION_PCT", valor=_Decimal("0.16"), vigente_desde=_date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="SS_SALUD_PCT", valor=_Decimal("0.125"), vigente_desde=_date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    for nivel, valor in {
+        "I": _Decimal("0.00522"), "II": _Decimal("0.01044"), "III": _Decimal("0.02436"),
+        "IV": _Decimal("0.04350"), "V": _Decimal("0.06960"),
+    }.items():
+        session.add(ParametroLegal(
+            clave=f"SS_ARL_NIVEL_{nivel}_PCT", valor=valor, vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
+    for i, valor in enumerate(
+        [_Decimal("0.01"), _Decimal("0.012"), _Decimal("0.014"), _Decimal("0.016"),
+         _Decimal("0.018"), _Decimal("0.02")], start=1
+    ):
+        session.add(ParametroLegal(
+            clave=f"SS_FSP_TRAMO_{i}_PCT", valor=valor, vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+        ))
     session.commit()
     session.close()
 
@@ -312,6 +336,17 @@ def test_capital_concepts_incluye_los_codigos_sancionatorio_y_honorarios():
 def test_capital_concepts_incluye_vacaciones():
     core = LiquidationCore()
     assert "VACACIONES" in core._capital_concepts
+
+
+def test_capital_concepts_incluye_seguridad_social_e_incapacidad():
+    core = LiquidationCore()
+    assert "COTIZACION_PENSION" in core._capital_concepts
+    assert "COTIZACION_SALUD" in core._capital_concepts
+    assert "COTIZACION_ARL" in core._capital_concepts
+    assert "COTIZACION_FSP" in core._capital_concepts
+    assert "INCAPACIDAD_EMPLEADOR" in core._capital_concepts
+    assert "SUSPENSION_INFORMATIVA" in core._capital_concepts
+    assert "INCAPACIDAD_INFORMATIVA" in core._capital_concepts
 
 
 from app.core.exceptions import TasaUsurariaError
@@ -858,6 +893,297 @@ class TestLaboralStrategy:
 
     def test_soporta_indexacion_ipc_es_false(self):
         assert LaboralStrategy().soporta_indexacion_ipc is False
+
+    def test_incluir_seguridad_social_sin_nivel_riesgo_lanza_value_error(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = None
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_incluir_seguridad_social_agrega_cotizaciones_a_la_deuda(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "COTIZACION_PENSION" in tipos_evento
+        assert "COTIZACION_SALUD" in tipos_evento
+        assert "COTIZACION_ARL" in tipos_evento
+        # 7974236.10 (prestaciones existentes) + cotizaciones sobre 365 dias,
+        # IBC 3000000.00, nivel I, sin suspension ni FSP (ver SeguridadSocialCalculator):
+        # pension = 3000000*0.16*365/30 = 5840000.00
+        # salud   = 3000000*0.125*365/30 = 4562500.00
+        # arl     = 3000000*0.00522*365/30 = 190530.00
+        assert resultado.final_balance().principal == Decimal("18567266.10")
+
+    def test_sin_incluir_seguridad_social_no_hay_regresion(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        # incluir_seguridad_social queda en su default (False)
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "COTIZACION_PENSION" not in tipos_evento
+        assert resultado.final_balance().principal == Decimal("7974236.10")
+
+    def test_incapacidad_comun_agrega_solo_el_monto_del_empleador_a_la_deuda(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),  # 3 dias
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INCAPACIDAD_EMPLEADOR" in tipos_evento
+        assert "INCAPACIDAD_INFORMATIVA" in tipos_evento
+        # IBC = 3000000.00 (sin suspension, sin FSP); dias 1-2 empleador
+        # 66.67% = 133340.00; dia 3 EPS 66.67% = 66670.00 (informativo, no suma).
+        eventos_incapacidad_empleador = [
+            item for item in resultado.items if item.balance.event_type == "INCAPACIDAD_EMPLEADOR"
+        ]
+        assert eventos_incapacidad_empleador[0].capital_base >= Decimal("133340.00")
+
+    def test_incapacidad_laboral_no_agrega_nada_a_la_deuda_pero_deja_traza(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL,
+            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 11),  # 10 dias
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INCAPACIDAD_INFORMATIVA" in tipos_evento
+        assert "INCAPACIDAD_EMPLEADOR" not in tipos_evento
+
+    def test_suspension_excluye_arl_de_esos_dias_y_deja_traza(self):
+        from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.SUSPENSION,
+            fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 31),  # 30 dias
+            motivo_suspension=MotivoSuspension.HUELGA,
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SUSPENSION_INFORMATIVA" in tipos_evento
+        assert "COTIZACION_ARL" in tipos_evento
+        eventos_arl = [item for item in resultado.items if item.balance.event_type == "COTIZACION_ARL"]
+        # dias_trabajados=365, dias_suspension=30: arl = 3000000*0.00522*(365-30)/30
+        assert eventos_arl[0].capital_base > Decimal("0.00")
+
+    def test_suspension_e_incapacidad_combinadas_en_el_mismo_contrato(self):
+        from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.SUSPENSION,
+                fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 31),
+                motivo_suspension=MotivoSuspension.HUELGA,
+            ),
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+            ),
+        ]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SUSPENSION_INFORMATIVA" in tipos_evento
+        assert "INCAPACIDAD_EMPLEADOR" in tipos_evento
+        assert "INCAPACIDAD_INFORMATIVA" in tipos_evento
+        assert "COTIZACION_ARL" in tipos_evento
+
+    def test_mora_fase2_no_incluye_cotizaciones_de_seguridad_social_en_la_base(self):
+        # Regresion: con incluir_seguridad_social=True y retardo suficiente
+        # para cruzar a fase 2 del Art. 65 CST, la base de la indemnizacion
+        # moratoria (monto_adeudado) debe seguir siendo solo prestaciones
+        # sociales -- NO debe incluir las cotizaciones de seguridad social no
+        # pagadas (esas tienen consecuencias legales separadas, fuera de
+        # alcance de este sprint).
+        obligacion = _obligacion_laboral()
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        fecha_corte = obligacion.fecha_fin + timedelta(days=800)
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        monto_prestaciones = Decimal("7974236.10")
+        mora_esperada = MoratoryIndemnityCalculator.calcular(
+            salario_mensual=obligacion.valor,
+            monto_adeudado=monto_prestaciones,
+            fecha_terminacion=obligacion.fecha_fin,
+            fecha_pago_o_corte=fecha_corte,
+        )
+        assert mora_esperada.dias_fase2 > 0
+
+        # prestaciones (7974236.10) + cotizaciones (pension+salud+arl sobre
+        # 365 dias, IBC 3000000.00, nivel I, sin suspension/FSP -- mismo
+        # valor que test_incluir_seguridad_social_agrega_cotizaciones_a_la_
+        # deuda) + mora calculada SOLO sobre prestaciones (el fix).
+        monto_prestaciones_y_cotizaciones = Decimal("18567266.10")
+        assert (
+            resultado.final_balance().principal
+            == monto_prestaciones_y_cotizaciones + mora_esperada.total
+        )
+
+        # Si la mora hubiera usado (bug) prestaciones+cotizaciones como base,
+        # el total de la mora seria mayor -- confirma que el fix realmente
+        # cambia el resultado y no es una coincidencia numerica.
+        mora_con_bug = MoratoryIndemnityCalculator.calcular(
+            salario_mensual=obligacion.valor,
+            monto_adeudado=monto_prestaciones_y_cotizaciones,
+            fecha_terminacion=obligacion.fecha_fin,
+            fecha_pago_o_corte=fecha_corte,
+        )
+        assert mora_con_bug.total > mora_esperada.total
+
+    def test_cotizacion_pension_expone_label_amigable_como_concept(self):
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        eventos_pension = [
+            item for item in resultado.items if item.balance.event_type == "COTIZACION_PENSION"
+        ]
+        assert len(eventos_pension) == 1
+        assert "COTIZACION_PENSION" not in eventos_pension[0].concept
+        assert "Pension" in eventos_pension[0].concept
+
+    def test_eventos_laborales_sin_incluir_seguridad_social_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        # incluir_seguridad_social queda en su default (False) a proposito.
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+        )]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_evento_laboral_con_fecha_fuera_del_contrato_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2021, 1, 1), fecha_fin=date(2021, 1, 5),  # posterior a fecha_fin del contrato (2020-12-31)
+        )]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_evento_laboral_con_fecha_inicio_anterior_al_contrato_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [EventoLaboral(
+            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2019, 12, 20), fecha_fin=date(2019, 12, 25),  # anterior a fecha_inicio del contrato (2020-01-01)
+        )]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_dos_eventos_laborales_solapados_lanza_value_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 10),
+            ),
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 5), fecha_fin=date(2020, 5, 15),  # se solapa con el anterior (5/5 - 5/10)
+            ),
+        ]
+
+        with pytest.raises(ValueError):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_eventos_laborales_consecutivos_no_solapados_no_lanza_error(self):
+        from database.models import EventoLaboral, TipoEventoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 10),
+            ),
+            EventoLaboral(
+                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 10), fecha_fin=date(2020, 5, 15),  # empieza justo cuando termina el anterior, no se solapa
+            ),
+        ]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        assert resultado is not None  # no lanza error
 
 
 def _obligacion_tributaria(

@@ -11,7 +11,9 @@ from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.currency.converter import convertir_a_pesos
 from app.engine.currency.trm_provider import ManualTRMProvider
+from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+from app.engine.labor.seguridad_social import SeguridadSocialCalculator
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
@@ -329,8 +331,9 @@ class LaboralStrategy(AreaStrategy):
     prestaciones sociales se liquidan sobre el salario nominal vigente al
     momento de la causacion, no se indexan por perdida de poder adquisitivo.
 
-    Seguridad social (cotizaciones IBC, pension, salud, ARL, FSP) queda fuera
-    de alcance de este sprint -- ver Pendientes.md, Sprint 3, y
+    Seguridad social (cotizaciones IBC, pension, salud, ARL, FSP) es opt-in
+    via el flag `incluir_seguridad_social` de la obligacion (requiere ademas
+    `nivel_riesgo_arl`, I-V) -- ver Pendientes.md, Sprint 16, y
     docs/superpowers/specs/2026-07-18-area-laboral-design.md.
     """
 
@@ -354,6 +357,67 @@ class LaboralStrategy(AreaStrategy):
             fecha_liquidacion=obligacion.fecha_fin,
         ).generate()
 
+        monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+
+        if obligacion.incluir_seguridad_social:
+            dias_suspension = sum(
+                (evento.fecha_fin - evento.fecha_inicio).days
+                for evento in obligacion.eventos_laborales
+                if evento.tipo.value == "SUSPENSION"
+            )
+            cotizaciones = SeguridadSocialCalculator.calcular(
+                salario_base=obligacion.valor,
+                dias_trabajados=dias_trabajados,
+                dias_suspension=dias_suspension,
+                nivel_riesgo_arl=obligacion.nivel_riesgo_arl,
+                fecha_referencia=obligacion.fecha_fin,
+            )
+            for concepto, monto, etiqueta in [
+                ("COTIZACION_PENSION", cotizaciones.monto_pension, "Cotizacion Pension (seguridad social no pagada)"),
+                ("COTIZACION_SALUD", cotizaciones.monto_salud, "Cotizacion Salud (seguridad social no pagada)"),
+                ("COTIZACION_ARL", cotizaciones.monto_arl, "Cotizacion ARL (seguridad social no pagada)"),
+                ("COTIZACION_FSP", cotizaciones.monto_fsp, "Cotizacion FSP (Fondo de Solidaridad Pensional)"),
+            ]:
+                if monto > Decimal("0.00"):
+                    eventos.append(Event(
+                        date=obligacion.fecha_fin,
+                        payload={"amount": monto, "label": etiqueta},
+                        event_type=concepto,
+                    ))
+
+            for evento in obligacion.eventos_laborales:
+                if evento.tipo.value == "SUSPENSION":
+                    eventos.append(Event(
+                        date=evento.fecha_fin,
+                        payload={
+                            "amount": Decimal("0.00"),
+                            "label": (
+                                f"Suspension ({evento.motivo_suspension.value}) "
+                                f"{evento.fecha_inicio}-{evento.fecha_fin}: no causa ARL"
+                            ),
+                        },
+                        event_type="SUSPENSION_INFORMATIVA",
+                    ))
+                else:
+                    dias_incapacidad = (evento.fecha_fin - evento.fecha_inicio).days
+                    desglose = IncapacidadCalculator.calcular(
+                        tipo=evento.tipo, ibc_mensual=cotizaciones.ibc_mensual,
+                        dias_incapacidad=dias_incapacidad,
+                    )
+                    for tramo in desglose.tramos:
+                        es_empleador = tramo.pagador == "EMPLEADOR"
+                        eventos.append(Event(
+                            date=evento.fecha_fin,
+                            payload={
+                                "amount": tramo.monto if es_empleador else Decimal("0.00"),
+                                "label": (
+                                    f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
+                                    f"{tramo.pagador} ({tramo.porcentaje:.2%}): ${tramo.monto:,.2f}"
+                                ),
+                            },
+                            event_type="INCAPACIDAD_EMPLEADOR" if es_empleador else "INCAPACIDAD_INFORMATIVA",
+                        ))
+
         # fecha_pago_total (si existe) es cuando realmente se extinguio la
         # deuda; nunca puede ser posterior a fecha_corte para efectos de este
         # reporte -- si el pago real fue despues del corte elegido, la mora
@@ -364,7 +428,7 @@ class LaboralStrategy(AreaStrategy):
             fecha_referencia_mora = fecha_corte
 
         if fecha_referencia_mora > obligacion.fecha_fin:
-            monto_adeudado = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+            monto_adeudado = monto_prestaciones
             mora = MoratoryIndemnityCalculator.calcular(
                 salario_mensual=obligacion.valor,
                 monto_adeudado=monto_adeudado,
@@ -415,6 +479,35 @@ class LaboralStrategy(AreaStrategy):
             raise ValueError(
                 "Una obligacion marcada como pagada debe tener 'fecha_pago_total'."
             )
+        if obligacion.incluir_seguridad_social and not obligacion.nivel_riesgo_arl:
+            raise ValueError(
+                "Si se incluyen cotizaciones de seguridad social, 'nivel_riesgo_arl' "
+                "(I-V) es obligatorio."
+            )
+        if obligacion.eventos_laborales and not obligacion.incluir_seguridad_social:
+            raise ValueError(
+                "Hay eventos contractuales (suspension/incapacidad) registrados, pero "
+                "'incluir_seguridad_social' no esta activado. Marca la casilla 'Incluir "
+                "cotizaciones de seguridad social no pagadas' para que estos eventos se "
+                "reflejen en la liquidacion."
+            )
+
+        for evento in obligacion.eventos_laborales:
+            if evento.fecha_inicio < obligacion.fecha_inicio or evento.fecha_fin > obligacion.fecha_fin:
+                raise ValueError(
+                    f"El evento contractual del {evento.fecha_inicio} al {evento.fecha_fin} "
+                    "cae fuera del rango del contrato "
+                    f"({obligacion.fecha_inicio} a {obligacion.fecha_fin})."
+                )
+
+        eventos_ordenados = sorted(obligacion.eventos_laborales, key=lambda e: e.fecha_inicio)
+        for anterior, siguiente in zip(eventos_ordenados, eventos_ordenados[1:]):
+            if anterior.fecha_fin > siguiente.fecha_inicio:
+                raise ValueError(
+                    "Dos eventos contractuales se solapan en el tiempo: "
+                    f"{anterior.fecha_inicio}-{anterior.fecha_fin} y "
+                    f"{siguiente.fecha_inicio}-{siguiente.fecha_fin}."
+                )
 
 
 class SancionatorioStrategy(AreaStrategy):

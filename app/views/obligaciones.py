@@ -103,6 +103,10 @@ class ObligacionFormDialog(QDialog):
         self.check_pagada = QCheckBox("Prestaciones pagadas")
         self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
         self.campo_fecha_pago_total.setCalendarPopup(True)
+        self.check_incluir_seguridad_social = QCheckBox("Incluir cotizaciones de seguridad social no pagadas")
+        self.combo_nivel_riesgo_arl = QComboBox()
+        for nivel in ("I", "II", "III", "IV", "V"):
+            self.combo_nivel_riesgo_arl.addItem(f"Nivel {nivel}", userData=nivel)
 
         boton_guardar = QPushButton("Guardar")
         boton_guardar.clicked.connect(self._guardar_y_cerrar)
@@ -140,6 +144,8 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
         self.layout_formulario.addRow(self.check_pagada)
         self.layout_formulario.addRow("Fecha de pago real", self.campo_fecha_pago_total)
+        self.layout_formulario.addRow(self.check_incluir_seguridad_social)
+        self.layout_formulario.addRow("Nivel de riesgo ARL", self.combo_nivel_riesgo_arl)
         self.layout_formulario.addRow(boton_guardar)
         self.setLayout(self.layout_formulario)
 
@@ -173,6 +179,8 @@ class ObligacionFormDialog(QDialog):
         self.campo_tasa.setVisible(not es_laboral and not es_tributario)
         self.campo_fecha_fin.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
+        self.check_incluir_seguridad_social.setVisible(es_laboral)
+        self.combo_nivel_riesgo_arl.setVisible(False)
 
         self.campo_base_sancion.setVisible(False)
         self.campo_meses_extemporaneidad.setVisible(False)
@@ -197,6 +205,7 @@ class ObligacionFormDialog(QDialog):
         # ya existen antes de que la señal pueda dispararse.
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
+        self.check_incluir_seguridad_social.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
 
@@ -237,6 +246,7 @@ class ObligacionFormDialog(QDialog):
             self.campo_fecha_inicio.setVisible(False)
             self.campo_dia_pago.setVisible(False)
             self.campo_fecha_pago_total.setVisible(self.check_pagada.isChecked())
+            self.combo_nivel_riesgo_arl.setVisible(self.check_incluir_seguridad_social.isChecked())
             return
 
         self.campo_fecha_pago_total.setVisible(False)
@@ -377,6 +387,9 @@ class ObligacionFormDialog(QDialog):
             fecha_pago_total = date(qdate_pago.year(), qdate_pago.month(), qdate_pago.day())
             pagada = True
 
+        incluir_seguridad_social = self.check_incluir_seguridad_social.isChecked()
+        nivel_riesgo_arl = self.combo_nivel_riesgo_arl.currentData() if incluir_seguridad_social else None
+
         session = session_module.get_session()
         obligacion = Obligacion(
             expediente_id=self._expediente_id,
@@ -390,6 +403,8 @@ class ObligacionFormDialog(QDialog):
             fecha_fin=fecha_fin,
             pagada=pagada,
             fecha_pago_total=fecha_pago_total,
+            incluir_seguridad_social=incluir_seguridad_social,
+            nivel_riesgo_arl=nivel_riesgo_arl,
         )
         session.add(obligacion)
         session.commit()

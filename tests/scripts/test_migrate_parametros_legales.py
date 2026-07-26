@@ -18,7 +18,7 @@ def _db_en_memoria(monkeypatch):
     return engine
 
 
-def test_migrar_siembra_las_21_claves_del_catalogo():
+def test_migrar_siembra_las_34_claves_del_catalogo():
     from scripts.migrate_parametros_legales import migrar
 
     migrar()
@@ -37,6 +37,11 @@ def test_migrar_siembra_las_21_claves_del_catalogo():
         "UVT",
         "EXTEMPORANEIDAD_PCT_MENSUAL", "INEXACTITUD_PCT", "INEXACTITUD_AGRAVADA_PCT",
         "ERROR_ARITMETICO_PCT",
+        "SS_PENSION_PCT", "SS_SALUD_PCT",
+        "SS_ARL_NIVEL_I_PCT", "SS_ARL_NIVEL_II_PCT", "SS_ARL_NIVEL_III_PCT",
+        "SS_ARL_NIVEL_IV_PCT", "SS_ARL_NIVEL_V_PCT",
+        "SS_FSP_TRAMO_1_PCT", "SS_FSP_TRAMO_2_PCT", "SS_FSP_TRAMO_3_PCT",
+        "SS_FSP_TRAMO_4_PCT", "SS_FSP_TRAMO_5_PCT", "SS_FSP_TRAMO_6_PCT",
     }
 
 
@@ -92,7 +97,7 @@ def test_migrar_es_idempotente():
 
     primera = migrar()
     segunda = migrar()
-    assert primera == 21
+    assert primera == 34
     assert segunda == 0
 
 
@@ -106,3 +111,28 @@ def test_migrar_sancion_extemporaneidad_pct_mensual_coincide_con_el_valor_conoci
     ).one()
     session.close()
     assert fila.valor == Decimal("5")
+
+
+@pytest.mark.parametrize("clave,valor_esperado", [
+    ("SS_PENSION_PCT", Decimal("0.16")),
+    ("SS_SALUD_PCT", Decimal("0.125")),
+    ("SS_ARL_NIVEL_I_PCT", Decimal("0.00522")),
+    ("SS_ARL_NIVEL_II_PCT", Decimal("0.01044")),
+    ("SS_ARL_NIVEL_III_PCT", Decimal("0.02436")),
+    ("SS_ARL_NIVEL_IV_PCT", Decimal("0.04350")),
+    ("SS_ARL_NIVEL_V_PCT", Decimal("0.06960")),
+    ("SS_FSP_TRAMO_1_PCT", Decimal("0.01")),
+    ("SS_FSP_TRAMO_2_PCT", Decimal("0.012")),
+    ("SS_FSP_TRAMO_3_PCT", Decimal("0.014")),
+    ("SS_FSP_TRAMO_4_PCT", Decimal("0.016")),
+    ("SS_FSP_TRAMO_5_PCT", Decimal("0.018")),
+    ("SS_FSP_TRAMO_6_PCT", Decimal("0.02")),
+])
+def test_migrar_valores_seguridad_social_coinciden_con_el_pdf(clave, valor_esperado):
+    from scripts.migrate_parametros_legales import migrar
+
+    migrar()
+    session = session_module.get_session()
+    fila = session.query(ParametroLegal).filter_by(clave=clave).one()
+    session.close()
+    assert fila.valor == valor_esperado

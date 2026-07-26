@@ -31,7 +31,13 @@ class LiquidationCore:
             "DANO_EMERGENTE", "LUCRO_CESANTE_CONSOLIDADO", "DANOS_MORALES", "CAPITAL_PAGARE",
             "CAPITAL_LETRA_CAMBIO", "CAPITAL_CHEQUE", "CAPITAL_FACTURA",
             "MULTA_SANCIONATORIA", "HONORARIOS_PROFESIONALES", "COSTAS_PROCESALES", "VACACIONES",
-            "IMPUESTO_A_CARGO"
+            "IMPUESTO_A_CARGO",
+            # Preparacion para el wiring de seguridad social/incapacidades en LaboralStrategy
+            # (Tasks 8/9 del Sprint 16) -- todavia sin productor propio en este task.
+            # SUSPENSION_INFORMATIVA/INCAPACIDAD_INFORMATIVA siempre llevan amount=0.00,
+            # mismo mecanismo que LIQUIDATION_CUTOFF (entradas de rastro/auditoria, no de capital).
+            "COTIZACION_PENSION", "COTIZACION_SALUD", "COTIZACION_ARL", "COTIZACION_FSP",
+            "INCAPACIDAD_EMPLEADOR", "SUSPENSION_INFORMATIVA", "INCAPACIDAD_INFORMATIVA",
         }
 
     def process(self, chronological_events: List[Event], cutoff_date: date) -> LiquidationResult:

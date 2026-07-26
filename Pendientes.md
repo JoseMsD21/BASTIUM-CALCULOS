@@ -1146,7 +1146,7 @@ ajustes menores de documentación/pruebas).
 
 ---
 
-## Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral)
+## Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado
 
 **Prioridad sugerida:** Media — el Sprint 3 (Laboral) dejó esto fuera a propósito, pendiente de decisión
 de alcance con el usuario.
@@ -1220,6 +1220,29 @@ de alcance con el usuario.
 - Tests con los porcentajes exactos de cada escenario de incapacidad (días 1-2, 3-90, 91-180) y de
   suspensión (con/sin ARL).
 - Suite completa en verde.
+
+**Cierre de implementación (2026-07-25):** Completado — ver
+`docs/superpowers/specs/2026-07-24-seguridad-social-laboral-design.md` y
+`docs/superpowers/plans/2026-07-24-seguridad-social-laboral.md`. Se confirmó con el usuario que esto es
+liquidación judicial de aportes/prestaciones dejados de pagar (no un módulo de nómina corriente),
+cerrando la nota que el Sprint 3 había dejado abierta. Se agregó la tabla `eventos_laborales`
+(polimórfica: suspensión/incapacidad común/incapacidad laboral), 2 columnas nuevas en `obligaciones`
+(`incluir_seguridad_social`, `nivel_riesgo_arl`), los calculadores puros `SeguridadSocialCalculator` e
+`IncapacidadCalculator` (`app/engine/labor/`), 13 parámetros nuevos en `CATALOGO_PARAMETROS` (pensión,
+salud, ARL por nivel I-V, FSP por tramo de SMMLV), y el wiring correspondiente en
+`LaboralStrategy.liquidar()`. Activación por checkbox opt-in: un expediente Laboral sin la casilla
+marcada se liquida exactamente igual que antes del Sprint 16, sin regresión.
+
+Incapacidades: el sistema muestra el desglose informativo completo de todos los pagadores (empleador,
+EPS, ARL) pero solo la porción a cargo del empleador se suma a la deuda del expediente — reclamar lo que
+le correspondía pagar a la EPS o a la ARL es un hecho distinto (ej. no afiliación), fuera de alcance.
+
+Fuentes complementarias al PDF, ambas aprobadas explícitamente por el usuario antes de codificar: la
+tabla completa de niveles de riesgo ARL II-IV (Decreto 1607/2002 — el PDF solo cita los extremos I y V) y
+la escala progresiva completa del FSP por tramos de SMMLV (Ley 797/2003 art. 8 — el PDF solo describe
+"desde 1% hasta 2%" sin tramos exactos).
+
+`README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde.
 
 ---
 
