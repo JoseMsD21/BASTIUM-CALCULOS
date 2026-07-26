@@ -150,16 +150,18 @@ def calcular_agencias_en_derecho(
     tier = resolver_cuantia_tier(pretensiones_reconocidas, smlmv_vigente) if tiene_pretension_pecuniaria else None
 
     rango = TARIFAS_AGENCIAS_EN_DERECHO.get((tipo_proceso, instancia, tier, tiene_pretension_pecuniaria))
+    tier_aplicable = tier
     if rango is None and tier is not None:
         rango = TARIFAS_AGENCIAS_EN_DERECHO.get((tipo_proceso, instancia, None, tiene_pretension_pecuniaria))
+        tier_aplicable = None  # la tarifa encontrada no distingue por cuantia
     if rango is None:
         raise TarifaNoDisponibleError(
             f"No hay tarifa de agencias en derecho (Acuerdo PSAA16-10554) registrada para "
             f"{tipo_proceso.value}/{instancia.value} (pecuniaria={tiene_pretension_pecuniaria})."
         )
 
-    if rango.unidad == UnidadTarifa.PORCENTAJE and tier is not None:
-        floor, ceiling = _limites_pesos_tier(tier, smlmv_vigente)
+    if rango.unidad == UnidadTarifa.PORCENTAJE and tier_aplicable is not None:
+        floor, ceiling = _limites_pesos_tier(tier_aplicable, smlmv_vigente)
         porcentaje = _interpolar_dentro_de_rango(rango.minimo, rango.maximo, pretensiones_reconocidas, floor, ceiling)
         monto = pretensiones_reconocidas * porcentaje / Decimal("100")
     elif rango.unidad == UnidadTarifa.PORCENTAJE:

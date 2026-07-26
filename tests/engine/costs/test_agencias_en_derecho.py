@@ -224,3 +224,20 @@ def test_calcular_combinacion_no_registrada_lanza_tarifa_no_disponible():
             tipo_proceso=TipoProceso.EXPROPIACION, instancia=Instancia.UNICA,
             pretensiones_reconocidas=Decimal("10000000.00"), fecha_radicacion=date(2024, 6, 1),
         )
+
+
+def test_calcular_tarifa_tier_agnostica_no_interpola_incluso_con_pretension_grande(monkeypatch):
+    # Regresion: una tarifa que no distingue por cuantia (ej. MONITORIO, "hasta
+    # el 5%") no debe interpolarse usando los limites del tier resuelto -- debe
+    # usar el punto medio del rango sin importar que tan grande sea la pretension.
+    clave = (TipoProceso.MONITORIO, Instancia.UNICA, None, True)
+    monkeypatch.setitem(
+        TARIFAS_AGENCIAS_EN_DERECHO, clave,
+        RangoTarifa(Decimal("0"), Decimal("5"), UnidadTarifa.PORCENTAJE),
+    )
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.MONITORIO, instancia=Instancia.UNICA,
+        pretensiones_reconocidas=Decimal("300000000.00"), fecha_radicacion=date(2024, 6, 1),
+    )
+    # punto medio del rango (2.5%) * 300.000.000 = 7.500.000,00 -- NO cero.
+    assert resultado == Decimal("7500000.00")
