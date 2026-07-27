@@ -2,7 +2,7 @@
 
 ## Instrucciones de uso
 
-**Para Jose (quien maneja este documento):**
+**Para Mi como desarrollador JoseMsD (quien maneja este documento):**
 
 1. Copia todo este documento (o solo la sección del sprint que te interese) y pégalo en un Word.
 2. Envíalo al abogado o despacho correspondiente. Cada pregunta tiene un espacio en blanco

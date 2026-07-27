@@ -105,6 +105,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 35 — Búsqueda, filtros y estados vacíos en listados](#sprint-35--búsqueda-filtros-y-estados-vacíos-en-listados)
 - [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones)
 - [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado)
+- [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE`](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license)
 
 ---
 
@@ -1963,7 +1964,7 @@ resto (housekeeping).
 - `__version__` en `main.py` o un módulo dedicado, más un primer tag de git.
 - Variable de entorno o archivo de configuración simple para la ruta de `bastium.db` (sin
   sobre-ingeniería).
-- Ampliar `.gitignore` con un patrón `*.db.bak*`.
+- Ampliar `.gitignore` con un patrón `*.db.bak*` (✅ ya hecho el 2026-07-26, ver más abajo).
 - Decidir con el usuario qué hacer con las 3 ramas huérfanas (fusionar lo que aún sirva, borrar el resto).
 - Eliminar o reescribir `test_areas_no_implementadas_lanzan_error_claro_al_liquidar` (ya no aplica) y
   quitar el `@pytest.mark.parametrize` vacío.
@@ -1974,6 +1975,64 @@ resto (housekeeping).
 - CI corriendo y en verde en al menos un push de prueba.
 - `pytest` deja de reportar "1 skipped" sin que sea por un motivo real y documentado.
 - Suite completa en verde tras consolidar los fixtures duplicados.
+
+**Progreso (2026-07-26):** `.gitignore` ya cubre `*.db.bak-*` (commit `40e5b9e`). Se limpiaron además 2
+worktrees obsoletos y sus ramas (`worktree-feature+mvp-civil-familia`,
+`worktree-sprint6-calendario-dias-habiles`) y una rama remota huérfana en GitHub
+(`worktree-sprint4-sancionatorio-honorarios`, ya fusionada en `main`) — quedan pendientes las 3 ramas
+locales huérfanas listadas en el hallazgo 5 (`specs-en-progreso`, `sprint10-exportacion-pdf-word-backup`,
+`sprint3-4-docs-recuperados`), no tocadas todavía porque no se ha confirmado con el usuario si tienen
+contenido único que rescatar.
+
+**Alcance ampliado (2026-07-26, a pedido del usuario — el repo se va a publicar en GitHub para que
+cualquier persona externa, estudiante, abogado o programador, pueda entenderlo y potencialmente
+contribuir):**
+8. **Sin documentos de cara a colaboradores externos**: no existe `CONTRIBUTING.md` (cómo levantar el
+   entorno, correr tests, proponer un cambio) ni `SECURITY.md` (cómo reportar una vulnerabilidad). Tampoco
+   hay ningún aviso visible de que BASTIUM calcula montos con efectos jurídicos reales (intereses,
+   sanciones, liquidaciones laborales) y que es una herramienta de apoyo, no un sustituto de asesoría
+   legal profesional — relevante justamente porque el repo va a quedar público y cualquiera podría
+   ejecutarlo sin supervisión de un abogado.
+9. **`README.md` sin badges**: no muestra estado de CI, versión ni licencia — comparado con proyectos como
+   `thedotmack/claude-mem` (licencia, versión, CI, badge de reconocimiento de la comunidad), el README de
+   BASTIUM no comunica de un vistazo que el proyecto está mantenido y probado.
+10. **Sin plantillas de Issues/PR**: `.github/ISSUE_TEMPLATE/` y `.github/PULL_REQUEST_TEMPLATE.md` no
+    existen — sin ellas, un reporte externo de bug o una propuesta de PR no tiene una estructura mínima
+    que guíe qué información incluir.
+11. **Sin `CHANGELOG.md`**: no hay un historial de versiones legible para alguien que no quiera leer los
+    285+ commits o los 37 sprints de `Pendientes.md` completos.
+12. **Licencia deliberadamente fuera de este sprint**: el usuario pidió posponer la decisión de licencia
+    (afecta qué puede hacer legalmente un tercero con el código) — se movió a un sprint propio, ver
+    **Sprint 38**. Este sprint prepara el badge de licencia en README apuntando a "pendiente" hasta que el
+    Sprint 38 se cierre.
+
+**Explícitamente excluido de este sprint (a pedido del usuario, 2026-07-26):** documentación traducida a
+múltiples idiomas, servidor de Discord/comunidad externa, sitio de documentación aparte — infraestructura
+de comunidad que solo se justifica si BASTIUM efectivamente atrae colaboradores externos activos, no antes.
+
+**Código nuevo a crear (alcance ampliado):**
+- `CONTRIBUTING.md`: cómo levantar el entorno (`.venv`, `pip install -r requirements.txt`), correr
+  `pytest`, convención de commits del repo (`feat:`/`fix:`/`docs:`/`test:`/`chore:`, ya usada en todo el
+  historial), y cómo proponer un sprint nuevo siguiendo el formato de `Pendientes.md`.
+- `SECURITY.md`: cómo reportar una vulnerabilidad de seguridad del código, más el aviso legal — BASTIUM es
+  una herramienta de apoyo para el cálculo de liquidaciones, no sustituye la asesoría de un abogado
+  colegiado ni garantiza exactitud jurídica; quien lo use debe verificar los resultados contra la norma
+  vigente antes de usarlos en un proceso real.
+- El mismo aviso legal, en versión corta, visible cerca del inicio de `README.md`.
+- Badges en el encabezado de `README.md`: estado de CI (una vez exista el pipeline de este mismo sprint),
+  versión (`__version__`, una vez exista), y licencia (apuntando a "por definir — ver Sprint 38" hasta que
+  se cierre).
+- `.github/ISSUE_TEMPLATE/bug_report.md`, `.github/ISSUE_TEMPLATE/feature_request.md` y
+  `.github/PULL_REQUEST_TEMPLATE.md`.
+- `CHANGELOG.md` en formato [Keep a Changelog](https://keepachangelog.com/), arrancando en la primera
+  versión etiquetada de este mismo sprint.
+
+**Definición de Hecho (alcance ampliado):**
+- `CONTRIBUTING.md` y `SECURITY.md` existen en la raíz y GitHub los reconoce (aparecen enlazados
+  automáticamente al abrir un issue nuevo o en la pestaña "Community Standards" del repo).
+- El aviso legal aparece de forma visible en `README.md` y en `SECURITY.md`.
+- `README.md` muestra al menos los badges de CI y versión (el de licencia puede decir "por definir" hasta
+  que cierre el Sprint 38).
 
 ---
 
@@ -2422,6 +2481,61 @@ reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
 - Un usuario puede completar y guardar un formulario usando solo el teclado (Tab + Enter) en un orden
   lógico.
 - Suite de tests de GUI en verde.
+
+---
+
+## Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE`
+
+**Prioridad sugerida:** Baja — no bloquea nada técnico; el usuario pidió explícitamente posponer esta
+decisión (2026-07-26) para pensarla con calma, separada del resto de la profesionalización del repo
+(Sprint 28).
+
+**Depende de:** Nada técnicamente, pero idealmente se cierra después del Sprint 28 (para no dejar el badge
+de licencia del README a medias más tiempo del necesario).
+
+**Contexto:** el repositorio de BASTIUM se va a dejar público en GitHub para que cualquier persona
+(estudiante, abogado, programador) pueda entenderlo y, potencialmente, contribuir o reutilizarlo. Hoy no
+tiene archivo `LICENSE` — legalmente eso significa "todos los derechos reservados": cualquiera puede *ver*
+el código porque el repo es público, pero nadie puede *reutilizarlo* legalmente sin permiso explícito,
+aunque lo parezca por estar en GitHub.
+
+**Opciones evaluadas en la conversación del 2026-07-26 (para retomar, no una decisión ya tomada):**
+- **MIT**: la más simple y más común en proyectos individuales/educativos de GitHub. Permite a cualquiera
+  usar, copiar, modificar y hasta vender el código, con la única condición de conservar el aviso de
+  copyright. Máxima adopción, mínima fricción para que estudiantes o abogados-programadores lo miren y
+  aprendan de él.
+- **Apache 2.0**: tan permisiva como MIT, pero suma una concesión explícita de patentes y protege más al
+  autor si alguien litiga por patentes. Es la que usa `thedotmack/claude-mem` (la referencia que citó el
+  usuario) y es común en proyectos respaldados por empresas (Google, Microsoft, Apache Software
+  Foundation).
+- **GPL-3.0 (copyleft)**: cualquiera puede usar y modificar el código, pero si distribuye una versión
+  modificada, está obligado a publicarla también bajo GPL. Evita que una empresa tome el motor de cálculo
+  de BASTIUM y lo cierre dentro de un producto propietario sin devolver nada a la comunidad.
+- **Ninguna todavía**: dejar el repo sin `LICENSE` indefinidamente (equivale legalmente a "todos los
+  derechos reservados" pese a ser público).
+
+**Preguntas a resolver con el usuario antes de decidir (no asumir):**
+- ¿BASTIUM tiene o podría tener a futuro un modelo de negocio (venderlo, ofrecerlo como SaaS a despachos
+  de abogados)? Una licencia permisiva (MIT/Apache) permite que un tercero tome el código y compita
+  comercialmente sin restricción; GPL lo dificulta bastante más.
+- ¿Le importa al usuario que alguien tome el motor de cálculo y lo use dentro de un producto cerrado sin
+  aportar nada a cambio? Si le importa, GPL encaja mejor que MIT/Apache; si no, MIT es más simple.
+- El PDF fuente (`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, raíz del repo) y cualquier
+  dato jurídico derivado de él pueden tener restricciones de autor propias, independientes de la licencia
+  del código — confirmar que licenciar el código no implica licenciar el contenido de ese documento.
+
+**Código nuevo a crear (según la decisión):**
+- Archivo `LICENSE` en la raíz con el texto completo de la licencia elegida.
+- Actualizar el badge de licencia agregado en el Sprint 28 (`README.md`) para que apunte a la licencia
+  real en vez de "por definir".
+- Agregar una línea en `CONTRIBUTING.md` (Sprint 28) del tipo "al contribuir, aceptas que tu contribución
+  se licencie bajo los mismos términos del proyecto".
+
+**Definición de Hecho:**
+- Existe un archivo `LICENSE` en la raíz, reconocido por GitHub (aparece en la barra lateral del repo, en
+  la sección "About").
+- El badge de licencia en `README.md` y la sección correspondiente de `CONTRIBUTING.md` coinciden con la
+  licencia real elegida.
 
 ---
 
