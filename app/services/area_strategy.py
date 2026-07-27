@@ -286,16 +286,45 @@ class ComercialStrategy(AreaStrategy):
             fecha_referencia=obligacion.trm_fecha_referencia,
         )
 
+    def _fecha_capitalizacion_anatocismo(self, obligacion) -> Optional[date]:
+        if obligacion.anatocismo_demanda_judicial:
+            return obligacion.fecha_vencimiento + timedelta(days=365)
+        if obligacion.anatocismo_fecha_acuerdo is not None:
+            return obligacion.anatocismo_fecha_acuerdo
+        return None
+
+    def _eventos_anatocismo(self, obligacion, fecha_corte: date) -> List[Event]:
+        fecha_capitalizacion = self._fecha_capitalizacion_anatocismo(obligacion)
+        if fecha_capitalizacion is None or fecha_capitalizacion > fecha_corte:
+            return []
+
+        eventos: List[Event] = []
+        fecha_evento = fecha_capitalizacion
+        while fecha_evento <= fecha_corte:
+            eventos.append(
+                Event(
+                    date=fecha_evento,
+                    payload={
+                        "label": "Capitalización de intereses (Art. 886 C.Co. — anatocismo comercial)"
+                    },
+                    event_type="CAPITALIZACION_INTERESES_ANATOCISMO",
+                )
+            )
+            fecha_evento += timedelta(days=365)
+        return eventos
+
     def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
         valor_pesos = self._valor_en_pesos(obligacion)
         if obligacion.tipo.value == "PUNTUAL":
-            return [
+            eventos = [
                 Event(
                     date=obligacion.fecha_origen,
                     payload={"amount": valor_pesos, "label": obligacion.concepto},
                     event_type=obligacion.categoria,
                 )
             ]
+            eventos.extend(self._eventos_anatocismo(obligacion, fecha_corte))
+            return eventos
 
         # RECURRENTE
         scheduler = FamilyScheduler()

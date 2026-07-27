@@ -603,7 +603,6 @@ class TestComercialStrategy:
         with pytest.raises(ValueError):
             ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1))
 
-    @pytest.mark.xfail(reason="needs Task 6 to wire _eventos_anatocismo/capitalization events", strict=True)
     def test_acuerdo_posterior_que_cumple_exactamente_un_anio_no_lanza_error(self):
         obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 2, 1))
 
@@ -612,6 +611,71 @@ class TestComercialStrategy:
         )
 
         assert resultado.final_balance().principal > obligacion.valor
+
+    def test_anatocismo_se_activa_con_demanda_judicial_y_mora_mayor_a_un_anio(self):
+        fecha_corte = date(2026, 3, 1)
+        obligacion_anatocismo = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        resultado_anatocismo = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_anatocismo], abonos=[], fecha_corte=fecha_corte
+        )
+
+        obligacion_simple = _obligacion_comercial()
+        resultado_simple = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_simple], abonos=[], fecha_corte=fecha_corte
+        )
+
+        assert resultado_anatocismo.final_balance().principal > obligacion_anatocismo.valor
+        assert resultado_anatocismo.final_balance().total() > resultado_simple.final_balance().total()
+
+    def test_anatocismo_se_activa_con_acuerdo_posterior_valido(self):
+        fecha_corte = date(2026, 3, 1)
+        obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 2, 15))
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        assert resultado.final_balance().principal > obligacion.valor
+
+    def test_anatocismo_no_se_activa_sin_condicion_habilitante(self):
+        fecha_corte = date(2026, 3, 1)
+        obligacion = _obligacion_comercial()
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        assert resultado.final_balance().principal == obligacion.valor
+
+    def test_anatocismo_no_se_activa_si_fecha_corte_es_anterior_a_capitalizacion(self):
+        fecha_corte = date(2025, 6, 1)  # vencimiento (2025-02-01) + 365 dias = 2026-02-01, aun no llega
+        obligacion = _obligacion_comercial(anatocismo_demanda_judicial=True)
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        assert resultado.final_balance().principal == obligacion.valor
+
+    def test_abono_dentro_del_tramo_de_anatocismo_reduce_la_capitalizacion(self):
+        fecha_corte = date(2026, 3, 1)
+
+        obligacion_con_abono = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        abono = Abono(
+            id=1, obligacion_id=1, fecha=date(2026, 1, 20), monto=Decimal("500000.00"), referencia="ref-1"
+        )
+        resultado_con_abono = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_con_abono], abonos=[abono], fecha_corte=fecha_corte
+        )
+
+        obligacion_sin_abono = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        resultado_sin_abono = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_sin_abono], abonos=[], fecha_corte=fecha_corte
+        )
+
+        # El abono (2026-01-20, antes de la capitalizacion en 2026-02-01) reduce el saldo
+        # sobre el que se sigue devengando interes -- el total final con abono debe ser menor.
+        assert resultado_con_abono.final_balance().total() < resultado_sin_abono.final_balance().total()
 
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
