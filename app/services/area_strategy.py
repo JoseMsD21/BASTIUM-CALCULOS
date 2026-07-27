@@ -126,6 +126,9 @@ class CivilFamiliaStrategy(AreaStrategy):
                         fecha_corte=fecha_corte,
                     )
                 )
+            evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.valor)
+            if evento_costas is not None:
+                eventos.append(evento_costas)
             return eventos
 
         # RECURRENTE

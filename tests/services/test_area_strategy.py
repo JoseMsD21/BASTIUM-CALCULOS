@@ -316,6 +316,25 @@ def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_prop
     assert eventos_indexacion[0].indexation_amount != eventos_indexacion[1].indexation_amount
 
 
+def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
+    # valor = 123.500.000, fecha_origen forzada a 2024-06-01 (SMLMV 2024 =
+    # 1.300.000.00): punto medio exacto del tier menor cuantia (52.000.000 a
+    # 195.000.000) -> pct = 7% -> costas = 8.645.000,00. Mismo caso de
+    # referencia usado en Tasks 4, 11, 13 y 14.
+    obligacion = _obligacion_puntual(valor=_Decimal("123500000.00"))
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.tasa_efectiva_anual = _Decimal("0.00")
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        [obligacion], [], fecha_corte=obligacion.fecha_origen,
+    )
+    tipos_evento = {item.balance.event_type for item in resultado.items}
+    assert "COSTAS_PROCESALES" in tipos_evento
+    assert resultado.final_balance().principal == _Decimal("132145000.00")  # 123.500.000 + 8.645.000
+
+
 from app.engine.liquidation.engine import LiquidationCore
 
 
