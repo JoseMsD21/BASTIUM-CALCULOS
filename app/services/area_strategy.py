@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
@@ -247,6 +247,32 @@ class ComercialStrategy(AreaStrategy):
                 raise ValueError(
                     f"La obligacion comercial '{obligacion.concepto}' esta en "
                     f"{obligacion.moneda} y necesita el campo 'trm_fecha_referencia' para liquidar."
+                )
+
+        if obligacion.anatocismo_demanda_judicial and obligacion.anatocismo_fecha_acuerdo is not None:
+            raise ValueError(
+                f"La obligacion comercial '{obligacion.concepto}' no puede tener "
+                f"'anatocismo_demanda_judicial' y 'anatocismo_fecha_acuerdo' activos a la vez "
+                f"(son dos vias habilitantes excluyentes del Art. 886 C.Co.)."
+            )
+
+        anatocismo_activo = (
+            obligacion.anatocismo_demanda_judicial or obligacion.anatocismo_fecha_acuerdo is not None
+        )
+        if anatocismo_activo and obligacion.tipo.value != "PUNTUAL":
+            raise ValueError(
+                f"La obligacion comercial '{obligacion.concepto}' tiene anatocismo activo, pero "
+                f"el anatocismo solo aplica a obligaciones PUNTUAL (RECURRENTE no modela un "
+                f"vencimiento por cuota individual)."
+            )
+
+        if obligacion.anatocismo_fecha_acuerdo is not None:
+            fecha_minima_acuerdo = obligacion.fecha_vencimiento + timedelta(days=365)
+            if obligacion.anatocismo_fecha_acuerdo < fecha_minima_acuerdo:
+                raise ValueError(
+                    f"La obligacion comercial '{obligacion.concepto}' tiene 'anatocismo_fecha_acuerdo' "
+                    f"({obligacion.anatocismo_fecha_acuerdo}) que no cumple el año de anterioridad "
+                    f"exigido por el Art. 886 C.Co. (debe ser >= {fecha_minima_acuerdo})."
                 )
 
     def _valor_en_pesos(self, obligacion) -> Decimal:

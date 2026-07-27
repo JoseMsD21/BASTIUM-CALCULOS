@@ -360,6 +360,8 @@ def _obligacion_comercial(
     ibc=Decimal("20.00"),
     fecha_origen=date(2025, 1, 1),
     fecha_vencimiento=date(2025, 2, 1),
+    anatocismo_demanda_judicial=False,
+    anatocismo_fecha_acuerdo=None,
 ):
     return Obligacion(
         id=1,
@@ -373,6 +375,8 @@ def _obligacion_comercial(
         tasa_moratoria_anual=tasa_moratoria,
         fecha_vencimiento=fecha_vencimiento,
         ibc_vigente_anual=ibc,
+        anatocismo_demanda_judicial=anatocismo_demanda_judicial,
+        anatocismo_fecha_acuerdo=anatocismo_fecha_acuerdo,
     )
 
 
@@ -560,6 +564,53 @@ class TestComercialStrategy:
         )
 
         assert resultado.final_balance().principal == obligacion.valor
+
+    def test_ambas_condiciones_de_anatocismo_a_la_vez_lanza_value_error(self):
+        obligacion = _obligacion_comercial(
+            anatocismo_demanda_judicial=True,
+            anatocismo_fecha_acuerdo=date(2026, 2, 15),
+        )
+
+        with pytest.raises(ValueError):
+            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1))
+
+    def test_recurrente_con_anatocismo_activo_lanza_value_error(self):
+        obligacion = Obligacion(
+            id=2,
+            expediente_id=1,
+            tipo=TipoObligacion.RECURRENTE,
+            concepto="Cuotas de pagare a plazos",
+            categoria="CAPITAL_PAGARE",
+            fecha_origen=date(2025, 1, 1),
+            valor=Decimal("500000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            tasa_moratoria_anual=Decimal("24.00"),
+            fecha_vencimiento=date(2025, 1, 1),
+            ibc_vigente_anual=Decimal("20.00"),
+            dia_pago=5,
+            fecha_inicio=date(2025, 1, 1),
+            fecha_fin=date(2025, 3, 5),
+            anatocismo_demanda_judicial=True,
+        )
+
+        with pytest.raises(ValueError):
+            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 5))
+
+    def test_acuerdo_posterior_que_no_cumple_un_anio_lanza_value_error(self):
+        # vencimiento 2025-02-01 + 365 dias = 2026-02-01; un acuerdo antes de esa fecha es invalido.
+        obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 1, 15))
+
+        with pytest.raises(ValueError):
+            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1))
+
+    def test_acuerdo_posterior_que_cumple_exactamente_un_anio_no_lanza_error(self):
+        obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 2, 1))
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1)
+        )
+
+        assert resultado.final_balance().principal > obligacion.valor
 
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
