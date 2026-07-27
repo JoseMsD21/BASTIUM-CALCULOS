@@ -293,13 +293,17 @@ class ComercialStrategy(AreaStrategy):
     def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
         valor_pesos = self._valor_en_pesos(obligacion)
         if obligacion.tipo.value == "PUNTUAL":
-            return [
+            eventos = [
                 Event(
                     date=obligacion.fecha_origen,
                     payload={"amount": valor_pesos, "label": obligacion.concepto},
                     event_type=obligacion.categoria,
                 )
             ]
+            evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=valor_pesos)
+            if evento_costas is not None:
+                eventos.append(evento_costas)
+            return eventos
 
         # RECURRENTE
         scheduler = FamilyScheduler()

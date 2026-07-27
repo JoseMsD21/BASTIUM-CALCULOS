@@ -581,6 +581,21 @@ class TestComercialStrategy:
         assert resultado.final_balance().principal == obligacion.valor
 
 
+def test_comercial_genera_evento_de_costas_si_esta_configurado():
+    # Mismo caso de referencia que Tasks 4/11/12/14: 123.500.000 en el punto
+    # medio del tier menor cuantia de 2024 -> costas = 8.645.000,00.
+    obligacion = _obligacion_comercial(valor=Decimal("123500000.00"))
+    obligacion.fecha_origen = date(2024, 6, 1)
+    obligacion.fecha_vencimiento = date(2024, 7, 1)  # debe ser posterior a fecha_origen
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+
+    resultado = ComercialStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
+    tipos_evento = {item.balance.event_type for item in resultado.items}
+    assert "COSTAS_PROCESALES" in tipos_evento
+    assert resultado.final_balance().principal == Decimal("132145000.00")  # 123.500.000 + 8.645.000
+
+
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True
 
