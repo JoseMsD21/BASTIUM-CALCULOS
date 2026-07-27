@@ -159,6 +159,37 @@ TARIFAS_AGENCIAS_EN_DERECHO: dict[
         RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
     (TipoProceso.EJECUTIVO, Instancia.SEGUNDA, None, False):
         RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 5.1. PROCESOS DE SUCESION (art. 5.5.1). Objeciones a inventarios/avaluos
+    # y objeciones a la particion tienen identico rango por tier -- se
+    # registran una sola vez.
+    (TipoProceso.SUCESION, Instancia.UNICA, CuantiaTier.MINIMA, True):
+        RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.SUCESION, Instancia.PRIMERA, CuantiaTier.MENOR, True):
+        RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.SUCESION, Instancia.PRIMERA, CuantiaTier.MAYOR, True):
+        RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.SUCESION, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 5.2. LIQUIDACION DE SOCIEDADES CONYUGALES O PATRIMONIALES (art. 5.5.2).
+    # "Objeciones a inventarios/avaluos" y "objeciones a la particion" (ambas
+    # 3%-15%) se registran juntas como LIQUIDACION_SOCIEDAD_CONYUGAL; "cuando
+    # prosperan o fracasan las excepciones" (1-6 SMLMV, un resultado distinto
+    # del mismo epigrafe del acuerdo) es LIQUIDACION_SOCIEDAD_CONYUGAL_EXCEPCIONES.
+    (TipoProceso.LIQUIDACION_SOCIEDAD_CONYUGAL, Instancia.PRIMERA, None, True):
+        RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.LIQUIDACION_SOCIEDAD_CONYUGAL, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+    (TipoProceso.LIQUIDACION_SOCIEDAD_CONYUGAL_EXCEPCIONES, Instancia.PRIMERA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 5.3. LIQUIDACION DE SOCIEDADES (art. 5.5.3). Objeciones al inventario y
+    # objeciones a la propuesta de distribucion, ambas 3%-15% -- se registran juntas.
+    (TipoProceso.LIQUIDACION_SOCIEDADES, Instancia.PRIMERA, None, True):
+        RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.LIQUIDACION_SOCIEDADES, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
 }
 
 

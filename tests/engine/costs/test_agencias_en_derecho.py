@@ -301,6 +301,48 @@ def test_ejecutivo_segunda_instancia(pecuniaria):
     assert rango == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
 
 
+def test_sucesion_todas_las_instancias():
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.SUCESION, Instancia.UNICA, CuantiaTier.MINIMA, True)
+    ] == RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.SUCESION, Instancia.PRIMERA, CuantiaTier.MENOR, True)
+    ] == RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.SUCESION, Instancia.PRIMERA, CuantiaTier.MAYOR, True)
+    ] == RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.SUCESION, Instancia.SEGUNDA, None, True)
+    ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_liquidacion_sociedad_conyugal_objeciones():
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.LIQUIDACION_SOCIEDAD_CONYUGAL, Instancia.PRIMERA, None, True)
+    ] == RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.LIQUIDACION_SOCIEDAD_CONYUGAL, Instancia.SEGUNDA, None, True)
+    ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_liquidacion_sociedad_conyugal_excepciones():
+    # Distinto de las objeciones: 1-6 SMLMV en vez de 3%-15% -- por eso es un
+    # TipoProceso separado (ver nota en la cabecera de este plan).
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.LIQUIDACION_SOCIEDAD_CONYUGAL_EXCEPCIONES, Instancia.PRIMERA, None, True)
+    ]
+    assert rango == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_liquidacion_sociedades():
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.LIQUIDACION_SOCIEDADES, Instancia.PRIMERA, None, True)
+    ] == RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.LIQUIDACION_SOCIEDADES, Instancia.SEGUNDA, None, True)
+    ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
 def test_calcular_tarifa_tier_agnostica_no_interpola_incluso_con_pretension_grande(monkeypatch):
     # Regresion: una tarifa que no distingue por cuantia (ej. MONITORIO, "hasta
     # el 5%") no debe interpolarse usando los limites del tier resuelto -- debe
