@@ -694,6 +694,18 @@ def test_campos_anatocismo_visibles_solo_para_comercial_puntual(qtbot, monkeypat
     assert dialog.check_anatocismo_acuerdo.isVisible() is False
 
 
+def test_campos_anatocismo_ocultos_para_area_laboral(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.check_anatocismo_demanda_judicial.isVisible() is False
+    assert dialog.check_anatocismo_acuerdo.isVisible() is False
+    assert dialog.campo_anatocismo_fecha_acuerdo.isVisible() is False
+
+
 def test_campos_anatocismo_ocultos_para_area_civil_familia(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
 

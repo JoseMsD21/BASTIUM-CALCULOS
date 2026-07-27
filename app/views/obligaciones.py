@@ -257,6 +257,9 @@ class ObligacionFormDialog(QDialog):
             self.campo_dia_pago.setVisible(False)
             self.campo_fecha_pago_total.setVisible(self.check_pagada.isChecked())
             self.combo_nivel_riesgo_arl.setVisible(self.check_incluir_seguridad_social.isChecked())
+            self.check_anatocismo_demanda_judicial.setVisible(False)
+            self.check_anatocismo_acuerdo.setVisible(False)
+            self.campo_anatocismo_fecha_acuerdo.setVisible(False)
             return
 
         self.campo_fecha_pago_total.setVisible(False)
