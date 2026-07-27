@@ -657,25 +657,37 @@ class TestComercialStrategy:
 
         assert resultado.final_balance().principal == obligacion.valor
 
-    def test_abono_dentro_del_tramo_de_anatocismo_reduce_la_capitalizacion(self):
-        fecha_corte = date(2026, 3, 1)
+    def test_timing_del_abono_relativo_a_la_capitalizacion_determina_cuanto_se_capitaliza(self):
+        fecha_capitalizacion = date(2026, 2, 1)  # vencimiento (2025-02-01) + 365 dias
+        monto_abono = Decimal("50.00")  # deliberadamente pequeno: nunca llega a tocar el
+        # capital, solo el bucket de interes -- eso es lo que hace la comparacion exacta.
 
-        obligacion_con_abono = _obligacion_comercial(anatocismo_demanda_judicial=True)
-        abono = Abono(
-            id=1, obligacion_id=1, fecha=date(2026, 1, 20), monto=Decimal("500000.00"), referencia="ref-1"
+        obligacion_abono_antes = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        abono_antes = Abono(
+            id=1, obligacion_id=1, fecha=date(2026, 1, 31), monto=monto_abono, referencia="ref-1"
         )
-        resultado_con_abono = ComercialStrategy().liquidar(
-            obligaciones=[obligacion_con_abono], abonos=[abono], fecha_corte=fecha_corte
-        )
-
-        obligacion_sin_abono = _obligacion_comercial(anatocismo_demanda_judicial=True)
-        resultado_sin_abono = ComercialStrategy().liquidar(
-            obligaciones=[obligacion_sin_abono], abonos=[], fecha_corte=fecha_corte
+        resultado_antes = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_abono_antes], abonos=[abono_antes], fecha_corte=date(2026, 3, 1)
         )
 
-        # El abono (2026-01-20, antes de la capitalizacion en 2026-02-01) reduce el saldo
-        # sobre el que se sigue devengando interes -- el total final con abono debe ser menor.
-        assert resultado_con_abono.final_balance().total() < resultado_sin_abono.final_balance().total()
+        obligacion_abono_despues = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        abono_despues = Abono(
+            id=1, obligacion_id=1, fecha=date(2026, 2, 2), monto=monto_abono, referencia="ref-1"
+        )
+        resultado_despues = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_abono_despues], abonos=[abono_despues], fecha_corte=date(2026, 3, 1)
+        )
+
+        # Un abono un dia ANTES de la capitalizacion (2026-02-01) reduce el interes que
+        # alcanza a capitalizarse (el monto es deliberadamente pequeno, nunca toca el
+        # capital); el mismo abono un dia DESPUES ya no resta nada del monto ya
+        # capitalizado -- la capitalizacion ya ocurrio. La diferencia de capital final
+        # entre ambos escenarios debe ser exactamente el monto del abono: prueba que el
+        # orden cronologico abono/capitalizacion se respeta de verdad, no solo que "un
+        # abono reduce el total" (eso ya lo garantiza AllocationEngine sin necesidad de
+        # anatocismo).
+        diferencia = resultado_despues.final_balance().principal - resultado_antes.final_balance().principal
+        assert diferencia == monto_abono
 
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
