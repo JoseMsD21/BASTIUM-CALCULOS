@@ -135,6 +135,9 @@ class LiquidationCore:
             allocation, new_debt, remainder = AllocationEngine.allocate(amount, self._current_debt, event.date)
             self._current_debt = new_debt
 
+        elif event.event_type == "CAPITALIZACION_INTERESES_ANATOCISMO":
+            self._current_debt = BalanceEngine.capitalize_interest(self._current_debt)
+
         else:
             raise ValueError(
                 f"Tipo de evento no reconocido: '{event.event_type}'. "

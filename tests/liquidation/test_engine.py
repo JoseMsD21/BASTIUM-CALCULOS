@@ -56,3 +56,33 @@ def test_engine_rate_source_es_na_sin_rate_provider():
     result = engine.process(events, cutoff_date=date(2026, 1, 1))
 
     assert all(item.rate_source == "N/A" for item in result.items)
+
+
+def test_capitalizacion_intereses_anatocismo_traslada_interes_devengado_al_capital():
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 31), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"),
+    ]
+    # 1% diario sobre 1000.00 durante 30 dias (2026-01-02 a 2026-01-31) = 300.00 exacto
+    engine = LiquidationCore(default_daily_rate=Rate.from_percent(Decimal("1.0")))
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 31))
+
+    final_debt = result.final_balance()
+    assert final_debt.principal == Decimal("1300.00")
+    assert final_debt.interest == Decimal("0.00")
+
+
+def test_capitalizacion_intereses_anatocismo_con_interes_ya_pagado_no_capitaliza_nada():
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00"), "reference": ""}, event_type="PAYMENT"),
+        Event(date=date(2026, 1, 31), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"),
+    ]
+    engine = LiquidationCore(default_daily_rate=Rate.from_percent(Decimal("1.0")))
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 31))
+
+    final_debt = result.final_balance()
+    assert final_debt.principal == Decimal("0.00")
+    assert final_debt.interest == Decimal("0.00")
