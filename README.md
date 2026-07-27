@@ -15,8 +15,10 @@ están los valores legales (como la tasa de interés) por si necesitas consultar
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
 abonos, indexación IPC opcional por obligación (Art. corrección monetaria; el abogado marca caso por caso si
 aplica, con interpolación entre índices de cierre de año para fechas intermedias)), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
-split real antes/después del vencimiento, validación de tope de usura 1.5×IBC, y obligaciones en USD
-convertidas a pesos con la TRM ingresada por el abogado, Art. 874 C.Co.), **Sancionatorio**
+split real antes/después del vencimiento, validación de tope de usura 1.5×IBC, obligaciones en USD
+convertidas a pesos con la TRM ingresada por el abogado (Art. 874 C.Co.), y anatocismo condicionado
+(Art. 886 C.Co.: interés sobre interés, activado solo con demanda judicial o acuerdo posterior con al
+menos un año de intereses vencidos, capitalizado periódicamente — nunca por defecto)), **Sancionatorio**
 (multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49, con la base convertida a pesos
 según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tabla histórica de UVT
 2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios
@@ -45,8 +47,7 @@ IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo ag
 ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
 queda siempre disponible con doble clic.
 
-🚧 **En desarrollo:** anatocismo comercial condicionado (Art. 886 C.Co.) y varios módulos más también
-están pendientes. El motor de prescripción y caducidad
+🚧 **En desarrollo:** varios módulos más también están pendientes. El motor de prescripción y caducidad
 (`app/engine/temporal/prescripcion.py`) ya existe y está probado — calcula fechas límite por tipo de
 acción (ejecutiva, ordinaria, honorarios profesionales, cambiaria directa/de regreso), soporta
 prescripción parcial cuota a cuota en obligaciones de tracto sucesivo e interrupción por demanda — pero

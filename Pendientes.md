@@ -86,7 +86,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
 - [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PCSJA20-11556)](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-pcsja20-11556)
-- [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.)](#sprint-19--anatocismo-comercial-condicionado-art-886-cco)
+- [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente)
 - [Sprint 22 — Limpieza técnica acumulada](#sprint-22--limpieza-técnica-acumulada)
@@ -1424,7 +1424,7 @@ conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa f
 
 ---
 
-## Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.)
+## Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado
 
 **Prioridad sugerida:** Media — pendiente explícito documentado desde el cierre del Sprint 2, con el
 motor matemático (`CompoundInterest`) ya implementado y huérfano desde antes del MVP.
@@ -1482,6 +1482,19 @@ motor matemático (`CompoundInterest`) ya implementado y huérfano desde antes d
   las dos condiciones.
 - `ComercialStrategy` sigue liquidando en interés simple por defecto cuando no se cumplen las condiciones.
 - Suite completa en verde.
+
+**Estado:** Implementado (2026-07-26) — ver
+`docs/superpowers/plans/2026-07-26-sprint19-anatocismo-comercial.md` y
+`docs/superpowers/specs/2026-07-26-sprint19-anatocismo-comercial-design.md`. Desviación respecto al plan
+original: en vez de usar `CompoundInterest.calculate()` (fórmula cerrada de una sola pasada), se
+implementaron eventos de capitalización periódica (`CAPITALIZACION_INTERESES_ANATOCISMO`, nuevo en
+`LiquidationCore`/`BalanceEngine`) que trasladan el interés simple ya devengado al capital cada aniversario
+desde la fecha de capitalización. Esto reproduce el interés compuesto exacto y maneja correctamente abonos
+que caigan a mitad del tramo (usando la maquinaria de `AllocationEngine` ya existente), a costa de que
+`CompoundInterest.calculate()` sigue huérfano. Limitación conocida documentada en el spec: si un expediente
+mezcla varias obligaciones comerciales y solo algunas cumplen las condiciones de anatocismo, la
+capitalización actúa sobre el saldo de interés consolidado del expediente completo (el motor no separa
+saldos por obligación) — heredado de la arquitectura ya existente, no introducido por este sprint.
 
 ---
 

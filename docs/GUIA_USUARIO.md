@@ -317,6 +317,21 @@ Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingre
 deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
 guardar la obligación (la validación ocurre al calcular, no al capturar el dato).
 
+**Anatocismo condicionado (Art. 886 C.Co.):** por defecto, el interés siempre es simple. Si tu caso
+cumple una de las dos condiciones legales que permiten cobrar interés sobre interés, marca uno de estos
+dos campos (nunca ambos a la vez):
+
+- **"Demanda judicial (habilita anatocismo, Art. 886 C.Co.)"**: si ya existe una demanda judicial. La
+  capitalización empieza automáticamente un año después de la fecha de vencimiento.
+- **"¿Hay acuerdo posterior de capitalización?"** + **"Fecha del acuerdo posterior"**: si en cambio hay un
+  acuerdo entre las partes para capitalizar intereses, marca esta casilla e ingresa la fecha del acuerdo.
+  Esa fecha debe ser al menos un año posterior a la fecha de vencimiento — si ingresas una fecha más
+  temprana, el programa no deja liquidar y muestra el motivo.
+
+Cuando el anatocismo está activo, el capital se recalcula capitalizando los intereses vencidos cada año
+(desde la fecha habilitante) hasta la fecha de corte de la liquidación — el interés generado antes de ese
+punto sigue siendo simple.
+
 ### 5.8. Exportar la liquidación a PDF o Word
 
 Desde la pantalla de **Resultado de Liquidación** (después de hacer clic en "Liquidar"), al final hay dos
