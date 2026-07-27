@@ -611,10 +611,11 @@ class HonorariosStrategy(AreaStrategy):
     Area Honorarios / Litigio (cobro de honorarios profesionales y costas judiciales).
     Cada obligacion es un hecho puntual que resulta en 1 o 2 eventos de capital:
     honorarios profesionales (tarifa fija + cuota litis, validados contra ambos topes
-    legales) y, si se pacto un porcentaje de costas, un evento adicional de costas
-    procesales. No hay tabla hardcodeada de rangos del Consejo Superior de la
-    Judicatura (Acuerdo PCSJA20-11556): el porcentaje de costas lo ingresa quien
-    liquida, fijado por el juez en el auto respectivo (ver Pendientes.md).
+    legales) y, si aplica, un evento adicional de costas procesales. Costas procesales:
+    `costas_pct_manual` (si el juez ya fijo un porcentaje en el auto) tiene prioridad;
+    si no esta seteado, se calcula automaticamente segun el Acuerdo PSAA16-10554 (tabla
+    completa en `app/engine/costs/agencias_en_derecho.py`) cuando la obligacion trae
+    `costas_tipo_proceso`/`costas_instancia`.
 
     Tope de cuota litis (ambos simultaneos -- ver design spec 2026-07-17, el PDF trae
     un 50% en una seccion y un 30% en otra, se aplican los dos):
