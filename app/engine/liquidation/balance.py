@@ -31,3 +31,11 @@ class BalanceEngine:
             interest=debt.interest,
             indexation=debt.indexation + amount
         )
+
+    @staticmethod
+    def capitalize_interest(debt: PendingDebt) -> PendingDebt:
+        return PendingDebt(
+            principal=debt.principal + debt.interest,
+            interest=Decimal("0.00"),
+            indexation=debt.indexation
+        )
