@@ -343,6 +343,34 @@ def test_liquidacion_sociedades():
     ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
 
 
+def test_insolvencia_persona_natural():
+    # Los 6 items del art. 5.5.4 con rango 1/2-6 SMLMV (negociacion de deudas,
+    # reforma del acuerdo, convalidacion, impugnacion, cumplimiento, objeciones
+    # a creditos) comparten identico rango -- una sola entrada.
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.INSOLVENCIA_PERSONA_NATURAL, Instancia.UNICA, None, True)
+    ]
+    assert rango == RangoTarifa(Decimal("0.5"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_insolvencia_persona_natural_liquidacion_patrimonial():
+    # Objeciones a inventarios/avaluos y al proyecto de adjudicacion dentro de
+    # la liquidacion patrimonial: 3%-15%, distinto del resto del art. 5.5.4.
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.INSOLVENCIA_PERSONA_NATURAL_LIQUIDACION_PATRIMONIAL, Instancia.UNICA, None, True)
+    ]
+    assert rango == RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+
+
+def test_otros_procesos_de_liquidacion():
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.OTROS_LIQUIDACION, Instancia.PRIMERA, None, True)
+    ] == RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.OTROS_LIQUIDACION, Instancia.SEGUNDA, None, True)
+    ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
 def test_calcular_tarifa_tier_agnostica_no_interpola_incluso_con_pretension_grande(monkeypatch):
     # Regresion: una tarifa que no distingue por cuantia (ej. MONITORIO, "hasta
     # el 5%") no debe interpolarse usando los limites del tier resuelto -- debe

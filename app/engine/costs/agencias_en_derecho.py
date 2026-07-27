@@ -190,6 +190,21 @@ TARIFAS_AGENCIAS_EN_DERECHO: dict[
         RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE),
     (TipoProceso.LIQUIDACION_SOCIEDADES, Instancia.SEGUNDA, None, True):
         RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 5.4. INSOLVENCIA DE PERSONA NATURAL NO COMERCIANTE (art. 5.5.4). El
+    # acuerdo no indica instancia para esta categoria -- se usa Instancia.UNICA
+    # por convencion de modelado (el valor y el texto legal son exactos, solo
+    # la etiqueta de instancia es una convencion, ver design spec).
+    (TipoProceso.INSOLVENCIA_PERSONA_NATURAL, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("0.5"), Decimal("6"), UnidadTarifa.SMLMV),
+    (TipoProceso.INSOLVENCIA_PERSONA_NATURAL_LIQUIDACION_PATRIMONIAL, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+
+    # 5.5. OTROS PROCESOS DE LIQUIDACION (art. 5.5.5).
+    (TipoProceso.OTROS_LIQUIDACION, Instancia.PRIMERA, None, True):
+        RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE),
+    (TipoProceso.OTROS_LIQUIDACION, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
 }
 
 
