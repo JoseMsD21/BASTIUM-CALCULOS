@@ -596,6 +596,28 @@ def test_comercial_genera_evento_de_costas_si_esta_configurado():
     assert resultado.final_balance().principal == Decimal("132145000.00")  # 123.500.000 + 8.645.000
 
 
+def test_comercial_usd_calcula_costas_sobre_el_valor_convertido_a_pesos_no_sobre_el_valor_en_usd():
+    # Regresion: confirma que las costas se calculan sobre valor_pesos (post
+    # conversion TRM), no sobre obligacion.valor crudo en USD -- si alguien
+    # revierte a pasar obligacion.valor, este test debe fallar.
+    obligacion = _obligacion_comercial(valor=Decimal("30875.00"))
+    obligacion.moneda = "USD"
+    obligacion.trm_aplicable = Decimal("4000.00")
+    obligacion.trm_fecha_referencia = date(2024, 6, 1)
+    obligacion.fecha_origen = date(2024, 6, 1)
+    obligacion.fecha_vencimiento = date(2024, 7, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+
+    resultado = ComercialStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
+    # 30.875 USD * 4.000 TRM = 123.500.000 pesos -> costas = 8.645.000,00 (7%,
+    # punto medio del tier menor cuantia) -> total 132.145.000,00. Si el
+    # calculo usara el valor crudo en USD (30.875) como pretensiones, el
+    # resultado seria completamente distinto (y probablemente lanzaria
+    # TarifaNoDisponibleError o un monto absurdo).
+    assert resultado.final_balance().principal == Decimal("132145000.00")
+
+
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True
 
