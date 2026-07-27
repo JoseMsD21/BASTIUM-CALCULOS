@@ -420,7 +420,7 @@ def test_exequatur():
     assert rango == RangoTarifa(Decimal("1"), Decimal("20"), UnidadTarifa.SMLMV)
 
 
-def test_recurso_extraordinario_en_el_techo_del_rango_toca_exactamente_el_tope():
+def test_recurso_extraordinario_calcula_punto_medio_del_rango_smlmv():
     # Punto medio de 1-20 SMLMV = 10.5 SMLMV, muy por debajo del tope de 20 --
     # este test confirma que el propio rango de esta categoria puede llegar
     # hasta el tope maximo sin necesitar interpolacion adicional.
