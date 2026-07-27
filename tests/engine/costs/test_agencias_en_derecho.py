@@ -386,3 +386,46 @@ def test_calcular_tarifa_tier_agnostica_no_interpola_incluso_con_pretension_gran
     )
     # punto medio del rango (2.5%) * 300.000.000 = 7.500.000,00 -- NO cero.
     assert resultado == Decimal("7500000.00")
+
+
+def test_jurisdiccion_voluntaria():
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.JURISDICCION_VOLUNTARIA, Instancia.UNICA, None, True)
+    ] == RangoTarifa(Decimal("0.5"), Decimal("6"), UnidadTarifa.SMLMV)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.JURISDICCION_VOLUNTARIA, Instancia.PRIMERA, None, True)
+    ] == RangoTarifa(Decimal("0.5"), Decimal("6"), UnidadTarifa.SMLMV)
+    assert TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.JURISDICCION_VOLUNTARIA, Instancia.SEGUNDA, None, True)
+    ] == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
+
+
+def test_recurso_contra_autos():
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.RECURSO_CONTRA_AUTOS, Instancia.UNICA, None, True)]
+    assert rango == RangoTarifa(Decimal("0.5"), Decimal("4"), UnidadTarifa.SMLMV)
+
+
+def test_incidente():
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.INCIDENTE, Instancia.UNICA, None, True)]
+    assert rango == RangoTarifa(Decimal("0.5"), Decimal("4"), UnidadTarifa.SMLMV)
+
+
+def test_recurso_extraordinario():
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.RECURSO_EXTRAORDINARIO, Instancia.UNICA, None, True)]
+    assert rango == RangoTarifa(Decimal("1"), Decimal("20"), UnidadTarifa.SMLMV)
+
+
+def test_exequatur():
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EXEQUATUR, Instancia.UNICA, None, True)]
+    assert rango == RangoTarifa(Decimal("1"), Decimal("20"), UnidadTarifa.SMLMV)
+
+
+def test_recurso_extraordinario_en_el_techo_del_rango_toca_exactamente_el_tope():
+    # Punto medio de 1-20 SMLMV = 10.5 SMLMV, muy por debajo del tope de 20 --
+    # este test confirma que el propio rango de esta categoria puede llegar
+    # hasta el tope maximo sin necesitar interpolacion adicional.
+    resultado = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.RECURSO_EXTRAORDINARIO, instancia=Instancia.UNICA,
+        pretensiones_reconocidas=Decimal("1.00"), fecha_radicacion=date(2024, 6, 1),
+    )
+    assert resultado == Decimal("13650000.00")  # 10.5 * 1.300.000

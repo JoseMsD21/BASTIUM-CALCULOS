@@ -205,6 +205,30 @@ TARIFAS_AGENCIAS_EN_DERECHO: dict[
         RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE),
     (TipoProceso.OTROS_LIQUIDACION, Instancia.SEGUNDA, None, True):
         RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 6. JURISDICCION VOLUNTARIA Y ASIMILABLES (art. 5.6, cuando hay oposicion).
+    (TipoProceso.JURISDICCION_VOLUNTARIA, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("0.5"), Decimal("6"), UnidadTarifa.SMLMV),
+    (TipoProceso.JURISDICCION_VOLUNTARIA, Instancia.PRIMERA, None, True):
+        RangoTarifa(Decimal("0.5"), Decimal("6"), UnidadTarifa.SMLMV),
+    (TipoProceso.JURISDICCION_VOLUNTARIA, Instancia.SEGUNDA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV),
+
+    # 7. RECURSOS CONTRA AUTOS (art. 5.7). Instancia no distinguida en el texto.
+    (TipoProceso.RECURSO_CONTRA_AUTOS, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("0.5"), Decimal("4"), UnidadTarifa.SMLMV),
+
+    # 8. INCIDENTES Y ASUNTOS ASIMILABLES (art. 5.8). Instancia no distinguida.
+    (TipoProceso.INCIDENTE, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("0.5"), Decimal("4"), UnidadTarifa.SMLMV),
+
+    # 9. RECURSOS EXTRAORDINARIOS (art. 5.9). Instancia no distinguida.
+    (TipoProceso.RECURSO_EXTRAORDINARIO, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("20"), UnidadTarifa.SMLMV),
+
+    # 10. EXEQUATUR (art. 5.10). Instancia no distinguida.
+    (TipoProceso.EXEQUATUR, Instancia.UNICA, None, True):
+        RangoTarifa(Decimal("1"), Decimal("20"), UnidadTarifa.SMLMV),
 }
 
 
