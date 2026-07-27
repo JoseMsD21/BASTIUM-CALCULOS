@@ -117,6 +117,8 @@ class Obligacion(Base):
     moneda: Mapped[str] = mapped_column(String(3), default="COP")
     trm_aplicable: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
     trm_fecha_referencia: Mapped[date | None] = mapped_column(Date, nullable=True)
+    anatocismo_demanda_judicial: Mapped[bool] = mapped_column(Boolean, default=False)
+    anatocismo_fecha_acuerdo: Mapped[date | None] = mapped_column(Date, nullable=True)
     base_sancion_tributaria: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     meses_extemporaneidad: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sancion_agravada: Mapped[bool] = mapped_column(Boolean, default=False)

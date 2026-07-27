@@ -465,3 +465,59 @@ def test_obligacion_incluir_seguridad_social_con_nivel_riesgo(session):
     fetched = session.query(Obligacion).one()
     assert fetched.incluir_seguridad_social is True
     assert fetched.nivel_riesgo_arl == "I"
+
+
+def test_obligacion_anatocismo_defaults(session):
+    expediente = Expediente(
+        radicado="2026-00140",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.COMERCIAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Capital de pagare",
+        categoria="CAPITAL_PAGARE",
+        fecha_origen=date(2025, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+
+    assert obligacion.anatocismo_demanda_judicial is False
+    assert obligacion.anatocismo_fecha_acuerdo is None
+
+
+def test_obligacion_anatocismo_activo_con_fecha_acuerdo(session):
+    expediente = Expediente(
+        radicado="2026-00141",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.COMERCIAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Capital de pagare",
+        categoria="CAPITAL_PAGARE",
+        fecha_origen=date(2025, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        anatocismo_fecha_acuerdo=date(2026, 2, 15),
+    )
+    session.add(obligacion)
+    session.commit()
+
+    fetched = session.query(Obligacion).filter_by(id=obligacion.id).one()
+    assert fetched.anatocismo_fecha_acuerdo == date(2026, 2, 15)
+    assert fetched.anatocismo_demanda_judicial is False
