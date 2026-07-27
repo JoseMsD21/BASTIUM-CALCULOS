@@ -603,6 +603,7 @@ class TestComercialStrategy:
         with pytest.raises(ValueError):
             ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1))
 
+    @pytest.mark.xfail(reason="needs Task 6 to wire _eventos_anatocismo/capitalization events", strict=True)
     def test_acuerdo_posterior_que_cumple_exactamente_un_anio_no_lanza_error(self):
         obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 2, 1))
 
