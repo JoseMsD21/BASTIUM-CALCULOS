@@ -5,7 +5,7 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-25 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> **Última actualización:** 2026-07-27 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, los botones de
 > navegación (Volver/Inicio) y de editar/eliminar expediente, y la pantalla "⚙ Parámetros" de parámetros
 > legales versionados. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md),
@@ -330,7 +330,9 @@ dos campos (nunca ambos a la vez):
 
 Cuando el anatocismo está activo, el capital se recalcula capitalizando los intereses vencidos cada año
 (desde la fecha habilitante) hasta la fecha de corte de la liquidación — el interés generado antes de ese
-punto sigue siendo simple.
+punto sigue siendo simple. Estos dos campos solo aparecen para obligaciones **Puntuales** — el anatocismo
+no aplica a obligaciones Recurrentes, porque estas no modelan una fecha de vencimiento individual por
+cuota.
 
 ### 5.8. Exportar la liquidación a PDF o Word
 
