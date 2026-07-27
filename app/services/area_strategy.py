@@ -6,6 +6,7 @@ from typing import List
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
+from app.engine.costs.agencias_en_derecho import Instancia, TipoProceso, calcular_agencias_en_derecho
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
@@ -31,6 +32,32 @@ from app.engine.tax.sanciones import (
     calcular_sancion_extemporaneidad,
     calcular_sancion_inexactitud,
 )
+
+
+def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
+    """Costas procesales (agencias en derecho) para cualquier area de litigio
+    judicial. costas_pct_manual (Sprint 4) tiene siempre prioridad sobre el
+    calculo automatico del Acuerdo PSAA16-10554 (Sprint 18) -- si el auto
+    judicial real ya fijo un porcentaje, ese manda. Retorna None si la
+    obligacion no tiene ninguno de los dos mecanismos activado (comportamiento
+    identico al de antes de este sprint)."""
+    if obligacion.costas_pct_manual is not None:
+        costas_monto = pretensiones_reconocidas * obligacion.costas_pct_manual / Decimal("100")
+    elif obligacion.costas_tipo_proceso is not None and obligacion.costas_instancia is not None:
+        costas_monto = calcular_agencias_en_derecho(
+            tipo_proceso=TipoProceso(obligacion.costas_tipo_proceso),
+            instancia=Instancia(obligacion.costas_instancia),
+            pretensiones_reconocidas=pretensiones_reconocidas,
+            fecha_radicacion=obligacion.fecha_origen,
+        )
+    else:
+        return None
+
+    return Event(
+        date=obligacion.fecha_origen,
+        payload={"amount": costas_monto, "label": f"Costas procesales - {obligacion.concepto}"},
+        event_type="COSTAS_PROCESALES",
+    )
 
 
 class AreaStrategy(ABC):
@@ -676,18 +703,9 @@ class HonorariosStrategy(AreaStrategy):
                 event_type=obligacion.categoria,
             )
         ]
-        if obligacion.costas_pct_manual is not None:
-            costas_monto = obligacion.beneficio_obtenido * obligacion.costas_pct_manual / Decimal("100")
-            eventos.append(
-                Event(
-                    date=obligacion.fecha_origen,
-                    payload={
-                        "amount": costas_monto,
-                        "label": f"Costas procesales - {obligacion.concepto}",
-                    },
-                    event_type="COSTAS_PROCESALES",
-                )
-            )
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.beneficio_obtenido)
+        if evento_costas is not None:
+            eventos.append(evento_costas)
         return eventos
 
     def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:

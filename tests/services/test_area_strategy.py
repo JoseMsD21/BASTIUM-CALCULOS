@@ -678,6 +678,48 @@ def _obligacion_honorarios(
     )
 
 
+from app.services.area_strategy import _evento_costas_procesales
+
+
+def test_evento_costas_procesales_usa_costas_pct_manual_si_esta_presente():
+    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("5.00"))
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("10000000.00"))
+    assert evento is not None
+    assert evento.payload["amount"] == _Decimal("500000.00")
+    assert evento.event_type == "COSTAS_PROCESALES"
+
+
+def test_evento_costas_procesales_usa_calculo_automatico_si_hay_tipo_e_instancia():
+    # fecha_origen se fuerza a 2024-06-01 (SMLMV 2024 = 1.300.000.00) para que
+    # 123.500.000 caiga exactamente en el punto medio del tier menor cuantia
+    # (52.000.000 a 195.000.000) -> pct = 10 - 0.5*6 = 7%. El default de
+    # _obligacion_honorarios (fecha_origen=2026-01-01) tambien funcionaria,
+    # pero forzar el año mantiene el mismo caso de referencia usado en el
+    # resto del plan (Tasks 4, 12, 13).
+    obligacion = _obligacion_honorarios()
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
+    assert evento is not None
+    assert evento.payload["amount"] == _Decimal("8645000.00")
+
+
+def test_evento_costas_procesales_manual_gana_sobre_automatico():
+    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("2.00"))
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
+    assert evento.payload["amount"] == _Decimal("2470000.00")  # 2% manual, no el 7% automatico
+
+
+def test_evento_costas_procesales_sin_ninguno_de_los_dos_retorna_none():
+    obligacion = _obligacion_honorarios()
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("10000000.00"))
+    assert evento is None
+
+
 class TestHonorariosStrategy:
     def test_liquida_honorarios_dentro_de_ambos_topes(self):
         # cuota litis = 10M * 20% = 2M (20% <= 30% tope individual, OK).
