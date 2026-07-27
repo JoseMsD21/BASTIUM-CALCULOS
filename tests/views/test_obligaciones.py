@@ -677,3 +677,92 @@ def test_campos_de_sancion_ocultos_al_elegir_impuesto_a_cargo(qtbot, monkeypatch
     assert dialog.campo_valor.isVisible()
     assert not dialog.campo_base_sancion.isVisible()
     assert not dialog.campo_ingresos_brutos.isVisible()
+
+
+def test_campos_anatocismo_visibles_solo_para_comercial_puntual(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.check_anatocismo_demanda_judicial.isVisible() is True
+    assert dialog.check_anatocismo_acuerdo.isVisible() is True
+
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    assert dialog.check_anatocismo_demanda_judicial.isVisible() is False
+    assert dialog.check_anatocismo_acuerdo.isVisible() is False
+
+
+def test_campos_anatocismo_ocultos_para_area_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.check_anatocismo_demanda_judicial.isVisible() is False
+    assert dialog.check_anatocismo_acuerdo.isVisible() is False
+
+
+def test_campo_fecha_acuerdo_visible_solo_si_checkbox_marcado(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_anatocismo_fecha_acuerdo.isVisible() is False
+    dialog.check_anatocismo_acuerdo.setChecked(True)
+    assert dialog.campo_anatocismo_fecha_acuerdo.isVisible() is True
+    dialog.check_anatocismo_acuerdo.setChecked(False)
+    assert dialog.campo_anatocismo_fecha_acuerdo.isVisible() is False
+
+
+def test_guarda_obligacion_comercial_con_anatocismo_demanda_judicial(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+    dialog.check_anatocismo_demanda_judicial.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.anatocismo_demanda_judicial is True
+    assert guardada.anatocismo_fecha_acuerdo is None
+    session.close()
+
+
+def test_guarda_obligacion_comercial_con_anatocismo_acuerdo_posterior(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+    dialog.check_anatocismo_acuerdo.setChecked(True)
+    dialog.campo_anatocismo_fecha_acuerdo.setDate(date(2026, 2, 15))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.anatocismo_demanda_judicial is False
+    assert guardada.anatocismo_fecha_acuerdo == date(2026, 2, 15)
+    session.close()

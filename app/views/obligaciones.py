@@ -71,6 +71,12 @@ class ObligacionFormDialog(QDialog):
         self.campo_fecha_vencimiento = QDateEdit(QDate.currentDate())
         self.campo_fecha_vencimiento.setCalendarPopup(True)
         self.campo_ibc_vigente = QLineEdit()
+        self.check_anatocismo_demanda_judicial = QCheckBox(
+            "Demanda judicial (habilita anatocismo, Art. 886 C.Co.)"
+        )
+        self.check_anatocismo_acuerdo = QCheckBox("¿Hay acuerdo posterior de capitalización?")
+        self.campo_anatocismo_fecha_acuerdo = QDateEdit(QDate.currentDate())
+        self.campo_anatocismo_fecha_acuerdo.setCalendarPopup(True)
 
         self.combo_moneda = QComboBox()
         self.combo_moneda.addItem("COP (peso colombiano)", userData="COP")
@@ -124,6 +130,9 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
         self.layout_formulario.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
         self.layout_formulario.addRow("IBC vigente aplicable (%)", self.campo_ibc_vigente)
+        self.layout_formulario.addRow(self.check_anatocismo_demanda_judicial)
+        self.layout_formulario.addRow(self.check_anatocismo_acuerdo)
+        self.layout_formulario.addRow("Fecha del acuerdo posterior", self.campo_anatocismo_fecha_acuerdo)
         self.layout_formulario.addRow("Moneda", self.combo_moneda)
         self.layout_formulario.addRow("TRM aplicable (COP por USD)", self.campo_trm_aplicable)
         self.layout_formulario.addRow("Fecha de referencia de la TRM", self.campo_trm_fecha_referencia)
@@ -206,6 +215,7 @@ class ObligacionFormDialog(QDialog):
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_incluir_seguridad_social.stateChanged.connect(self._actualizar_campos_visibles)
+        self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
 
@@ -254,6 +264,14 @@ class ObligacionFormDialog(QDialog):
         self.campo_fecha_origen.setVisible(not es_recurrente)
         self.campo_fecha_inicio.setVisible(es_recurrente)
         self.campo_dia_pago.setVisible(es_recurrente)
+
+        es_comercial = self._area == "COMERCIAL"
+        mostrar_anatocismo = es_comercial and not es_recurrente
+        self.check_anatocismo_demanda_judicial.setVisible(mostrar_anatocismo)
+        self.check_anatocismo_acuerdo.setVisible(mostrar_anatocismo)
+        self.campo_anatocismo_fecha_acuerdo.setVisible(
+            mostrar_anatocismo and self.check_anatocismo_acuerdo.isChecked()
+        )
 
     def guardar(self) -> int:
         if self._area == "LABORAL":
@@ -311,6 +329,8 @@ class ObligacionFormDialog(QDialog):
         moneda = "COP"
         trm_aplicable = None
         trm_fecha_referencia = None
+        anatocismo_demanda_judicial = False
+        anatocismo_fecha_acuerdo = None
         if self._area == "COMERCIAL":
             try:
                 tasa_moratoria = Decimal(self.campo_tasa_moratoria.text())
@@ -329,6 +349,13 @@ class ObligacionFormDialog(QDialog):
                     raise ValueError("La TRM aplicable debe ser un numero valido.") from error
                 qdate_trm = self.campo_trm_fecha_referencia.date()
                 trm_fecha_referencia = date(qdate_trm.year(), qdate_trm.month(), qdate_trm.day())
+
+            anatocismo_demanda_judicial = self.check_anatocismo_demanda_judicial.isChecked()
+            if self.check_anatocismo_acuerdo.isChecked():
+                qdate_acuerdo = self.campo_anatocismo_fecha_acuerdo.date()
+                anatocismo_fecha_acuerdo = date(
+                    qdate_acuerdo.year(), qdate_acuerdo.month(), qdate_acuerdo.day()
+                )
 
         tipo = TipoObligacion(self.combo_tipo.currentData())
         qdate_origen = self.campo_fecha_origen.date()
@@ -357,6 +384,8 @@ class ObligacionFormDialog(QDialog):
             moneda=moneda,
             trm_aplicable=trm_aplicable,
             trm_fecha_referencia=trm_fecha_referencia,
+            anatocismo_demanda_judicial=anatocismo_demanda_judicial,
+            anatocismo_fecha_acuerdo=anatocismo_fecha_acuerdo,
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
             fecha_fin=None,
