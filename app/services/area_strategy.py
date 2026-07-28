@@ -393,6 +393,10 @@ class LaboralStrategy(AreaStrategy):
 
         monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
 
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.valor)
+        if evento_costas is not None:
+            eventos.append(evento_costas)
+
         if obligacion.incluir_seguridad_social:
             dias_suspension = sum(
                 (evento.fecha_fin - evento.fecha_inicio).days

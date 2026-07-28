@@ -1283,6 +1283,31 @@ class TestLaboralStrategy:
 
         assert resultado is not None  # no lanza error
 
+    def test_laboral_genera_evento_de_costas_si_esta_configurado(self):
+        # _obligacion_laboral no acepta 'valor' como parametro (usa 'salario'), y
+        # LaboralStrategy genera varios eventos ademas de costas (cesantias,
+        # prima, vacaciones) -- final_balance().principal mezclaria todo. Se aisla
+        # el monto de costas comparando el capital_base acumulado justo antes y
+        # justo despues del item de costas, en vez de sumar todo el saldo.
+        obligacion = _obligacion_laboral(
+            salario=Decimal("123500000.00"), fecha_inicio=date(2024, 1, 1), fecha_fin=date(2024, 6, 1),
+        )
+        obligacion.costas_tipo_proceso = "declarativo_general"
+        obligacion.costas_instancia = "primera"
+
+        resultado = LaboralStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_fin)
+
+        tipos_evento = [item.balance.event_type for item in resultado.items]
+        assert "COSTAS_PROCESALES" in tipos_evento
+        indice_costas = tipos_evento.index("COSTAS_PROCESALES")
+        capital_previo = (
+            resultado.items[indice_costas - 1].capital_base if indice_costas > 0 else Decimal("0.00")
+        )
+        monto_costas = resultado.items[indice_costas].capital_base - capital_previo
+        # fecha_origen (= fecha_inicio) 2024-01-01 -> SMLMV 2024 -> mismo caso de
+        # referencia que Tasks 4/11/12/13: 123.500.000 -> costas = 8.645.000,00.
+        assert monto_costas == Decimal("8645000.00")
+
 
 def _obligacion_tributaria(
     expediente_id=1,
