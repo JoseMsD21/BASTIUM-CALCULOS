@@ -339,19 +339,44 @@ fechas)? Es la misma pregunta del Sprint 3, la respuesta aplica a los tres sprin
 
 ## Sprint 18 — Costas judiciales (tabla de rangos)
 
-**Contexto:** El PDF de BASTIUM menciona que las costas judiciales (agencias en derecho) se fijan según
-rangos de porcentaje del Consejo Superior de la Judicatura (cita el Acuerdo PCSJA20-11556 como ejemplo,
-"3% al 7% de las pretensiones reconocidas"), pero **no transcribe la tabla completa de rangos**. Este
-acuerdo tampoco se consiguió durante los Sprints 4 ni 18 buscando en fuentes públicas. Hoy el software solo
-permite ingresar el porcentaje de costas manualmente por cada obligación, sin calcularlo automáticamente
-por rango de cuantía.
+**Contexto:** La pregunta original de este sprint (conseguir la tabla de rangos, porque el PDF de BASTIUM
+cita el Acuerdo "PCSJA20-11556" sin transcribirla) ya no aplica: ese número de acuerdo no corresponde a
+ningún acuerdo real localizable, pero se identificó y verificó directamente contra la fuente oficial
+(ramajudicial.gov.co) el acuerdo que sí regula la materia — el **Acuerdo PSAA16-10554** del 5 de agosto de
+2016, Consejo Superior de la Judicatura. Se implementó y probó la tabla completa de las 18 categorías de
+proceso de su art. 5°. Quedan tres aproximaciones de implementación (no datos inventados, sino decisiones
+de criterio) que conviene que un abogado confirme:
 
-**Pregunta:** ¿Pueden aportar el texto completo (o al menos la tabla de rangos de cuantía y porcentaje) del
-Acuerdo del Consejo Superior de la Judicatura que esté vigente hoy para costas judiciales/agencias en
-derecho?
+**Pregunta 1:** El Parágrafo 3° del art. 3° del acuerdo exige "ponderación inversa" dentro de cada rango
+("a mayor valor, menor porcentaje") pero no da la fórmula matemática exacta. El software resuelve esto
+calculando automáticamente un punto proporcional dentro del rango de cuantía correspondiente (mientras más
+cerca esté el caso del extremo alto del rango, más bajo el porcentaje que propone, y viceversa). El abogado
+siempre puede seguir escribiendo directamente el valor manual que ya existía desde antes, y ese valor
+manual siempre manda sobre el cálculo automático — por ejemplo, cuando el auto del juez ya fijó un
+porcentaje distinto al que el sistema habría propuesto. ¿Es razonable esta aproximación para uso interno
+del despacho, o prefieren que el software nunca proponga un porcentaje automático y siempre exija que se
+escriba el valor manual?
 
-**Qué necesito exactamente:** El documento o la tabla completa (rango de cuantía desde/hasta → porcentaje
-aplicable), o el nombre/número exacto del acuerdo vigente si no es el PCSJA20-11556.
+**Pregunta 2:** Para el tramo de "mayor cuantía" (más de 150 SMLMV, sin techo definido por la ley), el
+software siempre usa el porcentaje mínimo del rango de la tarifa, porque no hay un techo definido contra
+el cual calcular la proporción. ¿Es un valor por defecto razonable para pretensiones muy grandes?
+
+**Pregunta 3:** El software usa la fecha del hecho que origina la obligación como aproximación de la
+"fecha de radicación de la demanda" (la que fija el art. 25 del CGP para determinar qué salario mínimo del
+año aplica a los umbrales de cuantía). En la práctica estas dos fechas suelen coincidir o estar cerca, pero
+no siempre. ¿Es aceptable esta aproximación?
+
+**Pregunta 4 (nota adicional, no ligada a la tabla de tarifas):** En el área Laboral, el sistema calcula
+el valor total de las prestaciones sociales reconocidas (cesantías, intereses a las cesantías, prima y
+vacaciones) como base para las costas, pero no incluye la indemnización moratoria del Art. 65 CST aunque
+esta aplique al caso. Esto se identificó en una revisión de código como una pregunta legítima sin
+resolver, no como una decisión tomada unilateralmente en un sentido u otro: ¿la base de costas debería
+incluir también la indemnización moratoria cuando esté presente? (El petitum de una demanda laboral real
+suele pedir ambas cosas juntas.)
+
+**Qué necesito exactamente:** Confirmación o corrección de las tres aproximaciones (preguntas 1-3), y una
+posición sobre si la base de costas en Laboral debe incluir la indemnización moratoria del Art. 65 CST
+(pregunta 4).
 
 **Respuesta del despacho:**
 

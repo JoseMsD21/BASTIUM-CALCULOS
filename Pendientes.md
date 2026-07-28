@@ -85,7 +85,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado](#sprint-15--tributario-completo-sanciones-imputación-y-modelo-de-obligación-tributaria-cierre-del-sprint-11b--completado)
 - [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
-- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PCSJA20-11556)](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-pcsja20-11556)
+- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--completado)
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente)
@@ -1364,7 +1364,7 @@ con todas las decisiones/huecos legales sin confirmar de los Sprints 2-16, 18 y 
 
 ---
 
-## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PCSJA20-11556)
+## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado
 
 **Prioridad sugerida:** Media — el Sprint 4 ya dejó `costas_pct_manual` como solución temporal por no
 conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa fuente.
@@ -1421,6 +1421,46 @@ conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa f
 - `HonorariosStrategy` sigue funcionando igual que antes cuando se usa `costas_pct_manual` (no debe romper
   el comportamiento del Sprint 4).
 - Suite completa en verde.
+
+**Estado:** Implementado (2026-07-27/28, ver rango de commits desde `d7faacf` hasta `11c0d60`) — ver
+`docs/superpowers/specs/2026-07-26-sprint18-costas-judiciales-design.md` y
+`docs/superpowers/plans/2026-07-26-sprint18-costas-judiciales.md`. La cita "PCSJA20-11556" del PDF de
+requisitos de BASTIUM no corresponde a ningún acuerdo real localizable; el acuerdo vigente que sí regula
+la materia es el **Acuerdo PSAA16-10554** del 5 de agosto de 2016 del Consejo Superior de la Judicatura,
+identificado y verificado directamente contra la fuente oficial (ramajudicial.gov.co) durante este sprint.
+
+Se implementaron las 18 categorías de `TipoProceso` del art. 5° del acuerdo
+(`app/engine/costs/agencias_en_derecho.py`) — el alcance completo, no solo el subconjunto de
+"declarativos" que se había considerado como opción más pequeña durante el brainstorming previo; el
+usuario eligió el alcance completo. El cálculo automático quedó conectado en `CivilFamiliaStrategy`,
+`ComercialStrategy`, `LaboralStrategy`, `SancionatorioStrategy` y `HonorariosStrategy`.
+`TributarioStrategy` queda intencionalmente excluida: sus "sanciones" son sanciones administrativas de la
+DIAN, no agencias en derecho judiciales — un dominio legal distinto. `costas_pct_manual` (Sprint 4) se
+conserva como override siempre disponible y con prioridad máxima sobre el cálculo automático (ver
+`_evento_costas_procesales` en `app/services/area_strategy.py`) — el comportamiento de quien ya lo usaba
+no cambia.
+
+Limitaciones conocidas, documentadas en vez de omitidas silenciosamente:
+- `LIQUIDACION_SOCIEDAD_CONYUGAL_EXCEPCIONES` no tiene tarifa registrada para segunda instancia (el
+  acuerdo no da un rango distinto del de la categoría base `LIQUIDACION_SOCIEDAD_CONYUGAL` para ese
+  resultado); un caso que arranca como "excepciones" en primera instancia debe registrarse bajo la
+  categoría base si/cuando llega a segunda instancia.
+- Todavía no existen campos de formulario en la GUI para `costas_tipo_proceso`/`costas_instancia` — este
+  sprint entregó el motor de cálculo y su wiring en las estrategias de liquidación, no una actualización
+  de pantallas (solo existen las columnas de base de datos y el motor).
+- Por la misma razón anterior, `TarifaNoDisponibleError` tampoco está capturada todavía en el manejo de
+  excepciones de la GUI.
+- No hay validación que impida fijar `costas_tipo_proceso`/`costas_instancia` en más de una obligación
+  del mismo expediente (contaría las costas doble) ni en un expediente Civil/Familia o Comercial compuesto
+  solo de obligaciones `RECURRENTE` (no generaría costas sin avisar, ni siquiera vía `costas_pct_manual`
+  manual): en ambas áreas solo las obligaciones `PUNTUAL` quedan conectadas a
+  `_evento_costas_procesales`. Son huecos preexistentes de validación de entradas, comunes a todas las
+  áreas, no introducidos por este sprint — queda pendiente una revisión de validaciones a futuro.
+
+Preguntas abiertas para el despacho sobre las aproximaciones de implementación (ponderación inversa,
+tramo de mayor cuantía sin techo, `fecha_origen` como aproximación de la fecha de radicación, y la base de
+costas en Laboral frente al Art. 65 CST) quedaron registradas en `Preguntas-Para-Abogado.md`, sección
+Sprint 18. `README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde.
 
 ---
 

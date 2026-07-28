@@ -402,7 +402,12 @@ propios de esta área:
      proceso — es la base sobre la que se calculan tanto la cuota litis como los topes legales.
    - **% Costas judiciales (opcional)**: si el juez condenó en costas y quieres incluirlas como un evento
      de capital separado, ingresa aquí el porcentaje que corresponda (ej. `5.00`). Déjalo vacío si no
-     aplica.
+     aplica. Este campo (`costas_pct_manual`) es siempre el valor que usa el programa cuando se
+     diligencia — es el porcentaje que efectivamente fijó el juez en el auto. El motor de cálculo
+     automático de costas por tabla de tarifas (Acuerdo PSAA16-10554/2016 del Consejo Superior de la
+     Judicatura) ya existe internamente, pero por ahora solo se activa por los campos `costas_tipo_proceso`
+     y `costas_instancia` a nivel de base de datos — todavía no hay campos de formulario en esta pantalla
+     para diligenciarlos (ver [sección 8](#8-funciones-pendientes-o-en-desarrollo)).
 4. Haz clic en **"Guardar"**.
 
 Al liquidar, el programa valida automáticamente que la cuota litis pactada no exceda el 30% del
@@ -652,7 +657,7 @@ hoy**:
 | Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después, validación de tope de usura (1.5× el IBC que ingreses). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
 | Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, y opcionalmente cotizaciones de seguridad social (pensión, salud, ARL, FSP) más incapacidades y suspensiones contractuales. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). |
 | Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
-| Honorarios / Litigio | ✅ Sí, con una limitación — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual porque no existe una tabla estructurada confiable del Consejo Superior de la Judicatura. Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
+| Honorarios / Litigio | ✅ Sí — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual (el que haya fijado el juez en el auto). Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
 | Tributario | ✅ Sí — impuesto a cargo, sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), imputación propia (sanciones → intereses → impuesto, distinta del orden civil), y depuración de Renta Líquida Gravable informativa. Ver [sección 5.15](#515-agregar-una-obligación-tributaria). |
 
 Si en algún momento se intenta liquidar un área cuya lógica todavía no esté lista (ver
@@ -823,6 +828,15 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
 - ✅ **Tabla histórica de UVT** (2006-2026) ya está cargada y conectada — el área Sancionatorio convierte
   a pesos tanto los hechos anteriores al 2020-01-01 (vía SMLMV) como los posteriores (vía UVT). Ver
   [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias) (`Pendientes.md`, Sprint 14).
+- ✅ **Costas judiciales (agencias en derecho) por tabla real de tarifas** — el motor de cálculo
+  automático según el Acuerdo PSAA16-10554/2016 del Consejo Superior de la Judicatura (las 18 categorías
+  de proceso de su art. 5°) ya existe y está conectado en Civil/Familia, Comercial, Laboral,
+  Sancionatorio y Honorarios (`Pendientes.md`, Sprint 18). El porcentaje manual (`costas_pct_manual`, el
+  que haya fijado el juez en el auto) sigue siendo la única forma de fijar costas desde esta pantalla, y
+  solo está disponible en el formulario de Honorarios/Litigio (ver
+  [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio)) — activar el cálculo automático por
+  tabla de tarifas requiere todavía fijar `costas_tipo_proceso`/`costas_instancia` a nivel de datos, sin
+  campos propios en ningún formulario de esta versión.
 - 🚧 **Anatocismo comercial condicionado (Art. 886 C.Co.)** — el motor de interés compuesto
   (`CompoundInterest`) existe pero no está conectado; requiere modelar si hubo demanda judicial o
   acuerdo posterior de capitalización, algo que el modelo de datos todavía no captura (`Pendientes.md`,

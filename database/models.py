@@ -113,6 +113,8 @@ class Obligacion(Base):
     cuota_litis_pactada_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     beneficio_obtenido: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     costas_pct_manual: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    costas_tipo_proceso: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    costas_instancia: Mapped[str | None] = mapped_column(String(10), nullable=True)
     aplica_indexacion_ipc: Mapped[bool] = mapped_column(Boolean, default=False)
     moneda: Mapped[str] = mapped_column(String(3), default="COP")
     trm_aplicable: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)

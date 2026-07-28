@@ -316,6 +316,25 @@ def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_prop
     assert eventos_indexacion[0].indexation_amount != eventos_indexacion[1].indexation_amount
 
 
+def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
+    # valor = 123.500.000, fecha_origen forzada a 2024-06-01 (SMLMV 2024 =
+    # 1.300.000.00): punto medio exacto del tier menor cuantia (52.000.000 a
+    # 195.000.000) -> pct = 7% -> costas = 8.645.000,00. Mismo caso de
+    # referencia usado en Tasks 4, 11, 13 y 14.
+    obligacion = _obligacion_puntual(valor=_Decimal("123500000.00"))
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.tasa_efectiva_anual = _Decimal("0.00")
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        [obligacion], [], fecha_corte=obligacion.fecha_origen,
+    )
+    tipos_evento = {item.balance.event_type for item in resultado.items}
+    assert "COSTAS_PROCESALES" in tipos_evento
+    assert resultado.final_balance().principal == _Decimal("132145000.00")  # 123.500.000 + 8.645.000
+
+
 from app.engine.liquidation.engine import LiquidationCore
 
 
@@ -727,6 +746,43 @@ class TestComercialStrategy:
         assert segundo_salto > primer_salto
 
 
+def test_comercial_genera_evento_de_costas_si_esta_configurado():
+    # Mismo caso de referencia que Tasks 4/11/12/14: 123.500.000 en el punto
+    # medio del tier menor cuantia de 2024 -> costas = 8.645.000,00.
+    obligacion = _obligacion_comercial(valor=Decimal("123500000.00"))
+    obligacion.fecha_origen = date(2024, 6, 1)
+    obligacion.fecha_vencimiento = date(2024, 7, 1)  # debe ser posterior a fecha_origen
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+
+    resultado = ComercialStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
+    tipos_evento = {item.balance.event_type for item in resultado.items}
+    assert "COSTAS_PROCESALES" in tipos_evento
+    assert resultado.final_balance().principal == Decimal("132145000.00")  # 123.500.000 + 8.645.000
+
+
+def test_comercial_usd_calcula_costas_sobre_el_valor_convertido_a_pesos_no_sobre_el_valor_en_usd():
+    # Regresion: confirma que las costas se calculan sobre valor_pesos (post
+    # conversion TRM), no sobre obligacion.valor crudo en USD -- si alguien
+    # revierte a pasar obligacion.valor, este test debe fallar.
+    obligacion = _obligacion_comercial(valor=Decimal("30875.00"))
+    obligacion.moneda = "USD"
+    obligacion.trm_aplicable = Decimal("4000.00")
+    obligacion.trm_fecha_referencia = date(2024, 6, 1)
+    obligacion.fecha_origen = date(2024, 6, 1)
+    obligacion.fecha_vencimiento = date(2024, 7, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+
+    resultado = ComercialStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
+    # 30.875 USD * 4.000 TRM = 123.500.000 pesos -> costas = 8.645.000,00 (7%,
+    # punto medio del tier menor cuantia) -> total 132.145.000,00. Si el
+    # calculo usara el valor crudo en USD (30.875) como pretensiones, el
+    # resultado seria completamente distinto (y probablemente lanzaria
+    # TarifaNoDisponibleError o un monto absurdo).
+    assert resultado.final_balance().principal == Decimal("132145000.00")
+
+
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True
 
@@ -814,6 +870,24 @@ class TestSancionatorioStrategy:
     def test_soporta_indexacion_ipc_es_false(self):
         assert SancionatorioStrategy().soporta_indexacion_ipc is False
 
+    def test_sancionatorio_genera_evento_de_costas_si_esta_configurado(self):
+        # cantidad_smlmv_uvt=1000 con el fecha_origen por defecto del fixture
+        # (2019-06-01, pre-2020 -> usa SMLMV, no UVT): monto_pesos = 1000 *
+        # 828116.00 = 828.116.000,00 -- muy por encima de 150 SMLMV(2019) =
+        # 124.217.400,00, cae en el tier "mayor cuantia" (sin techo), que siempre
+        # usa el porcentaje minimo del rango (3%) sin necesidad de interpolar.
+        # costas = 828.116.000 * 3% = 24.843.480,00, pero el tope de 20 SMLMV(2019)
+        # = 16.562.320,00 es menor -> se aplica el tope. Este caso ademas ejercita
+        # el tope de la Task 4 con un ejemplo end-to-end real.
+        obligacion = _obligacion_sancionatoria(cantidad_smlmv_uvt=_Decimal("1000"))
+        obligacion.costas_tipo_proceso = "declarativo_general"
+        obligacion.costas_instancia = "primera"
+
+        resultado = SancionatorioStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "COSTAS_PROCESALES" in tipos_evento
+        assert resultado.final_balance().principal == _Decimal("844678320.00")  # 828.116.000 + 16.562.320
+
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 
@@ -841,6 +915,48 @@ def _obligacion_honorarios(
         beneficio_obtenido=beneficio_obtenido,
         costas_pct_manual=costas_pct_manual,
     )
+
+
+from app.services.area_strategy import _evento_costas_procesales
+
+
+def test_evento_costas_procesales_usa_costas_pct_manual_si_esta_presente():
+    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("5.00"))
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("10000000.00"))
+    assert evento is not None
+    assert evento.payload["amount"] == _Decimal("500000.00")
+    assert evento.event_type == "COSTAS_PROCESALES"
+
+
+def test_evento_costas_procesales_usa_calculo_automatico_si_hay_tipo_e_instancia():
+    # fecha_origen se fuerza a 2024-06-01 (SMLMV 2024 = 1.300.000.00) para que
+    # 123.500.000 caiga exactamente en el punto medio del tier menor cuantia
+    # (52.000.000 a 195.000.000) -> pct = 10 - 0.5*6 = 7%. El default de
+    # _obligacion_honorarios (fecha_origen=2026-01-01) tambien funcionaria,
+    # pero forzar el año mantiene el mismo caso de referencia usado en el
+    # resto del plan (Tasks 4, 12, 13).
+    obligacion = _obligacion_honorarios()
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
+    assert evento is not None
+    assert evento.payload["amount"] == _Decimal("8645000.00")
+
+
+def test_evento_costas_procesales_manual_gana_sobre_automatico():
+    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("2.00"))
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
+    assert evento.payload["amount"] == _Decimal("2470000.00")  # 2% manual, no el 7% automatico
+
+
+def test_evento_costas_procesales_sin_ninguno_de_los_dos_retorna_none():
+    obligacion = _obligacion_honorarios()
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("10000000.00"))
+    assert evento is None
 
 
 class TestHonorariosStrategy:
@@ -1349,6 +1465,127 @@ class TestLaboralStrategy:
         )
 
         assert resultado is not None  # no lanza error
+
+    def test_laboral_genera_evento_de_costas_si_esta_configurado(self):
+        from app.engine.costs.agencias_en_derecho import Instancia, TipoProceso, calcular_agencias_en_derecho
+        from app.engine.temporal.schedulers.labor import LaborScheduler
+
+        # _obligacion_laboral no acepta 'valor' como parametro (usa 'salario'), y
+        # LaboralStrategy genera varios eventos ademas de costas (cesantias,
+        # prima, vacaciones) -- final_balance().principal mezclaria todo. Se aisla
+        # el monto de costas comparando el capital_base acumulado justo antes y
+        # justo despues del item de costas, en vez de sumar todo el saldo.
+        # Nota: COSTAS_PROCESALES se fecha en obligacion.fecha_origen (=
+        # fecha_inicio), anterior a fecha_fin (fecha de cesantias/prima/
+        # vacaciones) -- por eso siempre ordena de primero (indice 0) y la
+        # rama "capital_previo" con indice_costas > 0 no se ejercita en este
+        # caso particular; se deja la forma generica (delta entre item actual
+        # y el anterior) porque es la misma tecnica usada en las demas
+        # strategies y sigue siendo correcta (capital_previo = 0.00 cuando
+        # costas es el primer item).
+        obligacion = _obligacion_laboral(
+            salario=Decimal("123500000.00"), fecha_inicio=date(2024, 1, 1), fecha_fin=date(2024, 6, 1),
+        )
+        obligacion.costas_tipo_proceso = "declarativo_general"
+        obligacion.costas_instancia = "primera"
+
+        resultado = LaboralStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_fin)
+
+        tipos_evento = [item.balance.event_type for item in resultado.items]
+        assert "COSTAS_PROCESALES" in tipos_evento
+        indice_costas = tipos_evento.index("COSTAS_PROCESALES")
+        capital_previo = (
+            resultado.items[indice_costas - 1].capital_base if indice_costas > 0 else Decimal("0.00")
+        )
+        monto_costas = resultado.items[indice_costas].capital_base - capital_previo
+
+        # La base de costas es monto_prestaciones (cesantias + intereses +
+        # prima + vacaciones para todo el contrato), NO obligacion.valor (que
+        # es solo el salario mensual) -- ver LaboralStrategy.liquidar. Se
+        # recalcula aqui, de forma independiente, con el mismo LaborScheduler
+        # que usa produccion, para no depender de una constante "magica" sin
+        # trazabilidad.
+        dias_trabajados = (obligacion.fecha_fin - obligacion.fecha_inicio).days
+        eventos_prestaciones = LaborScheduler(
+            salario_base=obligacion.valor, dias_trabajados=dias_trabajados,
+            fecha_liquidacion=obligacion.fecha_fin,
+        ).generate()
+        monto_prestaciones = sum((e.payload["amount"] for e in eventos_prestaciones), Decimal("0.00"))
+        assert monto_prestaciones == Decimal("133003096.28")
+
+        # fecha_origen (= fecha_inicio) 2024-01-01 -> SMLMV 2024 = 1.300.000,00
+        # -> declarativo_general / primera instancia, tier MENOR cuantia
+        # (52.000.000-195.000.000): interpolacion lineal Paragrafo 3 art. 3
+        # (Acuerdo PSAA16-10554) da porcentaje = 6.601268687552447552...% ->
+        # 133.003.096,28 * ese % = 8.779.891,75 -- verificado tambien llamando
+        # calcular_agencias_en_derecho directamente con pretensiones_reconocidas
+        # = monto_prestaciones.
+        assert monto_costas == Decimal("8779891.75")
+        assert monto_costas == calcular_agencias_en_derecho(
+            tipo_proceso=TipoProceso("declarativo_general"), instancia=Instancia("primera"),
+            pretensiones_reconocidas=monto_prestaciones, fecha_radicacion=obligacion.fecha_inicio,
+        )
+
+    def test_costas_procesales_no_afecta_la_indemnizacion_moratoria(self):
+        # Regresion critica: costas procesales debe aparecer como evento
+        # independiente, pero NUNCA debe alimentar monto_adeudado (la base del
+        # Art. 65 CST para SANCION_MORATORIA) -- ver LaboralStrategy.liquidar,
+        # donde monto_prestaciones se captura en un Decimal ANTES de appendear
+        # el evento de costas a `eventos`. Si costas se hubiera insertado antes
+        # de esa linea (bug), monto_adeudado incluiria costas y la mora
+        # calculada seria mayor -- PERO SOLO en fase 2 (dias_retardo > 720):
+        # fase 1 (Art. 65 CST) es "un dia de salario por cada dia de retardo",
+        # no usa monto_adeudado en absoluto (ver MoratoryIndemnityCalculator.
+        # calcular), asi que un escenario de solo fase 1 no detectaria este
+        # bug. Se usa el mismo patron de
+        # test_mora_fase2_no_incluye_cotizaciones_de_seguridad_social_en_la_base
+        # (retardo de 800 dias, cruza a fase 2) para que la comparacion sea
+        # realmente sensible al bug.
+        #
+        # Se corre el mismo escenario (mismo salario, mismas fechas, mora
+        # fase 2) dos veces -- una sin costas configuradas y otra con -- y se
+        # compara el monto exacto de SANCION_MORATORIA (aislado via delta de
+        # capital_base, igual tecnica que para costas arriba) entre ambas
+        # corridas: deben ser identicos.
+        def _liquidar_y_aislar_mora(con_costas: bool) -> Decimal:
+            # fecha_fin=2024-05-01 (en vez de 2024-06-01, usado en el test de
+            # costas de arriba) para que fecha_fin + 800 dias (2026-07-10)
+            # siga cayendo dentro de los tramos IBC/Usura sembrados por la
+            # fixture (hasta 2026-07-31) -- con 2024-06-01 el retardo de 800
+            # dias cae en 2026-08, fuera de rango, y ademas monto_prestaciones
+            # (105.448.531,01 para este contrato mas corto) debe seguir
+            # cayendo en el tier MENOR cuantia de declarativo_general/primera
+            # (52M-195M) para que costas se pueda calcular sin
+            # TarifaNoDisponibleError (el acuerdo no tiene tarifa para tier
+            # MINIMA en primera instancia -- las cuantias minimas se tramitan
+            # en unica instancia, no en dos instancias).
+            obligacion = _obligacion_laboral(
+                salario=Decimal("123500000.00"), fecha_inicio=date(2024, 1, 1), fecha_fin=date(2024, 5, 1),
+            )
+            if con_costas:
+                obligacion.costas_tipo_proceso = "declarativo_general"
+                obligacion.costas_instancia = "primera"
+            # 800 dias de retardo: cruza a fase 2 (limite fase 1 = 720 dias),
+            # donde monto_adeudado si entra en el calculo de intereses.
+            fecha_corte = obligacion.fecha_fin + timedelta(days=800)
+
+            resultado = LaboralStrategy().liquidar([obligacion], [], fecha_corte=fecha_corte)
+
+            tipos_evento = [item.balance.event_type for item in resultado.items]
+            assert "SANCION_MORATORIA" in tipos_evento
+            if con_costas:
+                assert "COSTAS_PROCESALES" in tipos_evento
+            indice_mora = tipos_evento.index("SANCION_MORATORIA")
+            capital_previo = (
+                resultado.items[indice_mora - 1].capital_base if indice_mora > 0 else Decimal("0.00")
+            )
+            return resultado.items[indice_mora].capital_base - capital_previo
+
+        monto_mora_sin_costas = _liquidar_y_aislar_mora(con_costas=False)
+        monto_mora_con_costas = _liquidar_y_aislar_mora(con_costas=True)
+
+        assert monto_mora_sin_costas > Decimal("0.00")  # sanity: la mora si se disparo
+        assert monto_mora_con_costas == monto_mora_sin_costas
 
 
 def _obligacion_tributaria(

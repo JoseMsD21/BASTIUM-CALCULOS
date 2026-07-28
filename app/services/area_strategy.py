@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
+from app.engine.costs.agencias_en_derecho import Instancia, TipoProceso, calcular_agencias_en_derecho
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
@@ -31,6 +32,32 @@ from app.engine.tax.sanciones import (
     calcular_sancion_extemporaneidad,
     calcular_sancion_inexactitud,
 )
+
+
+def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
+    """Costas procesales (agencias en derecho) para cualquier area de litigio
+    judicial. costas_pct_manual (Sprint 4) tiene siempre prioridad sobre el
+    calculo automatico del Acuerdo PSAA16-10554 (Sprint 18) -- si el auto
+    judicial real ya fijo un porcentaje, ese manda. Retorna None si la
+    obligacion no tiene ninguno de los dos mecanismos activado (comportamiento
+    identico al de antes de este sprint)."""
+    if obligacion.costas_pct_manual is not None:
+        costas_monto = pretensiones_reconocidas * obligacion.costas_pct_manual / Decimal("100")
+    elif obligacion.costas_tipo_proceso is not None and obligacion.costas_instancia is not None:
+        costas_monto = calcular_agencias_en_derecho(
+            tipo_proceso=TipoProceso(obligacion.costas_tipo_proceso),
+            instancia=Instancia(obligacion.costas_instancia),
+            pretensiones_reconocidas=pretensiones_reconocidas,
+            fecha_radicacion=obligacion.fecha_origen,
+        )
+    else:
+        return None
+
+    return Event(
+        date=obligacion.fecha_origen,
+        payload={"amount": costas_monto, "label": f"Costas procesales - {obligacion.concepto}"},
+        event_type="COSTAS_PROCESALES",
+    )
 
 
 class AreaStrategy(ABC):
@@ -99,6 +126,9 @@ class CivilFamiliaStrategy(AreaStrategy):
                         fecha_corte=fecha_corte,
                     )
                 )
+            evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.valor)
+            if evento_costas is not None:
+                eventos.append(evento_costas)
             return eventos
 
         # RECURRENTE
@@ -324,6 +354,9 @@ class ComercialStrategy(AreaStrategy):
                 )
             ]
             eventos.extend(self._eventos_anatocismo(obligacion, fecha_corte))
+            evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=valor_pesos)
+            if evento_costas is not None:
+                eventos.append(evento_costas)
             return eventos
 
         # RECURRENTE
@@ -413,6 +446,10 @@ class LaboralStrategy(AreaStrategy):
         ).generate()
 
         monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=monto_prestaciones)
+        if evento_costas is not None:
+            eventos.append(evento_costas)
 
         if obligacion.incluir_seguridad_social:
             dias_suspension = sum(
@@ -586,7 +623,9 @@ class SancionatorioStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_sancionatoria(obligacion)
 
-        eventos_causacion = [self._evento_de_obligacion(obligacion) for obligacion in obligaciones]
+        eventos_causacion = []
+        for obligacion in obligaciones:
+            eventos_causacion.extend(self._eventos_de_obligacion(obligacion))
 
         pagos = [
             Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
@@ -615,13 +654,19 @@ class SancionatorioStrategy(AreaStrategy):
                 f"'cantidad_smlmv_uvt' para liquidar."
             )
 
-    def _evento_de_obligacion(self, obligacion) -> Event:
+    def _eventos_de_obligacion(self, obligacion) -> List[Event]:
         monto_pesos = resolver_base_sancion(obligacion.fecha_origen, obligacion.cantidad_smlmv_uvt)
-        return Event(
-            date=obligacion.fecha_origen,
-            payload={"amount": monto_pesos, "label": obligacion.concepto},
-            event_type=obligacion.categoria,
-        )
+        eventos = [
+            Event(
+                date=obligacion.fecha_origen,
+                payload={"amount": monto_pesos, "label": obligacion.concepto},
+                event_type=obligacion.categoria,
+            )
+        ]
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=monto_pesos)
+        if evento_costas is not None:
+            eventos.append(evento_costas)
+        return eventos
 
     def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
         fecha_mas_antigua = min(o.fecha_origen for o in obligaciones)
@@ -639,10 +684,11 @@ class HonorariosStrategy(AreaStrategy):
     Area Honorarios / Litigio (cobro de honorarios profesionales y costas judiciales).
     Cada obligacion es un hecho puntual que resulta en 1 o 2 eventos de capital:
     honorarios profesionales (tarifa fija + cuota litis, validados contra ambos topes
-    legales) y, si se pacto un porcentaje de costas, un evento adicional de costas
-    procesales. No hay tabla hardcodeada de rangos del Consejo Superior de la
-    Judicatura (Acuerdo PCSJA20-11556): el porcentaje de costas lo ingresa quien
-    liquida, fijado por el juez en el auto respectivo (ver Pendientes.md).
+    legales) y, si aplica, un evento adicional de costas procesales. Costas procesales:
+    `costas_pct_manual` (si el juez ya fijo un porcentaje en el auto) tiene prioridad;
+    si no esta seteado, se calcula automaticamente segun el Acuerdo PSAA16-10554 (tabla
+    completa en `app/engine/costs/agencias_en_derecho.py`) cuando la obligacion trae
+    `costas_tipo_proceso`/`costas_instancia`.
 
     Tope de cuota litis (ambos simultaneos -- ver design spec 2026-07-17, el PDF trae
     un 50% en una seccion y un 30% en otra, se aplican los dos):
@@ -731,18 +777,9 @@ class HonorariosStrategy(AreaStrategy):
                 event_type=obligacion.categoria,
             )
         ]
-        if obligacion.costas_pct_manual is not None:
-            costas_monto = obligacion.beneficio_obtenido * obligacion.costas_pct_manual / Decimal("100")
-            eventos.append(
-                Event(
-                    date=obligacion.fecha_origen,
-                    payload={
-                        "amount": costas_monto,
-                        "label": f"Costas procesales - {obligacion.concepto}",
-                    },
-                    event_type="COSTAS_PROCESALES",
-                )
-            )
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.beneficio_obtenido)
+        if evento_costas is not None:
+            eventos.append(evento_costas)
         return eventos
 
     def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:

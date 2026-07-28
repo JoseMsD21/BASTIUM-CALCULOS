@@ -42,8 +42,10 @@ CATEGORIAS_HONORARIOS = [
     ("HONORARIOS_PROFESIONALES", "Honorarios profesionales (fijo + cuota litis)"),
 ]
 # "COSTAS_PROCESALES" no aparece aqui: no es una categoria que el usuario elija, se
-# genera automaticamente como un segundo evento si costas_pct_manual esta seteado
-# (ver HonorariosStrategy._eventos_de_obligacion).
+# genera automaticamente como un segundo evento si costas_pct_manual esta seteado, o si
+# no, calculado automaticamente segun el Acuerdo PSAA16-10554 cuando la obligacion trae
+# costas_tipo_proceso/costas_instancia (ver
+# app.services.area_strategy._evento_costas_procesales).
 
 CATEGORIAS_TRIBUTARIO = [
     ("IMPUESTO_A_CARGO", "Impuesto a cargo"),
