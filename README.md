@@ -9,7 +9,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-25)
+## Estado actual (2026-07-28)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -22,10 +22,9 @@ según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tab
 2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios
 profesionales y cuota litis, validando simultáneamente el tope del 30% del beneficio obtenido para la
 cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
-se ingresan como porcentaje manual, el que haya fijado el juez en el auto — el motor de cálculo
-automático de costas por la tabla real de tarifas del Acuerdo PSAA16-10554/2016 del Consejo Superior de
-la Judicatura ya existe y está conectado también en Civil/Familia, Comercial, Laboral y Sancionatorio,
-pero por ahora solo se activa a nivel de datos, sin campos propios en el formulario de la pantalla), **Laboral** (liquidación final —finiquito— de un contrato:
+se ingresan como porcentaje manual, el que fijó el juez; el cálculo automático por tabla ya existe pero
+aún no tiene campos propios en pantalla — ver [Guía de Usuario](docs/GUIA_USUARIO.md#8-funciones-pendientes-o-en-desarrollo)),
+**Laboral** (liquidación final —finiquito— de un contrato:
 cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, indemnización moratoria
 bifásica del Art. 65 CST si hubo retardo en el pago y, opcionalmente, cotizaciones de seguridad social
 —pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales) y **Tributario** (impuesto a

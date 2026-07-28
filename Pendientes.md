@@ -1429,26 +1429,28 @@ la materia es el **Acuerdo PSAA16-10554** del 5 de agosto de 2016 del Consejo Su
 identificado y verificado directamente contra la fuente oficial (ramajudicial.gov.co) durante este sprint.
 
 Se implementaron las 18 categorías de `TipoProceso` del art. 5° del acuerdo
-(`app/engine/costs/agencias_en_derecho.py`) — el alcance completo, no solo el subconjunto de "declarativos" que se había
-considerado como opción más pequeña durante el brainstorming previo; el usuario eligió el alcance completo.
-El cálculo automático quedó conectado en `CivilFamiliaStrategy`, `ComercialStrategy`, `LaboralStrategy`,
-`SancionatorioStrategy` y `HonorariosStrategy`. `TributarioStrategy` queda intencionalmente excluida: sus
-"sanciones" son sanciones administrativas de la DIAN, no agencias en derecho judiciales — un dominio legal
-distinto. `costas_pct_manual` (Sprint 4) se conserva como override siempre disponible y con prioridad
-máxima sobre el cálculo automático (ver `_evento_costas_procesales` en `app/services/area_strategy.py`) —
-el comportamiento de quien ya lo usaba no cambia.
+(`app/engine/costs/agencias_en_derecho.py`) — el alcance completo, no solo el subconjunto de
+"declarativos" que se había considerado como opción más pequeña durante el brainstorming previo; el
+usuario eligió el alcance completo. El cálculo automático quedó conectado en `CivilFamiliaStrategy`,
+`ComercialStrategy`, `LaboralStrategy`, `SancionatorioStrategy` y `HonorariosStrategy`.
+`TributarioStrategy` queda intencionalmente excluida: sus "sanciones" son sanciones administrativas de la
+DIAN, no agencias en derecho judiciales — un dominio legal distinto. `costas_pct_manual` (Sprint 4) se
+conserva como override siempre disponible y con prioridad máxima sobre el cálculo automático (ver
+`_evento_costas_procesales` en `app/services/area_strategy.py`) — el comportamiento de quien ya lo usaba
+no cambia.
 
 Limitaciones conocidas, documentadas en vez de omitidas silenciosamente:
-- `LIQUIDACION_SOCIEDAD_CONYUGAL_EXCEPCIONES` no tiene tarifa registrada para segunda instancia (el acuerdo
-  no da un rango distinto del de la categoría base `LIQUIDACION_SOCIEDAD_CONYUGAL` para ese resultado); un
-  caso que arranca como "excepciones" en primera instancia debe registrarse bajo la categoría base si/cuando
-  llega a segunda instancia.
+- `LIQUIDACION_SOCIEDAD_CONYUGAL_EXCEPCIONES` no tiene tarifa registrada para segunda instancia (el
+  acuerdo no da un rango distinto del de la categoría base `LIQUIDACION_SOCIEDAD_CONYUGAL` para ese
+  resultado); un caso que arranca como "excepciones" en primera instancia debe registrarse bajo la
+  categoría base si/cuando llega a segunda instancia.
 - Todavía no existen campos de formulario en la GUI para `costas_tipo_proceso`/`costas_instancia` — este
-  sprint entregó el motor de cálculo y su wiring en las estrategias de liquidación, no una actualización de
-  pantallas (solo existen las columnas de base de datos y el motor). Por la misma razón, `TarifaNoDisponibleError`
-  tampoco está capturada todavía en el manejo de excepciones de la GUI.
-- No hay validación que impida fijar `costas_tipo_proceso`/`costas_instancia` en más de una obligación del
-  mismo expediente (contaría las costas doble) ni en un expediente Civil/Familia compuesto solo de
+  sprint entregó el motor de cálculo y su wiring en las estrategias de liquidación, no una actualización
+  de pantallas (solo existen las columnas de base de datos y el motor).
+- Por la misma razón anterior, `TarifaNoDisponibleError` tampoco está capturada todavía en el manejo de
+  excepciones de la GUI.
+- No hay validación que impida fijar `costas_tipo_proceso`/`costas_instancia` en más de una obligación
+  del mismo expediente (contaría las costas doble) ni en un expediente Civil/Familia compuesto solo de
   obligaciones `RECURRENTE` (no generaría costas sin avisar). Son huecos preexistentes de validación de
   entradas, comunes a todas las áreas, no introducidos por este sprint — queda pendiente una revisión de
   validaciones a futuro.
