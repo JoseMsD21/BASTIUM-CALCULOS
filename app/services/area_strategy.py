@@ -393,7 +393,7 @@ class LaboralStrategy(AreaStrategy):
 
         monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
 
-        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.valor)
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=monto_prestaciones)
         if evento_costas is not None:
             eventos.append(evento_costas)
 
