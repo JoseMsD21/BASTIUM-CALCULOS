@@ -1450,10 +1450,11 @@ Limitaciones conocidas, documentadas en vez de omitidas silenciosamente:
 - Por la misma razón anterior, `TarifaNoDisponibleError` tampoco está capturada todavía en el manejo de
   excepciones de la GUI.
 - No hay validación que impida fijar `costas_tipo_proceso`/`costas_instancia` en más de una obligación
-  del mismo expediente (contaría las costas doble) ni en un expediente Civil/Familia compuesto solo de
-  obligaciones `RECURRENTE` (no generaría costas sin avisar). Son huecos preexistentes de validación de
-  entradas, comunes a todas las áreas, no introducidos por este sprint — queda pendiente una revisión de
-  validaciones a futuro.
+  del mismo expediente (contaría las costas doble) ni en un expediente Civil/Familia o Comercial compuesto
+  solo de obligaciones `RECURRENTE` (no generaría costas sin avisar, ni siquiera vía `costas_pct_manual`
+  manual): en ambas áreas solo las obligaciones `PUNTUAL` quedan conectadas a
+  `_evento_costas_procesales`. Son huecos preexistentes de validación de entradas, comunes a todas las
+  áreas, no introducidos por este sprint — queda pendiente una revisión de validaciones a futuro.
 
 Preguntas abiertas para el despacho sobre las aproximaciones de implementación (ponderación inversa,
 tramo de mayor cuantía sin techo, `fecha_origen` como aproximación de la fecha de radicación, y la base de
