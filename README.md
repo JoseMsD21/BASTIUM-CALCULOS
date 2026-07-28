@@ -22,8 +22,10 @@ según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tab
 2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios
 profesionales y cuota litis, validando simultáneamente el tope del 30% del beneficio obtenido para la
 cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
-se ingresan como un porcentaje manual, porque no existe una tabla estructurada confiable de los rangos
-del Consejo Superior de la Judicatura), **Laboral** (liquidación final —finiquito— de un contrato:
+se ingresan como porcentaje manual, el que haya fijado el juez en el auto — el motor de cálculo
+automático de costas por la tabla real de tarifas del Acuerdo PSAA16-10554/2016 del Consejo Superior de
+la Judicatura ya existe y está conectado también en Civil/Familia, Comercial, Laboral y Sancionatorio,
+pero por ahora solo se activa a nivel de datos, sin campos propios en el formulario de la pantalla), **Laboral** (liquidación final —finiquito— de un contrato:
 cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, indemnización moratoria
 bifásica del Art. 65 CST si hubo retardo en el pago y, opcionalmente, cotizaciones de seguridad social
 —pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales) y **Tributario** (impuesto a
