@@ -689,6 +689,43 @@ class TestComercialStrategy:
         diferencia = resultado_despues.final_balance().principal - resultado_antes.final_balance().principal
         assert diferencia == monto_abono
 
+    def test_anatocismo_capitaliza_periodicamente_en_cada_aniversario(self):
+        obligacion_antes_primera = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        resultado_antes_primera = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_antes_primera], abonos=[], fecha_corte=date(2026, 1, 31)
+        )
+
+        obligacion_despues_primera = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        resultado_despues_primera = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_despues_primera], abonos=[], fecha_corte=date(2027, 1, 31)
+        )
+
+        obligacion_despues_segunda = _obligacion_comercial(anatocismo_demanda_judicial=True)
+        resultado_despues_segunda = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_despues_segunda], abonos=[], fecha_corte=date(2027, 2, 2)
+        )
+
+        principal_antes_primera = resultado_antes_primera.final_balance().principal
+        principal_despues_primera = resultado_despues_primera.final_balance().principal
+        principal_despues_segunda = resultado_despues_segunda.final_balance().principal
+
+        # Antes de la primera capitalizacion (2026-02-01), el capital nunca crece por
+        # anatocismo -- sigue igual al valor original.
+        assert principal_antes_primera == obligacion_antes_primera.valor
+
+        # Justo antes de la segunda capitalizacion (2027-02-01): ya paso la primera, el
+        # capital creció una vez.
+        assert principal_despues_primera > obligacion_despues_primera.valor
+
+        # Justo despues de la segunda capitalizacion: el capital crece de nuevo, a partir
+        # de la base YA aumentada por la primera -- no del valor original. Si la segunda
+        # capitalizacion compusiera solo sobre el valor original (bug de "reset" en el
+        # bucle), el segundo salto seria igual al primero; en compuesto real sobre una
+        # base mayor, el segundo salto debe ser estrictamente mayor que el primero.
+        primer_salto = principal_despues_primera - obligacion_despues_primera.valor
+        segundo_salto = principal_despues_segunda - principal_despues_primera
+        assert segundo_salto > primer_salto
+
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
     assert CivilFamiliaStrategy().soporta_indexacion_ipc is True
