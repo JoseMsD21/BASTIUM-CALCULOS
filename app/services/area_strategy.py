@@ -569,7 +569,9 @@ class SancionatorioStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_sancionatoria(obligacion)
 
-        eventos_causacion = [self._evento_de_obligacion(obligacion) for obligacion in obligaciones]
+        eventos_causacion = []
+        for obligacion in obligaciones:
+            eventos_causacion.extend(self._eventos_de_obligacion(obligacion))
 
         pagos = [
             Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
@@ -598,13 +600,19 @@ class SancionatorioStrategy(AreaStrategy):
                 f"'cantidad_smlmv_uvt' para liquidar."
             )
 
-    def _evento_de_obligacion(self, obligacion) -> Event:
+    def _eventos_de_obligacion(self, obligacion) -> List[Event]:
         monto_pesos = resolver_base_sancion(obligacion.fecha_origen, obligacion.cantidad_smlmv_uvt)
-        return Event(
-            date=obligacion.fecha_origen,
-            payload={"amount": monto_pesos, "label": obligacion.concepto},
-            event_type=obligacion.categoria,
-        )
+        eventos = [
+            Event(
+                date=obligacion.fecha_origen,
+                payload={"amount": monto_pesos, "label": obligacion.concepto},
+                event_type=obligacion.categoria,
+            )
+        ]
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=monto_pesos)
+        if evento_costas is not None:
+            eventos.append(evento_costas)
+        return eventos
 
     def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
         fecha_mas_antigua = min(o.fecha_origen for o in obligaciones)

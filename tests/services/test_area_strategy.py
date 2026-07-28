@@ -705,6 +705,24 @@ class TestSancionatorioStrategy:
     def test_soporta_indexacion_ipc_es_false(self):
         assert SancionatorioStrategy().soporta_indexacion_ipc is False
 
+    def test_sancionatorio_genera_evento_de_costas_si_esta_configurado(self):
+        # cantidad_smlmv_uvt=1000 con el fecha_origen por defecto del fixture
+        # (2019-06-01, pre-2020 -> usa SMLMV, no UVT): monto_pesos = 1000 *
+        # 828116.00 = 828.116.000,00 -- muy por encima de 150 SMLMV(2019) =
+        # 124.217.400,00, cae en el tier "mayor cuantia" (sin techo), que siempre
+        # usa el porcentaje minimo del rango (3%) sin necesidad de interpolar.
+        # costas = 828.116.000 * 3% = 24.843.480,00, pero el tope de 20 SMLMV(2019)
+        # = 16.562.320,00 es menor -> se aplica el tope. Este caso ademas ejercita
+        # el tope de la Task 4 con un ejemplo end-to-end real.
+        obligacion = _obligacion_sancionatoria(cantidad_smlmv_uvt=_Decimal("1000"))
+        obligacion.costas_tipo_proceso = "declarativo_general"
+        obligacion.costas_instancia = "primera"
+
+        resultado = SancionatorioStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "COSTAS_PROCESALES" in tipos_evento
+        assert resultado.final_balance().principal == _Decimal("844678320.00")  # 828.116.000 + 16.562.320
+
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 
