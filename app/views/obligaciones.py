@@ -92,6 +92,9 @@ class ObligacionFormDialog(QDialog):
         self.campo_beneficio_obtenido = QLineEdit()
         self.campo_costas_pct = QLineEdit()
         self.check_aplica_indexacion_ipc = QCheckBox("Aplica indexación IPC (corrección monetaria)")
+        self.check_interes_sobre_capital_indexado = QCheckBox(
+            "Interés sobre capital ya indexado (algoritmo Suma Única / Ley 80 de 1993)"
+        )
 
         self.campo_base_sancion = QLineEdit()
         self.campo_meses_extemporaneidad = QSpinBox()
@@ -142,6 +145,7 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Beneficio obtenido por el cliente", self.campo_beneficio_obtenido)
         self.layout_formulario.addRow("% Costas judiciales (opcional)", self.campo_costas_pct)
         self.layout_formulario.addRow(self.check_aplica_indexacion_ipc)
+        self.layout_formulario.addRow(self.check_interes_sobre_capital_indexado)
         self.layout_formulario.addRow("Base de la sancion (impuesto a cargo o diferencia)", self.campo_base_sancion)
         self.layout_formulario.addRow("Meses o fraccion de atraso (extemporaneidad)", self.campo_meses_extemporaneidad)
         self.layout_formulario.addRow(self.check_sancion_agravada)
@@ -177,6 +181,7 @@ class ObligacionFormDialog(QDialog):
         self.campo_costas_pct.setVisible(es_honorarios)
 
         self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
+        self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
 
         # "Valor" no aplica a Sancionatorio/Honorarios/Tributario (salvo IMPUESTO_A_CARGO,
         # ver _actualizar_campos_tributario): el monto se calcula a partir de otros campos.
@@ -384,6 +389,7 @@ class ObligacionFormDialog(QDialog):
             beneficio_obtenido=beneficio_obtenido,
             costas_pct_manual=costas_pct,
             aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
+            interes_sobre_capital_indexado=self.check_interes_sobre_capital_indexado.isChecked(),
             moneda=moneda,
             trm_aplicable=trm_aplicable,
             trm_fecha_referencia=trm_fecha_referencia,
