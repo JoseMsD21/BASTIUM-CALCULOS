@@ -702,23 +702,12 @@ class SancionatorioStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_sancionatoria(obligacion)
 
-        eventos_causacion = []
-        for obligacion in obligaciones:
-            eventos_causacion.extend(self._eventos_de_obligacion(obligacion))
-
-        pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
-            for abono in abonos
-        ]
-
-        rate_provider = self._construir_rate_provider(obligaciones, fecha_corte)
-
-        service = UniversalLiquidationService()
-        return service.liquidar(
-            eventos_causacion=eventos_causacion,
-            pagos=pagos,
+        return _liquidar_por_obligacion(
+            obligaciones=obligaciones,
+            abonos=abonos,
             fecha_corte=fecha_corte,
-            rate_provider=rate_provider,
+            eventos_fn=self._eventos_de_obligacion,
+            rate_provider_fn=self._construir_rate_provider_obligacion,
         )
 
     def _validar_obligacion_sancionatoria(self, obligacion) -> None:
@@ -747,13 +736,12 @@ class SancionatorioStrategy(AreaStrategy):
             eventos.append(evento_costas)
         return eventos
 
-    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
-        fecha_mas_antigua = min(o.fecha_origen for o in obligaciones)
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligaciones[0].tasa_efectiva_anual)
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
 
         provider = MemoryRateProvider()
         provider.add_rate_period(
-            start=fecha_mas_antigua - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
+            start=obligacion.fecha_origen - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
         )
         return provider
 

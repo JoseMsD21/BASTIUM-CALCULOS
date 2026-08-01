@@ -1022,6 +1022,27 @@ class TestSancionatorioStrategy:
         assert "COSTAS_PROCESALES" in tipos_evento
         assert resultado.final_balance().principal == _Decimal("844678320.00")  # 828.116.000 + 16.562.320
 
+    def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
+        fecha_corte = date(2019, 6, 11)
+        obligacion_a = _obligacion_sancionatoria(tasa_efectiva_anual=Decimal("12.00"))
+        obligacion_a.id = 121
+        obligacion_b = _obligacion_sancionatoria(tasa_efectiva_anual=Decimal("24.00"))
+        obligacion_b.id = 122
+
+        resultado_combinado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion_a, obligacion_b], abonos=[], fecha_corte=fecha_corte
+        )
+        resultado_solo_a = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion_a], abonos=[], fecha_corte=fecha_corte
+        )
+        resultado_solo_b = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion_b], abonos=[], fecha_corte=fecha_corte
+        )
+
+        interes_esperado = resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        assert resultado_combinado.final_balance().interest == interes_esperado
+        assert resultado_combinado.final_balance().interest != Decimal("2") * resultado_solo_a.final_balance().interest
+
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 
