@@ -1709,13 +1709,13 @@ nueva.
    `AreaStrategy` (clase base, línea 26) o extraerlo a función compartida antes de que se repita en
    `TributarioStrategy` (Sprint 15). Detectado en code review del Sprint 2
    (`docs/superpowers/plans/2026-07-15-area-comercial.md`).
-4. **Misma duplicación en `_construir_rate_provider`**: `SancionatorioStrategy` y `HonorariosStrategy`
-   (Sprint 4) repiten, casi byte a byte, el patrón de "un solo tramo de tasa plana desde la obligación más
-   antigua hasta la fecha de corte" que ya existe en `CivilFamiliaStrategy` y `ComercialStrategy`.
-   Resolver junto con el punto 3 la próxima vez que se toque `area_strategy.py` — nota: si el Sprint 21
-   (múltiples tasas simultáneas) se hace primero, este método cambia de fondo, conviene coordinar el
-   orden. Detectado en code review del Sprint 4
-   (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5).
+4. **Misma duplicación en `_construir_rate_provider_obligacion`**: `CivilFamiliaStrategy`,
+   `SancionatorioStrategy` y `HonorariosStrategy` repiten, casi byte a byte, el patrón de "un solo tramo
+   de tasa plana desde la obligación hasta la fecha de corte" (el método ya toma una sola obligación, no
+   una lista, desde que el Sprint 21 lo migró — ver su cierre más arriba). Resolver junto con el punto 3
+   la próxima vez que se toque `area_strategy.py`. Detectado en code review del Sprint 4
+   (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5); actualizado tras el
+   cierre del Sprint 21 (2026-07-31).
 5. **`ObligacionFormDialog.guardar()` creciendo hacia "god method"**: cada área nueva (Comercial,
    Sancionatorio, Honorarios) agrega su propio bloque `if es_X: try: ... except: raise ValueError(...)` en
    `app/views/obligaciones.py` — hoy (después del Sprint 4) tiene 4 ramas implícitas y ~90 líneas. Con
