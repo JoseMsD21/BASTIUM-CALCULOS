@@ -19,12 +19,6 @@ Aplica un pago recibido contra una deuda pendiente, siguiendo la prelacion legal
 Cada `Abono` capturado en la GUI se convierte en un `Payment` (`CivilFamiliaStrategy`) y se mezcla
 cronologicamente con los eventos de causacion antes de procesarse.
 
-## Advertencia de deuda tecnica
-Existe un segundo motor de allocation, `app/engine/allocation/allocator.py`, que opera sobre un modelo de
-dominio distinto (`app.domain.obligation.base.Obligation`) y **no esta implementado**
-(`raise NotImplementedError`). No se usa en este MVP ni se debe usar — es codigo huerfano. Ver
-`Pendientes.md` para la decision de eliminarlo o completarlo.
-
 ## Pendiente (no implementado aun)
 - Validadores de pago anomalo (pago mayor al saldo, duplicado, sin soporte).
 - Reglas de imputacion alternativas por regimen (ej. tributario: sanciones -> intereses -> impuesto).
