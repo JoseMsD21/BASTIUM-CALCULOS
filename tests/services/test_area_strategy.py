@@ -625,6 +625,34 @@ class TestComercialStrategy:
     def test_soporta_indexacion_ipc_es_false(self):
         assert ComercialStrategy().soporta_indexacion_ipc is False
 
+    def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
+        fecha_corte = date(2025, 1, 11)  # antes del vencimiento (2025-06-01) de ambas
+        obligacion_a = _obligacion_comercial(
+            fecha_origen=date(2025, 1, 1), fecha_vencimiento=date(2025, 6, 1),
+            tasa_remuneratoria=Decimal("6.00"),
+        )
+        obligacion_a.id = 111
+        obligacion_b = _obligacion_comercial(
+            fecha_origen=date(2025, 1, 1), fecha_vencimiento=date(2025, 6, 1),
+            tasa_remuneratoria=Decimal("18.00"),
+        )
+        obligacion_b.id = 112
+
+        resultado_combinado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_a, obligacion_b], abonos=[], fecha_corte=fecha_corte
+        )
+        resultado_solo_a = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_a], abonos=[], fecha_corte=fecha_corte
+        )
+        resultado_solo_b = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_b], abonos=[], fecha_corte=fecha_corte
+        )
+
+        assert resultado_combinado.final_balance().principal == Decimal("2000000.00")
+        interes_esperado = resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        assert resultado_combinado.final_balance().interest == interes_esperado
+        assert resultado_combinado.final_balance().interest != Decimal("2") * resultado_solo_a.final_balance().interest
+
     def test_items_tienen_rate_source_por_tramo(self):
         obligacion = _obligacion_comercial()
 

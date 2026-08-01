@@ -306,23 +306,12 @@ class ComercialStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_comercial(obligacion)
 
-        eventos_causacion: List[Event] = []
-        for obligacion in obligaciones:
-            eventos_causacion.extend(self._eventos_de_obligacion(obligacion, fecha_corte))
-
-        pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
-            for abono in abonos
-        ]
-
-        rate_provider = self._construir_rate_provider(obligaciones, fecha_corte)
-
-        service = UniversalLiquidationService()
-        return service.liquidar(
-            eventos_causacion=eventos_causacion,
-            pagos=pagos,
+        return _liquidar_por_obligacion(
+            obligaciones=obligaciones,
+            abonos=abonos,
             fecha_corte=fecha_corte,
-            rate_provider=rate_provider,
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
+            rate_provider_fn=self._construir_rate_provider_obligacion,
         )
 
     def _validar_obligacion_comercial(self, obligacion) -> None:
@@ -462,39 +451,37 @@ class ComercialStrategy(AreaStrategy):
         fin = obligacion.fecha_fin or fecha_corte
         return scheduler.generate(start=obligacion.fecha_inicio, end=fin)
 
-    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
         provider = MemoryRateProvider()
+        tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_moratoria_anual)
 
-        for obligacion in obligaciones:
-            tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_moratoria_anual)
-
-            if obligacion.tipo.value == "PUNTUAL":
-                tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
-                inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
-                fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
+        if obligacion.tipo.value == "PUNTUAL":
+            tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
+            inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
+            fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
+            provider.add_rate_period(
+                start=inicio_remuneratorio,
+                end=fin_remuneratorio,
+                rate=tasa_remuneratoria_diaria,
+                source="Tasa remuneratoria pactada (Art. 884 C.Co.)",
+            )
+            if obligacion.fecha_vencimiento < fecha_corte:
+                inicio_moratorio = obligacion.fecha_vencimiento + timedelta(days=1)
                 provider.add_rate_period(
-                    start=inicio_remuneratorio,
-                    end=fin_remuneratorio,
-                    rate=tasa_remuneratoria_diaria,
-                    source="Tasa remuneratoria pactada (Art. 884 C.Co.)",
-                )
-                if obligacion.fecha_vencimiento < fecha_corte:
-                    inicio_moratorio = obligacion.fecha_vencimiento + timedelta(days=1)
-                    provider.add_rate_period(
-                        start=inicio_moratorio,
-                        end=fecha_corte,
-                        rate=tasa_moratoria_diaria,
-                        source="Tasa moratoria pactada (Art. 884 C.Co.)",
-                    )
-            else:
-                # RECURRENTE: sin split por cuota individual (alcance reducido, ver spec).
-                inicio = obligacion.fecha_inicio - timedelta(days=1)
-                provider.add_rate_period(
-                    start=inicio,
+                    start=inicio_moratorio,
                     end=fecha_corte,
                     rate=tasa_moratoria_diaria,
                     source="Tasa moratoria pactada (Art. 884 C.Co.)",
                 )
+        else:
+            # RECURRENTE: sin split por cuota individual (alcance reducido, ver spec).
+            inicio = obligacion.fecha_inicio - timedelta(days=1)
+            provider.add_rate_period(
+                start=inicio,
+                end=fecha_corte,
+                rate=tasa_moratoria_diaria,
+                source="Tasa moratoria pactada (Art. 884 C.Co.)",
+            )
 
         return provider
 
