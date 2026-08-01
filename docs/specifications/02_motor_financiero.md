@@ -39,6 +39,5 @@ Cada `AreaStrategy` construye un `MemoryRateProvider` con la(s) tasa(s) efectiva
   ningun caso (comportamiento correcto para Civil, pero el area Comercial lo necesitara bajo condiciones) —
   ver `Pendientes.md`, Sprint 19.
 - Multiples tasas de interes simultaneas por expediente — ver `Pendientes.md`, Sprint 21.
-- Indexacion sobre capital ya indexado (algoritmo "Suma Unica") — ver `Pendientes.md`, Sprint 20.
 
 Ver `Pendientes.md`.

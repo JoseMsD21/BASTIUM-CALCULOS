@@ -87,7 +87,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
 - [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--completado)
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
-- [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única)
+- [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente)
 - [Sprint 22 — Limpieza técnica acumulada](#sprint-22--limpieza-técnica-acumulada)
 - [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
@@ -1538,7 +1538,7 @@ saldos por obligación) — heredado de la arquitectura ya existente, no introdu
 
 ---
 
-## Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")
+## Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado
 
 **Prioridad sugerida:** Baja/exploratoria — es un cambio de fondo en el motor core que afecta las 5 áreas
 operables hoy; el Sprint 8 documentó esta limitación deliberadamente sin corregirla porque el impacto es
@@ -1596,6 +1596,22 @@ transversal, no local a Civil/Familia.
   default.
 - Interactúa directamente con el motor de auditoría (Sprint 9): `reconstruir_liquidacion()` debe poder
   reproducir el algoritmo que estaba vigente en la fecha de cada liquidación histórica.
+
+**Estado:** Implementado (2026-07-31) — ver
+`docs/superpowers/plans/2026-07-31-sprint20-suma-unica.md` y
+`docs/superpowers/specs/2026-07-31-sprint20-suma-unica-design.md`. Decisiones tomadas con el usuario
+durante el brainstorming previo: (a) se migra al algoritmo exacto del PDF, no se deja como simplificación
+del MVP; (b) `reconstruir_liquidacion()` (Sprint 9) deserializa un snapshot congelado y nunca recalcula, así
+que el riesgo de retrocompatibilidad que anticipaba este sprint no aplicaba — no se necesitó ningún guard
+especial para liquidaciones ya auditadas; (c) flag explícito por obligación
+(`Obligacion.interes_sobre_capital_indexado`, default `False`), no un reemplazo global ni un parámetro a
+nivel de expediente — mismo patrón que `aplica_indexacion_ipc`; (d) un expediente que mezcle obligaciones
+indexadas con criterios de interés distintos lanza `ValueError` en vez de aplicar el criterio de una sola
+obligación a todo el expediente en silencio. Hallazgo no anticipado en la redacción original de este
+sprint: el bucket `PendingDebt.indexation` está compartido con `SANCION_TRIBUTARIA` (Tributario) — se
+descartó separar el modelo de dominio porque el flag se resuelve por llamada a `liquidar()` y
+`TributarioStrategy` nunca lo activa, así que las sanciones tributarias nunca entran a la base de interés
+aunque compartan el bucket.
 
 **Definición de Hecho:**
 - Test que reproduce el ejemplo numérico exacto del PDF (pág. 69: capital $50.000.000 de 2010 a 2025,

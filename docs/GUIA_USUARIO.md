@@ -225,6 +225,11 @@ Usa este tipo cuando la deuda es un monto único con una sola fecha (ej. "gastos
      inflación (indexación, Art. corrección monetaria) además del interés. Es una decisión del abogado
      caso por caso — no todas las obligaciones se indexan. Ver
      [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle de cómo se calcula.
+   - **Interés sobre capital ya indexado**: marca esta casilla, además de "Aplica indexación IPC", si
+     quieres el algoritmo "Suma Única" del PDF (pág. 21-22): primero se indexa el capital por IPC, y el
+     interés del 6% se calcula sobre ese valor ya indexado, no sobre el capital histórico. Sin esta
+     casilla, el interés se sigue calculando solo sobre el capital histórico (comportamiento anterior a
+     este sprint). Ver [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle.
 4. Haz clic en **"Guardar"**.
 
 Si pones un valor negativo o cero, el programa te avisa "Datos inválidos" y no deja guardar.
@@ -245,6 +250,11 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
      casilla para que la obligación se indexe por IPC. En Recurrente, cada cuota se indexa
      individualmente desde su propia fecha de vencimiento, no todas desde el inicio de la obligación —
      ver [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle.
+   - **Interés sobre capital ya indexado**: marca esta casilla, además de "Aplica indexación IPC", si
+     quieres el algoritmo "Suma Única" del PDF (pág. 21-22): primero se indexa el capital por IPC, y el
+     interés del 6% se calcula sobre ese valor ya indexado, no sobre el capital histórico. Sin esta
+     casilla, el interés se sigue calculando solo sobre el capital histórico (comportamiento anterior a
+     este sprint). Ver [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle.
 3. Haz clic en **"Guardar"**.
 
 El programa genera automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de
@@ -784,9 +794,14 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   interpola linealmente entre el índice de cierre del año anterior y el del año actual — es una
   aproximación razonable, pero no es el valor mensual exacto que certificaría el DANE. Para fechas de
   2026 en adelante (la serie no llega hasta ahí), se usa el índice de 2025 como aproximación.
-- **Qué NO hace todavía**: los intereses (Art. 1617 C.C.) se siguen calculando solo sobre el capital, no
-  sobre el capital ya indexado — el algoritmo de "Suma Única" del PDF (interés sobre el valor indexado)
-  requeriría cambiar el motor de liquidación para las 5 áreas, fuera del alcance de este sprint.
+- **Interés sobre capital ya indexado (algoritmo "Suma Única")**: desde el Sprint 20, marcando la casilla
+  adicional **"Interés sobre capital ya indexado (algoritmo Suma Única / Ley 80 de 1993)"** junto a "Aplica
+  indexación IPC", el interés del 6% (Art. 1617 C.C.) se calcula sobre el capital ya indexado (`Va`), no
+  sobre el capital histórico — el algoritmo "Suma Única" del PDF (pág. 21-22), que también aplica a los
+  intereses de la Ley 80 de 1993 para contratos estatales (misma mecánica, sin campo propio). Sin esta
+  casilla marcada, el comportamiento es el mismo de antes de este sprint (interés solo sobre el capital
+  histórico). No se puede mezclar dentro del mismo expediente: si dos obligaciones indexadas traen valores
+  distintos de esta casilla, el programa rechaza la liquidación con un mensaje claro.
 
 ### 7.8. TRM y obligaciones en moneda extranjera
 

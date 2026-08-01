@@ -9,12 +9,15 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-28)
+## Estado actual (2026-07-31)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
 abonos, indexación IPC opcional por obligación (Art. corrección monetaria; el abogado marca caso por caso si
-aplica, con interpolación entre índices de cierre de año para fechas intermedias)), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
+aplica, con interpolación entre índices de cierre de año para fechas intermedias), con la opción de aplicar
+el algoritmo "Suma Única" (Art. corrección monetaria + interés civil, PDF pág. 21-22: interés sobre el
+capital ya indexado en vez de sobre el capital histórico, también válido para intereses de la Ley 80 de
+1993 en contratos estatales)), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
 split real antes/después del vencimiento, validación de tope de usura 1.5×IBC, obligaciones en USD
 convertidas a pesos con la TRM ingresada por el abogado (Art. 874 C.Co.), y anatocismo condicionado
 (Art. 886 C.Co.: interés sobre interés, activado solo con demanda judicial o acuerdo posterior con al
@@ -81,6 +84,11 @@ script es idempotente (se puede correr de más sin riesgo) y solo hace falta una
 `python scripts/migrate_moneda_trm.py` antes de abrir la app — agrega las columnas `moneda`,
 `trm_aplicable` y `trm_fecha_referencia` que necesitan las obligaciones comerciales en moneda extranjera.
 Igual que el script del Sprint 8, es idempotente y solo hace falta una vez por instalación.
+
+**Si ya tenías `bastium.db` creado antes del Sprint 20**, corre una vez
+`python scripts/migrate_interes_sobre_capital_indexado.py` antes de abrir la app — agrega la columna
+`interes_sobre_capital_indexado` que el algoritmo "Suma Única" necesita. Igual que los scripts anteriores,
+es idempotente y solo hace falta una vez por instalación.
 
 **Si ya tenías `bastium.db` creado antes de este sprint**, corre una vez
 `python scripts/migrate_parametros_legales.py` antes de abrir la app — crea y siembra la tabla

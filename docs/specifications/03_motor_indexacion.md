@@ -18,6 +18,11 @@ activacion opcional por obligacion.
 - `app/services/area_strategy.py`, `CivilFamiliaStrategy._evento_indexacion` (Sprint 8): genera un evento
   `INDEXATION` por cada evento de capital cuando `Obligacion.aplica_indexacion_ipc` es `True` -- uno para
   obligaciones PUNTUAL, uno por cuota para RECURRENTE (tracto sucesivo).
+- `LiquidationCore` (`app/engine/liquidation/engine.py`, Sprint 20): recibe `usar_suma_unica: bool` en el
+  constructor; cuando es `True`, `_accrue_time_passage` calcula el interes diario sobre
+  `principal + indexation` en vez de solo `principal`. `CivilFamiliaStrategy._resolver_suma_unica`
+  (`app/services/area_strategy.py`) deriva el flag desde `Obligacion.interes_sobre_capital_indexado` y
+  valida que no se mezclen criterios dentro del mismo expediente.
 
 ## Estado
 Conectado a `CivilFamiliaStrategy` (Sprint 8). Opt-in por obligacion via el campo
@@ -29,9 +34,10 @@ Familia.
   real (el DANE certifica mensualmente, pero la fuente transcrita en el Sprint 5 solo trae variacion
   anual) -- ver `get_ipc_interpolado_for_date`.
 - Fechas de 2026 en adelante usan el indice de 2025 como aproximacion (la serie no tiene 2026).
-- El interes (Art. 1617 C.C.) se sigue calculando solo sobre el capital, no sobre el capital ya
-  indexado -- el algoritmo de "Suma Única" del PDF (pag. 22) pide interes sobre el valor indexado; eso
-  requeriria cambiar `LiquidationCore`/`BalanceEngine` para las 5 areas, fuera de alcance de este sprint.
+- El interes (Art. 1617 C.C.) se calcula sobre el capital ya indexado ("Suma Única", PDF pag. 21-22) solo
+  cuando `Obligacion.interes_sobre_capital_indexado` esta activo (ademas de `aplica_indexacion_ipc`) --
+  opt-in explicito por obligacion, Sprint 20. Sin ese flag, el comportamiento es el mismo de antes: interes
+  solo sobre el capital historico.
 - UVT y UVR siguen sin cargar (fuera de alcance, ver Sprint 5).
 
-Ver `Pendientes.md`, Sprint 8.
+Ver `Pendientes.md`, Sprints 8 y 20.
