@@ -1817,3 +1817,50 @@ def test_civil_familia_suma_unica_ignora_obligaciones_sin_indexacion_activa():
         obligaciones=[obligacion_indexada, obligacion_sin_indexar], abonos=[], fecha_corte=date(2025, 12, 31)
     )
     assert resultado.final_balance().indexation == Decimal("77633.53")
+
+
+def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
+    # PDF pag. 69, "Actualizacion por IPC": capital $50.000.000 firmado el 1/1/2010,
+    # liquidado el 1/1/2025. El PDF usa indices ilustrativos (140 -> 200, Va=$71.428.571)
+    # solo como ejemplo pedagogico; este test usa la serie IPC real del motor
+    # (historical_index.py, transcrita de las paginas 55-62 del mismo PDF) para las
+    # mismas fechas y el mismo capital, por lo que el resultado numerico es distinto
+    # del ilustrativo de la pag. 69 -- ver docstring del test y spec de este sprint.
+    obligacion = Obligacion(
+        id=12, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Credito indexado",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2010, 1, 1), valor=Decimal("50000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=True,
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 1, 1)
+    )
+
+    fb = resultado.final_balance()
+    # Va (capital ya indexado) = principal + indexation, calculado con la serie IPC
+    # real: Va = 50.000.000 x (IPC(2025-01-01) / IPC(2010-01-01)).
+    assert fb.principal == Decimal("50000000.00")
+    assert fb.indexation == Decimal("51762113.73")
+    va = fb.principal + fb.indexation
+    assert va == Decimal("101762113.73")
+    # Paso 2 (Suma Unica): interes civil 6% EA aplicado sobre Va, no sobre el capital
+    # historico -- verificado independientemente replicando la acumulacion diaria del
+    # motor (DailyInterest + EffectiveRateConverter) con capital=Va constante durante
+    # todo el periodo (la indexacion se causa el mismo dia que el capital).
+    assert fb.interest == Decimal("89015614.51")
+
+    # Contraste: con el algoritmo legado (interes solo sobre el capital historico),
+    # el mismo caso da un interes bastante menor -- confirma que Suma Unica
+    # efectivamente cambia el resultado, no solo que el motor no truena.
+    obligacion_legado = Obligacion(
+        id=13, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Credito indexado",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2010, 1, 1), valor=Decimal("50000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=False,
+    )
+    resultado_legado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_legado], abonos=[], fecha_corte=date(2025, 1, 1)
+    )
+    assert resultado_legado.final_balance().interest == Decimal("43737103.72")
+    assert fb.interest > resultado_legado.final_balance().interest
