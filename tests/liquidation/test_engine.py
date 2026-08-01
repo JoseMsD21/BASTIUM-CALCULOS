@@ -168,3 +168,42 @@ def test_engine_usar_suma_unica_false_no_accrual_when_only_indexation_present():
     result = engine.process(events, cutoff_date=date(2026, 1, 11))
 
     assert result.final_balance().interest == Decimal("0.00")
+
+
+def test_engine_usar_suma_unica_true_capital_base_en_liquidation_item_incluye_indexation():
+    # LiquidationItem.capital_base existe "para que el juez pueda auditar la
+    # trazabilidad" (ver docstring de LiquidationItem) -- bajo Suma Unica debe
+    # reflejar la base real que genero el interes (principal + indexation), no
+    # solo principal, o el rubro auditado quedaria inconsistente con el interes
+    # reportado en la misma fila/corte.
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=True)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    item_indexation = next(i for i in result.items if i.balance.event_type == "INDEXATION")
+    assert item_indexation.capital_base == Decimal("1500.00")
+
+    item_cierre = result.items[-1]
+    assert item_cierre.capital_base == Decimal("1500.00")
+
+
+def test_engine_usar_suma_unica_false_capital_base_en_liquidation_item_sigue_siendo_solo_principal():
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=False)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    item_indexation = next(i for i in result.items if i.balance.event_type == "INDEXATION")
+    assert item_indexation.capital_base == Decimal("1000.00")
+
+    item_cierre = result.items[-1]
+    assert item_cierre.capital_base == Decimal("1000.00")

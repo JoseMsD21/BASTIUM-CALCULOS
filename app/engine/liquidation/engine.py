@@ -69,7 +69,7 @@ class LiquidationCore:
              closing_item = LiquidationItem(
                  date=cutoff_date,
                  concept="Corte final de liquidación",
-                 capital_base=self._current_debt.principal,
+                 capital_base=self._capital_base_actual(),
                  interest_rate=self._get_rate_for_date(cutoff_date).percent(),
                  interest_amount=Decimal("0.00"),
                  indexation_amount=Decimal("0.00"),
@@ -80,6 +80,17 @@ class LiquidationCore:
              self._history.append(closing_item)
 
         return LiquidationResult(self._history)
+
+    def _capital_base_actual(self) -> Decimal:
+        """Capital que efectivamente alimenta el interes diario en este instante --
+        principal solo, o principal + indexacion bajo Suma Unica. Se usa tanto para
+        acumular interes (_accrue_time_passage) como para el LiquidationItem.capital_base
+        que ve el juez al auditar la liquidacion (ver docstring de LiquidationItem): sin
+        esto, el rubro auditado no coincidiria con la base que realmente generó el
+        interes de esa fila bajo Suma Unica."""
+        return self._current_debt.principal + (
+            self._current_debt.indexation if self._usar_suma_unica else Decimal("0.00")
+        )
 
     def _get_rate_for_date(self, target_date: date) -> Rate:
         if self._rate_provider:
@@ -95,9 +106,7 @@ class LiquidationCore:
         if not self._last_event_date or target_date <= self._last_event_date:
             return
             
-        capital_base = self._current_debt.principal + (
-            self._current_debt.indexation if self._usar_suma_unica else Decimal("0.00")
-        )
+        capital_base = self._capital_base_actual()
         if capital_base <= Decimal("0.00"):
             return
 
@@ -159,7 +168,7 @@ class LiquidationCore:
         return LiquidationItem(
             date=event.date,
             concept=concept,
-            capital_base=self._current_debt.principal, 
+            capital_base=self._capital_base_actual(),
             interest_rate=self._get_rate_for_date(event.date).percent(),
             interest_amount=interest_amount,
             indexation_amount=indexation_amount,
