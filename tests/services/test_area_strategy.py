@@ -335,6 +335,112 @@ def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
     assert resultado.final_balance().principal == _Decimal("132145000.00")  # 123.500.000 + 8.645.000
 
 
+def test_civil_familia_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa():
+    fecha_corte = date(2026, 1, 11)
+    obligacion_a = Obligacion(
+        id=101, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion A",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+    )
+    obligacion_b = Obligacion(
+        id=102, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion B",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("24.00"),
+    )
+
+    resultado_combinado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_a, obligacion_b], abonos=[], fecha_corte=fecha_corte
+    )
+    resultado_solo_a = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_a], abonos=[], fecha_corte=fecha_corte
+    )
+    resultado_solo_b = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_b], abonos=[], fecha_corte=fecha_corte
+    )
+
+    assert resultado_combinado.final_balance().principal == Decimal("2000000.00")
+    # El interes combinado debe ser exactamente la suma de cada obligacion liquidada con
+    # su propia tasa por separado -- no depende de interacciones entre obligaciones porque
+    # no hay abonos en este caso.
+    interes_esperado = resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+    assert resultado_combinado.final_balance().interest == interes_esperado
+    # Si el bug de "toma la tasa de la primera obligacion para todo el expediente" siguiera
+    # presente, el interes combinado seria 2 * interes_solo_a (ambas al 12%) en vez de la
+    # suma de cada una a su propia tasa -- como B esta al doble de tasa que A, estos dos
+    # valores son observablemente distintos, asi que esta asercion por si sola detecta el bug.
+    assert resultado_combinado.final_balance().interest != Decimal("2") * resultado_solo_a.final_balance().interest
+
+
+def test_civil_familia_abono_de_una_obligacion_no_afecta_el_saldo_de_otra():
+    fecha_corte = date(2026, 1, 11)
+    obligacion_a = Obligacion(
+        id=103, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion A",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+    )
+    obligacion_b = Obligacion(
+        id=104, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion B",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+    )
+    abono_a = Abono(
+        id=201, obligacion_id=103, fecha=date(2026, 1, 5), monto=Decimal("300000.00"), referencia="pago-a"
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_a, obligacion_b], abonos=[abono_a], fecha_corte=fecha_corte
+    )
+    resultado_solo_b_sin_abono = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_b], abonos=[], fecha_corte=fecha_corte
+    )
+    resultado_solo_a_con_abono = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_a], abonos=[abono_a], fecha_corte=fecha_corte
+    )
+
+    assert resultado.total_payments_applied() == Decimal("300000.00")
+    # El interes de B no debe verse afectado por el abono registrado contra A: el interes
+    # combinado debe ser exactamente A-con-abono + B-sin-abono, no una mezcla donde el abono
+    # de A tambien reduce lo que B acumula.
+    interes_esperado = (
+        resultado_solo_a_con_abono.final_balance().interest + resultado_solo_b_sin_abono.final_balance().interest
+    )
+    assert resultado.final_balance().interest == interes_esperado
+
+
+def test_civil_familia_abono_con_obligacion_id_ajeno_al_expediente_lanza_value_error():
+    obligacion = _obligacion_puntual()
+    abono_huerfano = Abono(
+        id=202, obligacion_id=999, fecha=date(2025, 12, 1), monto=Decimal("1000.00"), referencia="huerfano"
+    )
+
+    with pytest.raises(ValueError):
+        CivilFamiliaStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[abono_huerfano], fecha_corte=date(2026, 1, 1)
+        )
+
+
+def test_civil_familia_dos_obligaciones_producen_una_sola_fila_de_cierre_consolidada():
+    fecha_corte = date(2026, 1, 11)
+    obligacion_a = Obligacion(
+        id=105, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion A",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+    )
+    obligacion_b = Obligacion(
+        id=106, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion B",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("24.00"),
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_a, obligacion_b], abonos=[], fecha_corte=fecha_corte
+    )
+
+    filas_de_cierre = [item for item in resultado.items if item.balance.event_type == "LIQUIDATION_CUTOFF"]
+    assert len(filas_de_cierre) == 1
+    assert resultado.final_balance().principal == Decimal("2000000.00")
+
+
 from app.engine.liquidation.engine import LiquidationCore
 
 
