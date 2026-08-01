@@ -800,8 +800,9 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   sobre el capital histórico — el algoritmo "Suma Única" del PDF (pág. 21-22), que también aplica a los
   intereses de la Ley 80 de 1993 para contratos estatales (misma mecánica, sin campo propio). Sin esta
   casilla marcada, el comportamiento es el mismo de antes de este sprint (interés solo sobre el capital
-  histórico). No se puede mezclar dentro del mismo expediente: si dos obligaciones indexadas traen valores
-  distintos de esta casilla, el programa rechaza la liquidación con un mensaje claro.
+  histórico). Cada obligación decide por sí sola: un mismo expediente puede tener obligaciones con y sin
+  esta casilla marcada, cada una liquida con su propio criterio (Art. 1617 C.C., Sprint 21: cada obligación
+  se liquida por separado con su propia tasa).
 
 ### 7.8. TRM y obligaciones en moneda extranjera
 

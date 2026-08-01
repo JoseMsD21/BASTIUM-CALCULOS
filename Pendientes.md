@@ -88,7 +88,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--completado)
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
-- [Sprint 21 — Múltiples tasas de interés simultáneas por expediente](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente)
+- [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada](#sprint-22--limpieza-técnica-acumulada)
 - [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
 - [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
@@ -1605,13 +1605,25 @@ del MVP; (b) `reconstruir_liquidacion()` (Sprint 9) deserializa un snapshot cong
 que el riesgo de retrocompatibilidad que anticipaba este sprint no aplicaba — no se necesitó ningún guard
 especial para liquidaciones ya auditadas; (c) flag explícito por obligación
 (`Obligacion.interes_sobre_capital_indexado`, default `False`), no un reemplazo global ni un parámetro a
-nivel de expediente — mismo patrón que `aplica_indexacion_ipc`; (d) un expediente que mezcle obligaciones
-indexadas con criterios de interés distintos lanza `ValueError` en vez de aplicar el criterio de una sola
-obligación a todo el expediente en silencio. Hallazgo no anticipado en la redacción original de este
-sprint: el bucket `PendingDebt.indexation` está compartido con `SANCION_TRIBUTARIA` (Tributario) — se
-descartó separar el modelo de dominio porque el flag se resuelve por llamada a `liquidar()` y
-`TributarioStrategy` nunca lo activa, así que las sanciones tributarias nunca entran a la base de interés
-aunque compartan el bucket.
+nivel de expediente — mismo patrón que `aplica_indexacion_ipc`; (d) diseño original: un expediente que
+mezclara obligaciones indexadas con criterios de interés distintos lanzaba `ValueError`, porque
+`CivilFamiliaStrategy` liquidaba todo el expediente sobre un único `PendingDebt` compartido y mezclar
+criterios en ese saldo era ambiguo. Hallazgo no anticipado en la redacción original de este sprint: el
+bucket `PendingDebt.indexation` está compartido con `SANCION_TRIBUTARIA` (Tributario) — se descartó
+separar el modelo de dominio porque el flag se resuelve por llamada a `liquidar()` y `TributarioStrategy`
+nunca lo activa, así que las sanciones tributarias nunca entran a la base de interés aunque compartan el
+bucket.
+
+**Ajuste post-implementación (2026-07-31, al integrar con Sprint 21):** el Sprint 21 (múltiples tasas
+simultáneas) se completó y mergeó a `main` mientras este sprint se trabajaba en un worktree aislado, y
+cambió `CivilFamiliaStrategy` para liquidar **cada obligación en su propio `LiquidationCore`** (`PendingDebt`
+independiente, ver `_liquidar_por_obligacion`/`_fusionar_resultados`) en vez de un único saldo compartido
+por expediente. Eso volvió obsoleto el punto (d): ya no hay un saldo compartido que mezclar, así que
+`_resolver_suma_unica` pasó a resolverse **por obligación** (`aplica_indexacion_ipc and
+interes_sobre_capital_indexado`), sin validación de consistencia entre obligaciones del mismo expediente —
+un expediente puede mezclar libremente obligaciones con y sin Suma Única, cada una liquida con su propio
+criterio, y `_fusionar_resultados` suma los saldos individuales. El `ValueError` de "mismo criterio de
+interés" se eliminó junto con el test que lo cubría.
 
 **Definición de Hecho:**
 - Test que reproduce el ejemplo numérico exacto del PDF (pág. 69: capital $50.000.000 de 2010 a 2025,
@@ -1621,7 +1633,7 @@ aunque compartan el bucket.
 
 ---
 
-## Sprint 21 — Múltiples tasas de interés simultáneas por expediente
+## Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado
 
 **Prioridad sugerida:** Media — limitación conocida desde el Sprint 2, documentada como pendiente en el
 backlog técnico desde entonces.
@@ -1673,6 +1685,32 @@ backlog técnico desde entonces.
 - Suite completa en verde, sin cambios de resultado en los tests existentes de expedientes de una sola
   obligación.
 
+**Estado:** Implementado (2026-07-31, ver rango de commits desde `47ce9cd` hasta `f326e1e`) —
+ver `docs/superpowers/specs/2026-07-31-sprint21-multiples-tasas-design.md` y
+`docs/superpowers/plans/2026-07-31-sprint21-multiples-tasas.md`.
+
+El fix real fue más profundo que "indexar `MemoryRateProvider` por obligación": `LiquidationCore`
+mantiene un solo saldo agregado por instancia, así que dos obligaciones no pueden acumular interés a
+tasas distintas simultáneamente dentro del mismo núcleo. La solución fue correr un `LiquidationCore`
+independiente por obligación (cada uno con su propia tasa y solo sus propios abonos, vía el
+`obligacion_id` que `Abono` ya tenía en la base de datos pero que el motor ignoraba) y fusionar los
+historiales en una sola línea de tiempo consolidada — sin tocar `LiquidationCore`/`BalanceEngine`/
+`AllocationEngine`.
+
+Áreas migradas: `CivilFamiliaStrategy`, `ComercialStrategy`, `SancionatorioStrategy`,
+`HonorariosStrategy`. `LaboralStrategy` no aplica (liquida un solo contrato por expediente por diseño).
+`TributarioStrategy` no aplica (su tasa moratoria del E.T. art. 635 es una tasa legal automática, igual
+para todas las obligaciones del expediente, no viene de `tasa_efectiva_anual`).
+
+Cambio de comportamiento deliberado: los abonos ahora se imputan solo a la obligación a la que fueron
+registrados (antes se aplicaban como bolsa única del expediente) — coincide con lo que la GUI ya exigía
+al capturar un abono (selección obligatoria de una obligación primero) pero que el motor de liquidación
+no honraba. No había ningún test que dependiera del comportamiento anterior.
+
+`_construir_rate_provider_obligacion` sigue duplicado entre `CivilFamiliaStrategy`, `SancionatorioStrategy`
+y `HonorariosStrategy` (mismo patrón de "un solo tramo plano por obligación") — deduplicarlo queda para el
+Sprint 22, como ya anticipaba la nota de coordinación en ese sprint.
+
 ---
 
 ## Sprint 22 — Limpieza técnica acumulada
@@ -1699,13 +1737,13 @@ nueva.
    `AreaStrategy` (clase base, línea 26) o extraerlo a función compartida antes de que se repita en
    `TributarioStrategy` (Sprint 15). Detectado en code review del Sprint 2
    (`docs/superpowers/plans/2026-07-15-area-comercial.md`).
-4. **Misma duplicación en `_construir_rate_provider`**: `SancionatorioStrategy` y `HonorariosStrategy`
-   (Sprint 4) repiten, casi byte a byte, el patrón de "un solo tramo de tasa plana desde la obligación más
-   antigua hasta la fecha de corte" que ya existe en `CivilFamiliaStrategy` y `ComercialStrategy`.
-   Resolver junto con el punto 3 la próxima vez que se toque `area_strategy.py` — nota: si el Sprint 21
-   (múltiples tasas simultáneas) se hace primero, este método cambia de fondo, conviene coordinar el
-   orden. Detectado en code review del Sprint 4
-   (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5).
+4. **Misma duplicación en `_construir_rate_provider_obligacion`**: `CivilFamiliaStrategy`,
+   `SancionatorioStrategy` y `HonorariosStrategy` repiten, casi byte a byte, el patrón de "un solo tramo
+   de tasa plana desde la obligación hasta la fecha de corte" (el método ya toma una sola obligación, no
+   una lista, desde que el Sprint 21 lo migró — ver su cierre más arriba). Resolver junto con el punto 3
+   la próxima vez que se toque `area_strategy.py`. Detectado en code review del Sprint 4
+   (`docs/superpowers/plans/2026-07-17-sprint4-sancionatorio-honorarios.md`, Task 5); actualizado tras el
+   cierre del Sprint 21 (2026-07-31).
 5. **`ObligacionFormDialog.guardar()` creciendo hacia "god method"**: cada área nueva (Comercial,
    Sancionatorio, Honorarios) agrega su propio bloque `if es_X: try: ... except: raise ValueError(...)` en
    `app/views/obligaciones.py` — hoy (después del Sprint 4) tiene 4 ramas implícitas y ~90 líneas. Con

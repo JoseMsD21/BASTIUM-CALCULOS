@@ -20,9 +20,12 @@ activacion opcional por obligacion.
   obligaciones PUNTUAL, uno por cuota para RECURRENTE (tracto sucesivo).
 - `LiquidationCore` (`app/engine/liquidation/engine.py`, Sprint 20): recibe `usar_suma_unica: bool` en el
   constructor; cuando es `True`, `_accrue_time_passage` calcula el interes diario sobre
-  `principal + indexation` en vez de solo `principal`. `CivilFamiliaStrategy._resolver_suma_unica`
-  (`app/services/area_strategy.py`) deriva el flag desde `Obligacion.interes_sobre_capital_indexado` y
-  valida que no se mezclen criterios dentro del mismo expediente.
+  `principal + indexation` en vez de solo `principal` (y `LiquidationItem.capital_base` refleja esa misma
+  base, para que el rubro auditado no diverja del interes reportado). `CivilFamiliaStrategy._resolver_suma_unica`
+  (`app/services/area_strategy.py`) deriva el flag desde `Obligacion.interes_sobre_capital_indexado`, por
+  obligacion -- desde el Sprint 21 cada obligacion corre en su propio `LiquidationCore`
+  (`_liquidar_por_obligacion`), asi que el criterio puede variar libremente entre obligaciones del mismo
+  expediente sin ambiguedad.
 
 ## Estado
 Conectado a `CivilFamiliaStrategy` (Sprint 8). Opt-in por obligacion via el campo

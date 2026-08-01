@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
@@ -15,6 +15,7 @@ from app.engine.currency.trm_provider import ManualTRMProvider
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.seguridad_social import SeguridadSocialCalculator
+from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
@@ -60,6 +61,119 @@ def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> 
     )
 
 
+def _liquidar_por_obligacion(
+    obligaciones: List,
+    abonos: List,
+    fecha_corte: date,
+    eventos_fn: Callable[[object], List[Event]],
+    rate_provider_fn: Callable[[object, date], MemoryRateProvider],
+    usar_suma_unica_fn: Callable[[object], bool] = lambda obligacion: False,
+) -> LiquidationResult:
+    """Corre un LiquidationCore independiente por obligacion -- cada una con su propia
+    tasa (via rate_provider_fn) y solo sus propios abonos (Abono.obligacion_id) -- y
+    fusiona los historiales en una sola linea de tiempo consolidada para el reporte del
+    expediente. Ver docs/superpowers/specs/2026-07-31-sprint21-multiples-tasas-design.md
+    (Sprint 21): LiquidationCore mantiene un solo PendingDebt agregado por instancia, asi
+    que la unica forma de que dos obligaciones acumulen interes a tasas distintas
+    simultaneamente es correrlas en instancias separadas.
+
+    usar_suma_unica_fn (Sprint 20, adaptado al Sprint 21): resuelve, por obligacion, si
+    esa liquidacion individual debe usar el algoritmo "Suma Única" (interes sobre capital
+    ya indexado). Default `False` para toda area que no lo soporte -- solo
+    CivilFamiliaStrategy pasa una funcion real. Como cada obligacion ya corre en su propio
+    LiquidationCore aislado, el criterio no necesita ser consistente entre obligaciones del
+    mismo expediente."""
+    ids_obligaciones = {obligacion.id for obligacion in obligaciones}
+    for abono in abonos:
+        if abono.obligacion_id not in ids_obligaciones:
+            raise ValueError(
+                f"El abono '{abono.referencia or abono.id}' (obligacion_id={abono.obligacion_id}) "
+                f"no corresponde a ninguna obligacion de este expediente."
+            )
+
+    resultados = []
+    for obligacion in obligaciones:
+        abonos_obligacion = [abono for abono in abonos if abono.obligacion_id == obligacion.id]
+        pagos = [
+            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
+            for abono in abonos_obligacion
+        ]
+        service = UniversalLiquidationService()
+        resultados.append(service.liquidar(
+            eventos_causacion=eventos_fn(obligacion),
+            pagos=pagos,
+            fecha_corte=fecha_corte,
+            rate_provider=rate_provider_fn(obligacion, fecha_corte),
+            usar_suma_unica=usar_suma_unica_fn(obligacion),
+        ))
+
+    return _fusionar_resultados(resultados, fecha_corte)
+
+
+def _fusionar_resultados(resultados: List[LiquidationResult], fecha_corte: date) -> LiquidationResult:
+    """Intercala los items de N LiquidationResult (uno por obligacion) en una sola linea
+    de tiempo cronologica, recalculando el saldo consolidado del expediente en cada fila.
+    Colapsa a la identidad cuando hay una sola obligacion (garantiza que los expedientes
+    de una sola obligacion no cambien de resultado)."""
+    if len(resultados) == 1:
+        return resultados[0]
+
+    filas_regulares = []
+    for indice_obligacion, resultado in enumerate(resultados):
+        for posicion, item in enumerate(resultado.items):
+            if item.balance.event_type == "LIQUIDATION_CUTOFF":
+                continue
+            filas_regulares.append((item.date, indice_obligacion, posicion, item))
+    # Empate de fecha -> orden de la obligacion en la lista recibida, luego orden de
+    # emision original dentro de esa obligacion (determinista, sort() es estable).
+    filas_regulares.sort(key=lambda fila: (fila[0], fila[1], fila[2]))
+
+    saldo_cero = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
+    ultimo_estado = {indice: saldo_cero for indice in range(len(resultados))}
+    items_fusionados: List[LiquidationItem] = []
+    for _fecha, indice_obligacion, _posicion, item in filas_regulares:
+        ultimo_estado[indice_obligacion] = item.balance.debt
+        saldo_consolidado = PendingDebt(
+            principal=sum((estado.principal for estado in ultimo_estado.values()), Decimal("0.00")),
+            interest=sum((estado.interest for estado in ultimo_estado.values()), Decimal("0.00")),
+            indexation=sum((estado.indexation for estado in ultimo_estado.values()), Decimal("0.00")),
+        )
+        items_fusionados.append(replace(
+            item,
+            capital_base=saldo_consolidado.principal,
+            balance=RunningBalance(
+                date=item.date, debt=saldo_consolidado, event_type=item.balance.event_type
+            ),
+        ))
+
+    # Misma condicion que usa LiquidationCore.process() para agregar su propia fila de
+    # cierre (last_event_date < cutoff_date): si al menos una obligacion la disparo, se
+    # sintetiza una sola fila de cierre consolidada en vez de N filas individuales.
+    hubo_cierre = any(
+        any(item.balance.event_type == "LIQUIDATION_CUTOFF" for item in resultado.items)
+        for resultado in resultados
+    )
+    if hubo_cierre:
+        saldo_final = PendingDebt(
+            principal=sum((r.final_balance().principal for r in resultados), Decimal("0.00")),
+            interest=sum((r.final_balance().interest for r in resultados), Decimal("0.00")),
+            indexation=sum((r.final_balance().indexation for r in resultados), Decimal("0.00")),
+        )
+        items_fusionados.append(LiquidationItem(
+            date=fecha_corte,
+            concept="Corte final de liquidación",
+            capital_base=saldo_final.principal,
+            interest_rate=Decimal("0.00"),
+            interest_amount=Decimal("0.00"),
+            indexation_amount=Decimal("0.00"),
+            payment_amount=Decimal("0.00"),
+            balance=RunningBalance(date=fecha_corte, debt=saldo_final, event_type="LIQUIDATION_CUTOFF"),
+            rate_source="Varias tasas — ver detalle por fila arriba",
+        ))
+
+    return LiquidationResult(items_fusionados)
+
+
 class AreaStrategy(ABC):
     """Contrato comun para el calculo de liquidacion por area del derecho."""
 
@@ -89,50 +203,27 @@ class CivilFamiliaStrategy(AreaStrategy):
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
-        usar_suma_unica = self._resolver_suma_unica(obligaciones)
-
-        eventos_causacion: List[Event] = []
-        for obligacion in obligaciones:
-            eventos_causacion.extend(self._eventos_de_obligacion(obligacion, fecha_corte))
-
-        pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
-            for abono in abonos
-        ]
-
-        rate_provider = self._construir_rate_provider(obligaciones, fecha_corte)
-
-        service = UniversalLiquidationService()
-        return service.liquidar(
-            eventos_causacion=eventos_causacion,
-            pagos=pagos,
+        return _liquidar_por_obligacion(
+            obligaciones=obligaciones,
+            abonos=abonos,
             fecha_corte=fecha_corte,
-            rate_provider=rate_provider,
-            usar_suma_unica=usar_suma_unica,
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
+            rate_provider_fn=self._construir_rate_provider_obligacion,
+            usar_suma_unica_fn=self._resolver_suma_unica,
         )
 
-    def _resolver_suma_unica(self, obligaciones: List) -> bool:
-        """Determina si el expediente completo liquida con el algoritmo "Suma
-        Única" (interes sobre capital ya indexado, PDF pag. 21-22, incluye la
-        variante Ley 80/1993 para contratos estatales -- misma mecanica, sin
-        campo propio) en vez del legado (interes solo sobre capital historico).
-        El interes se acumula sobre un unico PendingDebt para todo el
-        expediente, asi que el criterio no puede variar obligacion por
-        obligacion dentro del mismo expediente -- si dos obligaciones
-        indexadas traen valores distintos de interes_sobre_capital_indexado,
-        es un error de captura, no una combinacion valida."""
-        valores = {
-            bool(o.interes_sobre_capital_indexado)
-            for o in obligaciones
-            if o.aplica_indexacion_ipc
-        }
-        if len(valores) > 1:
-            raise ValueError(
-                "Todas las obligaciones con indexación IPC del expediente deben usar el mismo "
-                "criterio de interés (Suma Única o legado); no se puede mezclar dentro del mismo "
-                "expediente."
-            )
-        return valores == {True}
+    def _resolver_suma_unica(self, obligacion) -> bool:
+        """Determina si esta obligacion liquida con el algoritmo "Suma Única"
+        (interes sobre capital ya indexado, PDF pag. 21-22, incluye la variante
+        Ley 80/1993 para contratos estatales -- misma mecanica, sin campo
+        propio) en vez del legado (interes solo sobre capital historico).
+        Desde el Sprint 21, cada obligacion corre en su propio LiquidationCore
+        (PendingDebt independiente, ver _liquidar_por_obligacion) -- ya no hay
+        un unico saldo compartido a nivel de expediente, asi que el criterio
+        puede variar libremente obligacion por obligacion sin ambiguedad; no
+        hace falta validar consistencia entre obligaciones (a diferencia de la
+        version original de este metodo, escrita antes del Sprint 21)."""
+        return bool(obligacion.aplica_indexacion_ipc) and bool(obligacion.interes_sobre_capital_indexado)
 
     def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
         if obligacion.tipo.value == "PUNTUAL":
@@ -197,17 +288,15 @@ class CivilFamiliaStrategy(AreaStrategy):
             event_type="INDEXATION",
         )
 
-    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
-        fecha_mas_antigua = min(
-            o.fecha_origen if o.tipo.value == "PUNTUAL" else o.fecha_inicio for o in obligaciones
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+        fecha_inicio = (
+            obligacion.fecha_origen if obligacion.tipo.value == "PUNTUAL" else obligacion.fecha_inicio
         )
-        # Usamos la tasa de la primera obligacion como tasa unica del expediente.
-        # (Multiples tasas simultaneas por obligacion quedan fuera de alcance de este sprint.)
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligaciones[0].tasa_efectiva_anual)
+        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
 
         provider = MemoryRateProvider()
         provider.add_rate_period(
-            start=fecha_mas_antigua - timedelta(days=1),
+            start=fecha_inicio - timedelta(days=1),
             end=fecha_corte,
             rate=tasa_diaria,
             source="Tasa pactada en la obligación (Art. 1617 C.C.)",
@@ -240,23 +329,12 @@ class ComercialStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_comercial(obligacion)
 
-        eventos_causacion: List[Event] = []
-        for obligacion in obligaciones:
-            eventos_causacion.extend(self._eventos_de_obligacion(obligacion, fecha_corte))
-
-        pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
-            for abono in abonos
-        ]
-
-        rate_provider = self._construir_rate_provider(obligaciones, fecha_corte)
-
-        service = UniversalLiquidationService()
-        return service.liquidar(
-            eventos_causacion=eventos_causacion,
-            pagos=pagos,
+        return _liquidar_por_obligacion(
+            obligaciones=obligaciones,
+            abonos=abonos,
             fecha_corte=fecha_corte,
-            rate_provider=rate_provider,
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
+            rate_provider_fn=self._construir_rate_provider_obligacion,
         )
 
     def _validar_obligacion_comercial(self, obligacion) -> None:
@@ -396,39 +474,37 @@ class ComercialStrategy(AreaStrategy):
         fin = obligacion.fecha_fin or fecha_corte
         return scheduler.generate(start=obligacion.fecha_inicio, end=fin)
 
-    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
         provider = MemoryRateProvider()
+        tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_moratoria_anual)
 
-        for obligacion in obligaciones:
-            tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_moratoria_anual)
-
-            if obligacion.tipo.value == "PUNTUAL":
-                tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
-                inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
-                fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
+        if obligacion.tipo.value == "PUNTUAL":
+            tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
+            inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
+            fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
+            provider.add_rate_period(
+                start=inicio_remuneratorio,
+                end=fin_remuneratorio,
+                rate=tasa_remuneratoria_diaria,
+                source="Tasa remuneratoria pactada (Art. 884 C.Co.)",
+            )
+            if obligacion.fecha_vencimiento < fecha_corte:
+                inicio_moratorio = obligacion.fecha_vencimiento + timedelta(days=1)
                 provider.add_rate_period(
-                    start=inicio_remuneratorio,
-                    end=fin_remuneratorio,
-                    rate=tasa_remuneratoria_diaria,
-                    source="Tasa remuneratoria pactada (Art. 884 C.Co.)",
-                )
-                if obligacion.fecha_vencimiento < fecha_corte:
-                    inicio_moratorio = obligacion.fecha_vencimiento + timedelta(days=1)
-                    provider.add_rate_period(
-                        start=inicio_moratorio,
-                        end=fecha_corte,
-                        rate=tasa_moratoria_diaria,
-                        source="Tasa moratoria pactada (Art. 884 C.Co.)",
-                    )
-            else:
-                # RECURRENTE: sin split por cuota individual (alcance reducido, ver spec).
-                inicio = obligacion.fecha_inicio - timedelta(days=1)
-                provider.add_rate_period(
-                    start=inicio,
+                    start=inicio_moratorio,
                     end=fecha_corte,
                     rate=tasa_moratoria_diaria,
                     source="Tasa moratoria pactada (Art. 884 C.Co.)",
                 )
+        else:
+            # RECURRENTE: sin split por cuota individual (alcance reducido, ver spec).
+            inicio = obligacion.fecha_inicio - timedelta(days=1)
+            provider.add_rate_period(
+                start=inicio,
+                end=fecha_corte,
+                rate=tasa_moratoria_diaria,
+                source="Tasa moratoria pactada (Art. 884 C.Co.)",
+            )
 
         return provider
 
@@ -649,23 +725,12 @@ class SancionatorioStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_sancionatoria(obligacion)
 
-        eventos_causacion = []
-        for obligacion in obligaciones:
-            eventos_causacion.extend(self._eventos_de_obligacion(obligacion))
-
-        pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
-            for abono in abonos
-        ]
-
-        rate_provider = self._construir_rate_provider(obligaciones, fecha_corte)
-
-        service = UniversalLiquidationService()
-        return service.liquidar(
-            eventos_causacion=eventos_causacion,
-            pagos=pagos,
+        return _liquidar_por_obligacion(
+            obligaciones=obligaciones,
+            abonos=abonos,
             fecha_corte=fecha_corte,
-            rate_provider=rate_provider,
+            eventos_fn=self._eventos_de_obligacion,
+            rate_provider_fn=self._construir_rate_provider_obligacion,
         )
 
     def _validar_obligacion_sancionatoria(self, obligacion) -> None:
@@ -694,13 +759,12 @@ class SancionatorioStrategy(AreaStrategy):
             eventos.append(evento_costas)
         return eventos
 
-    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
-        fecha_mas_antigua = min(o.fecha_origen for o in obligaciones)
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligaciones[0].tasa_efectiva_anual)
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
 
         provider = MemoryRateProvider()
         provider.add_rate_period(
-            start=fecha_mas_antigua - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
+            start=obligacion.fecha_origen - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
         )
         return provider
 
@@ -734,23 +798,12 @@ class HonorariosStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_honorarios(obligacion)
 
-        eventos_causacion: List[Event] = []
-        for obligacion in obligaciones:
-            eventos_causacion.extend(self._eventos_de_obligacion(obligacion))
-
-        pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
-            for abono in abonos
-        ]
-
-        rate_provider = self._construir_rate_provider(obligaciones, fecha_corte)
-
-        service = UniversalLiquidationService()
-        return service.liquidar(
-            eventos_causacion=eventos_causacion,
-            pagos=pagos,
+        return _liquidar_por_obligacion(
+            obligaciones=obligaciones,
+            abonos=abonos,
             fecha_corte=fecha_corte,
-            rate_provider=rate_provider,
+            eventos_fn=self._eventos_de_obligacion,
+            rate_provider_fn=self._construir_rate_provider_obligacion,
         )
 
     def _validar_obligacion_honorarios(self, obligacion) -> None:
@@ -808,13 +861,12 @@ class HonorariosStrategy(AreaStrategy):
             eventos.append(evento_costas)
         return eventos
 
-    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
-        fecha_mas_antigua = min(o.fecha_origen for o in obligaciones)
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligaciones[0].tasa_efectiva_anual)
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
 
         provider = MemoryRateProvider()
         provider.add_rate_period(
-            start=fecha_mas_antigua - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
+            start=obligacion.fecha_origen - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
         )
         return provider
 
