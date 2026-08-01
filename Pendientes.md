@@ -88,7 +88,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--completado)
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única")](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única)
-- [Sprint 21 — Múltiples tasas de interés simultáneas por expediente](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente)
+- [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada](#sprint-22--limpieza-técnica-acumulada)
 - [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
 - [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
@@ -1605,7 +1605,7 @@ transversal, no local a Civil/Familia.
 
 ---
 
-## Sprint 21 — Múltiples tasas de interés simultáneas por expediente
+## Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado
 
 **Prioridad sugerida:** Media — limitación conocida desde el Sprint 2, documentada como pendiente en el
 backlog técnico desde entonces.
@@ -1656,6 +1656,32 @@ backlog técnico desde entonces.
   liquida con su propia tasa.
 - Suite completa en verde, sin cambios de resultado en los tests existentes de expedientes de una sola
   obligación.
+
+**Estado:** Implementado (2026-07-31, ver rango de commits desde `47ce9cd` hasta `f326e1e`) —
+ver `docs/superpowers/specs/2026-07-31-sprint21-multiples-tasas-design.md` y
+`docs/superpowers/plans/2026-07-31-sprint21-multiples-tasas.md`.
+
+El fix real fue más profundo que "indexar `MemoryRateProvider` por obligación": `LiquidationCore`
+mantiene un solo saldo agregado por instancia, así que dos obligaciones no pueden acumular interés a
+tasas distintas simultáneamente dentro del mismo núcleo. La solución fue correr un `LiquidationCore`
+independiente por obligación (cada uno con su propia tasa y solo sus propios abonos, vía el
+`obligacion_id` que `Abono` ya tenía en la base de datos pero que el motor ignoraba) y fusionar los
+historiales en una sola línea de tiempo consolidada — sin tocar `LiquidationCore`/`BalanceEngine`/
+`AllocationEngine`.
+
+Áreas migradas: `CivilFamiliaStrategy`, `ComercialStrategy`, `SancionatorioStrategy`,
+`HonorariosStrategy`. `LaboralStrategy` no aplica (liquida un solo contrato por expediente por diseño).
+`TributarioStrategy` no aplica (su tasa moratoria del E.T. art. 635 es una tasa legal automática, igual
+para todas las obligaciones del expediente, no viene de `tasa_efectiva_anual`).
+
+Cambio de comportamiento deliberado: los abonos ahora se imputan solo a la obligación a la que fueron
+registrados (antes se aplicaban como bolsa única del expediente) — coincide con lo que la GUI ya exigía
+al capturar un abono (selección obligatoria de una obligación primero) pero que el motor de liquidación
+no honraba. No había ningún test que dependiera del comportamiento anterior.
+
+`_construir_rate_provider_obligacion` sigue duplicado entre `CivilFamiliaStrategy`, `SancionatorioStrategy`
+y `HonorariosStrategy` (mismo patrón de "un solo tramo plano por obligación") — deduplicarlo queda para el
+Sprint 22, como ya anticipaba la nota de coordinación en ese sprint.
 
 ---
 
