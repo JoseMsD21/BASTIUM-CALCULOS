@@ -17,11 +17,17 @@ class LiquidationCore:
     (Familia, Laboral, Civil, Comercial) e inyecta automáticamente 
     causaciones de interés por el paso del tiempo.
     """
-    def __init__(self, default_daily_rate: Rate = Rate(Decimal("0.0")), rate_provider: Optional[RateProvider] = None):
+    def __init__(
+        self,
+        default_daily_rate: Rate = Rate(Decimal("0.0")),
+        rate_provider: Optional[RateProvider] = None,
+        usar_suma_unica: bool = False,
+    ):
         self._current_debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
         self._history: List[LiquidationItem] = []
         self._default_rate = default_daily_rate
         self._rate_provider = rate_provider
+        self._usar_suma_unica = usar_suma_unica
         self._last_event_date: Optional[date] = None
 
         # Diccionario de rubros jurídicos reconocidos como Capital Base
@@ -89,17 +95,20 @@ class LiquidationCore:
         if not self._last_event_date or target_date <= self._last_event_date:
             return
             
-        if self._current_debt.principal <= Decimal("0.00"):
+        capital_base = self._current_debt.principal + (
+            self._current_debt.indexation if self._usar_suma_unica else Decimal("0.00")
+        )
+        if capital_base <= Decimal("0.00"):
             return
 
         current_day = self._last_event_date + timedelta(days=1)
         total_interest_accumulated = Decimal("0.00")
-        
+
         while current_day <= target_date:
             daily_rate = self._get_rate_for_date(current_day)
             daily_interest = DailyInterest.calculate(
-                capital=self._current_debt.principal, 
-                daily_rate=daily_rate, 
+                capital=capital_base,
+                daily_rate=daily_rate,
                 days=1
             )
             total_interest_accumulated += daily_interest

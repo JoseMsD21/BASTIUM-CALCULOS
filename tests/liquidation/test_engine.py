@@ -86,3 +86,85 @@ def test_capitalizacion_intereses_anatocismo_con_interes_ya_pagado_no_capitaliza
     final_debt = result.final_balance()
     assert final_debt.principal == Decimal("0.00")
     assert final_debt.interest == Decimal("0.00")
+
+
+def test_engine_usar_suma_unica_false_interes_solo_sobre_principal():
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))  # 1% diario plano, tasa de control
+    engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=False)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    fb = result.final_balance()
+    assert fb.principal == Decimal("1000.00")
+    assert fb.indexation == Decimal("500.00")
+    # 10 dias * 1000.00 * 1% = 100.00 -- solo sobre principal, indexation no cuenta
+    assert fb.interest == Decimal("100.00")
+
+
+def test_engine_usar_suma_unica_true_interes_sobre_principal_mas_indexation():
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=True)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    fb = result.final_balance()
+    assert fb.principal == Decimal("1000.00")
+    assert fb.indexation == Decimal("500.00")
+    # 10 dias * (1000.00 + 500.00) * 1% = 150.00 -- interes sobre capital ya indexado
+    assert fb.interest == Decimal("150.00")
+
+
+def test_engine_usar_suma_unica_default_es_false():
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate)  # sin pasar usar_suma_unica
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    assert result.final_balance().interest == Decimal("100.00")
+
+
+def test_engine_usar_suma_unica_true_accrues_interest_when_only_indexation_present():
+    # Escenario borde: principal en 0 (nunca hubo evento de capital), solo un
+    # evento INDEXATION. Con usar_suma_unica=True, el interes debe correr sobre
+    # ese saldo aunque principal sea 0 -- el guard de _accrue_time_passage debe
+    # evaluar capital_base, no solo principal.
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=True)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    fb = result.final_balance()
+    assert fb.principal == Decimal("0.00")
+    assert fb.indexation == Decimal("500.00")
+    # 10 dias * 500.00 * 1% = 50.00
+    assert fb.interest == Decimal("50.00")
+
+
+def test_engine_usar_suma_unica_false_no_accrual_when_only_indexation_present():
+    # Mismo escenario pero usar_suma_unica=False: capital_base == principal == 0,
+    # el guard debe seguir bloqueando la acumulacion (sin cambio de comportamiento
+    # respecto a antes de este sprint).
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=False)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    assert result.final_balance().interest == Decimal("0.00")
