@@ -115,6 +115,8 @@ def _fusionar_resultados(resultados: List[LiquidationResult], fecha_corte: date)
             if item.balance.event_type == "LIQUIDATION_CUTOFF":
                 continue
             filas_regulares.append((item.date, indice_obligacion, posicion, item))
+    # Empate de fecha -> orden de la obligacion en la lista recibida, luego orden de
+    # emision original dentro de esa obligacion (determinista, sort() es estable).
     filas_regulares.sort(key=lambda fila: (fila[0], fila[1], fila[2]))
 
     saldo_cero = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
@@ -135,6 +137,9 @@ def _fusionar_resultados(resultados: List[LiquidationResult], fecha_corte: date)
             ),
         ))
 
+    # Misma condicion que usa LiquidationCore.process() para agregar su propia fila de
+    # cierre (last_event_date < cutoff_date): si al menos una obligacion la disparo, se
+    # sintetiza una sola fila de cierre consolidada en vez de N filas individuales.
     hubo_cierre = any(
         any(item.balance.event_type == "LIQUIDATION_CUTOFF" for item in resultado.items)
         for resultado in resultados
