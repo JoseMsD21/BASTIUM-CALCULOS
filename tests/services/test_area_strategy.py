@@ -1745,3 +1745,75 @@ class TestTributarioStrategy:
 
     def test_soporta_indexacion_ipc_es_false(self):
         assert TributarioStrategy().soporta_indexacion_ipc is False
+
+
+def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
+    obligacion_legado = Obligacion(
+        id=6, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=False,
+    )
+    obligacion_suma_unica = Obligacion(
+        id=7, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=True,
+    )
+
+    resultado_legado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_legado], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+    resultado_suma_unica = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_suma_unica], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+
+    # Mismo capital, misma indexacion (77633.53, ver test_civil_familia_puntual_con_indexacion_...),
+    # misma tasa y periodo -- la unica diferencia es la base del interes.
+    assert resultado_legado.final_balance().indexation == Decimal("77633.53")
+    assert resultado_suma_unica.final_balance().indexation == Decimal("77633.53")
+    assert resultado_legado.final_balance().interest == Decimal("87488.20")
+    assert resultado_suma_unica.final_balance().interest == Decimal("94283.40")
+    assert resultado_suma_unica.final_balance().interest > resultado_legado.final_balance().interest
+
+
+def test_civil_familia_suma_unica_mezclada_en_el_expediente_lanza_value_error():
+    obligacion_a = Obligacion(
+        id=8, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente A",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=True,
+    )
+    obligacion_b = Obligacion(
+        id=9, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente B",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=False,
+    )
+
+    with pytest.raises(ValueError, match="mismo criterio de interés"):
+        CivilFamiliaStrategy().liquidar(
+            obligaciones=[obligacion_a, obligacion_b], abonos=[], fecha_corte=date(2025, 12, 31)
+        )
+
+
+def test_civil_familia_suma_unica_ignora_obligaciones_sin_indexacion_activa():
+    obligacion_indexada = Obligacion(
+        id=10, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=True,
+    )
+    obligacion_sin_indexar = Obligacion(
+        id=11, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Otro concepto",
+        categoria="DANOS_MORALES", fecha_origen=date(2024, 7, 1), valor=Decimal("200000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=False,
+        interes_sobre_capital_indexado=False,
+    )
+
+    # No debe lanzar ValueError: la obligacion sin indexacion activa no participa
+    # en la validacion de consistencia, sin importar su propio valor del flag.
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_indexada, obligacion_sin_indexar], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+    assert resultado.final_balance().indexation == Decimal("77633.53")

@@ -89,6 +89,8 @@ class CivilFamiliaStrategy(AreaStrategy):
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
+        usar_suma_unica = self._resolver_suma_unica(obligaciones)
+
         eventos_causacion: List[Event] = []
         for obligacion in obligaciones:
             eventos_causacion.extend(self._eventos_de_obligacion(obligacion, fecha_corte))
@@ -106,7 +108,31 @@ class CivilFamiliaStrategy(AreaStrategy):
             pagos=pagos,
             fecha_corte=fecha_corte,
             rate_provider=rate_provider,
+            usar_suma_unica=usar_suma_unica,
         )
+
+    def _resolver_suma_unica(self, obligaciones: List) -> bool:
+        """Determina si el expediente completo liquida con el algoritmo "Suma
+        Única" (interes sobre capital ya indexado, PDF pag. 21-22, incluye la
+        variante Ley 80/1993 para contratos estatales -- misma mecanica, sin
+        campo propio) en vez del legado (interes solo sobre capital historico).
+        El interes se acumula sobre un unico PendingDebt para todo el
+        expediente, asi que el criterio no puede variar obligacion por
+        obligacion dentro del mismo expediente -- si dos obligaciones
+        indexadas traen valores distintos de interes_sobre_capital_indexado,
+        es un error de captura, no una combinacion valida."""
+        valores = {
+            bool(o.interes_sobre_capital_indexado)
+            for o in obligaciones
+            if o.aplica_indexacion_ipc
+        }
+        if len(valores) > 1:
+            raise ValueError(
+                "Todas las obligaciones con indexación IPC del expediente deben usar el mismo "
+                "criterio de interés (Suma Única o legado); no se puede mezclar dentro del mismo "
+                "expediente."
+            )
+        return valores == {True}
 
     def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
         if obligacion.tipo.value == "PUNTUAL":
