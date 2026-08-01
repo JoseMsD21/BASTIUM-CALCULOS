@@ -21,7 +21,8 @@ class UniversalLiquidationService:
         pagos: List[Payment],
         fecha_corte: date,
         tasa_estatica: Decimal = Decimal("0.0"),
-        rate_provider: Optional[RateProvider] = None
+        rate_provider: Optional[RateProvider] = None,
+        usar_suma_unica: bool = False
     ) -> LiquidationResult:
         
         # 1. Configurar la política de mora
@@ -43,7 +44,8 @@ class UniversalLiquidationService:
         # 4. Instanciación del Motor Core con inyección de dependencias
         motor_calculo = LiquidationCore(
             default_daily_rate=tasa_mora,
-            rate_provider=rate_provider
+            rate_provider=rate_provider,
+            usar_suma_unica=usar_suma_unica
         )
         
         # 5. Ejecución del procesamiento temporal implacable
