@@ -20,7 +20,10 @@ prescripcion/caducidad.
   diciembre, vacaciones), todas exigibles en la fecha de terminacion (Art. 65 CST).
 - `app/engine/time/calendar.py`: `CalendarUtils` — calendario de dias habiles judiciales con festivos
   colombianos (`es_dia_habil`, `sumar_dias_habiles`, `dias_habiles_entre`, `notificacion_surtida_el`,
-  `vencimiento_calendario`), ademas de `safe_create_date` para desbordes de mes.
+  `vencimiento_calendario`), ademas de `safe_create_date` para desbordes de mes. Un dia es habil si no es
+  fin de semana, no es festivo (libreria `holidays`), no cae en la vacancia judicial de fin de ano
+  (20 de diciembre a 11 de enero, inclusive) y no es Lunes/Martes/Miercoles Santo (corregido Sprint 6,
+  2026-08-01, tras confirmacion del despacho -- Jueves y Viernes Santo ya eran festivos).
 - `app/engine/temporal/terminos.py`: `EstadoTermino` (inmutable) y las funciones puras
   `iniciar_termino`/`dias_restantes`/`esta_vencido`/`interrumpir`/`suspender`/`reanudar`, para el manejo de
   terminos procesales con interrupcion y suspension.

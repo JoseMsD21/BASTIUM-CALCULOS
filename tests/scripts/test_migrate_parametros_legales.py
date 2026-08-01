@@ -18,7 +18,7 @@ def _db_en_memoria(monkeypatch):
     return engine
 
 
-def test_migrar_siembra_las_34_claves_del_catalogo():
+def test_migrar_siembra_las_39_claves_del_catalogo():
     from scripts.migrate_parametros_legales import migrar
 
     migrar()
@@ -26,13 +26,16 @@ def test_migrar_siembra_las_34_claves_del_catalogo():
     claves = {fila.clave for fila in session.query(ParametroLegal).all()}
     session.close()
     assert claves == {
-        "USURA_MULTIPLICADOR", "CUOTA_LITIS_INDIVIDUAL_PCT", "HONORARIOS_TOTAL_PCT",
+        "USURA_MULTIPLICADOR", "HONORARIOS_TOTAL_PCT",
         "ET635_PUNTOS_DESCUENTO", "CIVIL_ANNUAL_RATE",
         "PRESCRIPCION_EJECUTIVA_MESES", "PRESCRIPCION_ORDINARIA_MESES",
         "PRESCRIPCION_HONORARIOS_MESES", "PRESCRIPCION_CAMBIARIA_DIRECTA_MESES",
         "PRESCRIPCION_CAMBIARIA_REGRESO_TENEDOR_MESES",
         "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES",
         "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES",
+        "CADUCIDAD_CHEQUES_MESES", "CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES",
+        "CADUCIDAD_TRANSPORTE_MESES", "CADUCIDAD_SEGURO_ORDINARIA_MESES",
+        "CADUCIDAD_SEGURO_EXTRAORDINARIA_MESES", "CADUCIDAD_IMPUGNACION_ACTAS_SOCIALES_MESES",
         "SMLMV", "IPC_INDICE_ACUMULADO", "IBC_CONSUMO_ORDINARIO", "USURA_CONSUMO_ORDINARIO",
         "UVT",
         "EXTEMPORANEIDAD_PCT_MENSUAL", "INEXACTITUD_PCT", "INEXACTITUD_AGRAVADA_PCT",
@@ -97,7 +100,7 @@ def test_migrar_es_idempotente():
 
     primera = migrar()
     segunda = migrar()
-    assert primera == 34
+    assert primera == 39
     assert segunda == 0
 
 

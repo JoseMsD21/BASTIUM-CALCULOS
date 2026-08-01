@@ -1,8 +1,9 @@
 # Motor Financiero (Interes)
 
 ## Que hace
-Calcula intereses simples dia a dia sobre un capital, valida el tope de usura, y mantiene el estado
-inmutable de una deuda (capital + interes + indexacion) a lo largo del tiempo.
+Calcula intereses simples dia a dia sobre un capital, calcula y sanciona el exceso sobre el tope de
+usura, y mantiene el estado inmutable de una deuda (capital + interes + indexacion) a lo largo del
+tiempo.
 
 ## Componentes
 - `app/engine/financial/rate.py`: `Rate(value)` envuelve una **fraccion** (0.06 = 6%), no un numero de
@@ -16,10 +17,12 @@ inmutable de una deuda (capital + interes + indexacion) a lo largo del tiempo.
   tramos de tasa (`RatePeriod`) para que el motor calcule interes por tramos historicos cuando la tasa
   cambia en el tiempo. **Si se usa un `rate_provider`, debe cubrir todo el rango de fechas de la
   liquidacion**, o `get_rate` lanza `ValueError`.
-- `app/engine/interest/usury_validator.py`: `validar_tasa_usura` — valida el tope de usura (1.5x IBC, Ley
-  45/1990 art. 72) contra un IBC consultado en `parametro_service` (Sprint 13). Se invoca automaticamente al
-  liquidar para las areas Comercial y Tributario; lanza el error "Tasa usuraria" sin truncar nada
-  silenciosamente.
+- `app/engine/interest/usury_validator.py`: `calcular_tope_usura` — calcula el tope de usura (multiplicador
+  vigente x IBC, Ley 45/1990 art. 72) contra un IBC consultado en `parametro_service` (Sprint 13). Corregido
+  en el Sprint 2 (2026-08-01) tras la respuesta del despacho: una tasa pactada por encima del tope ya no se
+  rechaza ni se recorta silenciosamente — `ComercialStrategy._calcular_sancion_usura` liquida con la tasa
+  realmente pactada, calcula el exceso de interes cobrado frente al tope, y resta del saldo el doble de ese
+  exceso (puede dejar saldo a favor del deudor). Solo se invoca desde el area Comercial.
 - `app/engine/tax/moratory_interest.py`: interes moratorio del E.T. art. 635 para el area Tributario,
   reutilizando el mismo motor de tramos historicos.
 - `app/engine/liquidation/models.py`: `PendingDebt(principal, interest, indexation)` — inmutable, con

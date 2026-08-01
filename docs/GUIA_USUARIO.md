@@ -314,18 +314,21 @@ dólares:
      pactadas supere el tope legal de usura (1.5× este valor).
    - **Moneda**: "COP" por defecto. Si la obligación está pactada en dólares, elige "USD" — aparecen dos
      campos adicionales (ver punto 4).
-4. Si elegiste **Moneda = USD**, llena también:
-   - **TRM aplicable (COP por USD)**: cuántos pesos vale un dólar para este caso (Art. 874 C.Co.: se
-     puede pactar la TRM de la fecha de la obligación o la del pago — el abogado decide cuál usar y la
-     ingresa directamente aquí, no hay una serie histórica cargada en el programa — ver
-     [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera)).
-   - **Fecha de referencia de la TRM**: la fecha que sustenta el valor anterior, solo para trazabilidad —
-     el programa no vuelve a buscar nada con esta fecha, es un dato de auditoría.
+4. Si elegiste **Moneda = USD**, los campos **"TRM aplicable"** y **"Fecha de referencia de la TRM"**
+   son **opcionales** desde el Sprint 12 (corregido 2026-08-01): si los dejas vacíos, el programa consulta
+   automáticamente la TRM certificada por la Superintendencia Financiera para la fecha real de cada
+   evento (el capital, en la fecha de origen; cada abono, en su propia fecha de pago) — ver
+   [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera). Solo diligencia **"TRM aplicable"** si
+   quieres forzar un valor fijo (por ejemplo, si no hay conexión a internet, o quieres reproducir una
+   liquidación anterior a este sprint) — en ese caso ese valor se usa para todo, sin consultar nada
+   automáticamente.
 5. Haz clic en **"Guardar"**.
 
-Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingresaste, el programa no
-deja liquidar el expediente y muestra el mensaje "Tasa usuraria" al hacer clic en "Liquidar" — no al
-guardar la obligación (la validación ocurre al calcular, no al capturar el dato).
+Si alguna tasa pactada (remuneratoria o moratoria) supera 1.5× el IBC que ingresaste, el programa **no**
+rechaza la liquidación ni recorta la tasa silenciosamente: liquida con la tasa realmente pactada y agrega
+un rubro adicional al final del resultado — "Sanción por usura (Art. 72 Ley 45/1990)" — que resta del
+saldo el doble del exceso de interés cobrado frente al tope legal. Esa sanción puede dejar un saldo a
+favor del deudor (número negativo) si es mayor que lo que aún se le debe.
 
 **Anatocismo condicionado (Art. 886 C.Co.):** por defecto, el interés siempre es simple. Si tu caso
 cumple una de las dos condiciones legales que permiten cobrar interés sobre interés, marca uno de estos
@@ -413,20 +416,24 @@ propios de esta área:
    - **% Costas judiciales (opcional)**: si el juez condenó en costas y quieres incluirlas como un evento
      de capital separado, ingresa aquí el porcentaje que corresponda (ej. `5.00`). Déjalo vacío si no
      aplica. Este campo (`costas_pct_manual`) es siempre el valor que usa el programa cuando se
-     diligencia — es el porcentaje que efectivamente fijó el juez en el auto. El motor de cálculo
+     diligencia — es el porcentaje que efectivamente fijó el juez en el auto, **validado contra el rango
+     legal permitido según la cuantía del proceso** (corregido 2026-08-01, ver
+     [sección 7.6.1](#761-rango-legal-de-costas-manuales-por-cuantía)): 0%-10% en mínima cuantía (hasta 40
+     SMMLV), 3%-7% en menor cuantía (40 a 150 SMMLV), 1%-5% en mayor cuantía (más de 150 SMMLV). Si el
+     porcentaje que ingresaste no cabe en ese rango, el programa muestra "Costas fuera de rango" al hacer
+     clic en "Liquidar" y no calcula nada — no lo recorta al límite más cercano. El motor de cálculo
      automático de costas por tabla de tarifas (Acuerdo PSAA16-10554/2016 del Consejo Superior de la
      Judicatura) ya existe internamente, pero por ahora solo se activa por los campos `costas_tipo_proceso`
      y `costas_instancia` a nivel de base de datos — todavía no hay campos de formulario en esta pantalla
      para diligenciarlos (ver [sección 8](#8-funciones-pendientes-o-en-desarrollo)).
 4. Haz clic en **"Guardar"**.
 
-Al liquidar, el programa valida automáticamente que la cuota litis pactada no exceda el 30% del
-"Beneficio obtenido", y que la suma de honorarios fijos + cuota litis no exceda el 50% del mismo
-beneficio (ver [sección 7.6](#76-tope-de-cuota-litis-y-honorarios-30--50-del-beneficio-obtenido)). Si
-alguno de los dos topes se excede, el programa muestra el mensaje "Cuota litis excede el tope" al hacer
-clic en "Liquidar" y no calcula nada. Si diligenciaste el porcentaje de costas, el resultado de la
-liquidación trae dos filas de capital separadas: una de honorarios profesionales y otra de costas
-procesales.
+Al liquidar, el programa valida automáticamente que la suma de honorarios fijos + cuota litis no exceda
+el 50% del "Beneficio obtenido" (ver
+[sección 7.6](#76-tope-de-honorarios-50-acumulado-del-beneficio-obtenido)). Si se excede, el programa
+muestra el mensaje "Cuota litis excede el tope" al hacer clic en "Liquidar" y no calcula nada. Si
+diligenciaste el porcentaje de costas, el resultado de la liquidación trae dos filas de capital
+separadas: una de honorarios profesionales y otra de costas procesales.
 
 ### 5.11. Agregar una obligación laboral y liquidar un contrato terminado
 
@@ -645,14 +652,28 @@ de este tipo (un solo período gravable por expediente); si intentas liquidar un
 programa avisa el error en vez de calcular algo incorrecto.
 
 **El interés es automático, nunca pactado:** a diferencia de Comercial (donde tú ingresas la tasa
-remuneratoria y moratoria pactadas), en Tributario el programa siempre aplica el interés moratorio del
-E.T. art. 635 — la tasa de usura vigente menos dos puntos, resuelta automáticamente por tramos históricos
-— por eso el campo "Tasa efectiva anual (%)" ni siquiera aparece en el formulario de esta área.
+remuneratoria y moratoria pactadas), en Tributario el interés moratorio del E.T. art. 635 (usura vigente
+menos dos puntos, resuelta automáticamente por tramos históricos) se aplica solo al **impuesto a cargo**;
+las sanciones nunca lo acumulan por sí solas — por eso el campo "Tasa efectiva anual (%)" ni siquiera
+aparece en el formulario de esta área.
 
-**Orden de pago (imputación) distinto al resto de las áreas:** al liquidar un expediente Tributario, los
-abonos se imputan primero a las sanciones, luego a los intereses y de último al impuesto a cargo — el
-orden inverso al que usan Civil/Familia y las demás áreas (que imputan primero a intereses y de último a
-capital).
+**Mora superior a 3 años (Art. 867-1 E.T., corregido 2026-08-01):** si al momento de liquidar han pasado
+más de 3 años desde la fecha de origen de una obligación tributaria, el programa agrega automáticamente
+una actualización por IPC, sin nada que marcar en el formulario:
+- **Impuesto a cargo**: conserva el interés E.T. 635 de siempre y además se indexa por IPC — si la suma de
+  ambos superaría lo que produciría la tasa de usura plena (sin el descuento de los 2 puntos) sobre el
+  mismo capital y período, el programa recorta automáticamente la indexación para no pasarse de ese techo.
+- **Sanciones**: no acumulan interés (nunca lo hicieron) y en su lugar se indexan por IPC — la corrección
+  hace que esa indexación sí quede reflejada en el resultado a partir de los 3 años.
+
+**Cada obligación se liquida por separado:** desde esta misma corrección, cada obligación tributaria del
+expediente (el impuesto, cada sanción) corre en su propia liquidación aislada — es la única forma de que
+una sanción no acumule interés mientras el impuesto sí lo hace. Esto significa que **cada abono queda
+ligado a la obligación desde la que lo registraste** (seleccionas la fila de la obligación en la tabla y
+haces clic en "Agregar abono", igual que en las demás áreas) y solo se aplica a esa obligación: ya no
+existe un orden automático de "primero sanciones, luego intereses, luego impuesto" que reparta un mismo
+abono entre varias obligaciones — si quieres pagar tanto una sanción como el impuesto, registra un abono
+para cada una desde su propia fila.
 
 ---
 
@@ -664,11 +685,11 @@ hoy**:
 | Área | ¿Funciona? |
 |---|---|
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
-| Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después, validación de tope de usura (1.5× el IBC que ingreses). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
+| Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después. Si alguna tasa supera el tope de usura (1.5× el IBC que ingreses), se liquida igual y se resta del saldo la sanción legal (doble del exceso cobrado). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
 | Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, y opcionalmente cotizaciones de seguridad social (pensión, salud, ARL, FSP) más incapacidades y suspensiones contractuales. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). |
 | Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
-| Honorarios / Litigio | ✅ Sí — honorarios profesionales y cuota litis, validando el tope del 30% (cuota litis sola) y del 50% (total) del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual (el que haya fijado el juez en el auto). Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
-| Tributario | ✅ Sí — impuesto a cargo, sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), imputación propia (sanciones → intereses → impuesto, distinta del orden civil), y depuración de Renta Líquida Gravable informativa. Ver [sección 5.15](#515-agregar-una-obligación-tributaria). |
+| Honorarios / Litigio | ✅ Sí — honorarios profesionales y cuota litis, validando el tope único del 50% acumulado del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual (el que haya fijado el juez en el auto). Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
+| Tributario | ✅ Sí — impuesto a cargo (interés E.T. 635), sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), actualización IPC adicional para mora superior a 3 años (Art. 867-1 E.T.), y depuración de Renta Líquida Gravable informativa. Cada obligación liquida y recibe abonos por separado. Ver [sección 5.15](#515-agregar-una-obligación-tributaria). |
 
 Si en algún momento se intenta liquidar un área cuya lógica todavía no esté lista (ver
 [sección 8](#8-funciones-pendientes-o-en-desarrollo)), el programa muestra el mensaje "Área no
@@ -707,10 +728,13 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   el campo **"IBC vigente aplicable (%)"** — lo diligencias tú con el IBC certificado por la
   Superfinanciera para la fecha del caso, no hay un valor por defecto.
 - **Dónde vive la lógica en el código**: `app/engine/interest/usury_validator.py`, función
-  `validar_tasa_usura`. Se invoca automáticamente al liquidar (`ComercialStrategy.liquidar()` en
-  `app/services/area_strategy.py`), tanto para la tasa remuneratoria como para la moratoria.
-- **Qué pasa si se excede el tope**: el programa lanza el error "Tasa usuraria" y no calcula nada —
-  nunca trunca la tasa silenciosamente.
+  `calcular_tope_usura`, más `ComercialStrategy._calcular_sancion_usura`/`_aplicar_sanciones_usura` en
+  `app/services/area_strategy.py`. Se evalúa automáticamente al liquidar, tanto para la tasa
+  remuneratoria como para la moratoria.
+- **Qué pasa si se excede el tope**: el programa **no** rechaza la liquidación ni recorta la tasa. Calcula
+  cuánto interés se cobró de más frente al tope legal, dobla ese exceso (sanción del Art. 72 Ley 45/1990)
+  y lo resta del saldo total como un rubro adicional visible en el resultado — puede dejar saldo a favor
+  del deudor.
 
 ### 7.2. Categorías de obligación disponibles (área Civil/Familia)
 
@@ -754,22 +778,45 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   disponible" si el hecho es de un año que la DIAN todavía no ha publicado (por ejemplo, un año futuro
   aún sin resolución) — en ese caso, en vez de adivinar un valor, no calcula nada.
 
-### 7.6. Tope de cuota litis y honorarios (30% / 50% del beneficio obtenido)
+### 7.6. Tope de honorarios (50% acumulado del beneficio obtenido)
 
 - **Dónde se ve/edita en la app**: en el formulario de "Agregar obligación" de un expediente de
   Honorarios, los campos **"% Cuota litis pactada"** y **"Beneficio obtenido por el cliente"** — ver
   [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). No hay valores por defecto.
 - **Dónde vive la lógica en el código**: `app/services/area_strategy.py`, clase `HonorariosStrategy`,
-  método `_validar_obligacion_honorarios`. Los dos topes ya no son constantes fijas en el código — desde
-  el Sprint 13 se leen como parámetros legales versionados (`get_parametro("CUOTA_LITIS_INDIVIDUAL_PCT",
-  ...)` y `get_parametro("HONORARIOS_TOTAL_PCT", ...)`), consultables y editables desde la pantalla
-  "⚙ Parámetros" (ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)) sin tocar
-  código. Ambos topes se aplican **simultáneamente** (no son alternativos):
-  la cuota litis sola no puede superar el 30% del beneficio obtenido, y la suma de honorarios fijos +
-  cuota litis no puede superar el 50% del mismo beneficio.
-- **Qué pasa si se excede alguno de los dos topes**: el programa lanza el error "Cuota litis excede el
-  tope" al hacer clic en "Liquidar" y no calcula nada — igual que con la tasa usuraria, la validación
-  ocurre al calcular, no al capturar el dato.
+  método `_validar_obligacion_honorarios`. El tope ya no es una constante fija en el código — desde el
+  Sprint 13 se lee como parámetro legal versionado (`get_parametro("HONORARIOS_TOTAL_PCT", ...)`),
+  consultable y editable desde la pantalla "⚙ Parámetros" (ver
+  [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)) sin tocar código.
+  **Corregido en el Sprint 4 (2026-08-01)** tras confirmación del despacho: no existen dos topes en
+  cascada (30% individual + 50% total) — el único tope legal es el 50% acumulado de honorarios fijos +
+  cuota litis sobre el beneficio obtenido. Una cuota litis alta por sí sola ya no bloquea nada si el
+  total se mantiene dentro del 50%.
+- **Qué pasa si se excede el tope**: el programa bloquea la liquidación con el error "Cuota litis excede
+  el tope" al hacer clic en "Liquidar", citando "Honorarios Desproporcionados - Art. 35 Num. 4 Ley
+  1123/2007" (alerta de riesgo disciplinario) — la validación ocurre al calcular, no al capturar el
+  dato.
+
+### 7.6.1. Rango legal de costas manuales por cuantía
+
+Corregido en el Sprint 18 (2026-08-01), respuesta del despacho: el porcentaje de costas manual
+(`costas_pct_manual`, cualquier área que admita costas — ver sección 5.7-5.11) ya no acepta cualquier
+número. Se valida contra el rango legal permitido según la cuantía de las pretensiones reconocidas (CGP
+art. 25), en SMLMV vigentes en la fecha de origen de la obligación:
+
+| Cuantía | Rango de pretensiones | % permitido |
+|---|---|---|
+| Mínima | Hasta 40 SMLMV | 0% – 10% |
+| Menor | Más de 40 hasta 150 SMLMV | 3% – 7% |
+| Mayor | Más de 150 SMLMV | 1% – 5% |
+
+Si el porcentaje ingresado no cabe en el rango de su cuantía, el programa muestra "Costas fuera de rango"
+al hacer clic en "Liquidar" y no calcula nada — **rechaza, no recorta** el valor al límite más cercano.
+Esta tabla es distinta (más simple, y con rangos propios) de la tabla granular por tipo de proceso del
+Acuerdo PSAA16-10554 que ya usa el cálculo automático (`costas_tipo_proceso`/`costas_instancia`, ver
+[sección 8](#8-funciones-pendientes-o-en-desarrollo)) — solo aplica al porcentaje manual. Queda una
+pregunta de seguimiento con el despacho (`Preguntas-Para-Abogado.md`, Sprint 18) sobre si esta tabla simple
+en realidad reemplaza a la granular en vez de solo acotar el valor manual.
 
 ### 7.7. Indexación IPC (corrección monetaria)
 
@@ -807,26 +854,34 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
 ### 7.8. TRM y obligaciones en moneda extranjera
 
 - **Dónde se ve/edita en la app**: en el formulario de "Agregar obligación" de un expediente Comercial,
-  el campo **"Moneda"** y, si se elige "USD", los campos **"TRM aplicable (COP por USD)"** y **"Fecha de
-  referencia de la TRM"** — ver [sección 5.7](#57-agregar-una-obligación-comercial).
+  el campo **"Moneda"** y, si se elige "USD", los campos opcionales **"TRM aplicable (COP por USD)"** y
+  **"Fecha de referencia de la TRM"** — ver [sección 5.7](#57-agregar-una-obligación-comercial).
 - **Dónde vive la lógica en el código**: `app/engine/currency/converter.py` (`convertir_a_pesos`) y
-  `app/engine/currency/trm_provider.py` (`ManualTRMProvider`), invocados desde
-  `ComercialStrategy._valor_en_pesos` en `app/services/area_strategy.py`.
-- **Cómo se calcula**: el capital de la obligación se convierte a pesos **una sola vez**, multiplicando el
-  valor en dólares por la TRM que ingresó el abogado, antes de que empiece a correr cualquier interés. A
-  partir de ahí, la obligación se liquida exactamente igual que cualquier obligación comercial en pesos —
-  interés remuneratorio, mora y validación de usura no cambian.
-- **Ejemplo numérico completo**: un pagaré de **USD 2.000** con TRM aplicable de **$4.100 COP/USD** se
-  convierte una sola vez a `2.000 × 4.100 = $8.200.000` COP; a partir de ahí, ese valor en pesos es el
-  capital sobre el que corren el interés remuneratorio, la mora y la validación de usura, exactamente
-  igual que una obligación pactada en pesos desde el inicio.
-- **De dónde sale la TRM**: el abogado la ingresa directamente. El PDF fuente de BASTIUM (a diferencia de
-  SMLMV, IPC e IBC/Usura) no trae una serie histórica de TRM diaria, así que el programa no la busca
-  automáticamente — Art. 874 C.Co. permite usar la TRM de la fecha de la obligación o la de la fecha de
-  pago, y esa elección queda en manos del abogado según el caso.
-- **Qué NO hace todavía**: no soporta otras monedas extranjeras distintas de USD, no reconvierte el
-  capital pendiente en cada abono (la conversión es única, al inicio), y no existe todavía una serie
-  histórica de TRM precargada en el programa.
+  `app/engine/currency/trm_provider.py` (`SFCTRMProvider`, el proveedor en vivo; `ManualTRMProvider`, la
+  anulación manual), invocados desde `ComercialStrategy._valor_en_pesos_en_fecha` en
+  `app/services/area_strategy.py`.
+- **Corregido en el Sprint 12 (2026-08-01)** tras respuesta del despacho: antes, el capital se convertía a
+  pesos **una sola vez** con una TRM digitada por el abogado, y esa misma cifra en pesos se usaba durante
+  toda la liquidación sin volver a considerar el tipo de cambio — el despacho calificó esto de "TRM
+  congelada" y exigió eliminarla (Art. 874 C.Co.: la conversión debe hacerse según la tasa de cambio
+  vigente en la fecha real de cada evento, no una sola vez al inicio).
+- **Cómo se calcula ahora**: cada evento se convierte a pesos con la TRM de **su propia fecha**, consultada
+  en vivo a la Superintendencia Financiera (`SFCTRMProvider`, vía el dataset abierto de datos.gov.co que
+  espeja el servicio oficial de la SFC) — el capital, con la TRM de la fecha de origen de la obligación;
+  **cada abono, con la TRM de su propia fecha de pago** (el cambio central de este sprint: dos abonos en
+  fechas distintas de la misma obligación en USD pueden convertirse a un número distinto de pesos por
+  dólar, según cómo se haya movido la TRM entre esas fechas).
+- **Ejemplo numérico**: una obligación de USD 1.000 se paga con un abono de USD 1.000 el 2025-02-01. Si la
+  TRM de esa fecha certificada por la SFC es $4.200/USD, el abono aplica $4.200.000 — sin importar qué TRM
+  tenía la obligación cuando nació (la TRM "congelada" que ya no se usa por defecto).
+- **Anulación manual (opcional)**: si diligencias **"TRM aplicable"**, ese valor fijo se usa para *todos*
+  los eventos de esa obligación (capital y abonos), sin consultar la API — útil sin conexión a internet, o
+  para reproducir exactamente una liquidación hecha antes de este sprint. Si lo dejas vacío (el caso
+  normal desde este sprint), el programa siempre consulta la TRM real por fecha.
+- **Qué pasa si la API no responde**: el programa muestra el mensaje "TRM no disponible" al hacer clic en
+  "Liquidar" y no calcula nada — no aproxima ni usa un valor viejo en su lugar. En ese caso, diligencia la
+  TRM manualmente como respaldo (ver punto anterior).
+- **Qué NO hace todavía**: no soporta otras monedas extranjeras distintas de USD.
 
 ---
 
@@ -871,9 +926,10 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   conectado a ninguna pantalla — hoy sirve como base interna para el motor de prescripción y caducidad
   del Sprint 7 (`Pendientes.md`, Sprint 6).
 - ✅ **Derecho Tributario** ya está conectado como sexta área operable: impuesto a cargo, las tres
-  sanciones (extemporaneidad, inexactitud, error aritmético, con piso legal de 10 UVT), imputación de
-  pagos propia (sanciones → intereses → impuesto), interés moratorio automático del E.T. art. 635 y
-  depuración de Renta Líquida Gravable informativa. Ver [sección 5.15](#515-agregar-una-obligación-tributaria)
+  sanciones (extemporaneidad, inexactitud, error aritmético, con piso legal de 10 UVT), interés moratorio
+  automático del E.T. art. 635 sobre el impuesto, actualización IPC adicional para mora superior a 3 años
+  (Art. 867-1 E.T., cada obligación liquidada y pagada por separado) y depuración de Renta Líquida
+  Gravable informativa. Ver [sección 5.15](#515-agregar-una-obligación-tributaria)
   y [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy) (`Pendientes.md`, Sprint 15). **Qué queda
   explícitamente fuera de alcance:** el cálculo de la tarifa del impuesto sobre la renta líquida gravable
   (el usuario ingresa el impuesto a cargo ya determinado, el programa no aplica una tarifa

@@ -23,7 +23,8 @@ from decimal import Decimal
 from typing import Dict, List, Tuple
 
 import database.session as session_module
-from app.core.exceptions import ParametroNoDisponibleError
+from app.core.exceptions import IPCMensualNoDisponibleError, ParametroNoDisponibleError
+from app.engine.time.calendar import CalendarUtils
 from app.services.parametro_service import get_parametro, ultimo_anio_disponible
 from database.models import ParametroLegal
 
@@ -230,6 +231,70 @@ def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
         return v2
 
     return (Decimal(t1) * v2 + Decimal(t2) * v1) / Decimal(t1 + t2)
+
+
+# ---------------------------------------------------------------------------
+# IPC MENSUAL (Sprint 8, correccion 2026-08-01): el despacho calificó la
+# interpolacion por cierre de año (arriba) de "juridicamente invalida" y exige
+# el indice mensual real del DANE con interpolacion lineal de dias entre
+# meses -- ver Preguntas-Para-Abogado.md, Sprint 8 (respuesta 27/07/2026) y la
+# pregunta de seguimiento agregada al final de ese documento (2026-08-01)
+# pidiendo la fuente/tabla real.
+#
+# Esta tabla queda deliberadamente VACIA: no se inventa ni aproxima un indice
+# mensual sin la fuente oficial del DANE (mismo criterio que la UVT antes del
+# Sprint 14, o las costas sin el Acuerdo real en el Sprint 4).
+# get_ipc_mensual_for_month/get_ipc_interpolado_mensual_for_date lanzan
+# IPCMensualNoDisponibleError para cualquier mes mientras siga vacia -- nunca
+# aproximan con la serie anual ni con el ultimo mes disponible (el despacho
+# prohibio explicitamente "promedios anuales o proyecciones del año en curso").
+#
+# CivilFamiliaStrategy (area_strategy.py) sigue usando
+# get_ipc_interpolado_for_date (la interpolacion anual de arriba) hasta que
+# esta tabla se pueble con datos reales -- conectar get_ipc_interpolado_mensual_for_date
+# en su lugar es la ultima parte pendiente de este sprint, bloqueada por la
+# misma falta de fuente.
+# ---------------------------------------------------------------------------
+
+_IPC_MENSUAL: Dict[Tuple[int, int], Decimal] = {}
+
+
+def get_ipc_mensual_for_month(anio: int, mes: int) -> Decimal:
+    """Indice IPC mensual real (DANE) para `mes` de `anio`. Lanza
+    IPCMensualNoDisponibleError si ese mes no esta cargado en _IPC_MENSUAL."""
+    try:
+        return _IPC_MENSUAL[(anio, mes)]
+    except KeyError:
+        raise IPCMensualNoDisponibleError(
+            f"No hay indice IPC mensual cargado para {anio}-{mes:02d}. La tabla mensual "
+            "del DANE todavia no se ha cargado (Sprint 8, pendiente de que el despacho "
+            "aporte la fuente -- ver Preguntas-Para-Abogado.md)."
+        )
+
+
+def get_ipc_interpolado_mensual_for_date(fecha: date) -> Decimal:
+    """Indice IPC interpolado linealmente por dias dentro del mes (formula exigida
+    por el despacho, Sprint 8): si `fecha` es el ultimo dia de su mes, retorna el
+    indice de ese mes directo; si no, interpola entre el indice de cierre del mes
+    anterior y el del mes de `fecha`, ponderado por los dias transcurridos --
+    misma forma que get_ipc_interpolado_for_date, pero por mes en vez de por año."""
+    ultimo_dia_mes_actual = CalendarUtils.safe_create_date(fecha.year, fecha.month, 31)
+    v_actual = get_ipc_mensual_for_month(fecha.year, fecha.month)
+
+    if fecha == ultimo_dia_mes_actual:
+        return v_actual
+
+    if fecha.month > 1:
+        anio_anterior, mes_anterior = fecha.year, fecha.month - 1
+    else:
+        anio_anterior, mes_anterior = fecha.year - 1, 12
+    v_anterior = get_ipc_mensual_for_month(anio_anterior, mes_anterior)
+    ultimo_dia_mes_anterior = CalendarUtils.safe_create_date(anio_anterior, mes_anterior, 31)
+
+    t1 = (fecha - ultimo_dia_mes_anterior).days
+    t2 = (ultimo_dia_mes_actual - fecha).days
+
+    return (Decimal(t1) * v_actual + Decimal(t2) * v_anterior) / Decimal(t1 + t2)
 
 
 # ---------------------------------------------------------------------------

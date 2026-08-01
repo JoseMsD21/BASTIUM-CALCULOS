@@ -41,8 +41,8 @@ def test_get_parametro_modo_abierto_toma_la_fila_mas_reciente_antes_de_la_fecha(
 def test_get_parametro_modo_abierto_extrapola_hacia_adelante_sin_tope():
     from app.services.parametro_service import get_parametro
 
-    _insertar("CUOTA_LITIS_INDIVIDUAL_PCT", "30", date(2007, 1, 1))
-    assert get_parametro("CUOTA_LITIS_INDIVIDUAL_PCT", date(2099, 1, 1)) == Decimal("30")
+    _insertar("HONORARIOS_TOTAL_PCT", "50", date(2007, 1, 1))
+    assert get_parametro("HONORARIOS_TOTAL_PCT", date(2099, 1, 1)) == Decimal("50")
 
 
 def test_get_parametro_sin_ninguna_fila_anterior_a_la_fecha_lanza_error():
@@ -145,10 +145,10 @@ def test_valor_vigente_hoy_retorna_none_sin_datos():
 def test_valor_vigente_hoy_retorna_la_fila_resuelta_para_hoy():
     from app.services.parametro_service import agregar_valor, valor_vigente_hoy
 
-    agregar_valor("CUOTA_LITIS_INDIVIDUAL_PCT", Decimal("30"), date(2007, 1, 1), "abogado1")
-    fila = valor_vigente_hoy("CUOTA_LITIS_INDIVIDUAL_PCT")
+    agregar_valor("HONORARIOS_TOTAL_PCT", Decimal("50"), date(2007, 1, 1), "abogado1")
+    fila = valor_vigente_hoy("HONORARIOS_TOTAL_PCT")
     assert fila is not None
-    assert fila.valor == Decimal("30")
+    assert fila.valor == Decimal("50")
 
 
 def test_ultimo_anio_disponible_retorna_el_mayor_anio_cargado():

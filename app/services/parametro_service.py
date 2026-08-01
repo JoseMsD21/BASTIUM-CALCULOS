@@ -45,13 +45,9 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Multiplicador del tope de usura sobre el IBC", "Topes legales",
         "Ley 45/1990, art. 72", ModoResolucion.ABIERTO,
     ),
-    "CUOTA_LITIS_INDIVIDUAL_PCT": InfoParametro(
-        "Tope de cuota litis individual (% del beneficio obtenido)", "Topes legales",
-        "Ley 1123/2007", ModoResolucion.ABIERTO,
-    ),
     "HONORARIOS_TOTAL_PCT": InfoParametro(
         "Tope de honorarios fijos + cuota litis (% del beneficio obtenido)", "Topes legales",
-        "Criterio jurisprudencial/etico", ModoResolucion.ABIERTO,
+        "Art. 35 Num. 4 Ley 1123/2007", ModoResolucion.ABIERTO,
     ),
     "ET635_PUNTOS_DESCUENTO": InfoParametro(
         "Puntos que se restan a la usura vigente para el interes moratorio tributario",
@@ -88,6 +84,36 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
     "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES": InfoParametro(
         "Plazo de caducidad de impugnacion de ineficacia societaria (meses)",
         "Plazos de prescripcion y caducidad", "PDF pagina 40", ModoResolucion.ABIERTO,
+    ),
+    "CADUCIDAD_CHEQUES_MESES": InfoParametro(
+        "Plazo de caducidad de la accion cambiaria del cheque (meses)",
+        "Plazos de prescripcion y caducidad",
+        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)", ModoResolucion.ABIERTO,
+    ),
+    "CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES": InfoParametro(
+        "Plazo de caducidad de la accion de enriquecimiento sin causa (meses)",
+        "Plazos de prescripcion y caducidad",
+        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)", ModoResolucion.ABIERTO,
+    ),
+    "CADUCIDAD_TRANSPORTE_MESES": InfoParametro(
+        "Plazo de caducidad de la accion de transporte (meses)",
+        "Plazos de prescripcion y caducidad",
+        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)", ModoResolucion.ABIERTO,
+    ),
+    "CADUCIDAD_SEGURO_ORDINARIA_MESES": InfoParametro(
+        "Plazo de prescripcion ordinaria del contrato de seguro (meses)",
+        "Plazos de prescripcion y caducidad",
+        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)", ModoResolucion.ABIERTO,
+    ),
+    "CADUCIDAD_SEGURO_EXTRAORDINARIA_MESES": InfoParametro(
+        "Plazo de prescripcion extraordinaria del contrato de seguro (meses)",
+        "Plazos de prescripcion y caducidad",
+        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)", ModoResolucion.ABIERTO,
+    ),
+    "CADUCIDAD_IMPUGNACION_ACTAS_SOCIALES_MESES": InfoParametro(
+        "Plazo de caducidad de impugnacion de actas sociales (meses)",
+        "Plazos de prescripcion y caducidad",
+        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)", ModoResolucion.ABIERTO,
     ),
     "SMLMV": InfoParametro(
         "Salario Minimo Legal Mensual Vigente", "Indicadores historicos",

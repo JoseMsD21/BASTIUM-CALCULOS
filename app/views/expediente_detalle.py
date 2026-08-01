@@ -13,9 +13,11 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core.exceptions import (
     AreaNoImplementadaError,
+    CostasFueraDeRangoError,
     CuotaLitisExcedeTopeError,
     ParametroNoDisponibleError,
-    TasaUsurariaError,
+    TarifaNoDisponibleError,
+    TRMNoDisponibleError,
     UVTNoDisponibleError,
 )
 from app.engine.audit.service import historial_de_expediente, reconstruir_liquidacion, registrar_liquidacion
@@ -223,14 +225,20 @@ class ExpedienteDetallePage(QWidget):
         except AreaNoImplementadaError as error:
             QMessageBox.warning(self, "Area no implementada", str(error))
             return
-        except TasaUsurariaError as error:
-            QMessageBox.warning(self, "Tasa usuraria", str(error))
-            return
         except CuotaLitisExcedeTopeError as error:
             QMessageBox.warning(self, "Cuota litis excede el tope", str(error))
             return
+        except CostasFueraDeRangoError as error:
+            QMessageBox.warning(self, "Costas fuera de rango", str(error))
+            return
+        except TarifaNoDisponibleError as error:
+            QMessageBox.warning(self, "Tarifa de costas no disponible", str(error))
+            return
         except UVTNoDisponibleError as error:
             QMessageBox.warning(self, "UVT no disponible", str(error))
+            return
+        except TRMNoDisponibleError as error:
+            QMessageBox.warning(self, "TRM no disponible", str(error))
             return
         except ParametroNoDisponibleError as error:
             QMessageBox.warning(self, "Parámetro legal no configurado", str(error))

@@ -6,12 +6,17 @@ from typing import Callable, List, Optional
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
-from app.engine.costs.agencias_en_derecho import Instancia, TipoProceso, calcular_agencias_en_derecho
+from app.engine.costs.agencias_en_derecho import (
+    Instancia,
+    TipoProceso,
+    calcular_agencias_en_derecho,
+    validar_costas_pct_manual,
+)
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.currency.converter import convertir_a_pesos
-from app.engine.currency.trm_provider import ManualTRMProvider
+from app.engine.currency.trm_provider import ManualTRMProvider, SFCTRMProvider, TRMProvider
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.seguridad_social import SeguridadSocialCalculator
@@ -20,13 +25,21 @@ from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
 from app.engine.temporal.schedulers.labor import LaborScheduler
-from app.engine.interest.usury_validator import validar_tasa_usura
+from app.engine.interest.usury_validator import calcular_tope_usura
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
 from app.engine.indexation.ipc import IPCIndexation
 from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import get_parametro
-from app.engine.tax.moratory_interest import construir_rate_provider_moratorio_tributario
+from app.engine.tax.actualizacion_867_1 import (
+    aplica_actualizacion_867_1,
+    calcular_indexacion_867_1,
+    calcular_indexacion_867_1_topada,
+)
+from app.engine.tax.moratory_interest import (
+    calcular_interes_moratorio_tributario,
+    construir_rate_provider_moratorio_tributario,
+)
 from app.engine.tax.renta_liquida import depurar_renta_liquida_gravable
 from app.engine.tax.sanciones import (
     calcular_sancion_error_aritmetico,
@@ -39,10 +52,16 @@ def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> 
     """Costas procesales (agencias en derecho) para cualquier area de litigio
     judicial. costas_pct_manual (Sprint 4) tiene siempre prioridad sobre el
     calculo automatico del Acuerdo PSAA16-10554 (Sprint 18) -- si el auto
-    judicial real ya fijo un porcentaje, ese manda. Retorna None si la
+    judicial real ya fijo un porcentaje, ese manda, pero desde la correccion
+    del Sprint 18 (2026-08-01) ese porcentaje manual se valida contra el rango
+    permitido por cuantia (respuesta del despacho) y se RECHAZA (no se trunca)
+    si esta fuera de rango -- ver validar_costas_pct_manual. Retorna None si la
     obligacion no tiene ninguno de los dos mecanismos activado (comportamiento
     identico al de antes de este sprint)."""
     if obligacion.costas_pct_manual is not None:
+        validar_costas_pct_manual(
+            obligacion.costas_pct_manual, pretensiones_reconocidas, obligacion.fecha_origen,
+        )
         costas_monto = pretensiones_reconocidas * obligacion.costas_pct_manual / Decimal("100")
     elif obligacion.costas_tipo_proceso is not None and obligacion.costas_instancia is not None:
         costas_monto = calcular_agencias_en_derecho(
@@ -68,6 +87,7 @@ def _liquidar_por_obligacion(
     eventos_fn: Callable[[object], List[Event]],
     rate_provider_fn: Callable[[object, date], MemoryRateProvider],
     usar_suma_unica_fn: Callable[[object], bool] = lambda obligacion: False,
+    monto_abono_fn: Callable[[object, object], Decimal] = lambda obligacion, abono: abono.monto,
 ) -> LiquidationResult:
     """Corre un LiquidationCore independiente por obligacion -- cada una con su propia
     tasa (via rate_provider_fn) y solo sus propios abonos (Abono.obligacion_id) -- y
@@ -82,7 +102,12 @@ def _liquidar_por_obligacion(
     ya indexado). Default `False` para toda area que no lo soporte -- solo
     CivilFamiliaStrategy pasa una funcion real. Como cada obligacion ya corre en su propio
     LiquidationCore aislado, el criterio no necesita ser consistente entre obligaciones del
-    mismo expediente."""
+    mismo expediente.
+
+    monto_abono_fn (Sprint 12, correccion 2026-08-01): resuelve el monto de cada abono
+    antes de aplicarlo -- identidad por defecto (mismo comportamiento de siempre). Solo
+    ComercialStrategy pasa una funcion real, para convertir a pesos con la TRM dinamica
+    de la fecha de CADA abono (ver ComercialStrategy._monto_abono_en_pesos)."""
     ids_obligaciones = {obligacion.id for obligacion in obligaciones}
     for abono in abonos:
         if abono.obligacion_id not in ids_obligaciones:
@@ -95,7 +120,10 @@ def _liquidar_por_obligacion(
     for obligacion in obligaciones:
         abonos_obligacion = [abono for abono in abonos if abono.obligacion_id == obligacion.id]
         pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
+            Payment(
+                date=abono.fecha, amount=monto_abono_fn(obligacion, abono),
+                reference=abono.referencia or "",
+            )
             for abono in abonos_obligacion
         ]
         service = UniversalLiquidationService()
@@ -318,9 +346,24 @@ class ComercialStrategy(AreaStrategy):
     cuota individual no esta modelado (ver docs/superpowers/specs/2026-07-15-area-comercial-design.md).
 
     No es compatible con indexacion IPC (soporta_indexacion_ipc = False).
+
+    TRM (Sprint 12, correccion 2026-08-01): respuesta del despacho -- "eliminar
+    la logica de TRM congelada al inicio". Por defecto, cada obligacion en
+    moneda extranjera se convierte a pesos con la TRM certificada por la
+    Superintendencia Financiera EN LA FECHA DE CADA EVENTO (capital: fecha de
+    origen; cada abono: su propia fecha de pago), consultada en vivo via
+    `SFCTRMProvider`. Si la obligacion trae `trm_aplicable` seteado (flujo
+    manual anterior a este sprint, conservado por compatibilidad y como
+    respaldo si la API no responde), esa obligacion usa ese valor fijo para
+    todo en vez de la API -- es la unica TRM "congelada" que sobrevive, y es
+    una eleccion explicita del abogado por obligacion, no el comportamiento
+    por defecto.
     """
 
     soporta_indexacion_ipc = False
+
+    def __init__(self, trm_provider: Optional[TRMProvider] = None):
+        self._trm_provider_default = trm_provider or SFCTRMProvider()
 
     def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
@@ -329,13 +372,102 @@ class ComercialStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_comercial(obligacion)
 
-        return _liquidar_por_obligacion(
+        resultado = _liquidar_por_obligacion(
             obligaciones=obligaciones,
             abonos=abonos,
             fecha_corte=fecha_corte,
             eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
             rate_provider_fn=self._construir_rate_provider_obligacion,
+            monto_abono_fn=self._monto_abono_en_pesos,
         )
+
+        ajustes_usura = []
+        for obligacion in obligaciones:
+            abonos_obligacion = [abono for abono in abonos if abono.obligacion_id == obligacion.id]
+            ajuste = self._calcular_sancion_usura(obligacion, abonos_obligacion, fecha_corte)
+            if ajuste is not None:
+                ajustes_usura.append(ajuste)
+
+        if ajustes_usura:
+            resultado = self._aplicar_sanciones_usura(resultado, ajustes_usura, fecha_corte)
+
+        return resultado
+
+    def _calcular_sancion_usura(self, obligacion, abonos: List, fecha_corte: date) -> Optional[dict]:
+        """Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): una tasa
+        pactada por encima de la usura NO se rechaza ni se recorta silenciosamente.
+        Se liquida con la tasa realmente pactada y, aparte, se calcula:
+          Intereses_Cobrados_En_Exceso = Intereses_Cobrados - Intereses_Cobrados_Con_Tasa_Usura
+          Sancion = Intereses_Cobrados_En_Exceso x 2
+        restando la sancion del saldo total (puede dejar saldo a favor del deudor).
+
+        "Intereses_Cobrados_Con_Tasa_Usura" se obtiene corriendo la misma obligacion
+        (mismos eventos, mismos abonos) por el motor con las tasas que excedan el tope
+        recortadas a ese tope -- una liquidacion sombra que nunca se devuelve al
+        usuario, solo se usa como referencia de cuanto interes habria causado la tasa
+        legal. Retorna None si ninguna de las dos tasas (remuneratoria/moratoria)
+        excede el tope."""
+        tope = calcular_tope_usura(obligacion.ibc_vigente_anual, obligacion.fecha_origen)
+        if obligacion.tasa_efectiva_anual <= tope and obligacion.tasa_moratoria_anual <= tope:
+            return None
+
+        eventos = self._eventos_de_obligacion(obligacion, fecha_corte)
+        pagos = [
+            Payment(
+                date=abono.fecha, amount=self._monto_abono_en_pesos(obligacion, abono),
+                reference=abono.referencia or "",
+            )
+            for abono in abonos
+        ]
+
+        intereses_cobrados = UniversalLiquidationService().liquidar(
+            eventos_causacion=eventos,
+            pagos=pagos,
+            fecha_corte=fecha_corte,
+            rate_provider=self._construir_rate_provider_obligacion(obligacion, fecha_corte),
+        ).final_balance().interest
+
+        intereses_con_tasa_usura = UniversalLiquidationService().liquidar(
+            eventos_causacion=eventos,
+            pagos=pagos,
+            fecha_corte=fecha_corte,
+            rate_provider=self._construir_rate_provider_obligacion(obligacion, fecha_corte, tope=tope),
+        ).final_balance().interest
+
+        exceso = intereses_cobrados - intereses_con_tasa_usura
+        return {
+            "obligacion": obligacion,
+            "exceso": exceso,
+            "sancion": exceso * Decimal("2"),
+            "tope": tope,
+        }
+
+    def _aplicar_sanciones_usura(
+        self, resultado: LiquidationResult, ajustes: List[dict], fecha_corte: date
+    ) -> LiquidationResult:
+        items = list(resultado.items)
+        saldo = resultado.final_balance()
+        for ajuste in ajustes:
+            saldo = PendingDebt(
+                principal=saldo.principal,
+                interest=saldo.interest - ajuste["sancion"],
+                indexation=saldo.indexation,
+            )
+            items.append(LiquidationItem(
+                date=fecha_corte,
+                concept=(
+                    f"Sanción por usura (Art. 72 Ley 45/1990) — {ajuste['obligacion'].concepto}: "
+                    f"exceso cobrado {ajuste['exceso']} x 2, devuelto doblado al deudor"
+                ),
+                capital_base=saldo.principal,
+                interest_rate=Decimal("0.00"),
+                interest_amount=-ajuste["sancion"],
+                indexation_amount=Decimal("0.00"),
+                payment_amount=Decimal("0.00"),
+                balance=RunningBalance(date=fecha_corte, debt=saldo, event_type="SANCION_USURA"),
+                rate_source=f"Tope de usura vigente: {ajuste['tope']}% (Ley 45/1990 art. 72)",
+            ))
+        return LiquidationResult(items, renta_liquida=resultado.renta_liquida)
 
     def _validar_obligacion_comercial(self, obligacion) -> None:
         campos_requeridos = {
@@ -357,30 +489,20 @@ class ComercialStrategy(AreaStrategy):
                 f"({obligacion.fecha_vencimiento}) anterior a fecha_origen ({obligacion.fecha_origen})."
             )
 
-        validar_tasa_usura(
-            obligacion.tasa_efectiva_anual, obligacion.ibc_vigente_anual, "remuneratoria",
-            obligacion.fecha_origen,
-        )
-        validar_tasa_usura(
-            obligacion.tasa_moratoria_anual, obligacion.ibc_vigente_anual, "moratoria",
-            obligacion.fecha_origen,
-        )
+        # Una tasa pactada por encima del tope de usura ya NO se rechaza aqui (ver
+        # respuesta del despacho, Preguntas-Para-Abogado.md Sprint 2): se liquida
+        # igual y la sancion legal (perdida del exceso, doblado) se calcula y resta
+        # del saldo en liquidar() -> _calcular_sancion_usura/_aplicar_sanciones_usura.
 
-        if obligacion.moneda not in (None, "COP"):
-            if obligacion.trm_aplicable is None:
-                raise ValueError(
-                    f"La obligacion comercial '{obligacion.concepto}' esta en "
-                    f"{obligacion.moneda} y necesita el campo 'trm_aplicable' para liquidar."
-                )
+        # trm_aplicable/trm_fecha_referencia ya NO son obligatorios (Sprint 12,
+        # correccion 2026-08-01): por defecto la TRM se consulta en vivo, por fecha,
+        # via SFCTRMProvider -- ver docstring de la clase. trm_aplicable sigue siendo
+        # una anulacion manual valida si el abogado la aporta, pero debe ser positiva.
+        if obligacion.moneda not in (None, "COP") and obligacion.trm_aplicable is not None:
             if obligacion.trm_aplicable <= 0:
                 raise ValueError(
                     f"La obligacion comercial '{obligacion.concepto}' tiene 'trm_aplicable' "
                     f"({obligacion.trm_aplicable}) que no es un valor positivo."
-                )
-            if obligacion.trm_fecha_referencia is None:
-                raise ValueError(
-                    f"La obligacion comercial '{obligacion.concepto}' esta en "
-                    f"{obligacion.moneda} y necesita el campo 'trm_fecha_referencia' para liquidar."
                 )
 
         if obligacion.anatocismo_demanda_judicial and obligacion.anatocismo_fecha_acuerdo is not None:
@@ -409,16 +531,34 @@ class ComercialStrategy(AreaStrategy):
                     f"exigido por el Art. 886 C.Co. (debe ser >= {fecha_minima_acuerdo})."
                 )
 
-    def _valor_en_pesos(self, obligacion) -> Decimal:
-        if obligacion.moneda in (None, "COP"):
-            return obligacion.valor
-        provider = ManualTRMProvider(obligacion.trm_aplicable)
+    def _resolver_trm_provider(self, obligacion) -> TRMProvider:
+        """`trm_aplicable` (si el abogado lo diligencio) es una anulacion manual
+        fija para TODOS los eventos de esa obligacion -- comportamiento anterior
+        a este sprint, conservado por compatibilidad. Sin esa anulacion, se usa
+        el proveedor en vivo (SFCTRMProvider por defecto), consultado por fecha
+        en cada llamada -- ver docstring de la clase."""
+        if obligacion.trm_aplicable is not None:
+            return ManualTRMProvider(obligacion.trm_aplicable)
+        return self._trm_provider_default
+
+    def _valor_en_pesos_en_fecha(self, valor: Decimal, obligacion, fecha: date) -> Decimal:
         return convertir_a_pesos(
-            valor=obligacion.valor,
+            valor=valor,
             moneda=obligacion.moneda,
-            provider=provider,
-            fecha_referencia=obligacion.trm_fecha_referencia,
+            provider=self._resolver_trm_provider(obligacion),
+            fecha_referencia=fecha,
         )
+
+    def _valor_en_pesos(self, obligacion) -> Decimal:
+        return self._valor_en_pesos_en_fecha(obligacion.valor, obligacion, obligacion.fecha_origen)
+
+    def _monto_abono_en_pesos(self, obligacion, abono) -> Decimal:
+        """Respuesta del despacho (Sprint 12, correccion 2026-08-01): "eliminar
+        la logica de TRM congelada al inicio" -- cada abono se convierte con la
+        TRM vigente en SU PROPIA fecha de pago, no con la del origen de la
+        obligacion. Para obligaciones en COP (o sin moneda), retorna el monto
+        sin tocar -- identico al comportamiento de siempre."""
+        return self._valor_en_pesos_en_fecha(abono.monto, obligacion, abono.fecha)
 
     def _fecha_capitalizacion_anatocismo(self, obligacion) -> Optional[date]:
         if obligacion.anatocismo_demanda_judicial:
@@ -474,12 +614,25 @@ class ComercialStrategy(AreaStrategy):
         fin = obligacion.fecha_fin or fecha_corte
         return scheduler.generate(start=obligacion.fecha_inicio, end=fin)
 
-    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+    def _construir_rate_provider_obligacion(
+        self, obligacion, fecha_corte: date, tope: Optional[Decimal] = None
+    ) -> MemoryRateProvider:
+        """`tope` (Sprint 2, sancion de usura): si se pasa, recorta ambas tasas
+        (remuneratoria y moratoria) a ese tope antes de convertirlas a diarias --
+        usado unicamente por _calcular_sancion_usura para la liquidacion sombra de
+        referencia ("Intereses_Cobrados_Con_Tasa_Usura"), nunca en la liquidacion
+        real que se devuelve al usuario."""
+        tasa_remuneratoria_anual = obligacion.tasa_efectiva_anual
+        tasa_moratoria_anual = obligacion.tasa_moratoria_anual
+        if tope is not None:
+            tasa_remuneratoria_anual = min(tasa_remuneratoria_anual, tope)
+            tasa_moratoria_anual = min(tasa_moratoria_anual, tope)
+
         provider = MemoryRateProvider()
-        tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_moratoria_anual)
+        tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(tasa_moratoria_anual)
 
         if obligacion.tipo.value == "PUNTUAL":
-            tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
+            tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(tasa_remuneratoria_anual)
             inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
             fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
             provider.add_rate_period(
@@ -780,11 +933,13 @@ class HonorariosStrategy(AreaStrategy):
     completa en `app/engine/costs/agencias_en_derecho.py`) cuando la obligacion trae
     `costas_tipo_proceso`/`costas_instancia`.
 
-    Tope de cuota litis (ambos simultaneos -- ver design spec 2026-07-17, el PDF trae
-    un 50% en una seccion y un 30% en otra, se aplican los dos):
-    - cuota litis sola <= 30% del beneficio obtenido (Ley 1123/2007, CPC).
-    - honorarios fijos + cuota litis <= 50% del beneficio obtenido (limite
-      jurisprudencial y etico).
+    Tope de cuota litis (un solo tope, no dos en cascada -- corregido Sprint 4, ver
+    respuesta del despacho en Preguntas-Para-Abogado.md: el PDF trae un 50% en una
+    seccion y un 30% en otra, pero el tope legal absoluto y definitivo es el 50%
+    acumulado, no ambos a la vez):
+    - honorarios fijos + cuota litis <= 50% del beneficio obtenido. Si se excede,
+      se bloquea la liquidacion con una alerta de riesgo disciplinario ("Honorarios
+      Desproporcionados - Art. 35 Num. 4 Ley 1123/2007").
 
     No soporta obligaciones RECURRENTE. No es compatible con indexacion IPC.
     """
@@ -824,22 +979,14 @@ class HonorariosStrategy(AreaStrategy):
                 )
 
         cuota_litis_monto = self._cuota_litis_monto(obligacion)
-        tope_individual_pct = get_parametro("CUOTA_LITIS_INDIVIDUAL_PCT", obligacion.fecha_origen)
-        tope_individual = obligacion.beneficio_obtenido * tope_individual_pct / Decimal("100")
-        if cuota_litis_monto > tope_individual:
-            raise CuotaLitisExcedeTopeError(
-                f"La cuota litis pactada ({obligacion.cuota_litis_pactada_pct}%) de "
-                f"'{obligacion.concepto}' equivale a {cuota_litis_monto}, que excede el tope "
-                f"del 30% del beneficio obtenido ({tope_individual})."
-            )
-
         total_honorarios = obligacion.honorarios_fijos_pactados + cuota_litis_monto
         tope_total_pct = get_parametro("HONORARIOS_TOTAL_PCT", obligacion.fecha_origen)
         tope_total = obligacion.beneficio_obtenido * tope_total_pct / Decimal("100")
         if total_honorarios > tope_total:
             raise CuotaLitisExcedeTopeError(
-                f"La suma de honorarios fijos + cuota litis de '{obligacion.concepto}' "
-                f"({total_honorarios}) excede el tope del 50% del beneficio obtenido ({tope_total})."
+                f"Honorarios Desproporcionados - Art. 35 Num. 4 Ley 1123/2007: la suma de "
+                f"honorarios fijos + cuota litis de '{obligacion.concepto}' ({total_honorarios}) "
+                f"excede el tope legal del {tope_total_pct}% del beneficio obtenido ({tope_total})."
             )
 
     def _cuota_litis_monto(self, obligacion) -> Decimal:
@@ -904,6 +1051,22 @@ class TributarioStrategy(AreaStrategy):
     generar a la vez el interes automatico E.T. 635 y un evento de correccion monetaria IPC
     sobre el mismo hecho. La advertencia del PDF no aplica por construccion, no por una
     validacion explicita en tiempo de ejecucion.
+
+    Concurrencia especial para mora > 3 años (Art. 867-1 E.T., corregido Sprint 15,
+    2026-08-01, respuesta del despacho -- Sentencia C-549/1993: interes moratorio e
+    indexacion tienen naturalezas distintas y SI pueden concurrir):
+    - "Impuesto" (IMPUESTO_A_CARGO): conserva el interes E.T. 635 y ADEMAS se indexa por
+      IPC, topando la suma (interes + indexacion) al interes que produciria la tasa de
+      usura PLENA (sin el descuento de 2 puntos del art. 635) sobre el mismo capital y
+      periodo -- ver app/engine/tax/actualizacion_867_1.py.
+    - "Sanciones" (SANCION_*): NO se liquida interes moratorio -- se reemplaza
+      integramente por la indexacion IPC.
+    - Mora <= 3 años: sin cambios para ningun rubro.
+
+    Esto exige que cada obligacion corra en su propio LiquidationCore (via
+    _liquidar_por_obligacion, mismo patron que Comercial/CivilFamilia desde el Sprint 21):
+    un solo PendingDebt/rate provider compartido para todo el expediente no puede darle
+    0% de interes a una sancion y la tasa E.T. 635 al impuesto al mismo tiempo.
     """
 
     soporta_indexacion_ipc = False
@@ -923,21 +1086,12 @@ class TributarioStrategy(AreaStrategy):
         for obligacion in obligaciones_deuda:
             self._validar_obligacion_tributaria(obligacion)
 
-        eventos_causacion = [self._evento_de_obligacion(o) for o in obligaciones_deuda]
-
-        pagos = [
-            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
-            for abono in abonos
-        ]
-
-        rate_provider = self._construir_rate_provider(obligaciones_deuda, fecha_corte)
-
-        service = UniversalLiquidationService()
-        resultado = service.liquidar(
-            eventos_causacion=eventos_causacion,
-            pagos=pagos,
+        resultado = _liquidar_por_obligacion(
+            obligaciones=obligaciones_deuda,
+            abonos=abonos,
             fecha_corte=fecha_corte,
-            rate_provider=rate_provider,
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
+            rate_provider_fn=self._construir_rate_provider_obligacion,
         )
 
         if obligaciones_renta_liquida:
@@ -995,6 +1149,12 @@ class TributarioStrategy(AreaStrategy):
             f"Categoria tributaria desconocida: '{obligacion.categoria}'."
         )
 
+    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
+        eventos = [self._evento_de_obligacion(obligacion)]
+        if aplica_actualizacion_867_1(obligacion.fecha_origen, fecha_corte):
+            eventos.append(self._evento_actualizacion_867_1(obligacion, fecha_corte))
+        return eventos
+
     def _evento_de_obligacion(self, obligacion) -> Event:
         if obligacion.categoria == "IMPUESTO_A_CARGO":
             return Event(
@@ -1008,6 +1168,28 @@ class TributarioStrategy(AreaStrategy):
             date=obligacion.fecha_origen,
             payload={"amount": monto_sancion, "label": obligacion.concepto},
             event_type="SANCION_TRIBUTARIA",
+        )
+
+    def _evento_actualizacion_867_1(self, obligacion, fecha_corte: date) -> Event:
+        """Art. 867-1 E.T. (Sprint 15, correccion 2026-08-01): indexacion IPC
+        adicional cuando la mora supera 3 años -- ver docstring de la clase y
+        app/engine/tax/actualizacion_867_1.py."""
+        if obligacion.categoria == "IMPUESTO_A_CARGO":
+            capital = obligacion.valor
+            interes_ya_liquidado = calcular_interes_moratorio_tributario(
+                capital, obligacion.fecha_origen, fecha_corte
+            )
+            monto = calcular_indexacion_867_1_topada(
+                capital, obligacion.fecha_origen, fecha_corte, interes_ya_liquidado
+            )
+        else:
+            capital = self._calcular_monto_sancion(obligacion)
+            monto = calcular_indexacion_867_1(capital, obligacion.fecha_origen, fecha_corte)
+
+        return Event(
+            date=obligacion.fecha_origen,
+            payload={"amount": monto, "label": f"Actualización Art. 867-1 E.T. — {obligacion.concepto}"},
+            event_type="INDEXATION",
         )
 
     def _calcular_monto_sancion(self, obligacion) -> Decimal:
@@ -1029,23 +1211,36 @@ class TributarioStrategy(AreaStrategy):
             fecha_referencia=obligacion.fecha_origen,
         )
 
-    def _construir_rate_provider(self, obligaciones: List, fecha_corte: date) -> MemoryRateProvider:
-        if not obligaciones:
-            return MemoryRateProvider()
-        fecha_mas_antigua = min(o.fecha_origen for o in obligaciones)
-        provider = construir_rate_provider_moratorio_tributario(fecha_mas_antigua, fecha_corte)
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+        provider = MemoryRateProvider()
+
+        if obligacion.categoria != "IMPUESTO_A_CARGO" and aplica_actualizacion_867_1(
+            obligacion.fecha_origen, fecha_corte
+        ):
+            # Sanciones con mora > 3 años (Art. 867-1 E.T., Sprint 15): sin interes
+            # moratorio -- reemplazado integramente por la indexacion IPC (ver
+            # _evento_actualizacion_867_1).
+            provider.add_rate_period(
+                start=obligacion.fecha_origen,
+                end=fecha_corte,
+                rate=Rate(Decimal("0.0")),
+                source="Sin interés moratorio: mora > 3 años, reemplazado por actualización IPC (Art. 867-1 E.T.)",
+            )
+            return provider
+
+        provider = construir_rate_provider_moratorio_tributario(obligacion.fecha_origen, fecha_corte)
         # construir_rate_provider_moratorio_tributario solo cubre desde el dia siguiente a la
-        # exigibilidad (inicio_mora = fecha_mas_antigua + 1 dia, la mora nunca corre el mismo
+        # exigibilidad (inicio_mora = fecha_origen + 1 dia, la mora nunca corre el mismo
         # dia en que nace la obligacion -- ver docstring del modulo). LiquidationCore, sin
         # embargo, consulta la tasa del propio dia de cada evento (incluyendo el evento de
-        # causacion del capital/sancion, que cae justo en fecha_mas_antigua) solo para
+        # causacion del capital/sancion, que cae justo en fecha_origen) solo para
         # trazabilidad/metadata, no para acumular interes ese dia. Sin este relleno, un
-        # MemoryRateProvider vacio (caso comun: fecha_corte == fecha_mas_antigua, sin mora
+        # MemoryRateProvider vacio (caso comun: fecha_corte == fecha_origen, sin mora
         # todavia) lanzaria ValueError al liquidar. 0% es la tasa correcta para ese dia: no hay
         # mora antes de que empiece a correr.
         provider.add_rate_period(
-            start=fecha_mas_antigua,
-            end=fecha_mas_antigua,
+            start=obligacion.fecha_origen,
+            end=obligacion.fecha_origen,
             rate=Rate(Decimal("0.0")),
             source="Sin mora (fecha de exigibilidad, aun no corre el interes del E.T. art. 635)",
         )

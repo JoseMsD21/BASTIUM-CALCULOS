@@ -14,7 +14,7 @@ from datetime import date
 from decimal import Decimal
 from enum import Enum
 
-from app.core.exceptions import TarifaNoDisponibleError
+from app.core.exceptions import CostasFueraDeRangoError, TarifaNoDisponibleError
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 
@@ -79,6 +79,37 @@ def resolver_cuantia_tier(pretensiones_reconocidas: Decimal, smlmv_vigente: Deci
     if pretensiones_reconocidas <= UMBRAL_MENOR_CUANTIA_SMLMV * smlmv_vigente:
         return CuantiaTier.MENOR
     return CuantiaTier.MAYOR
+
+
+# Rango simple de validacion para el porcentaje MANUAL de costas (costas_pct_manual),
+# respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 18, 2026-08-01) -- distinto
+# (mas simple, y con numeros propios) de la tabla granular por tipo de proceso de
+# TARIFAS_AGENCIAS_EN_DERECHO arriba. Se usa solo para RECHAZAR un porcentaje manual
+# fuera de rango, nunca para calcular un monto automatico -- si de verdad reemplaza (en
+# vez de complementar) la tabla granular es una pregunta de seguimiento abierta en
+# Preguntas-Para-Abogado.md, sin asumir.
+RANGO_COSTAS_MANUAL_POR_TIER: dict[CuantiaTier, RangoTarifa] = {
+    CuantiaTier.MINIMA: RangoTarifa(Decimal("0"), Decimal("10"), UnidadTarifa.PORCENTAJE),
+    CuantiaTier.MENOR: RangoTarifa(Decimal("3"), Decimal("7"), UnidadTarifa.PORCENTAJE),
+    CuantiaTier.MAYOR: RangoTarifa(Decimal("1"), Decimal("5"), UnidadTarifa.PORCENTAJE),
+}
+
+
+def validar_costas_pct_manual(
+    costas_pct_manual: Decimal, pretensiones_reconocidas: Decimal, fecha: date
+) -> None:
+    """Rechaza (no trunca) un porcentaje manual de costas fuera del rango permitido
+    para la cuantia del proceso -- respuesta del despacho, Sprint 18: "si el proceso
+    es de Mayor Cuantía, el usuario no podrá ingresar un 8% de agencias en derecho
+    (el sistema debe lanzar un error de validación)"."""
+    smlmv_vigente = get_smlmv_for_year(fecha.year)
+    tier = resolver_cuantia_tier(pretensiones_reconocidas, smlmv_vigente)
+    rango = RANGO_COSTAS_MANUAL_POR_TIER[tier]
+    if not (rango.minimo <= costas_pct_manual <= rango.maximo):
+        raise CostasFueraDeRangoError(
+            f"El porcentaje de costas manual ({costas_pct_manual}%) está fuera del rango "
+            f"permitido para {tier.value} cuantía ({rango.minimo}%-{rango.maximo}%, CGP art. 25)."
+        )
 
 
 # Clave: (TipoProceso, Instancia, CuantiaTier | None, tiene_pretension_pecuniaria)

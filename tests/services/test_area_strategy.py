@@ -28,10 +28,10 @@ from database.models import Base, ParametroLegal
 @pytest.fixture(autouse=True)
 def _parametros_legales_en_memoria(monkeypatch):
     # Fixture autouse global para todo el archivo: TestComercialStrategy ya
-    # depende de validar_tasa_usura (Tarea 7), que ahora lee USURA_MULTIPLICADOR
+    # depende de calcular_tope_usura (Tarea 7, corregido Sprint 2), que ahora lee USURA_MULTIPLICADOR
     # via parametro_service en cada liquidar() -- si esta fixture solo sembrara
     # las claves de Honorarios, todos los tests de Comercial de este archivo
-    # fallarian con ParametroNoDisponibleError. Se siembran aqui las 3 claves
+    # fallarian con ParametroNoDisponibleError. Se siembran aqui las claves
     # que cualquier test de este archivo puede necesitar. Valores/fechas de
     # USURA_MULTIPLICADOR calcados de tests/engine/test_usury_validator.py
     # (la fixture equivalente de la Tarea 7) para no divergir del valor real
@@ -65,10 +65,6 @@ def _parametros_legales_en_memoria(monkeypatch):
         vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
     ))
     session.add(ParametroLegal(
-        clave="CUOTA_LITIS_INDIVIDUAL_PCT", valor=_Decimal("30"), vigente_desde=_date(2007, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
-    session.add(ParametroLegal(
         clave="HONORARIOS_TOTAL_PCT", valor=_Decimal("50"), vigente_desde=_date(1900, 1, 1),
         vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
     ))
@@ -87,6 +83,11 @@ def _parametros_legales_en_memoria(monkeypatch):
         "INEXACTITUD_PCT": Decimal("160"),
         "INEXACTITUD_AGRAVADA_PCT": Decimal("200"),
         "ERROR_ARITMETICO_PCT": Decimal("30"),
+        # ET635_PUNTOS_DESCUENTO (Sprint 15): faltaba en esta fixture porque ningun test de
+        # TributarioStrategy anterior a la correccion del Art. 867-1 tenia mora real (todos
+        # usaban fecha_corte == fecha_origen) -- construir_rate_provider_moratorio_tributario
+        # nunca llegaba a leer esta clave. Los tests nuevos de mora > 3 anios si la necesitan.
+        "ET635_PUNTOS_DESCUENTO": Decimal("2"),
     }.items():
         session.add(ParametroLegal(
             clave=clave, valor=valor, vigente_desde=_date(1900, 1, 1),
@@ -474,9 +475,6 @@ def test_capital_concepts_incluye_seguridad_social_e_incapacidad():
     assert "INCAPACIDAD_INFORMATIVA" in core._capital_concepts
 
 
-from app.core.exceptions import TasaUsurariaError
-
-
 def _obligacion_comercial(
     expediente_id=1,
     valor=Decimal("1000000.00"),
@@ -503,6 +501,18 @@ def _obligacion_comercial(
         anatocismo_demanda_judicial=anatocismo_demanda_judicial,
         anatocismo_fecha_acuerdo=anatocismo_fecha_acuerdo,
     )
+
+
+class _TRMProviderDeCalendario:
+    """Test double de TRMProvider (Sprint 12): retorna una TRM distinta por
+    fecha exacta, para probar que la conversion es realmente dinamica -- nunca
+    hace red."""
+
+    def __init__(self, trm_por_fecha: dict):
+        self._trm_por_fecha = trm_por_fecha
+
+    def get_trm(self, fecha_referencia):
+        return self._trm_por_fecha[fecha_referencia]
 
 
 class TestComercialStrategy:
@@ -567,17 +577,100 @@ class TestComercialStrategy:
 
         assert resultado_comercial.final_balance().interest == resultado_civil.final_balance().interest
 
-    def test_tasa_moratoria_excede_tope_de_usura_lanza_error(self):
-        obligacion = _obligacion_comercial(tasa_moratoria=Decimal("35.00"), ibc=Decimal("20.00"))
+    def test_tasa_moratoria_excede_tope_de_usura_no_lanza_error_y_aplica_sancion_doblada(self):
+        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): no se rechaza ni se
+        # recorta la tasa silenciosamente. Se liquida con la tasa pactada, se calcula el
+        # exceso de interes cobrado frente a la tasa de usura vigente, y se resta del saldo
+        # el doble de ese exceso (sancion legal por usura, Ley 45/1990 art. 72).
+        #
+        # fecha_origen == fecha_vencimiento y tasa_remuneratoria == tasa_moratoria (35%): la
+        # obligacion ya esta en mora desde el dia 1, asi que Comercial aplica una sola tasa
+        # efectiva (35%) durante todo el periodo, igual que CivilFamiliaStrategy -- eso permite
+        # verificar "Intereses_Cobrados" e "Intereses_Cobrados_Con_Tasa_Usura" con un motor
+        # independiente (CivilFamiliaStrategy, que no aplica ninguna correccion de usura) en vez
+        # de reutilizar el mecanismo interno de ComercialStrategy que se esta probando.
+        fecha_corte = date(2025, 3, 1)
+        fecha_origen = date(2025, 1, 1)
+        obligacion_pactada = _obligacion_comercial(
+            tasa_remuneratoria=Decimal("35.00"), tasa_moratoria=Decimal("35.00"), ibc=Decimal("20.00"),
+            fecha_origen=fecha_origen, fecha_vencimiento=fecha_origen,
+        )
 
-        with pytest.raises(TasaUsurariaError):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+        # Tope legal = 1.5 x 20 = 30%.
+        intereses_cobrados = CivilFamiliaStrategy().liquidar(
+            obligaciones=[_obligacion_comercial(
+                tasa_remuneratoria=Decimal("35.00"), fecha_origen=fecha_origen, fecha_vencimiento=fecha_origen,
+            )], abonos=[], fecha_corte=fecha_corte,
+        ).final_balance().interest
+        intereses_con_tasa_usura = CivilFamiliaStrategy().liquidar(
+            obligaciones=[_obligacion_comercial(
+                tasa_remuneratoria=Decimal("30.00"), fecha_origen=fecha_origen, fecha_vencimiento=fecha_origen,
+            )], abonos=[], fecha_corte=fecha_corte,
+        ).final_balance().interest
 
-    def test_tasa_remuneratoria_excede_tope_de_usura_lanza_error(self):
-        obligacion = _obligacion_comercial(tasa_remuneratoria=Decimal("35.00"), ibc=Decimal("20.00"))
+        exceso_esperado = intereses_cobrados - intereses_con_tasa_usura
+        sancion_esperada = exceso_esperado * 2
 
-        with pytest.raises(TasaUsurariaError):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_pactada], abonos=[], fecha_corte=fecha_corte
+        )
+
+        item_sancion = resultado.items[-1]
+        assert "usura" in item_sancion.concept.lower()
+        assert item_sancion.interest_amount == -sancion_esperada
+        assert resultado.final_balance().interest == intereses_cobrados - sancion_esperada
+
+    def test_tasa_remuneratoria_excede_tope_de_usura_no_lanza_error_y_aplica_sancion_doblada(self):
+        fecha_corte = date(2025, 1, 20)  # antes del vencimiento: solo corre la remuneratoria
+        obligacion_pactada = _obligacion_comercial(
+            tasa_remuneratoria=Decimal("35.00"), tasa_moratoria=Decimal("6.00"), ibc=Decimal("20.00")
+        )
+
+        # Tope legal = 1.5 x 20 = 30%. Antes del vencimiento, Comercial usa solo la tasa
+        # remuneratoria -- exactamente lo mismo que CivilFamiliaStrategy con esa tasa (ver
+        # test_sin_mora_usa_solo_tasa_remuneratoria arriba), asi que sirve de referencia
+        # independiente para "Intereses_Cobrados"/"Intereses_Cobrados_Con_Tasa_Usura".
+        intereses_cobrados = CivilFamiliaStrategy().liquidar(
+            obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("35.00"))],
+            abonos=[], fecha_corte=fecha_corte,
+        ).final_balance().interest
+        intereses_con_tasa_usura = CivilFamiliaStrategy().liquidar(
+            obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("30.00"))],
+            abonos=[], fecha_corte=fecha_corte,
+        ).final_balance().interest
+
+        exceso_esperado = intereses_cobrados - intereses_con_tasa_usura
+        sancion_esperada = exceso_esperado * 2
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_pactada], abonos=[], fecha_corte=fecha_corte
+        )
+
+        item_sancion = resultado.items[-1]
+        assert "usura" in item_sancion.concept.lower()
+        assert item_sancion.interest_amount == -sancion_esperada
+
+    def test_tasa_muy_por_encima_del_tope_puede_dejar_saldo_a_favor_del_deudor(self):
+        # La sancion (2x el exceso) puede superar el saldo restante de la obligacion --
+        # el despacho es explicito en que eso genera un saldo a favor del deudor (numero
+        # negativo), no un piso en cero.
+        fecha_corte = date(2027, 1, 1)
+        obligacion = _obligacion_comercial(
+            valor=Decimal("10000.00"), tasa_moratoria=Decimal("1000.00"), ibc=Decimal("20.00")
+        )
+
+        resultado = ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte)
+
+        assert resultado.final_balance().total() < Decimal("0.00")
+
+    def test_tasas_dentro_del_tope_no_agregan_item_de_sancion(self):
+        obligacion = _obligacion_comercial(tasa_moratoria=Decimal("24.00"), ibc=Decimal("20.00"))
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+        )
+
+        assert all("usura" not in item.concept.lower() for item in resultado.items)
 
     def test_fecha_vencimiento_anterior_a_fecha_origen_lanza_value_error(self):
         obligacion = _obligacion_comercial(
@@ -682,21 +775,62 @@ class TestComercialStrategy:
         assert resultado_usd.final_balance().principal == Decimal("40000000.00")
         assert resultado_usd.final_balance().interest == resultado_cop.final_balance().interest
 
-    def test_obligacion_usd_sin_trm_aplicable_lanza_value_error(self):
-        obligacion = _obligacion_comercial()
+    def test_obligacion_usd_sin_trm_aplicable_usa_el_proveedor_dinamico_en_la_fecha_de_origen(self):
+        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 12): "eliminar
+        # la logica de TRM congelada al inicio" -- trm_aplicable ya NO es
+        # obligatorio. Sin el, se usa el TRMProvider inyectado (en produccion,
+        # SFCTRMProvider, la API en vivo de la SFC), consultado en la fecha real
+        # del evento.
+        obligacion = _obligacion_comercial(valor=Decimal("10000.00"))
         obligacion.moneda = "USD"
-        obligacion.trm_fecha_referencia = date(2025, 1, 1)
+        proveedor = _TRMProviderDeCalendario({date(2025, 1, 1): Decimal("4000.0000")})
 
-        with pytest.raises(ValueError, match="trm_aplicable"):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+        resultado = ComercialStrategy(trm_provider=proveedor).liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+        )
 
-    def test_obligacion_usd_sin_trm_fecha_referencia_lanza_value_error(self):
-        obligacion = _obligacion_comercial()
+        assert resultado.final_balance().principal == Decimal("40000000.00")
+
+    def test_abono_en_usd_se_convierte_con_la_trm_de_su_propia_fecha_de_pago(self):
+        # El nucleo de la correccion del Sprint 12: cada abono usa la TRM
+        # vigente en SU PROPIA fecha, no la del origen de la obligacion (que
+        # aqui usa una TRM distinta, 4000, para dejar clara la diferencia).
+        obligacion = _obligacion_comercial(valor=Decimal("10000.00"))
+        obligacion.moneda = "USD"
+        proveedor = _TRMProviderDeCalendario({
+            date(2025, 1, 1): Decimal("4000.0000"),
+            date(2025, 2, 1): Decimal("4200.0000"),
+        })
+        abono = Abono(
+            id=1, obligacion_id=1, fecha=date(2025, 2, 1), monto=Decimal("1000.00"), referencia="ref-1"
+        )
+
+        resultado = ComercialStrategy(trm_provider=proveedor).liquidar(
+            obligaciones=[obligacion], abonos=[abono], fecha_corte=date(2025, 3, 1)
+        )
+
+        # 1.000 USD x TRM del 2025-02-01 (4.200) = 4.200.000 COP aplicados --
+        # NO 1.000 x TRM del origen (4.000) = 4.000.000, que habria sido el
+        # resultado con la TRM "congelada" que corrige este sprint.
+        assert resultado.total_payments_applied() == Decimal("4200000.00")
+
+    def test_obligacion_usd_con_trm_aplicable_manual_ignora_el_proveedor_dinamico(self):
+        # trm_aplicable sigue siendo una anulacion manual valida (compatibilidad):
+        # si esta seteado, se usa ese valor fijo para todo, sin tocar el
+        # proveedor dinamico -- ni siquiera se consulta.
+        obligacion = _obligacion_comercial(valor=Decimal("10000.00"))
         obligacion.moneda = "USD"
         obligacion.trm_aplicable = Decimal("4000.0000")
+        proveedor_que_no_deberia_usarse = _TRMProviderDeCalendario({})  # lanzaria KeyError si se consulta
+        abono = Abono(
+            id=1, obligacion_id=1, fecha=date(2025, 2, 1), monto=Decimal("1000.00"), referencia="ref-1"
+        )
 
-        with pytest.raises(ValueError, match="trm_fecha_referencia"):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+        resultado = ComercialStrategy(trm_provider=proveedor_que_no_deberia_usarse).liquidar(
+            obligaciones=[obligacion], abonos=[abono], fecha_corte=date(2025, 3, 1)
+        )
+
+        assert resultado.total_payments_applied() == Decimal("4000000.00")
 
     @pytest.mark.parametrize("trm_invalida", [Decimal("0.0000"), Decimal("-100.0000")])
     def test_obligacion_usd_con_trm_no_positiva_lanza_value_error(self, trm_invalida):
@@ -1100,12 +1234,36 @@ def test_evento_costas_procesales_usa_calculo_automatico_si_hay_tipo_e_instancia
 
 
 def test_evento_costas_procesales_manual_gana_sobre_automatico():
-    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("2.00"))
+    # 5% (no 7%, el automatico) -- dentro del rango permitido para menor cuantia
+    # (3%-7%, respuesta del despacho Sprint 18) para que la validacion nueva no falle.
+    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("5.00"))
     obligacion.fecha_origen = _date(2024, 6, 1)
     obligacion.costas_tipo_proceso = "declarativo_general"
     obligacion.costas_instancia = "primera"
     evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
-    assert evento.payload["amount"] == _Decimal("2470000.00")  # 2% manual, no el 7% automatico
+    assert evento.payload["amount"] == _Decimal("6175000.00")  # 5% manual, no el 7% automatico
+
+
+def test_evento_costas_procesales_manual_fuera_de_rango_lanza_error():
+    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 18): mayor cuantia
+    # (>150 SMMLV) permite 1%-5% -- el sistema debe rechazar, no truncar, un valor
+    # fuera de ese rango (ejemplo textual del despacho: "el usuario no podra ingresar
+    # un 8% de agencias en derecho" en un proceso de Mayor Cuantia).
+    from app.core.exceptions import CostasFueraDeRangoError
+
+    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("8.00"), fecha_origen=_date(2026, 1, 1))
+    # SMLMV 2026 = 1.750.905 -> 300.000.000 / 1.750.905 = ~171 SMMLV -> Mayor Cuantia.
+    with pytest.raises(CostasFueraDeRangoError):
+        _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("300000000.00"))
+
+
+def test_evento_costas_procesales_manual_dentro_de_rango_no_lanza_error():
+    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("3.00"), fecha_origen=_date(2026, 1, 1))
+
+    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("300000000.00"))
+
+    assert evento is not None
+    assert evento.payload["amount"] == _Decimal("9000000.00")
 
 
 def test_evento_costas_procesales_sin_ninguno_de_los_dos_retorna_none():
@@ -1115,9 +1273,8 @@ def test_evento_costas_procesales_sin_ninguno_de_los_dos_retorna_none():
 
 
 class TestHonorariosStrategy:
-    def test_liquida_honorarios_dentro_de_ambos_topes(self):
-        # cuota litis = 10M * 20% = 2M (20% <= 30% tope individual, OK).
-        # total = 1M + 2M = 3M (30% <= 50% tope total, OK).
+    def test_liquida_honorarios_dentro_del_tope_total(self):
+        # cuota litis = 10M * 20% = 2M. total = 1M + 2M = 3M (30% <= 50% tope total, OK).
         obligacion = _obligacion_honorarios()
 
         resultado = HonorariosStrategy().liquidar(
@@ -1126,23 +1283,28 @@ class TestHonorariosStrategy:
 
         assert resultado.final_balance().principal == Decimal("3000000.00")
 
-    def test_cuota_litis_sola_excede_30_por_ciento_lanza_error(self):
-        # cuota litis = 10M * 35% = 3.5M > 3M (30% de 10M).
+    def test_cuota_litis_sola_por_encima_de_30_por_ciento_no_lanza_error_si_el_total_no_excede_50(self):
+        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 4): no se aplican dos topes en
+        # cascada -- el unico tope legal es el 50% acumulado. cuota litis = 10M * 35% = 3.5M (35%
+        # individual, por encima de lo que antes era un tope propio de 30%), pero honorarios_fijos=0
+        # asi que el total (3.5M) sigue por debajo del 50% (5M) -> ya no debe fallar.
         obligacion = _obligacion_honorarios(
             honorarios_fijos_pactados=Decimal("0.00"), cuota_litis_pactada_pct=Decimal("35.00")
         )
 
-        with pytest.raises(CuotaLitisExcedeTopeError):
-            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
-
-    def test_suma_total_excede_50_por_ciento_aunque_cuota_litis_sola_no_exceda_30(self):
-        # cuota litis = 10M * 25% = 2.5M (25% <= 30%, OK individualmente).
-        # total = 3M + 2.5M = 5.5M > 5M (50% de 10M) -> debe fallar por el tope total.
-        obligacion = _obligacion_honorarios(
-            honorarios_fijos_pactados=Decimal("3000000.00"), cuota_litis_pactada_pct=Decimal("25.00")
+        resultado = HonorariosStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
         )
 
-        with pytest.raises(CuotaLitisExcedeTopeError):
+        assert resultado.final_balance().principal == Decimal("3500000.00")
+
+    def test_suma_total_excede_50_por_ciento_lanza_error_citando_ley_1123_de_2007(self):
+        # cuota litis = 10M * 45% = 4.5M. total = 1M + 4.5M = 5.5M > 5M (50% de 10M).
+        obligacion = _obligacion_honorarios(
+            honorarios_fijos_pactados=Decimal("1000000.00"), cuota_litis_pactada_pct=Decimal("45.00")
+        )
+
+        with pytest.raises(CuotaLitisExcedeTopeError, match="Ley 1123/2007"):
             HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
 
     def test_genera_evento_de_costas_si_costas_pct_manual_esta_seteado(self):
@@ -1855,37 +2017,52 @@ class TestTributarioStrategy:
             )
 
     def test_orden_de_imputacion_sanciones_intereses_impuesto(self):
-        # Impuesto a cargo de 1,000,000 y sancion de extemporaneidad de 1,000,000 (5% x 1
-        # mes = 50,000, muy por debajo del piso de 10 UVT 2024 = 470,650.00, asi que la
-        # sancion efectiva queda en 470,650.00), ambos con fecha_origen 2024-03-01. El abono
-        # tambien cae el 2024-03-01 (mismo dia que fecha_corte) para que la acumulacion
-        # automatica de interes (que corre por dias transcurridos) no aplique -- asi el
-        # resultado es 100% aritmetica de imputacion, sin depender de tasas historicas de
-        # usura para un rango de fechas.
+        # Desde el Sprint 15 (correccion del Art. 867-1 E.T., 2026-08-01), TributarioStrategy
+        # liquida cada obligacion en su propio LiquidationCore aislado (mismo patron que
+        # Comercial/CivilFamilia desde el Sprint 21, ver _liquidar_por_obligacion) -- es la
+        # unica forma de darle 0% de interes a una sancion con mora > 3 anios mientras el
+        # impuesto sigue acumulando el interes E.T. 635. Efecto secundario aceptado y
+        # documentado (Pendientes.md, Sprint 15): un abono ya no se imputa automaticamente
+        # contra el saldo combinado del expediente (sanciones primero, impuesto despues) --
+        # cada abono debe indicar explicitamente, via `obligacion_id`, cual obligacion paga,
+        # igual que en las demas areas desde el Sprint 21. Dentro de CADA obligacion, el
+        # orden de imputacion (indexacion/sancion -> interes -> capital) sigue vigente,
+        # simplemente ya no hay una bolsa compartida entre obligaciones distintas.
         impuesto = _obligacion_tributaria(
             categoria="IMPUESTO_A_CARGO", valor=Decimal("1000000.00"), fecha_origen=date(2024, 3, 1)
         )
+        impuesto.id = 1
         sancion = _obligacion_tributaria(
             categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=Decimal("1000000.00"),
             meses_extemporaneidad=1, fecha_origen=date(2024, 3, 1),
         )
-        abono = Abono(
-            id=1, obligacion_id=1, fecha=date(2024, 3, 1), monto=Decimal("500000.00"),
-            referencia="Abono parcial",
+        sancion.id = 2
+        # Sancion efectiva: 5% x 1 mes = 50,000, muy por debajo del piso de 10 UVT 2024
+        # (470,650.00) -> queda en 470,650.00. El abono a la sancion la paga por completo
+        # y sobra 29,350 (que en la liquidacion aislada de esa obligacion no tiene a donde
+        # ir, ya que no hay otro bucket dentro de la misma obligacion).
+        abono_sancion = Abono(
+            id=1, obligacion_id=2, fecha=date(2024, 3, 1), monto=Decimal("500000.00"),
+            referencia="Abono a la sancion",
+        )
+        abono_impuesto = Abono(
+            id=2, obligacion_id=1, fecha=date(2024, 3, 1), monto=Decimal("200000.00"),
+            referencia="Abono al impuesto",
         )
 
         resultado = TributarioStrategy().liquidar(
-            obligaciones=[impuesto, sancion], abonos=[abono], fecha_corte=date(2024, 3, 1)
+            obligaciones=[impuesto, sancion],
+            abonos=[abono_sancion, abono_impuesto],
+            fecha_corte=date(2024, 3, 1),
         )
 
         saldo = resultado.final_balance()
-        # El abono de 500,000 paga primero la sancion completa (470,650.00, bucket
-        # 'indexation'), y el remanente (500,000 - 470,650 = 29,350) va al impuesto (bucket
-        # 'principal', pagado de ultimo): 1,000,000 - 29,350 = 970,650.00. Sin intereses
-        # (mismo dia, cero dias transcurridos), asi que el bucket 'interest' no interviene.
+        # Sin intereses (mismo dia, cero dias transcurridos): impuesto 1,000,000 - 200,000 =
+        # 800,000 (bucket 'principal'); sancion 470,650 - 470,650 = 0 (pagada de sobra, el
+        # exceso de 29,350 no reduce el impuesto porque ya no comparten balance).
         assert saldo.indexation == Decimal("0.00")
         assert saldo.interest == Decimal("0.00")
-        assert saldo.principal == Decimal("970650.00")
+        assert saldo.principal == Decimal("800000.00")
 
     def test_renta_liquida_no_genera_evento_y_queda_en_resultado_renta_liquida(self):
         obligacion = _obligacion_tributaria(
@@ -1905,6 +2082,81 @@ class TestTributarioStrategy:
         assert resultado.renta_liquida is not None
         assert resultado.renta_liquida.renta_liquida_gravable == Decimal("35000000.00")
         assert resultado.final_balance().total() == Decimal("0.00")
+
+    def test_impuesto_con_mora_mayor_a_3_anios_indexa_y_topa_al_interes_de_usura_plena(self):
+        # Caso real del despacho (Preguntas-Para-Abogado.md, Sprint 15): impuesto de
+        # $100.000.000 vencido el 2018-05-10, liquidado el 2023-05-10 (5 anios de mora).
+        # El interes E.T. 635 ya calculado (123.160.595,20) mas la indexacion IPC sin topar
+        # (32.814.627,80) superarian el techo de usura plena (130.933.902,61) -- la
+        # indexacion debe recortarse a 7.773.307,41 (verificado independientemente en
+        # tests/engine/tax/test_actualizacion_867_1.py, mismo caso).
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO", valor=Decimal("100000000.00"), fecha_origen=date(2018, 5, 10)
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[impuesto], abonos=[], fecha_corte=date(2023, 5, 10)
+        )
+
+        saldo = resultado.final_balance()
+        assert saldo.principal == Decimal("100000000.00")
+        assert saldo.interest == Decimal("123160595.20")
+        assert saldo.indexation == Decimal("7773307.41")
+        assert saldo.interest + saldo.indexation == Decimal("130933902.61")  # == techo de usura plena
+
+    def test_impuesto_con_mora_de_3_anios_o_menos_no_indexa(self):
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO", valor=Decimal("100000000.00"), fecha_origen=date(2020, 5, 10)
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[impuesto], abonos=[], fecha_corte=date(2023, 5, 10)  # exactamente 3 anios
+        )
+
+        assert resultado.final_balance().indexation == Decimal("0.00")
+
+    def test_sancion_con_mora_mayor_a_3_anios_no_acumula_interes_solo_indexacion(self):
+        # Respuesta del despacho (Sprint 15): "para el pago extemporaneo de sanciones, no
+        # se liquida interes de mora, sino que se aplica exclusivamente la actualizacion
+        # inflacionaria".
+        sancion = _obligacion_tributaria(
+            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=Decimal("10000000.00"),
+            meses_extemporaneidad=2, fecha_origen=date(2018, 5, 10),
+        )
+        # Sancion efectiva: 5% x 2 meses = 10% de 10.000.000 = 1.000.000.
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[sancion], abonos=[], fecha_corte=date(2023, 5, 10)
+        )
+
+        saldo = resultado.final_balance()
+        # Las sanciones caen en el bucket 'indexation', nunca 'principal' -- estructuralmente
+        # nunca acumulan interes por si solas (ver nota del siguiente test). El efecto
+        # verificable de la correccion es que la indexacion queda por encima del monto
+        # nominal de la sancion (1.000.000), por el 867-1 adicional.
+        assert saldo.interest == Decimal("0.00")
+        assert saldo.indexation > Decimal("1000000.00")
+
+    def test_sancion_con_mora_de_3_anios_o_menos_no_agrega_indexacion(self):
+        # Nota: las sanciones caen en el bucket 'indexation' (no 'principal'), asi que
+        # nunca acumulan interes por si solas (LiquidationCore._accrue_time_passage solo
+        # acumula interes sobre 'principal', salvo Suma Unica -- comportamiento estructural
+        # del motor, no algo que este sprint cambie). El unico efecto verificable de la
+        # correccion del Art. 867-1 sobre una sancion es si se agrega o no el evento de
+        # indexacion adicional.
+        sancion = _obligacion_tributaria(
+            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=Decimal("10000000.00"),
+            meses_extemporaneidad=2, fecha_origen=date(2020, 5, 10),
+        )
+        # Sancion efectiva: 5% x 2 meses = 10% de 10.000.000 = 1.000.000.
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[sancion], abonos=[], fecha_corte=date(2023, 5, 10)  # exactamente 3 anios
+        )
+
+        saldo = resultado.final_balance()
+        assert saldo.interest == Decimal("0.00")
+        assert saldo.indexation == Decimal("1000000.00")  # sin el 867-1 adicional
 
     def test_dos_obligaciones_renta_liquida_en_el_mismo_expediente_lanza_value_error(self):
         renta_1 = _obligacion_tributaria(

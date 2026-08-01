@@ -15,13 +15,16 @@ TOPE_MULTIPLICADOR (usury_validator), PUNTOS_DESCUENTO_ET_635
 PLAZOS_PRESCRIPCION_MESES/PLAZOS_CADUCIDAD_MESES_CONOCIDOS (prescripcion) y
 las 4 series historicas de historical_index.py (SMLMV, IPC, IBC/usura, UVT).
 
-Excepcion: CUOTA_LITIS_INDIVIDUAL_PCT y HONORARIOS_TOTAL_PCT SI se
-retranscriben a mano como Decimal("30")/Decimal("50") -- a diferencia de los
-demas, esas dos constantes (antes HonorariosStrategy.TOPE_*) fueron borradas
-de la clase al re-cablear HonorariosStrategy (Tarea 8 del sprint de
-parametros legales versionados), asi que ya no hay una fuente viva de la que
-leerlas. Los valores hardcodeados aqui son su ultimo valor conocido al
-momento de esta migracion, no una lectura en vivo.
+Excepcion: HONORARIOS_TOTAL_PCT SI se retranscribe a mano como Decimal("50")
+-- a diferencia de los demas, esta constante (antes
+HonorariosStrategy.TOPE_HONORARIOS_TOTAL_PCT) fue borrada de la clase al
+re-cablear HonorariosStrategy (Tarea 8 del sprint de parametros legales
+versionados), asi que ya no hay una fuente viva de la que leerla. El valor
+hardcodeado aqui es su ultimo valor conocido al momento de esta migracion, no
+una lectura en vivo. CUOTA_LITIS_INDIVIDUAL_PCT (el tope individual del 30%
+sobre la cuota litis sola) se sembraba aqui tambien hasta el Sprint 4
+(2026-08-01): el despacho confirmo que no existe tal tope, solo el 50%
+acumulado -- se elimino del catalogo por completo, no solo de aqui.
 
 Igual pasa con EXTEMPORANEIDAD_PCT_MENSUAL, INEXACTITUD_PCT,
 INEXACTITUD_AGRAVADA_PCT y ERROR_ARITMETICO_PCT (sanciones tributarias,
@@ -104,10 +107,9 @@ def migrar() -> int:
     try:
         valores_unicos = [
             ("USURA_MULTIPLICADOR", TOPE_MULTIPLICADOR, ANCLA_SIN_FECHA_NORMA),
-            # Hardcodeados (no leidos en vivo): HonorariosStrategy.TOPE_CUOTA_LITIS_INDIVIDUAL_PCT/
-            # TOPE_HONORARIOS_TOTAL_PCT fueron borrados de la clase al re-cablear
-            # HonorariosStrategy (Tarea 8) -- ver docstring del modulo.
-            ("CUOTA_LITIS_INDIVIDUAL_PCT", Decimal("30"), date(2007, 1, 1)),
+            # Hardcodeado (no leido en vivo): HonorariosStrategy.TOPE_HONORARIOS_TOTAL_PCT fue
+            # borrado de la clase al re-cablear HonorariosStrategy (Tarea 8) -- ver docstring
+            # del modulo.
             ("HONORARIOS_TOTAL_PCT", Decimal("50"), ANCLA_SIN_FECHA_NORMA),
             ("ET635_PUNTOS_DESCUENTO", PUNTOS_DESCUENTO_ET_635, ANCLA_SIN_FECHA_NORMA),
             ("CIVIL_ANNUAL_RATE", LegalRates.CIVIL_ANNUAL_RATE, ANCLA_SIN_FECHA_NORMA),

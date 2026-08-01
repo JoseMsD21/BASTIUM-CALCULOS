@@ -18,15 +18,19 @@ aplica, con interpolación entre índices de cierre de año para fechas intermed
 el algoritmo "Suma Única" (Art. corrección monetaria + interés civil, PDF pág. 21-22: interés sobre el
 capital ya indexado en vez de sobre el capital histórico, también válido para intereses de la Ley 80 de
 1993 en contratos estatales)), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
-split real antes/después del vencimiento, validación de tope de usura 1.5×IBC, obligaciones en USD
-convertidas a pesos con la TRM ingresada por el abogado (Art. 874 C.Co.), y anatocismo condicionado
+split real antes/después del vencimiento, sanción del doble por exceso sobre el tope de usura 1.5×IBC
+(Ley 45/1990 art. 72, sin rechazar ni truncar la liquidación), obligaciones en USD
+convertidas a pesos con la TRM certificada por la Superintendencia Financiera en vivo, consultada por la
+fecha real de cada evento — capital en la fecha de origen, cada abono en su propia fecha de pago, sin TRM
+congelada (Art. 874 C.Co.); admite una TRM manual como anulación opcional, y anatocismo condicionado
 (Art. 886 C.Co.: interés sobre interés, activado solo con demanda judicial o acuerdo posterior con al
 menos un año de intereses vencidos, capitalizado periódicamente — nunca por defecto)), **Sancionatorio**
 (multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49, con la base convertida a pesos
 según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tabla histórica de UVT
 2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios
-profesionales y cuota litis, validando simultáneamente el tope del 30% del beneficio obtenido para la
-cuota litis sola y el tope del 50% para la suma de honorarios fijos + cuota litis; las costas judiciales
+profesionales y cuota litis, validando el tope único del 50% acumulado del beneficio obtenido para la
+suma de honorarios fijos + cuota litis (alerta "Honorarios Desproporcionados - Art. 35 Num. 4 Ley
+1123/2007" si se excede); las costas judiciales
 se ingresan como porcentaje manual, el que fijó el juez; el cálculo automático por tabla ya existe pero
 aún no tiene campos propios en pantalla — ver [Guía de Usuario](docs/GUIA_USUARIO.md#8-funciones-pendientes-o-en-desarrollo)),
 **Laboral** (liquidación final —finiquito— de un contrato:

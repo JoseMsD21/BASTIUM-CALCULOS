@@ -25,6 +25,12 @@ _PLAZOS_MESES = {
     "PRESCRIPCION_CAMBIARIA_REGRESO_TENEDOR_MESES": 12,
     "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES": 6,
     "CADUCIDAD_IMPUGNACION_INEFICACIA_SOCIETARIA_MESES": 60,
+    "CADUCIDAD_CHEQUES_MESES": 6,
+    "CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES": 12,
+    "CADUCIDAD_TRANSPORTE_MESES": 24,
+    "CADUCIDAD_SEGURO_ORDINARIA_MESES": 24,
+    "CADUCIDAD_SEGURO_EXTRAORDINARIA_MESES": 60,
+    "CADUCIDAD_IMPUGNACION_ACTAS_SOCIALES_MESES": 2,
 }
 
 
@@ -92,6 +98,42 @@ def test_calcular_caducidad_tipo_conocido_impugnacion_societaria():
     assert calcular_caducidad(
         date(2021, 4, 12), "IMPUGNACION_INEFICACIA_SOCIETARIA"
     ) == date(2026, 4, 13)
+
+
+def test_calcular_caducidad_cheques_6_meses():
+    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 7): Cheques, 6 meses.
+    # 2025-05-10 + 6 meses -> 2025-11-10, lunes hábil.
+    assert calcular_caducidad(date(2025, 5, 10), "CHEQUES") == date(2025, 11, 10)
+
+
+def test_calcular_caducidad_enriquecimiento_sin_causa_1_anio():
+    # Respuesta del despacho, Sprint 7: Enriquecimiento sin causa, 1 año.
+    # 2024-06-01 + 12 meses -> raw 2025-06-01 (domingo, inhábil) -> corre al
+    # siguiente hábil, 2025-06-03.
+    assert calcular_caducidad(date(2024, 6, 1), "ENRIQUECIMIENTO_SIN_CAUSA") == date(2025, 6, 3)
+
+
+def test_calcular_caducidad_transporte_2_anios():
+    # Respuesta del despacho, Sprint 7: Transporte, 2 años.
+    # 2023-09-15 + 24 meses -> 2025-09-15, lunes hábil.
+    assert calcular_caducidad(date(2023, 9, 15), "TRANSPORTE") == date(2025, 9, 15)
+
+
+def test_calcular_caducidad_seguro_ordinaria_2_anios():
+    # Respuesta del despacho, Sprint 7: Seguro, 2 años (prescripción ordinaria) y
+    # 5 años (extraordinaria) -- dos tipos_proceso distintos, mismo criterio que
+    # los tres plazos cambiarios.
+    assert calcular_caducidad(date(2023, 9, 15), "SEGURO_ORDINARIA") == date(2025, 9, 15)
+
+
+def test_calcular_caducidad_seguro_extraordinaria_5_anios():
+    assert calcular_caducidad(date(2020, 9, 15), "SEGURO_EXTRAORDINARIA") == date(2025, 9, 15)
+
+
+def test_calcular_caducidad_impugnacion_actas_sociales_2_meses():
+    # Respuesta del despacho, Sprint 7: Impugnación de Actas Sociales, 2 meses.
+    # 2025-10-01 + 2 meses -> 2025-12-01, lunes hábil.
+    assert calcular_caducidad(date(2025, 10, 1), "IMPUGNACION_ACTAS_SOCIALES") == date(2025, 12, 1)
 
 
 def test_calcular_caducidad_tipo_desconocido_con_plazo_manual():

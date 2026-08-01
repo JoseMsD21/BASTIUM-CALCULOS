@@ -74,9 +74,6 @@ def test_liquidar_invoca_callback_con_resultado(qtbot, monkeypatch):
     assert resultado.final_balance().principal == Decimal("427900.00")
 
 
-from app.core.exceptions import TasaUsurariaError
-
-
 def _expediente_comercial_con_obligacion_usuraria(monkeypatch) -> int:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -182,7 +179,10 @@ def test_liquidar_area_civil_con_indexacion_ipc_incluye_evento_de_indexacion(qtb
     assert resultado.final_balance().indexation == Decimal("77633.53")
 
 
-def test_liquidar_area_comercial_con_tasa_usuraria_muestra_advertencia(qtbot, monkeypatch):
+def test_liquidar_area_comercial_con_tasa_usuraria_no_muestra_advertencia_y_aplica_sancion(qtbot, monkeypatch):
+    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): una tasa por encima
+    # de la usura ya no rechaza la liquidacion -- se liquida igual y se aplica la sancion
+    # legal (perdida doblada del exceso) como un rubro mas del resultado.
     expediente_id = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
 
     resultados_recibidos = []
@@ -202,9 +202,10 @@ def test_liquidar_area_comercial_con_tasa_usuraria_muestra_advertencia(qtbot, mo
 
     page._liquidar()
 
-    assert len(resultados_recibidos) == 0
-    assert len(avisos) == 1
-    assert avisos[0][0] == "Tasa usuraria"
+    assert len(avisos) == 0
+    assert len(resultados_recibidos) == 1
+    resultado, _exp_id = resultados_recibidos[0]
+    assert "usura" in resultado.items[-1].concept.lower()
 
 
 def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
@@ -213,10 +214,6 @@ def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="CUOTA_LITIS_INDIVIDUAL_PCT", valor=Decimal("30"), vigente_desde=date(2007, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
     session.add(ParametroLegal(
         clave="HONORARIOS_TOTAL_PCT", valor=Decimal("50"), vigente_desde=date(1900, 1, 1),
         vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
@@ -240,7 +237,7 @@ def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
             valor=Decimal("0.00"),
             tasa_efectiva_anual=Decimal("0.00"),
             honorarios_fijos_pactados=Decimal("1000000.00"),
-            cuota_litis_pactada_pct=Decimal("35.00"),  # excede el tope individual del 30%
+            cuota_litis_pactada_pct=Decimal("45.00"),  # total (1M + 4.5M = 5.5M) excede el 50% (5M)
             beneficio_obtenido=Decimal("10000000.00"),
             costas_pct_manual=Decimal("5.00"),
         )
@@ -297,7 +294,7 @@ def test_liquidar_area_honorarios_con_cuota_litis_excesiva_muestra_advertencia_s
     """
     Regresion: CuotaLitisExcedeTopeError (agregada en Sprint 4) no estaba en la lista de
     except de _liquidar(), asi que se propagaba como traceback no controlado en vez de
-    mostrarse como advertencia amigable, igual que AreaNoImplementadaError/TasaUsurariaError.
+    mostrarse como advertencia amigable, igual que AreaNoImplementadaError/UVTNoDisponibleError.
     """
     expediente_id = _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch)
 

@@ -95,6 +95,35 @@ def test_cada_nivel_de_riesgo_arl(nivel, arl_esperado, total_esperado):
     assert resultado.total == total_esperado
 
 
+def test_arl_se_topa_al_8_7_por_ciento_ley_1562_de_2012():
+    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 16): tope legal maximo
+    # del 8.7% para cualquier nivel de riesgo ARL (Ley 1562/2012), sin importar el
+    # porcentaje cargado en parametros_legales -- si alguien sube SS_ARL_NIVEL_V_PCT por
+    # encima de eso desde la pantalla de Parametros (Sprint 13), el motor debe seguir
+    # respetando el tope legal, no el valor cargado.
+    from app.engine.labor.seguridad_social import SeguridadSocialCalculator
+
+    session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=Decimal("1300000.00"), vigente_desde=date(2025, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="SS_ARL_NIVEL_V_PCT", valor=Decimal("0.10"), vigente_desde=date(2025, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.commit()
+    session.close()
+
+    resultado = SeguridadSocialCalculator.calcular(
+        salario_base=Decimal("3000000.00"), dias_trabajados=30, dias_suspension=0,
+        nivel_riesgo_arl="V", fecha_referencia=date(2025, 6, 1),
+    )
+
+    # 3.000.000 x 8.7% = 261.000.00 (no 3.000.000 x 10% = 300.000.00).
+    assert resultado.monto_arl == Decimal("261000.00")
+
+
 def test_ibc_se_ajusta_al_piso_de_1_smmlv():
     from app.engine.labor.seguridad_social import SeguridadSocialCalculator
 

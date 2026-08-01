@@ -50,14 +50,15 @@ def test_calcular_ibl_historial_vacio_lanza_error():
         calcular_ibl([], fecha_calculo=date(2026, 12, 31))
 
 
-def test_tasa_reemplazo_s_uno_sin_bono_toca_el_piso_exacto():
+def test_tasa_reemplazo_s_uno_sin_bono_da_65_5_menos_medio_por_ciento():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
         ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+        anio_causacion=2020,
     )
 
-    assert resultado == Decimal("65.00")
+    assert resultado == Decimal("65.00")  # s=1 -> r = 65.5 - 0.5*1 = 65.0 (dentro del rango, sin recorte)
 
 
 def test_tasa_reemplazo_s_uno_con_bono_de_dos_bloques():
@@ -65,19 +66,36 @@ def test_tasa_reemplazo_s_uno_con_bono_de_dos_bloques():
 
     resultado = calcular_tasa_reemplazo(
         ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1400,
+        anio_causacion=2020,
     )
 
     assert resultado == Decimal("68.00")
 
 
-def test_tasa_reemplazo_s_alto_sin_bono_no_baja_del_piso_65():
+def test_tasa_reemplazo_s_alto_baja_del_65_pero_no_del_piso_55():
+    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 17): el piso legal de la
+    # tasa inicial es 55%, NO 65% -- 65.5% es el TECHO (para quien gana 1 SMMLV). Antes de
+    # esta correccion, s=10 (alguien que gana 10 SMMLV) quedaba mal floreado a 65% en vez
+    # de dejarse en su valor real de la formula, 60.5%.
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
         ibl=Decimal("10000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+        anio_causacion=2020,
     )
 
-    assert resultado == Decimal("65.00")
+    assert resultado == Decimal("60.50")  # s=10 -> r = 65.5 - 0.5*10 = 60.5
+
+
+def test_tasa_reemplazo_s_muy_alto_si_toca_el_piso_legal_de_55():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("25000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+        anio_causacion=2020,
+    )
+
+    assert resultado == Decimal("55.00")  # s=25 -> raw r = 65.5 - 12.5 = 53.0 -> se topa a 55
 
 
 def test_tasa_reemplazo_bono_grande_no_sube_del_techo_80():
@@ -85,9 +103,65 @@ def test_tasa_reemplazo_bono_grande_no_sube_del_techo_80():
 
     resultado = calcular_tasa_reemplazo(
         ibl=Decimal("2000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=3800,
+        anio_causacion=2020,
     )
 
     assert resultado == Decimal("80.00")
+
+
+def test_tasa_reemplazo_semanas_minimas_varian_por_anio_no_estan_fijas_en_1300():
+    # Caso de prueba exacto del despacho (Sprint 17): IBL $800.000, SMMLV $400.000 (s=2),
+    # 1.664 semanas cotizadas, causado en 2006 (minimo de ese año: 1.075 semanas, no 1.300).
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("800000.00"), smlmv_vigente=Decimal("400000.00"), semanas_cotizadas=1664,
+        anio_causacion=2006,
+    )
+
+    # r_inicial = 65.5 - 0.5*2 = 64.5%. Exceso = 1664 - 1075 = 589. Bloques de 50 = 11.
+    # Bono = 11 x 1.5 = 16.5%. Total = 81% -> techo 80% aplica.
+    assert resultado == Decimal("80.00")
+
+
+def test_tasa_reemplazo_semanas_minimas_2005_es_1050():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    # s=1 -> r_inicial = 65.5 - 0.5 = 65.0. Semanas = minimo exacto de 2005 (1050) -> sin bono.
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1050,
+        anio_causacion=2005,
+    )
+
+    assert resultado == Decimal("65.00")
+
+
+def test_tasa_reemplazo_semanas_minimas_antes_de_2005_es_1000():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado = calcular_tasa_reemplazo(
+        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1050,
+        anio_causacion=2000,
+    )
+
+    # Minimo de 2000 = 1000 (antes de la Ley 797/2003). Exceso = 50 -> 1 bloque de 50 -> +1.5%.
+    assert resultado == Decimal("66.50")
+
+
+def test_tasa_reemplazo_semanas_minimas_desde_2015_se_queda_fija_en_1300():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo
+
+    resultado_2015 = calcular_tasa_reemplazo(
+        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1350,
+        anio_causacion=2015,
+    )
+    resultado_2026 = calcular_tasa_reemplazo(
+        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1350,
+        anio_causacion=2026,
+    )
+
+    # Ambos años exigen 1300 semanas minimas -> mismo bono (1 bloque de 50 -> +1.5%).
+    assert resultado_2015 == resultado_2026 == Decimal("66.50")
 
 
 def test_tasa_reemplazo_smlmv_cero_lanza_error():
@@ -96,6 +170,7 @@ def test_tasa_reemplazo_smlmv_cero_lanza_error():
     with pytest.raises(ValueError):
         calcular_tasa_reemplazo(
             ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("0.00"), semanas_cotizadas=1300,
+            anio_causacion=2020,
         )
 
 

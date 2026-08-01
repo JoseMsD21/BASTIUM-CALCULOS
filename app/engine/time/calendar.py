@@ -29,10 +29,45 @@ class CalendarUtils:
         return frozenset(holidays.CO(years=anio).keys())
 
     @staticmethod
+    @lru_cache(maxsize=None)
+    def _jueves_santo(anio: int) -> date:
+        for fecha, nombre in holidays.CO(years=anio).items():
+            if "Jueves Santo" in nombre:
+                return fecha
+        raise ValueError(
+            f"La libreria 'holidays' no trajo 'Jueves Santo' para el año {anio} -- no se puede "
+            "derivar la vacancia de Semana Santa sin esa fecha ancla."
+        )
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def _vacancia_semana_santa(anio: int) -> frozenset:
+        # Lunes, Martes y Miercoles Santo (Jueves y Viernes Santo ya son festivos
+        # oficiales, cubiertos por _festivos_colombia). Respuesta del despacho,
+        # Preguntas-Para-Abogado.md Sprint 6: excluir los tres dias adicionales.
+        jueves_santo = CalendarUtils._jueves_santo(anio)
+        return frozenset(
+            jueves_santo - timedelta(days=dias) for dias in (1, 2, 3)
+        )
+
+    @staticmethod
+    def _en_vacancia_judicial_fin_de_anio(fecha: date) -> bool:
+        # Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 6: 20 de
+        # diciembre a 11 de enero de cada año, inclusive. El 12 de enero es
+        # habil salvo que caiga en fin de semana/festivo -- no requiere caso
+        # especial, ya que simplemente queda fuera de este rango y se evalua
+        # por las reglas normales.
+        return (fecha.month == 12 and fecha.day >= 20) or (fecha.month == 1 and fecha.day <= 11)
+
+    @staticmethod
     def es_dia_habil(fecha: date) -> bool:
         if fecha.weekday() >= 5:  # 5=sábado, 6=domingo
             return False
-        return fecha not in CalendarUtils._festivos_colombia(fecha.year)
+        if fecha in CalendarUtils._festivos_colombia(fecha.year):
+            return False
+        if CalendarUtils._en_vacancia_judicial_fin_de_anio(fecha):
+            return False
+        return fecha not in CalendarUtils._vacancia_semana_santa(fecha.year)
 
     @staticmethod
     def sumar_dias_habiles(fecha_inicio: date, n: int) -> date:

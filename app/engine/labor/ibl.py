@@ -26,26 +26,67 @@ def calcular_ibl(
     return Rounding.money(total / len(historial_salarios))
 
 
+# Semanas minimas de cotizacion exigidas por año de causacion (Ley 797 de 2003, art. 9,
+# que modifico el art. 33 Ley 100/1993): 1000 semanas base, +50 en 2005, +25 cada año desde
+# 2006 hasta llegar a 1300 en 2015 -- NO una cifra fija de 1300 para cualquier año, como
+# tenia el codigo antes de esta correccion (Sprint 17, respuesta del despacho,
+# Preguntas-Para-Abogado.md: caso de prueba 2006 exige 1075 semanas, no 1300).
+_SEMANAS_MINIMAS_POR_ANIO: dict[int, int] = {
+    2005: 1050,
+    2006: 1075,
+    2007: 1100,
+    2008: 1125,
+    2009: 1150,
+    2010: 1175,
+    2011: 1200,
+    2012: 1225,
+    2013: 1250,
+    2014: 1275,
+    2015: 1300,
+}
+
+
+def semanas_minimas_requeridas(anio_causacion: int) -> int:
+    """Semanas minimas exigidas para pensionarse en `anio_causacion`. Antes de
+    2005: 1000 (base original Ley 100/1993). Desde 2015 en adelante: se queda
+    fija en 1300 (el escalonamiento de la Ley 797/2003 termino ese año)."""
+    if anio_causacion < 2005:
+        return 1000
+    if anio_causacion >= 2015:
+        return 1300
+    return _SEMANAS_MINIMAS_POR_ANIO[anio_causacion]
+
+
 def calcular_tasa_reemplazo(
     ibl: Decimal,
     smlmv_vigente: Decimal,
     semanas_cotizadas: int,
+    anio_causacion: int,
 ) -> Decimal:
-    """Formula R completa (Ley 100 de 1993, art. 34; el PDF de BASTIUM solo
-    trae la linea base r = 65.5 - 0.5*s, ver Preguntas-Para-Abogado.md, Sprint
-    17): piso 65%, techo 80%, bono +1.5% por cada 50 semanas sobre 1300."""
+    """Formula R completa (Ley 100 de 1993 art. 34, modificada por el art. 10
+    Ley 797/2003; el PDF de BASTIUM solo trae la linea base r = 65.5 - 0.5*s).
+    Corregida en el Sprint 17 (2026-08-01) tras respuesta del despacho:
+    - Rango de la tasa INICIAL (antes del bono): piso 55%, techo 65.5% -- NO un
+      piso de 65% como tenia el codigo antes de esta correccion.
+    - Semanas minimas para el bono: varian por `anio_causacion`
+      (semanas_minimas_requeridas), no una cifra fija de 1300.
+    - Techo final (tasa inicial + bonos): 80%.
+    """
     if smlmv_vigente <= Decimal("0.00"):
         raise ValueError("El SMLMV vigente debe ser positivo.")
 
     s = ibl / smlmv_vigente
-    r = Decimal("65.5") - Decimal("0.5") * s
+    r_inicial = Decimal("65.5") - Decimal("0.5") * s
+    r_inicial = max(Decimal("55"), min(Decimal("65.5"), r_inicial))
 
-    if semanas_cotizadas > 1300:
-        bloques_50_semanas = (semanas_cotizadas - 1300) // 50
-        r += Decimal(bloques_50_semanas) * Decimal("1.5")
+    minimo_semanas = semanas_minimas_requeridas(anio_causacion)
+    bono = Decimal("0")
+    if semanas_cotizadas > minimo_semanas:
+        bloques_50_semanas = (semanas_cotizadas - minimo_semanas) // 50
+        bono = Decimal(bloques_50_semanas) * Decimal("1.5")
 
-    r = max(Decimal("65"), min(Decimal("80"), r))
-    return Rounding.money(r)
+    r_final = min(Decimal("80"), r_inicial + bono)
+    return Rounding.money(r_final)
 
 
 def calcular_densidad_semanas(periodos_cotizados: list[tuple[date, date]]) -> int:

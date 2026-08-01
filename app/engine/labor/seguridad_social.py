@@ -6,6 +6,8 @@ from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 from app.services.parametro_service import get_parametro
 
+TOPE_ARL_PCT = Decimal("0.087")  # Ley 1562/2012: tope maximo para cualquier nivel de riesgo ARL
+
 
 @dataclass(frozen=True)
 class CotizacionesResult:
@@ -50,7 +52,11 @@ class SeguridadSocialCalculator:
         )
 
         dias_con_arl = dias_trab - dias_susp  # suspension excluye SOLO ARL (PDF pag. 52)
-        arl_pct = get_parametro(f"SS_ARL_NIVEL_{nivel_riesgo_arl}_PCT", fecha_referencia)
+        # Tope legal del 8.7% (Ley 1562/2012, respuesta del despacho Sprint 16): se aplica
+        # sin importar el valor cargado en parametros_legales -- si alguien sube un nivel de
+        # riesgo por encima de eso desde la pantalla de Parametros, el motor sigue
+        # respetando el tope legal, no el valor cargado.
+        arl_pct = min(get_parametro(f"SS_ARL_NIVEL_{nivel_riesgo_arl}_PCT", fecha_referencia), TOPE_ARL_PCT)
         monto_arl = Rounding.money(ibc * arl_pct * dias_con_arl / Decimal("30"))
 
         monto_fsp = Decimal("0.00")

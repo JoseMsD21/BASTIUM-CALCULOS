@@ -6,8 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from app.core.exceptions import TasaUsurariaError
-from app.engine.interest.usury_validator import validar_tasa_usura
+from app.engine.interest.usury_validator import calcular_tope_usura
 from database.models import Base, ParametroLegal
 
 
@@ -25,19 +24,12 @@ def _db_en_memoria(monkeypatch):
     session.close()
 
 
-def test_tasa_por_debajo_del_tope_no_lanza_error():
-    validar_tasa_usura(Decimal("20.00"), Decimal("20.00"), "remuneratoria", date(2026, 1, 1))
+def test_calcula_el_tope_como_multiplicador_por_ibc():
+    assert calcular_tope_usura(Decimal("20.00"), date(2026, 1, 1)) == Decimal("30.000")
 
 
-def test_tasa_exactamente_en_el_tope_no_lanza_error():
-    validar_tasa_usura(Decimal("30.00"), Decimal("20.00"), "moratoria", date(2026, 1, 1))
-
-
-def test_tasa_por_encima_del_tope_lanza_tasa_usuraria_error():
-    with pytest.raises(TasaUsurariaError):
-        validar_tasa_usura(Decimal("30.01"), Decimal("20.00"), "moratoria", date(2026, 1, 1))
-
-
-def test_mensaje_de_error_nombra_la_etiqueta_y_el_tope():
-    with pytest.raises(TasaUsurariaError, match="moratoria"):
-        validar_tasa_usura(Decimal("35.00"), Decimal("20.00"), "moratoria", date(2026, 1, 1))
+def test_no_lanza_nada_ni_para_tasas_por_encima_del_tope():
+    # calcular_tope_usura solo calcula el tope -- no rechaza ni recorta ninguna tasa.
+    # Sancionar el exceso (Ley 45/1990 art. 72) es responsabilidad de quien la llama,
+    # ver ComercialStrategy._calcular_sancion_usura (Preguntas-Para-Abogado.md Sprint 2).
+    calcular_tope_usura(Decimal("20.00"), date(2026, 1, 1))

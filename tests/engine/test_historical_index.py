@@ -209,6 +209,67 @@ def test_ipc_interpolado_primer_anio_usa_ancla_implicita_de_100():
     assert get_ipc_interpolado_for_date(date(1967, 6, 30)) == esperado
 
 
+from app.core.exceptions import IPCMensualNoDisponibleError
+from app.engine.indexation.historical_index import (
+    get_ipc_interpolado_mensual_for_date,
+    get_ipc_mensual_for_month,
+)
+
+_IPC_MENSUAL_FIXTURE = {
+    (2025, 10): Decimal("1180.50"),
+    (2025, 11): Decimal("1183.20"),
+    (2025, 12): Decimal("1186.00"),
+}
+
+
+@pytest.fixture
+def _ipc_mensual_de_prueba(monkeypatch):
+    # Valores de ejemplo, NO datos reales del DANE -- Sprint 8 dejo la tabla
+    # real (historical_index._IPC_MENSUAL) vacia a proposito hasta que el
+    # despacho aporte la fuente (ver Preguntas-Para-Abogado.md). Esta fixture
+    # solo prueba que la matematica de interpolacion por dias es correcta.
+    import app.engine.indexation.historical_index as historical_index_module
+    monkeypatch.setattr(historical_index_module, "_IPC_MENSUAL", _IPC_MENSUAL_FIXTURE)
+
+
+def test_ipc_mensual_no_disponible_lanza_error_explicito():
+    with pytest.raises(IPCMensualNoDisponibleError):
+        get_ipc_mensual_for_month(2025, 12)
+
+
+def test_ipc_interpolado_mensual_en_cierre_de_mes_coincide_con_el_indice_del_mes(_ipc_mensual_de_prueba):
+    assert get_ipc_interpolado_mensual_for_date(date(2025, 11, 30)) == Decimal("1183.20")
+
+
+def test_ipc_interpolado_mensual_a_mitad_de_mes_es_promedio_ponderado_por_dias(_ipc_mensual_de_prueba):
+    # 15 de noviembre: entre el cierre de octubre (31-oct) y el cierre de
+    # noviembre (30-nov). t1 = dias desde 31-oct hasta 15-nov = 15;
+    # t2 = dias desde 15-nov hasta 30-nov = 15.
+    v_oct = Decimal("1180.50")
+    v_nov = Decimal("1183.20")
+    t1 = Decimal(15)
+    t2 = Decimal(15)
+    esperado = (t1 * v_nov + t2 * v_oct) / (t1 + t2)
+    assert get_ipc_interpolado_mensual_for_date(date(2025, 11, 15)) == esperado
+
+
+def test_ipc_interpolado_mensual_cruza_cambio_de_anio(_ipc_mensual_de_prueba):
+    # 10 de diciembre: entre el cierre de noviembre (30-nov) y el cierre de
+    # diciembre (31-dic). t1 = 10, t2 = 21.
+    v_nov = Decimal("1183.20")
+    v_dic = Decimal("1186.00")
+    t1 = Decimal(10)
+    t2 = Decimal(21)
+    esperado = (t1 * v_dic + t2 * v_nov) / (t1 + t2)
+    assert get_ipc_interpolado_mensual_for_date(date(2025, 12, 10)) == esperado
+
+
+def test_ipc_interpolado_mensual_sin_mes_anterior_cargado_lanza_error(_ipc_mensual_de_prueba):
+    # 15 de octubre necesita el cierre de septiembre, que no esta en la fixture.
+    with pytest.raises(IPCMensualNoDisponibleError):
+        get_ipc_interpolado_mensual_for_date(date(2025, 10, 15))
+
+
 def test_tramos_entre_rango_dentro_de_un_solo_tramo():
     tramos = get_tramos_ibc_usura_between(date(2026, 6, 5), date(2026, 6, 20))
     assert len(tramos) == 1

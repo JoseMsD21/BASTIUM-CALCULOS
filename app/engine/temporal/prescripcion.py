@@ -55,9 +55,20 @@ def calcular_prescripcion(fecha_exigibilidad: date, tipo_accion: TipoAccion) -> 
 PLAZOS_CADUCIDAD_MESES_CONOCIDOS = {
     # Impugnacion de ineficacia societaria, PDF pag. 40.
     "IMPUGNACION_INEFICACIA_SOCIETARIA": 60,
+    # Los siguientes 6 (Seguro se divide en dos, ordinaria/extraordinaria, mismo
+    # criterio que los tres plazos cambiarios) fueron precargados en el Sprint 7
+    # (2026-08-01) a partir de la respuesta del despacho
+    # (Preguntas-Para-Abogado.md), no del PDF de requisitos.
+    "CHEQUES": 6,
+    "ENRIQUECIMIENTO_SIN_CAUSA": 12,
+    "TRANSPORTE": 24,
+    "SEGURO_ORDINARIA": 24,
+    "SEGURO_EXTRAORDINARIA": 60,
+    "IMPUGNACION_ACTAS_SOCIALES": 2,
 }
-# Deliberadamente no exhaustivo: solo casos con plazo confirmado en el PDF
-# fuente; cualquier otro tipo_proceso requiere plazo_meses_manual explicito.
+# Deliberadamente no exhaustivo: solo casos con plazo confirmado (PDF fuente o
+# respuesta del despacho); cualquier otro tipo_proceso requiere
+# plazo_meses_manual explicito.
 
 _TIPOS_CADUCIDAD_CONOCIDOS = set(PLAZOS_CADUCIDAD_MESES_CONOCIDOS)
 

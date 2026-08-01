@@ -53,6 +53,37 @@ liquidaciones históricas), Sprint 24 (formularios y `parametro_service` aceptan
 validar) y Sprint 29 (rutas rotas `specifications/` en README/GUIA/Pendientes, numeración duplicada en
 GUIA_USUARIO.md que rompe un enlace interno, y 4 specs de motores desactualizadas).
 
+**Auditoría cruzada contra las respuestas del despacho (2026-08-01):** los Sprints 2, 4, 6, 7, 8, 11, 12,
+15, 16, 17, 18 y 30 estaban marcados "✅ Completado" antes de que el despacho respondiera
+`Preguntas-Para-Abogado.md`. Se verificó, leyendo el código real (no solo el texto de cada sprint), si la
+implementación coincide con lo que el despacho terminó confirmando. Resultado: **9 de 12 no coinciden**, 2
+de ellas con impacto numérico real y confirmado en pruebas concretas (Sprint 8 — Indexación IPC: el motor
+interpola por cierre de año en vez de mes a mes, calificado "jurídicamente inválido" por el propio
+despacho, y es la base del Sprint 20/41; Sprint 17 — Módulo pensional: el piso de la tasa de reemplazo está
+hardcodeado en 65% en vez de 55%, y el mínimo de semanas está fijo en 1.300 para cualquier año en vez de
+variar históricamente, produciendo 75% en vez de 80% en el caso de prueba que trajo el propio despacho).
+También el Sprint 30 (que ya esperaba esta confirmación como bloqueante) puede pasar de "pendiente de
+confirmar" a "bug confirmado, sin corregir". Cada sprint afectado quedó marcado con ⚠️ en el índice y con un
+bloque "**⚠️ Corrección pendiente**" dentro de su propia sección, citando la respuesta exacta del despacho
+y el archivo:línea del código que no coincide — no se tocó ningún código todavía, solo se documentó.
+
+**Sprints 39-45 (nuevos, 2026-08-01): QA real sobre el módulo de Familia recién cerrado (Sprint 20/21) y
+áreas Laboral/Sancionatorio.** Un usuario probó la app con un caso real (obligaciones alimentarias
+recurrentes) justo después de fusionar los Sprints 20-21, y reportó 9 observaciones puntuales. Cada una se
+verificó leyendo el código (no se asumió nada) antes de convertirla en sprint: Sprint 39 (3 bugs de UI
+confirmados y pequeños — etiquetas huérfanas en `QFormLayout`), Sprint 40 (bug transversal confirmado: la
+tabla de detalle del PDF siempre muestra $0 de interés por fila en las 6 áreas, aunque el saldo final sí es
+correcto), Sprint 41 (gap grande de alcance: obligaciones recurrentes sin reajuste anual ni cuotas
+mensuales autónomas — requiere conversación previa con el usuario igual que exigieron los Sprints 13/16/20;
+incluye una demanda real de alimentos aportada por el usuario como caso de prueba dorado), Sprint 42
+(motor de prescripción/caducidad del Sprint 7 sigue sin conectarse al flujo real de liquidación, tal como
+quedó documentado al cerrar ese sprint), Sprint 43 (indexación IPC solo existe hoy para Civil/Familia,
+extenderla a otras áreas requiere decidir con el despacho dónde aplica sin duplicar mecanismos ya
+existentes), Sprint 44 (varios gaps de UX en Laboral: SMMLV automático, edición de obligaciones/eventos,
+descuentos del empleador, fecha de corte) y Sprint 45 (Sancionatorio: transparencia de unidad SMLMV/UVT
+confirmada como mejora real; la queja de "capital creciendo exponencialmente" no se pudo reproducir en el
+código y queda pendiente de un caso concreto antes de tratarla como bug).
+
 **Sprints 31-37 (nuevos, 2026-07-21): UX/UI de la GUI.** BASTIUM hoy es funcional pero visualmente es 100%
 el estilo nativo de Qt/Windows sin ninguna identidad propia: cero `setStyleSheet`/`QPalette` en toda la
 app, la tipografía de marca (`AncizarSans`, en `app/assets/fonts/`) y los colores de marca (burdeos/crema,
@@ -75,17 +106,17 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado](#sprint-5--carga-de-datos-históricos-ipc-smlmv-ibc-tasa-de-usura-uvt--completado)
 - [Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado](#sprint-6--calendario-de-días-hábiles-judiciales-y-términos-procesales--completado)
 - [Sprint 7 — Motor de prescripción y caducidad ✅ Completado](#sprint-7--motor-de-prescripción-y-caducidad--completado)
-- [Sprint 8 — Conectar indexación IPC al área Civil/Familia ✅ Completado](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--completado)
+- [Sprint 8 — Conectar indexación IPC al área Civil/Familia ⚠️ Parcial](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--parcial) — mecanismo mensual listo y probado; falta la fuente real del DANE (pregunta abierta)
 - [Sprint 9 — Motor de auditoría / bitácora ✅ Completado](#sprint-9--motor-de-auditoría--bitácora--completado)
 - [Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado](#sprint-10--exportación-de-liquidación-a-pdfword--completado)
-- [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a)
+- [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a) — ver corrección del Sprint 15 (11b)
 - [Sprint 12 — TRM y obligaciones en moneda extranjera ✅ Completado](#sprint-12--trm-y-obligaciones-en-moneda-extranjera--completado)
 - [Sprint 13 — Arquitectura de motor de reglas versionado (EFDJ) ✅ Completado](#sprint-13--arquitectura-de-motor-de-reglas-versionado-efdj--completado)
 - [Sprint 14 — Tabla histórica de UVT (DIAN) ✅ Completado](#sprint-14--tabla-histórica-de-uvt-dian--completado)
 - [Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado](#sprint-15--tributario-completo-sanciones-imputación-y-modelo-de-obligación-tributaria-cierre-del-sprint-11b--completado)
 - [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
-- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--completado)
+- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ⚠️ Parcial](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--parcial) — validación de rango manual implementada; pregunta abierta sobre si la tabla simple reemplaza la granular
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
@@ -97,7 +128,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional)
 - [Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests](#sprint-28--cicd-versionado-housekeeping-de-repositorio-e-higiene-de-tests)
 - [Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos ✅ Completado](#sprint-29--corrección-de-documentación-desactualizada-inconsistente-y-con-enlaces-rotos--completado)
-- [Sprint 30 — Verificación de reglas de dominio con posible error de un día](#sprint-30--verificación-de-reglas-de-dominio-con-posible-error-de-un-día)
+- [Sprint 30 — Verificación de reglas de dominio con posible error de un día](#sprint-30--verificación-de-reglas-de-dominio-con-posible-error-de-un-día) — ⚠️⚠️ CORRECCIÓN URGENTE (confirmación jurídica ya recibida, bug sin corregir)
 - [Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI](#sprint-31--sistema-de-diseño-visual-tema-color-tipografía-e-íconos-en-la-gui)
 - [Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado](#sprint-32--navegación-barra-mejorada-breadcrumb-y-atajos-de-teclado)
 - [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas)
@@ -106,6 +137,13 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones)
 - [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado)
 - [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE`](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license)
+- [Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral)](#sprint-39--bug-de-ui-etiquetas-huérfanas-en-qformlayout-sancionatorio-y-laboral)
+- [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas)](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas)
+- [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono)
+- [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación)
+- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia)
+- [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte)
+- [Sprint 45 — Sancionatorio: transparencia SMLMV/UVT y aclaración del caso de capital creciente](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente)
 
 ---
 
@@ -176,6 +214,19 @@ C.Co. — `CompoundInterest` (`app/engine/interest/compound_interest.py`) sigue 
 modelar si hubo demanda judicial o acuerdo posterior de capitalización, campos que no existen hoy en
 `Obligacion`. También queda documentado como limitación conocida (heredada de Civil, no introducida
 aquí): `MemoryRateProvider` da resultados correctos por obligación solo cuando el expediente tiene una
+
+**✅ Corrección aplicada (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 2):** el despacho descartó las dos opciones que se habían dejado
+abiertas (rechazar / truncar) y exigió la tercera vía implementada ahora: `ComercialStrategy` ya no
+rechaza la liquidación cuando una tasa pactada supera la usura. `usury_validator.py` pasó de
+`validar_tasa_usura` (lanzaba `TasaUsurariaError`, eliminada) a `calcular_tope_usura` (solo calcula el
+tope, no rechaza nada). `area_strategy.py` (`ComercialStrategy._calcular_sancion_usura` /
+`_aplicar_sanciones_usura`) liquida con la tasa realmente pactada, corre una liquidación sombra con la
+tasa recortada al tope legal (nunca devuelta al usuario, solo de referencia), calcula
+`Intereses_Cobrados_En_Exceso = Intereses_Cobrados - Intereses_Cobrados_Con_Tasa_Usura`, y resta del saldo
+`Sancion = Intereses_Cobrados_En_Exceso × 2` como un rubro adicional visible en el resultado (puede dejar
+saldo a favor del deudor). `README.md`/`docs/GUIA_USUARIO.md`/`docs/specifications/02_motor_financiero.md`
+actualizados. Suite completa en verde (619 passed, 1 skipped).
 sola obligación comercial, o cuando (con varias) los tramos de fecha de las obligaciones no se solapan
 con tasas distintas — la tasa se busca por fecha calendario, no por obligación.
 
@@ -331,6 +382,19 @@ usuario durante el brainstorming previo (no asumidas unilateralmente):
 - (a) los dos topes de cuota litis (30% individual sobre la cuota litis sola, 50% total sobre honorarios
   fijos + cuota litis) se aplican **simultáneamente**, no como alternativas — el PDF los menciona en
   secciones distintas y no como excluyentes entre sí.
+
+**✅ Corrección aplicada (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 4):** el despacho rechazó explícitamente la aplicación simultánea de
+ambos topes: el único tope legal es del 50% acumulado sobre (honorarios fijos + cuota litis).
+`HonorariosStrategy._validar_obligacion_honorarios()` ya no valida el tope individual del 30% sobre la
+cuota litis sola (eliminado, junto con el parámetro `CUOTA_LITIS_INDIVIDUAL_PCT` del catálogo de
+`parametro_service.py` — ya no tiene fundamento legal, se quedó sin uso). El mensaje de
+`CuotaLitisExcedeTopeError` ahora cita textualmente "Honorarios Desproporcionados - Art. 35 Num. 4 Ley
+1123/2007" al superar el 50% acumulado, y sigue bloqueando la liquidación (una de las dos vías que el
+despacho autorizó explícitamente: "bloquear la liquidación o ajustar el excedente" — se mantuvo el
+bloqueo, coherente con el patrón ya usado para el resto de topes duros del sistema, a diferencia de la
+sanción de usura del Sprint 2 donde el despacho prohibió expresamente bloquear).
+`README.md`/`docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (619 passed, 1 skipped).
 - (b) las costas judiciales se capturan como un **porcentaje manual** por obligación
   (`costas_pct_manual`), en vez de una tabla estructurada de rangos del Consejo Superior de la
   Judicatura (Acuerdo PCSJA20-11556), porque no se consiguió una fuente confiable con esos rangos
@@ -470,13 +534,29 @@ fuente real.
 **Estado:** Implementado (2026-07-19) — `CalendarUtils` (`app/engine/time/calendar.py`) ganó
 `es_dia_habil/sumar_dias_habiles/dias_habiles_entre/notificacion_surtida_el/vencimiento_calendario`
 usando la librería `holidays` (festivos colombianos con Ley Emiliani ya aplicada por la librería, sin
-mantener tabla propia). El modelador de términos (`EstadoTermino` + `iniciar_termino/dias_restantes/
-esta_vencido/interrumpir/suspender/reanudar`) vive en `app/engine/temporal/terminos.py`, nuevo. 30 tests
-nuevos (`tests/temporal/test_calendar.py`, `tests/temporal/test_terminos.py`), suite completa en 226
-verde. Code review encontró y se corrigió en el mismo sprint: `interrumpir`/`reanudar` no validaban que
-`fecha` fuera posterior al `checkpoint` vigente (permitía retroceder el reloj procesal silenciosamente) —
-ahora las cuatro funciones (`dias_restantes`/`interrumpir`/`suspender`/`reanudar`) comparten un guard
-único que rechaza fechas anteriores al checkpoint.
+mantener tabla propia).
+
+**✅ Corrección aplicada (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 6):** el despacho confirmó que fines de semana + festivos NO bastan —
+exige excluir también la vacancia judicial de fin de año (20 de diciembre a 11 de enero inclusive, 12 de
+enero hábil salvo que caiga en fin de semana/festivo) y Semana Santa completa (lunes, martes y miércoles
+santo, además del jueves/viernes santo que ya son festivos). `CalendarUtils.es_dia_habil()`
+(`app/engine/time/calendar.py`) ahora también verifica la vacancia de fin de año
+(`_en_vacancia_judicial_fin_de_anio`, chequeo directo de mes/día, sin necesidad de tabla) y la Semana Santa
+extendida (`_vacancia_semana_santa`, derivada de "Jueves Santo" — festivo que la librería `holidays` ya
+calcula por año — restando 1/2/3 días para obtener Miércoles/Martes/Lunes Santo, sin depender de una
+librería nueva). Esto cambia el resultado de `dias_habiles_entre()`/`sumar_dias_habiles()` para cualquier
+rango que cruce esas fechas — se actualizaron los tests existentes que cruzaban el cambio de año
+(`tests/temporal/test_calendar.py`) y se reescribieron los de `tests/temporal/test_terminos.py` con fechas
+fuera de esos rangos especiales (la máquina de estados de interrupción/suspensión/reanudación es agnóstica
+a qué fechas exactas cuentan como hábiles; esas reglas ya se prueban directamente en `test_calendar.py`).
+El modelador de términos (`EstadoTermino` + `iniciar_termino/dias_restantes/
+esta_vencido/interrumpir/suspender/reanudar`) vive en `app/engine/temporal/terminos.py`. Suite completa en
+verde (622 passed, 1 skipped). `docs/specifications/01_motor_temporal.md` actualizado. Code review del
+sprint original encontró y corrigió: `interrumpir`/`reanudar` no validaban que `fecha` fuera posterior al
+`checkpoint` vigente (permitía retroceder el reloj procesal silenciosamente) — las cuatro funciones
+(`dias_restantes`/`interrumpir`/`suspender`/`reanudar`) comparten un guard único que rechaza fechas
+anteriores al checkpoint.
 
 Dos limitaciones conocidas quedan documentadas (no corregidas en este sprint, por ser fuera de alcance
 de lo que Sprint 6 pedía, pero relevantes para quien tome el Sprint 7):
@@ -548,6 +628,19 @@ previo (no asumidas unilateralmente):
   distintos de `TipoAccion` (directa 3 años, de regreso del tenedor 1 año, entre obligados de regreso 6
   meses), reconciliando la mención de "6 meses" de la pág. 32 como el tercer supuesto real del C.Co.
   (art. 791) en vez de tratarla como un error aislado del documento.
+
+**✅ Corrección aplicada (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 7):** el despacho confirmó los 3 plazos cambiarios (COINCIDEN
+exactamente: `CAMBIARIA_DIRECTA=36`, `CAMBIARIA_REGRESO_TENEDOR=12`,
+`CAMBIARIA_REGRESO_ENTRE_OBLIGADOS=6`, `prescripcion.py`), y además pidió precargar plazos adicionales de
+caducidad/prescripción fijos: Cheques (6 meses), Enriquecimiento sin causa (1 año), Transporte (2 años),
+Seguro (2 y 5 años — modelado como dos `tipo_proceso` distintos, `SEGURO_ORDINARIA`/`SEGURO_EXTRAORDINARIA`,
+mismo criterio que los tres plazos cambiarios) e Impugnación de Actas Sociales (2 meses).
+`PLAZOS_CADUCIDAD_MESES_CONOCIDOS` (`prescripcion.py`) ahora trae las 6 claves nuevas (además de la
+Impugnación de ineficacia societaria ya existente), cada una con su entrada en
+`CATALOGO_PARAMETROS` (`parametro_service.py`) y sembrada automáticamente por
+`scripts/migrate_parametros_legales.py` (lee directamente del diccionario, sin necesidad de tocar el
+script). Suite completa en verde (628 passed, 1 skipped).
 - `calcular_caducidad` solo trae hardcodeado el único caso con plazo confirmado en el PDF (impugnación
   de ineficacia societaria, 5 años); cualquier otro `tipo_proceso` exige un `plazo_meses_manual`
   explícito o lanza `ValueError` — mismo patrón que `costas_pct_manual` del Sprint 4, para no inventar
@@ -568,7 +661,7 @@ de uso en el sprint que la requiera todavía.
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia ✅ Completado
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia ⚠️ Parcial
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -617,6 +710,29 @@ ningún campo de `Obligacion` usado por Civil/Familia puede representar la combi
 prohíbe. Queda documentado como limitación conocida (no corregida en este sprint): el interés sigue
 calculándose solo sobre el capital, no sobre el capital ya indexado, a diferencia del algoritmo de "Suma
 Única" del PDF (pág. 22) — cambiar eso afecta el motor core para las 5 áreas.
+
+**⚠️ Parcial (verificado contra la respuesta del despacho, `Preguntas-Para-Abogado-Respondidas.md`
+Sprint 8, 2026-08-01):** el despacho calificó EXACTAMENTE las aproximaciones (b) y (c) de arriba como
+"jurídicamente inválida... será objetada por un juez", y exige IPC **mensual** del DANE con interpolación
+lineal de días dentro del mes, prohibiendo expresamente proyectar el año en curso con el IPC del año
+anterior. Se buscó la serie mensual real por web (2026-08-01) y no se consiguió completa ni verificable en
+un formato transcribible con confianza (solo variaciones % desde 2011, no el índice completo desde 1967) —
+en vez de inventar valores, se agregó una pregunta de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`
+("Sprint 8 (seguimiento)") pidiéndole al despacho la fuente/tabla real.
+
+Mientras tanto, se construyó y probó la parte de **código** de la corrección:
+`historical_index.get_ipc_mensual_for_month`/`get_ipc_interpolado_mensual_for_date` (nuevas) implementan
+exactamente la interpolación lineal de días entre el cierre del mes anterior y el del mes de la fecha, tal
+como exige el despacho — pero la tabla de datos (`_IPC_MENSUAL`) queda deliberadamente vacía y lanza
+`IPCMensualNoDisponibleError` para cualquier mes mientras no llegue la fuente real (mismo patrón que UVT
+antes del Sprint 14). **`CivilFamiliaStrategy._evento_indexacion` (`area_strategy.py`) sigue usando
+`get_ipc_interpolado_for_date` (la interpolación anual, todavía jurídicamente inválida)** — conectar la
+función mensual ya lista requiere los datos reales primero; cambiar el wiring sin datos rompería toda
+indexación IPC existente en la app (bloquearía cualquier liquidación con `aplica_indexacion_ipc=True`) en
+vez de corregirla. Este motor es la base del Sprint 20 ("Suma Única") y de cualquier indexación IPC ya
+calculada en Civil/Familia, así que hereda el mismo defecto en cualquier liquidación real ya generada
+(incluyendo, potencialmente, la que motivó el Sprint 41) hasta que se complete la conexión.
+`docs/specifications/03_motor_indexacion.md` actualizado. Suite completa en verde (633 passed, 1 skipped).
 
 Dos hallazgos de la revisión final de rama, resueltos o documentados antes de cerrar el sprint:
 - **Migración de esquema**: `init_db()` (`database/database.py`) solo crea tablas nuevas, no altera las
@@ -803,6 +919,9 @@ standalone hasta que el Sprint 8 lo conectó. **Sprint 11b** (motor de sanciones
 pagos, modelo de "Obligación Tributaria") sigue pendiente, bloqueado por la misma tabla histórica de UVT
 que el Sprint 5 dejó sin conseguir.
 
+**Nota (2026-08-01):** el Sprint 11b llegó después como el Sprint 15 (ver abajo) — su verificación contra
+la respuesta del despacho está documentada ahí, no aquí.
+
 ---
 
 ## Sprint 12 — TRM y obligaciones en moneda extranjera ✅ Completado
@@ -845,6 +964,31 @@ interfaz `TRMProvider` reemplazable por una fuente histórica real más adelante
 `ComercialStrategy`; (c) la conversión del capital a pesos es **única, al inicio de la liquidación** (antes
 de construir los eventos de causación), no una reconversión continua por cada abono — el resto del motor
 de interés/mora/usura sigue operando 100% en pesos sin ningún cambio.
+
+**✅ Corrección aplicada (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 12):** el despacho rechazó explícitamente la decisión (c) de arriba y
+exigió convertir a pesos de forma **dinámica**, con la TRM de la fecha de **cada** pago/abono (consumiendo
+la API de la Superintendencia Financiera), eliminando "la TRM congelada al inicio".
+
+Se agregó `SFCTRMProvider` (`app/engine/currency/trm_provider.py`), cliente HTTP (via `urllib` de la
+librería estándar, sin dependencia nueva) del dataset abierto de datos.gov.co que espeja el servicio
+oficial de la SFC. `ComercialStrategy` ahora acepta `trm_provider` inyectable (default `SFCTRMProvider()`
+en producción) y resuelve la TRM **por evento**: el capital con la TRM de `fecha_origen`, y — el cambio
+central — **cada abono con la TRM de su propia fecha de pago** (`_monto_abono_en_pesos`, cableado a través
+de un nuevo parámetro `monto_abono_fn` en `_liquidar_por_obligacion`, también usado por la liquidación
+sombra de la sanción de usura del Sprint 2 para mantener consistencia).
+
+Decisión de diseño documentada (no confirmada expresamente por el despacho, tomada con criterio propio
+dado que la instrucción no especificaba la mecánica exacta): `trm_aplicable`/`trm_fecha_referencia` dejaron
+de ser obligatorios pero se **conservan como anulación manual opcional** — si el abogado los diligencia,
+esa obligación usa ese valor fijo para todo (capital y abonos), sin consultar la API; útil sin conexión a
+internet o para reproducir liquidaciones anteriores a este sprint. Es la única TRM "congelada" que
+sobrevive, y es una elección explícita por obligación, no el comportamiento por defecto. Si la API no
+responde, `TRMNoDisponibleError` (nueva) se propaga a la GUI como advertencia "TRM no disponible" — no
+aproxima ni usa un valor viejo.
+
+`README.md`/`docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (637 passed, 1 skipped) — los
+tests de red usan un `TRMProvider` de prueba inyectado (nunca hacen llamadas HTTP reales).
 
 Hallazgo técnico importante detectado durante la planificación (documentado al inicio del plan): los
 objetos `Obligacion` construidos directamente en tests (sin sesión de base de datos, patrón usado en todos
@@ -1187,6 +1331,31 @@ revisión final de rama completa y sus correcciones: bloque de Renta Líquida Gr
 Word, siembra de los 4 parámetros de sanciones y manejo amigable de `ParametroNoDisponibleError`, y dos
 ajustes menores de documentación/pruebas).
 
+**✅ Corrección aplicada (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 15):** el despacho confirmó dos puntos que YA COINCIDÍAN con el código:
+el orden de imputación (Sanciones → Intereses → Impuesto) y el piso de 10 UVT
+(`app/engine/tax/sanciones.py`). La regla especial de concurrencia para deudas con más de 3 años de mora
+(Art. 867-1 E.T., Sentencia C-549/1993) sí faltaba — se agregó `app/engine/tax/actualizacion_867_1.py`:
+- **Impuesto** (`IMPUESTO_A_CARGO`): conserva el interés E.T. 635 (sin cambios) y además se indexa por
+  IPC, topando la suma (interés + indexación) al interés que produciría la tasa de usura **plena** (sin el
+  descuento de 2 puntos del art. 635) sobre el mismo capital y período — verificado contra el ejemplo
+  numérico exacto que aportó el despacho (impuesto $100.000.000, mora 2018-05-10 a 2023-05-10: interés
+  $123.160.595,20, indexación sin topar $32.814.627,80, recortada a $7.773.307,41 para no superar el techo
+  de $130.933.902,61).
+- **Sanciones** (`SANCION_*`): no acumulan interés moratorio (nunca lo hicieron, en realidad — las
+  sanciones caen en el bucket `indexation` de `LiquidationCore`, que nunca alimentó el cómputo de interés
+  diario salvo bajo Suma Única; el "caso especial" del despacho ya estaba garantizado por la arquitectura
+  existente) y se reemplazan íntegramente por la indexación IPC cuando la mora supera 3 años.
+
+Implementar esto exigió migrar `TributarioStrategy` al mismo patrón de liquidación por obligación aislada
+que Comercial/CivilFamilia usan desde el Sprint 21 (`_liquidar_por_obligacion`) — es la única forma de
+darle 0% de interés a una sanción mientras el impuesto sigue acumulando la tasa E.T. 635, ya que
+`LiquidationCore` solo soporta un `PendingDebt`/tasa por instancia. **Efecto secundario documentado**: un
+abono ya no se imputa automáticamente contra el saldo combinado del expediente (sanciones primero,
+impuesto después) — cada abono debe indicar, vía `obligacion_id`, cuál obligación paga, igual que en las
+demás áreas desde el Sprint 21. `README.md`/`docs/GUIA_USUARIO.md` actualizados. Suite completa en verde
+(647 passed, 1 skipped).
+
 ---
 
 ## Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado
@@ -1287,6 +1456,16 @@ la escala progresiva completa del FSP por tramos de SMMLV (Ley 797/2003 art. 8 �
 
 `README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde.
 
+**✅ Corrección menor aplicada (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 16):** las tablas de ARL (I=0.522%, II=1.044%, III=2.436%, IV=4.350%,
+V=6.960%, `scripts/migrate_parametros_legales.py`) y de FSP (tramos 4-16/16-17/17-18/18-19/19-20/>20
+SMMLV) YA COINCIDÍAN exactamente con lo confirmado por el despacho. Faltaba únicamente el tope legal del
+8.7% para cualquier nivel de riesgo ARL (Ley 1562/2012) — se agregó `TOPE_ARL_PCT = Decimal("0.087")` en
+`app/engine/labor/seguridad_social.py`, aplicado con `min()` sobre el porcentaje resuelto desde
+`parametros_legales`, así que sigue rigiendo aunque alguien suba un nivel de riesgo por encima de ese tope
+desde la pantalla de Parámetros (Sprint 13). Sin impacto numérico en los valores actuales (6.960% ya
+estaba por debajo del tope). Suite completa en verde (648 passed, 1 skipped).
+
 ---
 
 ## Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado
@@ -1362,9 +1541,26 @@ confirmación jurídica formal; (d) el caso de validación real usado en los tes
 además `Preguntas-Para-Abogado.md` (documento nuevo en la raíz del proyecto), que recoge esta brecha junto
 con todas las decisiones/huecos legales sin confirmar de los Sprints 2-16, 18 y 30.
 
+**✅ CORRECCIÓN URGENTE APLICADA (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Respondidas.md` Sprint 17):** el despacho SÍ confirmó la fórmula, pero con una precisión que el
+código había implementado mal: el piso de la tasa **inicial** (antes del bono) es **55%**, no 65%, y el
+techo de esa misma tasa inicial es 65.5% — `calcular_tasa_reemplazo` (`app/engine/labor/ibl.py`) ahora
+aplica `max(55, min(65.5, r_inicial))` **antes** de sumar el bono, y solo el techo final de 80% se aplica
+después (el código viejo aplicaba un único clamp `max(65, min(80, r))` sobre el total ya con bono sumado,
+mezclando ambas reglas). Además, el umbral de "semanas mínimas" para calcular el exceso ya no está fijo en
+1300 para cualquier año: `semanas_minimas_requeridas(anio_causacion)` (nueva) reconstruye el
+escalonamiento real de la Ley 797/2003 — 1000 semanas antes de 2005, 1050 en 2005, +25/año desde 2006
+hasta llegar a 1300 en 2015, fija en 1300 desde entonces. `calcular_tasa_reemplazo` ahora exige
+`anio_causacion` como parámetro obligatorio (cambio de firma). Verificado exactamente contra el caso de
+prueba QA que trajo el despacho (IBL=$800.000, SMMLV=$400.000, semanas=1.664, año 2006, mínimo real de
+1.075 semanas): tasa final = 80% (antes de la corrección, con el mínimo mal fijo en 1.300, el código
+calculaba 75%). Módulo pensional sigue sin conectar a ninguna estrategia/GUI (ver Sprint 3), así que esta
+corrección no tiene impacto en liquidaciones reales todavía, pero sí en cualquier uso directo del motor.
+Suite completa en verde (653 passed, 1 skipped).
+
 ---
 
-## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado
+## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ⚠️ Parcial
 
 **Prioridad sugerida:** Media — el Sprint 4 ya dejó `costas_pct_manual` como solución temporal por no
 conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa fuente.
@@ -1448,8 +1644,9 @@ Limitaciones conocidas, documentadas en vez de omitidas silenciosamente:
 - Todavía no existen campos de formulario en la GUI para `costas_tipo_proceso`/`costas_instancia` — este
   sprint entregó el motor de cálculo y su wiring en las estrategias de liquidación, no una actualización
   de pantallas (solo existen las columnas de base de datos y el motor).
-- Por la misma razón anterior, `TarifaNoDisponibleError` tampoco está capturada todavía en el manejo de
-  excepciones de la GUI.
+- ~~Por la misma razón anterior, `TarifaNoDisponibleError` tampoco está capturada todavía en el manejo de
+  excepciones de la GUI.~~ Corregido junto con la corrección de este sprint (2026-08-01): ahora se captura
+  en `expediente_detalle.py`, junto con la nueva `CostasFueraDeRangoError`.
 - No hay validación que impida fijar `costas_tipo_proceso`/`costas_instancia` en más de una obligación
   del mismo expediente (contaría las costas doble) ni en un expediente Civil/Familia o Comercial compuesto
   solo de obligaciones `RECURRENTE` (no generaría costas sin avisar, ni siquiera vía `costas_pct_manual`
@@ -1459,8 +1656,25 @@ Limitaciones conocidas, documentadas en vez de omitidas silenciosamente:
 
 Preguntas abiertas para el despacho sobre las aproximaciones de implementación (ponderación inversa,
 tramo de mayor cuantía sin techo, `fecha_origen` como aproximación de la fecha de radicación, y la base de
-costas en Laboral frente al Art. 65 CST) quedaron registradas en `Preguntas-Para-Abogado.md`, sección
-Sprint 18. `README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde.
+costas en Laboral frente al Art. 65 CST) quedaron registradas en `Preguntas-Para-Abogado-Abiertas.md`,
+sección Sprint 18. `README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde.
+
+**⚠️ Parcial (2026-08-01, verificado contra la respuesta del despacho,
+`Preguntas-Para-Abogado-Abiertas.md` Sprint 18):** la tabla de 3 rangos simples que aportó el despacho (Mínima ≤40
+SMMLV → 0%-10%, Menor 40-150 SMMLV → 3%-7%, Mayor >150 SMMLV → 1%-5%) **no coincide** numéricamente con la
+tabla granular ya implementada (Acuerdo PSAA16-10554, `agencias_en_derecho.py`, ~18 tipos de proceso ×
+instancia, cada uno con su propio rango distinto). En vez de asumir cuál de las dos manda, se implementó
+únicamente lo inequívoco de la instrucción del despacho — "el sistema debe restringir el input del
+usuario... lanzar un error de validación" — como una **validación nueva del porcentaje manual**
+(`costas_pct_manual`), sin tocar la tabla granular del cálculo automático:
+`validar_costas_pct_manual`/`RANGO_COSTAS_MANUAL_POR_TIER` (`agencias_en_derecho.py`) resuelve el tier de
+cuantía (mínima/menor/mayor, mismo `resolver_cuantia_tier` que ya usaba el cálculo automático) y rechaza
+—no trunca— un `costas_pct_manual` fuera del rango simple del despacho, lanzando `CostasFueraDeRangoError`
+(nueva), ahora capturada en la GUI (`expediente_detalle.py`) igual que las demás excepciones de dominio.
+Se agregó una pregunta de seguimiento en `Preguntas-Para-Abogado-Abiertas.md` (sección "Sprint 18 (seguimiento)")
+preguntando explícitamente si la tabla simple reemplaza la granular o solo acota el valor manual — no
+asumir ninguna de las dos sin confirmación. `docs/GUIA_USUARIO.md` actualizado (nueva sección 7.6.1).
+Suite completa en verde (655 passed, 1 skipped).
 
 ---
 
@@ -2231,8 +2445,9 @@ agregados en GUIA_USUARIO.md secciones 7.1 (interés civil), 7.7 (indexación IP
 
 ## Sprint 30 — Verificación de reglas de dominio con posible error de un día
 
-**Prioridad sugerida:** Media — son bugs sutiles de un día, con bajo impacto individual pero que requieren
-confirmación jurídica antes de decidir si se corrigen.
+**Prioridad sugerida:** ~~Media~~ **Alta (actualizado 2026-08-01)** — la confirmación jurídica que este
+sprint pedía como bloqueante ya llegó (ver bloque de abajo); pasa de "pendiente de confirmar" a "bug
+confirmado, pendiente de codificar".
 
 **Depende de:** Sprint 7 (prescripción/caducidad) y Sprint 3 (Área Laboral), ambos ya completos — este
 sprint es de verificación/corrección puntual, no de construcción nueva.
@@ -2260,12 +2475,34 @@ sprint es de verificación/corrección puntual, no de construcción nueva.
 - Para el punto 2: verificar contra la fuente laboral (CST) si el primer día de labor debe contarse como
   "trabajado" al calcular cesantías/prestaciones proporcionales.
 
-**Código nuevo a crear (si se confirma que hay que corregir):**
-- Cambiar `fecha_interrupcion_efectiva` para comparar fecha-a-fecha (ej. usando
-  `CalendarUtils.vencimiento_calendario` o una comparación de "un año después" real) en vez de `<= 365`
-  días fijos.
-- Cambiar `dias_trabajados` a inclusive (`+1`) si se confirma que así lo exige la práctica laboral,
-  actualizando el test existente que hoy asume 365 para el caso de año completo.
+**⚠️ Confirmación jurídica recibida (`Preguntas-Para-Abogado-Respondidas.md`, secciones Sprint 30 y Sprint 3,
+2026-08-01) — ambos puntos verificados contra el código real, siguen sin corregir:**
+1. **Punto 1 (prescripción, CONFIRMADO como bug):** el despacho contestó que "un año" NO son 365 días
+   matemáticos, sino fecha-a-fecha estricta de calendario
+   (`Fecha_Vencimiento = Fecha_Notificacion.AddYears(1)`, con ajuste a 28-feb si no existe 29-feb, y
+   desplazamiento al siguiente día hábil si la fecha cae en día no hábil). `fecha_interrupcion_efectiva`
+   (`app/engine/temporal/prescripcion.py:106`) sigue usando literalmente
+   `(fecha_notificacion - fecha_radicacion).days <= 365` — el bug original, sin corregir. Lo notable: la
+   infraestructura correcta ya existe en el mismo módulo (`CalendarUtils.vencimiento_calendario`,
+   `app/engine/time/calendar.py:70-85`, que sí suma años/meses con tope de fin de mes y corrimiento a día
+   hábil, y que `calcular_prescripcion` — otra función del mismo archivo — sí usa) pero nunca se conectó a
+   `fecha_interrupcion_efectiva`. Es la corrección más barata de todo este lote: reutilizar una función que
+   ya existe y ya está probada.
+2. **Punto 2 (conteo inclusivo, CONFIRMADO pero con matiz — no es un simple "+1" global):** el despacho
+   confirmó conteo inclusivo (`Dias = (Fin - Inicio) + 1`), pero con dos bases distintas según el rubro, NO
+   una regla única: para prestaciones sociales (cesantías/prima) se usa año comercial de 360 días
+   (meses de 30 días); para densidad de semanas pensional (Sentencia SL138-2024) se usan días calendario
+   reales (365/366), sin la ficción de 30 días — este segundo caso ya se abrió como corrección aparte en el
+   Sprint 17 de arriba (semanas mínimas por año de causación), y comparte la misma causa raíz de "conteo no
+   inclusivo" que aquí. `LaboralStrategy.liquidar` sigue usando resta simple sin sumar 1 en ningún punto
+   revisado.
+
+**Código nuevo a crear (confirmado — ya no es condicional a "si se confirma"):**
+- Cambiar `fecha_interrupcion_efectiva` para reutilizar `CalendarUtils.vencimiento_calendario` (o
+  equivalente) en vez de `<= 365` días fijos.
+- Cambiar el cómputo de días a inclusivo (`+1`), con la base correcta por rubro: 360 días (año comercial)
+  para prestaciones sociales, calendario real (365/366) para densidad de semanas pensional — no una sola
+  convención global. Actualizar el test existente que hoy asume 365 para el caso de año completo.
 
 **Alcance explícitamente excluido:**
 - No tocar nada más de `LaborScheduler` ni de `prescripcion.py` — este sprint es exclusivamente la
@@ -2277,10 +2514,10 @@ sprint es de verificación/corrección puntual, no de construcción nueva.
   liquidaciones ya auditadas (interactúa con el Sprint 9).
 
 **Definición de Hecho:**
-- Confirmación explícita (con el usuario o con la fuente normativa exacta) de cuál de los dos
-  comportamientos es el correcto en cada caso, antes de tocar código.
-- Si se corrige: test que cubre explícitamente el caso bisiesto para prescripción, y el caso de contrato de
-  año completo para `dias_trabajados`.
+- ~~Confirmación explícita... antes de tocar código~~ — **ya recibida** (ver bloque de arriba, 2026-08-01).
+- Test que cubre explícitamente el caso bisiesto para prescripción, y el caso de contrato de año completo
+  para `dias_trabajados` (con la base correcta: 360 comercial para prestaciones, calendario real para
+  densidad pensional).
 - Suite completa en verde.
 
 ---
@@ -2643,6 +2880,421 @@ aunque lo parezca por estar en GitHub.
   la sección "About").
 - El badge de licencia en `README.md` y la sección correspondiente de `CONTRIBUTING.md` coinciden con la
   licencia real elegida.
+
+---
+
+## Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral)
+
+**Prioridad sugerida:** Alta — bug confirmado, de esfuerzo pequeño (una línea por caso), pero visible en
+cada liquidación de dos áreas completas; reportado directamente por un usuario real probando la app
+(2026-08-01).
+
+**Depende de:** Nada — corrige código ya existente en producción.
+
+**Contexto (reporte de usuario):** al usar el formulario de obligaciones en Sancionatorio y Laboral
+aparecen etiquetas de campo visibles sin su control asociado (el campo se ve "vacío", sin nada para
+diligenciar), y una etiqueta de Laboral queda fija con un texto que no corresponde al tipo de evento
+seleccionado.
+
+**Hallazgos (verificados leyendo el código, 2026-08-01):**
+1. `app/views/obligaciones.py:186-188` — para Sancionatorio, `self.campo_valor.setVisible(False)` oculta el
+   `QLineEdit` de "Valor" (el monto se calcula desde `cantidad_smlmv_uvt`), pero `QFormLayout.addRow("Valor",
+   self.campo_valor)` (línea 127) crea un `QLabel` automático que `setVisible(False)` sobre el widget NO
+   oculta. Resultado: la fila "Valor" queda visible con etiqueta pero sin casilla editable.
+2. `app/views/obligaciones.py:197` — mismo patrón para "Nivel de riesgo ARL" (`combo_nivel_riesgo_arl`,
+   `addRow` en línea 161): se oculta el combo para toda área que no sea Laboral, pero la etiqueta persiste
+   visible al final del formulario en Sancionatorio (y cualquier otra área no laboral).
+3. `app/views/eventos_laborales.py:38,45-46` — `layout.addRow("Motivo de suspension", self.combo_motivo)`;
+   la visibilidad del combo sí está condicionada al tipo de evento
+   (`combo_motivo.setVisible(combo_tipo.currentData() == TipoEventoLaboral.SUSPENSION)`), pero la etiqueta
+   de texto "Motivo de suspension" queda visible siempre, incluso cuando el evento es Incapacidad u otro
+   tipo distinto de Suspensión.
+4. Ya existe el patrón correcto para copiar en el mismo archivo: `campo_fecha_origen`/`label_fecha_origen`
+   (`obligaciones.py:130-214`) sí oculta explícitamente su propio `QLabel` junto con el widget — solo falta
+   aplicar la misma solución en los 3 puntos de arriba.
+
+**Código nuevo a crear:**
+- En cada uno de los 3 puntos, guardar una referencia al `QLabel` que devuelve `QFormLayout.addRow(...)` (o
+  usar `layout.labelForField(widget)` / `layout.setRowVisible(widget, bool)` si la versión de PySide6 en
+  uso lo soporta) y sincronizar su visibilidad con la del widget correspondiente, igual que ya se hace con
+  `fecha_origen`.
+
+**Alcance incluido:** los 3 casos confirmados arriba. Antes de cerrar el sprint, revisar rápido el resto de
+`app/views/` buscando otros `setVisible(False)` sobre un widget de un `addRow(str, widget)` sin ocultar
+también la etiqueta, por si hay más casos del mismo patrón no reportados todavía.
+
+**Definición de Hecho:**
+- Verificación (test de GUI o manual documentada) de que al abrir el formulario de obligaciones con
+  `area="SANCIONATORIO"` ni "Valor" ni "Nivel de riesgo ARL" quedan visibles como fila huérfana.
+- Verificación de que al seleccionar un evento laboral tipo Incapacidad, la etiqueta "Motivo de suspension"
+  no es visible.
+- Suite completa en verde.
+
+---
+
+## Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas)
+
+**Prioridad sugerida:** Alta — bug real de cálculo/reporte, no de UI; afecta la credibilidad del documento
+que se entrega al juzgado en las 6 áreas operables (Civil/Familia, Comercial, Laboral, Sancionatorio,
+Honorarios, Tributario). Reportado por un usuario real: "en las tablas del PDF de todas las áreas aparece 0
+pesos en intereses generados, pero aparece el saldo final de intereses" (con valor distinto de cero).
+
+**Depende de:** Nada — corrige código ya existente en producción (`LiquidationCore`, usado por todas las
+`AreaStrategy`).
+
+**Hallazgos (verificados leyendo el código, 2026-08-01):**
+- `app/engine/liquidation/engine.py`, `_process_event` (línea ~132): el campo `interest_amount` de cada
+  `LiquidationItem` se inicializa en `Decimal("0.00")` y solo se le asigna un valor distinto de cero cuando
+  `event.event_type == "INTEREST"` (línea ~140-143).
+- Ninguna `AreaStrategy` real (Civil/Familia, Comercial, Laboral, Sancionatorio, Honorarios, Tributario)
+  emite jamás un evento con `event_type="INTEREST"` — ese tipo de evento solo aparece en
+  `tests/liquidation/test_engine.py` y `tests/services/test_area_strategy.py`, nunca en código de
+  producción.
+- El interés diario real sí se calcula correctamente y se acumula en el saldo (`_accrue_time_passage`,
+  línea ~105-127, vía `BalanceEngine.add_interest`) **antes** de procesar cada evento siguiente, pero ese
+  incremento nunca genera su propia fila (`LiquidationItem`) — queda "escondido" dentro de
+  `balance.debt.interest` de la fila del próximo evento, cuyo propio `interest_amount` permanece en 0
+  porque ese evento no es de tipo `"INTEREST"`.
+- `app/reports/pdf.py` y `app/engine/reports/table_builder.py:21` simplemente imprimen `item.interest_amount`
+  tal cual llega — el bug está más arriba, en `LiquidationCore`, no en el generador de PDF.
+- El resumen ejecutivo del reporte sí muestra el número correcto (`app/engine/reports/summary.py`, vía
+  `result.total_interest_accrued()` y `final_debt.interest`), lo que explica por qué el "Saldo Final de
+  Intereses" del resumen es correcto mientras la tabla de detalle fila-por-fila muestra 0 en todas las
+  filas.
+
+**Decisión de diseño a tomar antes de codificar:**
+- (a) Que `_accrue_time_passage` genere su propia fila/evento sintético de "interés causado" con
+  `interest_amount` poblado cada vez que se causa interés entre dos eventos, o (b) que cada
+  `LiquidationItem` calcule su `interest_amount` como el delta de `balance.debt.interest` respecto a la
+  fila anterior, en vez de depender de un `event_type` que nunca se dispara en producción.
+
+**Código nuevo a crear:**
+- Implementar la opción elegida arriba.
+- Ajustar `table_builder.py`/`pdf.py` si el nuevo campo cambia de nombre o de semántica.
+
+**Riesgos / notas técnicas conocidas:**
+- Cambiar cómo se calcula `interest_amount` por fila puede alterar el desglose visual de liquidaciones ya
+  generadas y archivadas en PDF — no afecta el saldo final (que ya es correcto), solo la columna de detalle
+  por período. Conviene una suite de regresión que compare el total de la columna nueva contra
+  `total_interest_accrued()` para confirmar que cuadran exactamente.
+- Interactúa con el motor de auditoría (Sprint 9): si se agrega un evento sintético nuevo, confirmar que
+  `reconstruir_liquidacion()` lo reproduce igual al reconstruir liquidaciones históricas.
+
+**Definición de Hecho:**
+- Test de integración que liquide una obligación con al menos dos períodos de mora y confirme que la tabla
+  de detalle tiene, para cada fila relevante, un `interest_amount` > 0 coherente con los días transcurridos.
+- La suma de la columna "Interés" de la tabla de detalle coincide exactamente con el saldo final de
+  intereses del resumen ejecutivo.
+- Suite completa en verde.
+
+---
+
+## Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono
+
+**Prioridad sugerida:** Alta — reportado por un usuario real usando el módulo de Familia recién cerrado
+(Sprint 20/21, "Suma Única"/múltiples tasas, 2026-07-31 → 2026-08-01), describe una funcionalidad central
+del área (cuota alimentaria mensual con reajuste anual) que hoy no existe ni parcialmente.
+
+**Depende de:** Sprint 8 (indexación IPC), Sprint 20 (Suma Única), Sprint 21 (múltiples tasas) — todos
+completados; este sprint extiende el módulo Civil/Familia ya operable, no lo reemplaza.
+
+**Contexto (reporte de usuario, 2026-08-01, probando el módulo con un caso real de cuota alimentaria):**
+1. Al agregar una obligación recurrente hay confusión reiterativa entre "concepto" y "categoría": el
+   concepto de una cuota alimentaria (recurrente) debería nombrar el mes exacto (ej. "CAPITAL DE LA CUOTA
+   ALIMENTARIA DE MARZO" / "INTERÉS DE LA CUOTA ALIMENTARIA DE MARZO"), no quedar fijo. El capital de la
+   cuota debe aumentar cada 1 de enero según el porcentaje de aumento salarial (SMMLV) o de IPC que
+   contemple el acta/título ejecutivo, manteniéndose igual durante el resto del año.
+2. El sistema calculó mal las obligaciones: dejó el capital de la primera cuota fijo pero "aumentó el
+   valor" en las demás (en vez de mantenerlo constante dentro del año), no calculó intereses de mora por
+   cuota, y solo calculó indexación por IPC de forma incorrecta. El reajuste correcto es:
+   `cuota_nueva = cuota_anterior + (cuota_anterior × porcentaje_variación_anual / 100)`.
+3. La casilla de "abonos" solo tiene sentido si el sistema genera automáticamente el listado mensual de
+   obligaciones antes de liquidar (no solo al momento de liquidar): al ingresar fecha del acta + fecha de
+   pago, el sistema debería detectar la recurrencia y producir todas las cuotas de cada año hasta la fecha
+   de corte, ajustando cada 1 de enero según SMMLV o IPC, con intereses calculados de forma autónoma por
+   cuota (capital propio + sus propios días de mora — ej. la cuota de diciembre 2025 tiene intereses
+   distintos a la de enero 2026 porque en enero ya cambió el capital).
+
+**Hallazgos (verificados leyendo el código, 2026-08-01):**
+1. `database/models.py` tiene ambos campos (`concepto` texto libre, `categoria` clasificación fija que
+   determina el `event_type` del motor, ver `app/core/constants.py:3-11`), pero para una obligación
+   RECURRENTE el `concepto` se captura una sola vez en el alta y se copia literalmente en cada cuota mensual
+   generada: `app/engine/temporal/schedulers/recurring.py` (`RecurringScheduler`) guarda un único `label`
+   reutilizado como `payload["label"]` en todos los eventos mensuales — ninguna cuota dice "cuota
+   alimentaria de marzo", todas dicen lo mismo; solo la columna de fecha distingue el mes en el PDF.
+2. `RecurringRule.amount` (`recurring.py:9-13,46`) es un único `Decimal` fijo usado igual en las 12+ cuotas
+   generadas — no existe ningún mecanismo de incremento anual (SMMLV o IPC) el 1 de enero, ni ningún
+   resultado de búsqueda de "reajuste"/"incremento_anual"/"cuota_alimentaria" conectado al scheduler. Lo que
+   el usuario interpretó como "el capital aumentó" es, en el código actual, el saldo acumulado
+   (`capital_base`) creciendo por cuotas impagas que se suman al capital pendiente anterior — no el valor de
+   cada cuota individual (que sí es constante, solo que no reajustable).
+3. `app/services/area_strategy.py:291-304` (`_construir_rate_provider_obligacion`) fija una sola tasa diaria
+   uniforme para toda la vida de la obligación recurrente — no hay tasa/mora calculada de forma autónoma por
+   cuota.
+4. No existe generación explícita/persistida de cuotas: el `RecurringScheduler` expande la obligación
+   recurrente en eventos solo de forma efímera dentro de `liquidar()` (`area_strategy.py:251-260`), nunca
+   como filas individuales visibles en la base de datos o en la UI antes de liquidar.
+5. Los abonos son una lista plana sin vínculo a una cuota específica: `Abono` (`database/models.py:145-154`)
+   solo tiene `fecha`, `monto`, `referencia` contra un `obligacion_id` — no hay forma de decir "este abono
+   corresponde a la cuota de marzo" (`app/views/abonos.py`, `AbonoFormDialog`).
+
+**Decisión de diseño a tomar con el usuario antes de codificar (no asumir — mismo criterio que exigieron
+los Sprints 13, 16 y 20):**
+- ¿El reajuste anual se modela como campo(s) nuevo(s) en `Obligacion` (ej.
+  `tipo_reajuste_anual: "SMMLV" | "IPC" | "NINGUNO"`, tomado del Acta de Conciliación o título ejecutivo) que
+  dispare la generación de cuotas con capital variable por año, constante dentro de cada año calendario?
+- ¿Las cuotas mensuales se materializan como filas reales en base de datos (una `Obligacion` hija PUNTUAL
+  por mes, generada automáticamente) o siguen siendo efímeras pero se exponen en una vista previa de la UI
+  antes de liquidar, para poder seleccionar sobre cuáles hubo abono?
+- Confirmar formalmente con el despacho la fórmula de reajuste (el usuario ya la trajo en conversación, pero
+  no está todavía en `Preguntas-Para-Abogado-Abiertas.md`) — agregar esa pregunta al documento antes o al
+  empezar este sprint.
+
+**Caso de prueba real disponible (caso de oro para pruebas de regresión):** el usuario compartió una
+demanda ejecutiva de alimentos real (Daniela Aranda Andrade c. Jorge Andrés Carvajal Córdoba, Juzgado de
+Familia de Neiva, radicada 2026-06-28) con una liquidación completa hecha a mano por el despacho: capital,
+intereses de mora día a día e indexación ya calculados. Cuota base $100.000 (Acta de Conciliación No.
+036-2019, Comisaría de Familia de Yaguará, 2019-07-23, cláusula tercera: reajustable cada 1 de enero según
+el % de incremento del SMMLV decretado por el Gobierno Nacional) creciendo hasta $212.450 vigente en 2026;
+interés moratorio simple a la tasa legal del 6% efectivo anual (0,0001643835616 diario); mora calculada día
+a día de forma independiente por cuota (ej. cuota de mayo 2026: 54 días de mora = $1.886,21; cuota de junio
+2026: 23 días = $803,07); gastos extraordinarios de salud/educación con indexación IPC e intereses propios,
+independientes de la cuota ordinaria. Es un caso ideal para verificar el algoritmo de reajuste anual y el
+cálculo de mora por cuota autónoma que pide este sprint. Pendiente que JoseMsD agregue el PDF de la demanda
+como fixture en el repo (ej. `tests/family/fixtures/demanda_alimentos_aranda_2026.pdf` — no se pudo escribir
+el binario desde esta conversación) y construya un test de integración que reproduzca sus cifras exactas.
+
+**Código nuevo a crear (una vez aprobado el diseño):**
+- Campo(s) nuevos en `Obligacion` para el reajuste anual + migración de esquema (mismo patrón que los
+  Sprints 8/12/19).
+- Generador de cuotas mensuales con reajuste anual: capital constante dentro del año, reajustado cada 1° de
+  enero según el índice que aplique.
+- Interés de mora calculado de forma autónoma por cuota (capital propio de esa cuota × tasa diaria × sus
+  propios días de mora), no sobre el saldo agregado del expediente completo.
+- Etiqueta/concepto dinámico por cuota (interpolando mes y año), en vez de un texto fijo copiado a todas las
+  filas.
+- UI: vista previa de las cuotas generadas antes de liquidar, con selección de abono por cuota en vez de una
+  lista plana sin vínculo.
+
+**Alcance incluido:** Familia (cuota alimentaria y gastos extraordinarios). El mismo mecanismo de reajuste
+anual queda como base reutilizable para el Sprint 44 (Laboral) si el usuario decide extenderlo ahí también.
+
+**Alcance explícitamente excluido:** por ahora no incluye Laboral (queda en el Sprint 44, con su propia
+decisión de diseño) ni retro-generar cuotas para obligaciones recurrentes ya creadas en expedientes
+existentes — solo aplica hacia adelante salvo que el usuario pida explícitamente una migración de datos.
+
+**Riesgos / notas técnicas conocidas:**
+- Cambia el resultado numérico de cualquier liquidación de Familia con obligaciones recurrentes ya
+  registradas — requiere el mismo cuidado de regresión que exigió el Sprint 20.
+- Alta complejidad: toca el generador de eventos (`RecurringScheduler`), el motor de intereses (cálculo por
+  cuota autónoma en vez de saldo agregado) y la UI de abonos — conviene partirlo en sub-tareas con
+  `superpowers:writing-plans` antes de tocar código, y una conversación previa tipo
+  `superpowers:brainstorming` con el usuario (igual que se hizo para el Sprint 20).
+
+**Definición de Hecho:**
+- Test de integración que reproduce exactamente las cifras de la demanda de Daniela Aranda (o al menos su
+  lógica de reajuste anual y mora por cuota, si no se consigue el PDF como fixture a tiempo).
+- Un expediente con obligación recurrente familiar de varios años genera cuotas con el capital correcto por
+  año y mora calculada de forma independiente por cuota.
+- Suite completa en verde.
+
+---
+
+## Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación
+
+**Prioridad sugerida:** Alta — el motor matemático (Sprint 7) es correcto y está probado, pero aislado; hoy
+cualquier liquidación de cualquier área incluye obligaciones prescritas o caducadas sin advertirlo ni
+excluirlas, lo cual es un riesgo real de mala praxis si el software se usa para presentar una demanda o
+liquidar un proceso ante un juez.
+
+**Depende de:** Sprint 7 (motor de prescripción y caducidad, ya completo).
+
+**Hallazgos (verificados leyendo el código, 2026-08-01):**
+- `app/engine/temporal/prescripcion.py` existe completo y correcto: `calcular_prescripcion` (línea ~50-52),
+  `calcular_caducidad` (línea ~65-81), `filtrar_cuotas_prescritas` (línea ~84-97).
+- Ninguna de esas funciones se importa fuera de su propio archivo: no aparecen en `area_strategy.py`, en
+  `UniversalLiquidationService`, en ningún `app/views/`, ni en `app/reports/pdf.py`. El propio `Pendientes.md`
+  (cierre del Sprint 7, línea ~536-537) ya documentaba esto como alcance explícitamente excluido en su
+  momento ("Integración con la GUI... es un sprint de UI aparte") — este sprint es exactamente ese
+  pendiente, ahora priorizado porque un usuario real lo notó liquidando un caso.
+- Confirmado: ninguna `AreaStrategy` excluye ni marca de forma distinta las obligaciones
+  prescritas/caducadas al liquidar; el PDF tampoco distingue ese estado en ninguna columna.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:**
+- ¿El motor debe (a) excluir automáticamente del cálculo las obligaciones prescritas/caducadas, (b)
+  incluirlas pero marcarlas visualmente en el PDF con una advertencia ("obligación prescrita, no exigible"),
+  o (c) dejarlo a discreción del abogado con un checkbox por obligación ("ignorar prescripción")? El PDF de
+  requisitos no resuelve esto de forma explícita para todas las áreas.
+
+**Código nuevo a crear:**
+- Wiring de `filtrar_cuotas_prescritas`/`calcular_prescripcion`/`calcular_caducidad` dentro de cada
+  `AreaStrategy.liquidar()` (o centralizado en `UniversalLiquidationService`, para no repetir la lógica 6
+  veces).
+- Columna/indicador nuevo en la tabla de resultados y en el PDF que muestre el estado de prescripción de
+  cada obligación.
+
+**Alcance explícitamente excluido:** no incluye recalcular automáticamente los plazos de caducidad
+"manuales" que hoy exige capturar al usuario (Sprint 7) — eso sigue siendo responsabilidad del abogado al
+cargar el dato.
+
+**Definición de Hecho:**
+- Un expediente con una obligación cuyo plazo de prescripción ya venció queda excluida (o marcada, según lo
+  decidido) del total liquidado, con test de integración que lo confirme.
+- El PDF refleja el mismo estado.
+- Suite completa en verde.
+
+---
+
+## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia)
+
+**Prioridad sugerida:** Media — no es un bug, es un límite de alcance documentado desde el Sprint 8, pero el
+usuario pide explícitamente que la indexación sea "opcional para cualquier liquidación de cualquier área",
+y hoy el checkbox ni siquiera aparece fuera de Civil/Familia.
+
+**Depende de:** Sprint 8 (indexación IPC ya construida y probada para Civil/Familia).
+
+**Hallazgos (verificados leyendo el código, 2026-08-01):**
+- `AreaStrategy.soporta_indexacion_ipc` (`app/services/area_strategy.py:180`) es `True` por defecto en la
+  clase base, pero queda sobreescrito a `False` explícitamente en `ComercialStrategy` (línea ~323),
+  `LaboralStrategy` (~530), `SancionatorioStrategy` (~719), `HonorariosStrategy` (~792) y
+  `TributarioStrategy` (~909) — solo `CivilFamiliaStrategy` la deja en `True`.
+- El checkbox `check_aplica_indexacion_ipc` en `app/views/obligaciones.py` solo es visible cuando
+  `self._area == "CIVIL_FAMILIA"` (líneas 94, 147, 183) — para las otras 5 áreas ni siquiera se muestra, así
+  que el campo queda en `False`/nulo implícito y por eso la columna de indexación siempre aparece en 0 en
+  esas áreas.
+- No es un bug de cálculo: donde el checkbox existe, la indexación funciona (Sprints 8/20). Es la ausencia
+  de la opción en 5 de 6 áreas.
+
+**Decisión de diseño a tomar con el usuario:** ¿tiene sentido jurídico permitir indexación IPC en las 6
+áreas por igual, o hay áreas donde no aplica o entraría en conflicto con un mecanismo propio ya existente
+(ej. Tributario ya tiene su propia actualización monetaria vía Art. 867-1 E.T., Sprint 15 en
+`Preguntas-Para-Abogado-Respondidas.md`; Sancionatorio ya resuelve SMLMV/UVT con su propia lógica, ver
+Sprint 45)?
+Conviene revisar sprint por sprint antes de simplemente activar el flag en las 5 clases restantes.
+
+**Código nuevo a crear (según lo que se decida):**
+- Activar `soporta_indexacion_ipc = True` en las áreas donde el despacho confirme que aplica.
+- Exponer el checkbox correspondiente en el formulario para esas áreas.
+- Validar que no se dupliquen mecanismos de actualización monetaria ya existentes por área.
+
+**Definición de Hecho:**
+- El checkbox de indexación IPC aparece y funciona en cada área donde el despacho confirme que aplica, con
+  test de integración por área.
+- Ninguna área termina aplicando doble actualización monetaria (IPC genérico + su propio mecanismo) sin una
+  validación explícita que lo impida o lo advierta.
+- Suite completa en verde.
+
+---
+
+## Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte
+
+**Prioridad sugerida:** Media-alta — agrupa varios gaps de UX/alcance reales reportados por el usuario
+probando el área Laboral; ninguno es un bug de cálculo del motor, todos son huecos de formulario/edición.
+
+**Depende de:** Nada estrictamente (extiende `LaboralStrategy`, ya operable desde los Sprints 3/16).
+
+**Hallazgos (verificados leyendo el código, 2026-08-01):**
+1. **Checkbox "salario = SMMLV":** no existe. La infraestructura para resolverlo sí existe
+   (`app/engine/indexation/historical_index.py::get_smlmv_for_year`, ya usada por Sancionatorio vía
+   `smlmv_to_uvt.py`), pero `LaboralStrategy` nunca la importa; el campo `valor` de Laboral es siempre texto
+   libre digitado a mano (`app/views/obligaciones.py:127`, `_guardar_laboral` ~línea 410-414).
+2. **"Fecha de pago real" sin campo visible:** el campo sí existe en el modelo (`database/models.py:104`,
+   `fecha_pago_total`) y sí tiene `QDateEdit` en el formulario (`obligaciones.py:113-114,159`), pero queda
+   oculto salvo que se marque el checkbox "Prestaciones pagadas" (`check_pagada`, líneas 112,195,263) — y
+   como **no existe ningún diálogo de edición de una obligación ya guardada**
+   (`expediente_detalle.py:174-182` siempre abre el formulario en modo creación), si el abogado no marcó ese
+   checkbox al crear el registro, no tiene forma de volver a diligenciar la fecha después sin borrar y
+   recrear la obligación.
+3. **"Descuentos" del empleador (legales o ilegales):** no existe ningún campo para modelar deducciones que
+   el empleador le haga al salario del trabajador — el único campo con la palabra "descuento" en todo el
+   esquema (`devoluciones_rebajas_descuentos`, `models.py:129`) pertenece al área Tributario (renta líquida
+   gravable), sin relación con nómina.
+4. **Eventos contractuales (incapacidad/suspensión) no editables, y error al recalcular:** no existe CRUD de
+   edición/eliminación de `EventoLaboral` (`expediente_detalle.py` solo permite crear uno nuevo). El "error
+   al calcular" que reportó el usuario corresponde a validaciones reales de
+   `LaboralStrategy._validar_obligacion_laboral` (`area_strategy.py:681-704`): eventos sin
+   `incluir_seguridad_social` marcado, eventos fuera del rango del contrato, o eventos solapados — no es un
+   fallo técnico sino el comportamiento esperado de esas validaciones ante datos incoherentes, pero como no
+   hay forma de editar el evento ya creado, corregir el dato obliga a borrar y recrear.
+5. **"Fecha de corte" no editable desde la pantalla de liquidación:** `expediente_detalle.py:216` toma
+   directo `expediente.fecha_corte_default`; no hay ningún `QDateEdit` propio en la pantalla de liquidación.
+   El único lugar donde se edita es el diálogo separado "Editar expediente" (`app/views/expedientes.py`, sin
+   restricciones de rango) — el usuario buscó el campo en el lugar equivocado (pantalla de liquidación)
+   porque no hay ningún atajo ahí.
+6. **Cuotas mensuales de salario pre-generadas con reajuste anual, igual que se pide para Familia (Sprint
+   41):** no existe — Laboral fuerza `TipoObligacion.PUNTUAL` (`obligaciones.py:434`) y usa un único `valor`
+   como salario base para todo el finiquito.
+
+**Código nuevo a crear:**
+- Punto 1: campo `es_smmlv: bool` en `Obligacion` (+ migración) y checkbox en el formulario Laboral;
+  `LaboralStrategy` resuelve el valor desde `get_smlmv_for_year` cuando esté activo.
+- Punto 2: CRUD de edición de `Obligacion` ya guardada (formulario de creación reutilizado en modo edición,
+  precargando valores) — resuelve de raíz el problema de descubribilidad de "fecha de pago real" sin
+  necesitar tocar la lógica de visibilidad condicional.
+- Punto 3: campo(s) nuevos para modelar descuentos del empleador (monto, fecha, y una marca de si se alega
+  legal/ilegal, útil tanto para el cálculo de la liquidación como para la narrativa probatoria del caso) —
+  requiere decisión de diseño con el usuario sobre el modelo exacto de datos.
+- Punto 4: CRUD de edición/eliminación de `EventoLaboral`.
+- Punto 5: campo de fecha de corte editable (override) directamente en la pantalla de liquidación, o al
+  menos un atajo visible hacia "Editar expediente" desde ahí.
+- Punto 6: ver Sprint 41 — decidir con el usuario si se reutiliza el mismo mecanismo de reajuste anual ahí
+  construido, extendido a Laboral.
+
+**Alcance explícitamente excluido:** el punto 6 depende de la decisión de diseño del Sprint 41; si el
+usuario decide no extenderlo a Laboral en la misma ronda, queda como sprint propio más adelante.
+
+**Definición de Hecho:**
+- Un abogado puede editar cualquier obligación o evento laboral ya guardado sin borrar y recrear.
+- El campo "fecha de pago real" es accesible independientemente del checkbox "Prestaciones pagadas".
+- Existe un campo de descuento del empleador que resta del neto adeudado y aparece en el reporte.
+- Marcar "salario = SMMLV" resuelve automáticamente el valor correcto según el año.
+- Suite completa en verde.
+
+---
+
+## Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente
+
+**Prioridad sugerida:** Media — un punto es una mejora de UX confirmada (transparencia de unidad), el otro
+es una queja de usuario que **no se pudo reproducir** revisando el código; necesita más información antes
+de tratarse como bug.
+
+**Depende de:** Nada.
+
+**Hallazgos (verificados leyendo el código, 2026-08-01):**
+1. **Selector de unidad SMLMV/UVT:** el campo `cantidad_smlmv_uvt` (`database/models.py:111`) es un solo
+   número sin columna de unidad; el sistema decide automáticamente SMLMV vs. UVT según la fecha del hecho
+   (`app/engine/indexation/smlmv_to_uvt.py:8`, corte 2020-01-01, Ley 1955/2019 art. 49) — la regla legal en
+   sí parece correcta, pero el formulario (`obligaciones.py:88,142,176`) no le muestra al abogado cuál de
+   las dos unidades se va a aplicar según la fecha que capturó, así que no hay forma de verificar la
+   interpretación antes de liquidar.
+2. **Capital de una multa puntual "creciendo exponencialmente":** se revisó toda la cadena de cálculo de
+   `SancionatorioStrategy.liquidar()` (`area_strategy.py:721-769`) y `LiquidationCore`
+   (`engine.py`/`balance.py`/`daily_interest.py`) sin lograr reproducir el bug — una obligación PUNTUAL
+   genera un único evento de capital, los pagos solo restan, el interés (simple, no compuesto —
+   Sancionatorio no tiene wiring de anatocismo) se acumula en un campo separado del capital
+   (`PendingDebt.interest`, nunca se suma a `principal`), y la columna "Capital base" de la tabla de
+   resultados permanece constante; solo "Saldo" (capital + interés + indexación) crece, y de forma lineal,
+   no exponencial.
+
+**Qué se necesita del usuario antes de tratar el punto 2 como bug confirmado:** el expediente o captura de
+pantalla exacta donde se vio el capital creciendo — hipótesis más probables a descartar primero: (a) que se
+leyó la columna "Saldo" (total acumulado) como si fuera "Capital", o (b) que el expediente tenía varias
+multas fusionadas en un solo resultado consolidado (`_fusionar_resultados`, `area_strategy.py:113-174`) que
+sumó mal varias obligaciones como si fueran una sola creciendo.
+
+**Código nuevo a crear (punto 1, confirmado):**
+- Texto/indicador dinámico junto al campo `cantidad_smlmv_uvt` que muestre "se aplicará como UVT" o "se
+  aplicará como SMLMV" según la `fecha_origen` capturada, sin necesidad de cambiar el modelo de datos (la
+  regla de negocio ya es correcta, solo falta mostrarla).
+
+**Alcance explícitamente excluido (punto 2):** no se codifica ningún fix hasta reproducir el caso con datos
+reales — evitar "arreglar" algo que no está roto en el código revisado.
+
+**Definición de Hecho:**
+- El formulario de Sancionatorio muestra explícitamente qué unidad (SMLMV o UVT) se va a usar según la
+  fecha capturada.
+- El punto 2 queda documentado como pendiente de reproducir, con la pregunta explícita al usuario, hasta
+  tener un caso concreto.
 
 ---
 
