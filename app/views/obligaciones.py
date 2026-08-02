@@ -524,9 +524,11 @@ class ObligacionFormDialog(QDialog):
 
     def _guardar_tributario(self) -> int:
         categoria = self.combo_categoria.currentData()
+        self._validar_concepto_no_vacio()
 
         qdate_origen = self.campo_fecha_origen.date()
         fecha_origen = date(qdate_origen.year(), qdate_origen.month(), qdate_origen.day())
+        self._validar_fecha_no_posterior_a_corte(fecha_origen)
 
         valor = Decimal("0.00")
         base_sancion = None

@@ -678,6 +678,36 @@ def test_guarda_obligacion_tributaria_impuesto_a_cargo(qtbot, monkeypatch):
     session.close()
 
 
+def test_tributario_concepto_vacio_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.combo_categoria.setCurrentIndex(0)  # IMPUESTO_A_CARGO
+    dialog.campo_concepto.setText("   ")
+    dialog.campo_valor.setText("10000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_tributario_fecha_origen_posterior_a_fecha_de_corte_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)  # corte = 2026-06-01
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.combo_categoria.setCurrentIndex(0)  # IMPUESTO_A_CARGO
+    dialog.campo_concepto.setText("Impuesto de renta 2026")
+    dialog.campo_valor.setText("10000000.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 7, 1))  # posterior al corte
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
 def test_guarda_sancion_extemporaneidad_con_meses_de_atraso(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
 
