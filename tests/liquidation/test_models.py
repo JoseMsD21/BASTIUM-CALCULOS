@@ -81,3 +81,36 @@ def test_liquidation_item_acepta_rate_source_explicito():
         rate_source="Tasa pactada en la obligación (Art. 1617 C.C.)",
     )
     assert item.rate_source == "Tasa pactada en la obligación (Art. 1617 C.C.)"
+
+
+def test_liquidation_item_saldo_a_favor_por_defecto_es_cero():
+    debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
+    balance = RunningBalance(date=date(2026, 1, 1), debt=debt, event_type="PAYMENT")
+    item = LiquidationItem(
+        date=date(2026, 1, 1),
+        concept="Pago",
+        capital_base=Decimal("0.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("7000000.00"),
+        balance=balance,
+    )
+    assert item.saldo_a_favor == Decimal("0.00")
+
+
+def test_liquidation_item_acepta_saldo_a_favor_explicito():
+    debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
+    balance = RunningBalance(date=date(2026, 1, 1), debt=debt, event_type="PAYMENT")
+    item = LiquidationItem(
+        date=date(2026, 1, 1),
+        concept="Pago con excedente",
+        capital_base=Decimal("0.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("7000000.00"),
+        balance=balance,
+        saldo_a_favor=Decimal("3000000.00"),
+    )
+    assert item.saldo_a_favor == Decimal("3000000.00")

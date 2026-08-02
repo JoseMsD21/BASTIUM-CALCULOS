@@ -66,3 +66,4 @@ class LiquidationItem:
     payment_amount: Decimal
     balance: RunningBalance
     rate_source: str = "N/A"
+    saldo_a_favor: Decimal = Decimal("0.00")
