@@ -272,9 +272,29 @@ def agregar_valor(
         raise ValueError(f"'{clave}' requiere 'vigente_hasta' (modo TRAMO_CERRADO).")
     if info.modo != ModoResolucion.TRAMO_CERRADO and vigente_hasta is not None:
         raise ValueError(f"'{clave}' no admite 'vigente_hasta' (modo {info.modo.value}).")
+    if valor <= Decimal("0"):
+        raise ValueError("El valor debe ser positivo.")
+    if vigente_hasta is not None and vigente_hasta < vigente_desde:
+        raise ValueError("'vigente_hasta' no puede ser anterior a 'vigente_desde'.")
 
     session = session_module.get_session()
     try:
+        if info.modo == ModoResolucion.TRAMO_CERRADO:
+            tramo_solapado = (
+                session.query(ParametroLegal)
+                .filter(
+                    ParametroLegal.clave == clave,
+                    ParametroLegal.vigente_desde <= vigente_hasta,
+                    ParametroLegal.vigente_hasta >= vigente_desde,
+                )
+                .first()
+            )
+            if tramo_solapado is not None:
+                raise ValueError(
+                    f"El tramo {vigente_desde} a {vigente_hasta} se solapa con un tramo "
+                    f"existente de '{clave}' ({tramo_solapado.vigente_desde} a "
+                    f"{tramo_solapado.vigente_hasta})."
+                )
         fila = ParametroLegal(
             clave=clave,
             valor=valor,

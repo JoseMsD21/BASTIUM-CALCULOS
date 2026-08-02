@@ -171,3 +171,55 @@ def test_ultimo_anio_disponible_sin_datos_lanza_parametro_no_disponible():
 
     with pytest.raises(ParametroNoDisponibleError):
         ultimo_anio_disponible("SMLMV")
+
+
+def test_agregar_valor_rechaza_valor_negativo():
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(ValueError):
+        agregar_valor("USURA_MULTIPLICADOR", Decimal("-1.5"), date(2026, 1, 1), "abogado1")
+
+
+def test_agregar_valor_rechaza_valor_cero():
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(ValueError):
+        agregar_valor("USURA_MULTIPLICADOR", Decimal("0"), date(2026, 1, 1), "abogado1")
+
+
+def test_agregar_valor_rechaza_vigente_hasta_anterior_a_vigente_desde():
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(ValueError):
+        agregar_valor(
+            "IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 2, 1), "abogado1",
+            vigente_hasta=date(2026, 1, 1),
+        )
+
+
+def test_agregar_valor_rechaza_tramo_cerrado_solapado():
+    from app.services.parametro_service import agregar_valor
+
+    agregar_valor(
+        "IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 1, 1), "abogado1",
+        vigente_hasta=date(2026, 1, 31),
+    )
+    with pytest.raises(ValueError):
+        agregar_valor(
+            "IBC_CONSUMO_ORDINARIO", Decimal("16.50"), date(2026, 1, 15), "abogado1",
+            vigente_hasta=date(2026, 2, 15),
+        )
+
+
+def test_agregar_valor_permite_tramo_cerrado_consecutivo_sin_solape():
+    from app.services.parametro_service import agregar_valor
+
+    agregar_valor(
+        "IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 1, 1), "abogado1",
+        vigente_hasta=date(2026, 1, 31),
+    )
+    fila = agregar_valor(
+        "IBC_CONSUMO_ORDINARIO", Decimal("16.82"), date(2026, 2, 1), "abogado1",
+        vigente_hasta=date(2026, 2, 28),
+    )
+    assert fila.valor == Decimal("16.82")
