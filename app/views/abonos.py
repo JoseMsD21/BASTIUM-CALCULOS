@@ -5,7 +5,7 @@ from PySide6.QtCore import QDate
 from PySide6.QtWidgets import QDateEdit, QDialog, QFormLayout, QLineEdit, QMessageBox, QPushButton
 
 import database.session as session_module
-from database.models import Abono
+from database.models import Abono, Obligacion
 
 
 class AbonoFormDialog(QDialog):
@@ -42,6 +42,22 @@ class AbonoFormDialog(QDialog):
         fecha = date(qdate.year(), qdate.month(), qdate.day())
 
         session = session_module.get_session()
+        obligacion = session.get(Obligacion, self._obligacion_id)
+        abonos_previos = sum((a.monto for a in obligacion.abonos), Decimal("0.00"))
+        if abonos_previos + monto > obligacion.valor:
+            # Heuristica no bloqueante: compara solo capital contra abonos, sin
+            # recalcular intereses/indexacion (eso requeriria correr el motor de
+            # liquidacion completo). El sobrepago real, si lo hay, siempre queda
+            # reflejado con precision como saldo_a_favor al liquidar (Sprint 23).
+            QMessageBox.warning(
+                self,
+                "Posible sobrepago",
+                "El total de abonos para esta obligación "
+                f"(${abonos_previos + monto}) supera el valor registrado "
+                f"(${obligacion.valor}). Verifique el monto antes de continuar: "
+                "el excedente quedará reflejado como saldo a favor al liquidar.",
+            )
+
         abono = Abono(
             obligacion_id=self._obligacion_id,
             fecha=fecha,
