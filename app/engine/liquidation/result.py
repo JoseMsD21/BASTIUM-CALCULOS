@@ -25,6 +25,9 @@ class LiquidationResult:
     def total_payments_applied(self) -> Decimal:
         return sum((item.payment_amount for item in self.items), Decimal("0.00"))
 
+    def total_saldo_a_favor(self) -> Decimal:
+        return sum((item.saldo_a_favor for item in self.items), Decimal("0.00"))
+
     def final_balance(self) -> PendingDebt:
         if not self.items:
             return PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
