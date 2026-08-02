@@ -155,6 +155,21 @@ def test_guarda_obligacion_sancionatoria(qtbot, monkeypatch):
     session.close()
 
 
+def test_cantidad_smlmv_uvt_no_positiva_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Multa SIC")
+    dialog.campo_tasa.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2019, 6, 1))
+    dialog.campo_cantidad_smlmv_uvt.setText("0")
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
 def test_guarda_obligacion_honorarios_con_costas(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
 

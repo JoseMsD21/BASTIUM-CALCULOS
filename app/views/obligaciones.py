@@ -410,6 +410,8 @@ class ObligacionFormDialog(QDialog):
         (cantidad_smlmv_uvt,) = self._parse_decimales(
             [self.campo_cantidad_smlmv_uvt], "Cantidad SMLMV/UVT debe ser un numero valido."
         )
+        if cantidad_smlmv_uvt <= Decimal("0"):
+            raise ValueError("La cantidad de SMLMV/UVT debe ser mayor que cero.")
         return {"cantidad_smlmv_uvt": cantidad_smlmv_uvt}
 
     def _parse_campos_honorarios(self) -> dict:
