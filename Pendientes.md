@@ -122,7 +122,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada ✅ Completado](#sprint-22--limpieza-técnica-acumulada--completado)
 - [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
-- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
+- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados--completado)
 - [Sprint 25 — Rendimiento del motor de tasas, índices e historial](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial)
 - [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui)
 - [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional)
@@ -2071,7 +2071,7 @@ alcance. Consultar directamente el código citado abajo.
 
 ---
 
-## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados
+## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado
 
 **Prioridad sugerida:** Alta — hoy es posible guardar datos absurdos (tasas negativas, fechas invertidas,
 tramos de parámetros solapados) sin ningún aviso, y el error solo aparece más tarde como un resultado de

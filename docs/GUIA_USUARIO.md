@@ -796,6 +796,10 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   el tope" al hacer clic en "Liquidar", citando "Honorarios Desproporcionados - Art. 35 Num. 4 Ley
   1123/2007" (alerta de riesgo disciplinario) — la validación ocurre al calcular, no al capturar el
   dato.
+- **Nota (Sprint 24):** esto no impide que el mismo campo "% Cuota litis pactada" tenga, además, un chequeo
+  de sanidad numérica independiente (rango 0%-100%, no el tope legal del 50%) que sí corre al hacer clic en
+  "Guardar" en el formulario de la obligación (`ObligacionFormDialog._parse_campos_honorarios` en
+  `app/views/obligaciones.py`) — son dos validaciones distintas, con propósitos y momentos diferentes.
 
 ### 7.6.1. Rango legal de costas manuales por cuantía
 
@@ -817,6 +821,12 @@ Acuerdo PSAA16-10554 que ya usa el cálculo automático (`costas_tipo_proceso`/`
 [sección 8](#8-funciones-pendientes-o-en-desarrollo)) — solo aplica al porcentaje manual. Queda una
 pregunta de seguimiento con el despacho (`Preguntas-Para-Abogado.md`, Sprint 18) sobre si esta tabla simple
 en realidad reemplaza a la granular en vez de solo acotar el valor manual.
+
+**Nota (Sprint 24):** igual que con la cuota litis (sección 7.6), el campo "% Costas judiciales" tiene
+además un chequeo de sanidad numérica independiente (rango 0%-100%, no el rango legal por cuantía de la
+tabla anterior) que corre al hacer clic en "Guardar" en el formulario de la obligación
+(`ObligacionFormDialog._parse_campos_honorarios` en `app/views/obligaciones.py`) — son dos validaciones
+distintas, con propósitos y momentos diferentes.
 
 ### 7.7. Indexación IPC (corrección monetaria)
 
