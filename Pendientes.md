@@ -120,7 +120,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
-- [Sprint 22 — Limpieza técnica acumulada](#sprint-22--limpieza-técnica-acumulada)
+- [Sprint 22 — Limpieza técnica acumulada ✅ Completado](#sprint-22--limpieza-técnica-acumulada--completado)
 - [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
 - [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
 - [Sprint 25 — Rendimiento del motor de tasas, índices e historial](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial)
@@ -1927,7 +1927,7 @@ Sprint 22, como ya anticipaba la nota de coordinación en ese sprint.
 
 ---
 
-## Sprint 22 — Limpieza técnica acumulada
+## Sprint 22 — Limpieza técnica acumulada ✅ Completado
 
 **Prioridad sugerida:** Baja — deuda técnica de calidad de código, no funcionalidad faltante del PDF de
 requisitos; conviene agruparla en un solo sprint de "housekeeping" antes de que crezca más con cada área
@@ -1978,6 +1978,31 @@ es puramente estructural, la suite existente no debe cambiar de resultado en nin
 - `ObligacionFormDialog.guardar()` reducido a una tabla de specs por campo en vez de ramas
   `if/try/except` apiladas.
 - Suite completa en verde, sin ningún cambio de resultado numérico.
+
+**Estado:** Implementado (2026-08-01). Los 5 puntos:
+
+1. **`AllocationEngine` duplicado:** eliminado `app/engine/allocation/allocator.py` (código huérfano,
+   `raise NotImplementedError`, nada lo importaba) junto con `app/domain/obligation/base.Obligation`
+   (modelo de dominio que solo ese archivo huérfano usaba — no había nada que "justificara mantenerlo").
+   Se retiró también la advertencia de deuda técnica correspondiente en
+   `docs/specifications/04_motor_pagos.md`.
+2. **Archivo vacío:** eliminado `app/engine/financial/allocation.py` (0 bytes, sin ningún import).
+3. **`_eventos_de_obligacion` duplicado:** al revisar el código actual, la duplicación puntual detectada
+   en el Sprint 2 entre `CivilFamiliaStrategy` y `ComercialStrategy` ya no existe — ambos métodos
+   divergieron genuinamente con el Sprint 8 (indexación IPC) y el Sprint 19 (anatocismo comercial). Forzar
+   una extracción compartida hoy generalizaría lógica de dominio que ya es distinta por diseño. Sin cambio
+   de código en este punto.
+4. **`_construir_rate_provider_obligacion` duplicado:** este sí seguía siendo real (Sancionatorio y
+   Honorarios eran byte-idénticos; Civil/Familia el mismo patrón con una rama adicional). Extraído a
+   `AreaStrategy._rate_provider_tasa_plana` (clase base, `app/services/area_strategy.py`).
+5. **`ObligacionFormDialog.guardar()` god method:** reemplazadas las ramas `if/try/except` apiladas por
+   `_parse_campos_<area>()` (uno por Sancionatorio/Honorarios/Comercial/Civil-Familia) que devuelven solo
+   las claves que esa área sobreescribe sobre `_CAMPOS_AREA_POR_DEFECTO`, más un helper `_parse_decimales`
+   para el patrón de parseo con mensaje de error compartido. Se mantuvo una sola construcción de
+   `Obligacion(...)` en vez de duplicarla por área.
+
+Suite completa verde tras cada paso (657 passed, 1 skipped, sin cambios de resultado numérico —
+2 tests nuevos se agregaron para cubrir el caso de falla parcial en `_parse_decimales`, ver punto 5).
 
 ---
 
