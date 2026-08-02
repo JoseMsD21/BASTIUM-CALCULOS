@@ -109,6 +109,42 @@ def test_guarda_obligacion_comercial_con_tasa_moratoria_y_ibc(qtbot, monkeypatch
     session.close()
 
 
+def test_tasa_moratoria_comercial_absurdamente_alta_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("99999.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_ibc_vigente_negativo_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("-20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
 def test_campos_comerciales_ocultos_para_area_civil_familia(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
 

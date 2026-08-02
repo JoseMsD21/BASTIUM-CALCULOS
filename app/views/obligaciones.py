@@ -439,6 +439,8 @@ class ObligacionFormDialog(QDialog):
             [self.campo_tasa_moratoria, self.campo_ibc_vigente],
             "Tasa moratoria e IBC vigente deben ser numeros validos.",
         )
+        self._validar_rango(tasa_moratoria, Decimal("0"), Decimal("1000"), "La tasa moratoria anual")
+        self._validar_rango(ibc_vigente, Decimal("0"), Decimal("1000"), "El IBC vigente anual")
         qdate_vencimiento = self.campo_fecha_vencimiento.date()
         fecha_vencimiento = date(
             qdate_vencimiento.year(), qdate_vencimiento.month(), qdate_vencimiento.day()
