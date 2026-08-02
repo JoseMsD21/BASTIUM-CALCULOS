@@ -131,6 +131,7 @@ class LiquidationCore:
         payment_amount = Decimal("0.00")
         interest_amount = Decimal("0.00")
         indexation_amount = Decimal("0.00")
+        saldo_a_favor = Decimal("0.00")
 
         # Enrutador de impacto patrimonial
         if event.event_type in self._capital_concepts:
@@ -149,9 +150,10 @@ class LiquidationCore:
 
         elif event.event_type == "PAYMENT":
             amount = Decimal(str(event.payload.get("amount", "0.00")))
-            payment_amount = amount
             allocation, new_debt, remainder = AllocationEngine.allocate(amount, self._current_debt, event.date)
             self._current_debt = new_debt
+            payment_amount = allocation.total_payment
+            saldo_a_favor = remainder
 
         elif event.event_type == "CAPITALIZACION_INTERESES_ANATOCISMO":
             self._current_debt = BalanceEngine.capitalize_interest(self._current_debt)
@@ -175,4 +177,5 @@ class LiquidationCore:
             payment_amount=payment_amount,
             balance=rb,
             rate_source=self._get_rate_source_for_date(event.date),
+            saldo_a_favor=saldo_a_favor,
         )

@@ -207,3 +207,39 @@ def test_engine_usar_suma_unica_false_capital_base_en_liquidation_item_sigue_sie
 
     item_cierre = result.items[-1]
     assert item_cierre.capital_base == Decimal("1000.00")
+
+
+def test_engine_sobrepago_expone_remanente_como_saldo_a_favor():
+    # Escenario del bug real (auditoria 2026-07-21): un abono de $10.000.000 contra
+    # una deuda de $7.000.000. Antes de esta correccion, payment_amount guardaba el
+    # monto nominal completo ($10.000.000) y el excedente de $3.000.000 desaparecia
+    # sin dejar rastro en el LiquidationResult.
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("7000000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 10), payload={"amount": Decimal("10000000.00")}, event_type="PAYMENT"),
+    ]
+    control_rate = Rate.from_percent(Decimal("0.0"))
+    engine = LiquidationCore(default_daily_rate=control_rate)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 10))
+
+    item_pago = next(i for i in result.items if i.balance.event_type == "PAYMENT")
+    assert item_pago.payment_amount == Decimal("7000000.00")
+    assert item_pago.saldo_a_favor == Decimal("3000000.00")
+    assert result.total_payments_applied() == Decimal("7000000.00")
+    assert result.final_balance().total() == Decimal("0.00")
+
+
+def test_engine_pago_exacto_no_genera_saldo_a_favor():
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 10), payload={"amount": Decimal("500000.00")}, event_type="PAYMENT"),
+    ]
+    control_rate = Rate.from_percent(Decimal("0.0"))
+    engine = LiquidationCore(default_daily_rate=control_rate)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 10))
+
+    item_pago = next(i for i in result.items if i.balance.event_type == "PAYMENT")
+    assert item_pago.payment_amount == Decimal("500000.00")
+    assert item_pago.saldo_a_favor == Decimal("0.00")
