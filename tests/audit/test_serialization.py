@@ -185,3 +185,77 @@ def test_deserializar_snapshot_antiguo_sin_clave_renta_liquida_no_lanza_keyerror
     reconstruido = deserializar_resultado(snapshot_antiguo)
 
     assert reconstruido.renta_liquida is None
+
+
+def test_deserializar_snapshot_antiguo_sin_clave_rate_source_no_lanza_keyerror():
+    # Snapshot como los que ya existen en bastium.db, guardados ANTES de que
+    # rate_source se agregara a LiquidationItem (commit posterior al que introdujo
+    # el motor de auditoria del Sprint 9). AuditLog.resultado_json es append-only,
+    # esas filas nunca se reescriben -- deserializar_resultado debe reconstruir con
+    # rate_source="N/A" (mismo default que usa el motor sin rate_provider) en vez de
+    # lanzar KeyError. Bug real de Sprint 23.
+    import json
+    snapshot_antiguo = json.dumps({"items": [
+        {
+            "date": "2026-01-01", "concept": "Abono a capital", "capital_base": "1000000.00",
+            "interest_rate": "0.00", "interest_amount": "0.00", "indexation_amount": "0.00",
+            "payment_amount": "0.00",
+            "balance": {
+                "date": "2026-01-01",
+                "debt": {"principal": "1000000.00", "interest": "0.00", "indexation": "0.00"},
+                "event_type": "IMPUESTO_A_CARGO",
+            },
+        }
+    ]})
+
+    reconstruido = deserializar_resultado(snapshot_antiguo)
+
+    assert reconstruido.items[0].rate_source == "N/A"
+
+
+def test_deserializar_snapshot_antiguo_sin_clave_saldo_a_favor_no_lanza_keyerror():
+    # Mismo razonamiento que el test de rate_source: cualquier AuditLog guardado
+    # ANTES de que saldo_a_favor se agregara a LiquidationItem (Sprint 23) no tiene
+    # esa clave en su JSON. deserializar_resultado debe reconstruir con
+    # saldo_a_favor=Decimal("0.00") (mismo default del dataclass) en vez de lanzar
+    # KeyError.
+    import json
+    snapshot_antiguo = json.dumps({"items": [
+        {
+            "date": "2026-01-01", "concept": "Abono a capital", "capital_base": "1000000.00",
+            "interest_rate": "0.00", "interest_amount": "0.00", "indexation_amount": "0.00",
+            "payment_amount": "0.00", "rate_source": "N/A",
+            "balance": {
+                "date": "2026-01-01",
+                "debt": {"principal": "1000000.00", "interest": "0.00", "indexation": "0.00"},
+                "event_type": "IMPUESTO_A_CARGO",
+            },
+        }
+    ]})
+
+    reconstruido = deserializar_resultado(snapshot_antiguo)
+
+    assert reconstruido.items[0].saldo_a_favor == Decimal("0.00")
+
+
+def test_round_trip_preserva_saldo_a_favor_cuando_esta_presente():
+    # Round-trip normal (snapshot nuevo, ya con la clave) -- el valor de saldo_a_favor
+    # de un sobrepago real debe sobrevivir intacto, no resetearse a 0.00.
+    debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
+    balance = RunningBalance(date=date(2026, 1, 10), debt=debt, event_type="PAYMENT")
+    item = LiquidationItem(
+        date=date(2026, 1, 10),
+        concept="Pago con excedente",
+        capital_base=Decimal("0.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("7000000.00"),
+        balance=balance,
+        saldo_a_favor=Decimal("3000000.00"),
+    )
+    resultado = LiquidationResult(items=[item])
+
+    reconstruido = deserializar_resultado(serializar_resultado(resultado))
+
+    assert reconstruido.items[0].saldo_a_favor == Decimal("3000000.00")

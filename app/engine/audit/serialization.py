@@ -59,7 +59,8 @@ def _item_desde_dict(data: dict) -> LiquidationItem:
         indexation_amount=Decimal(data["indexation_amount"]),
         payment_amount=Decimal(data["payment_amount"]),
         balance=balance,
-        rate_source=data["rate_source"],
+        rate_source=data.get("rate_source", "N/A"),
+        saldo_a_favor=Decimal(data.get("saldo_a_favor", "0.00")),
     )
 
 
