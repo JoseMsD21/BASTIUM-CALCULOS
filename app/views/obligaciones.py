@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from typing import List
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
@@ -27,6 +28,26 @@ from database.models import Obligacion, TipoObligacion
 
 
 class ObligacionFormDialog(QDialog):
+    # Campos condicionales por area que `Obligacion` siempre espera recibir (aunque sea
+    # en None) -- cada `_parse_campos_<area>()` solo devuelve las claves que esa area
+    # necesita sobreescribir; el resto queda en su valor por defecto de aqui (Sprint 22,
+    # deduplicacion de guardar()).
+    _CAMPOS_AREA_POR_DEFECTO = {
+        "tasa_moratoria_anual": None,
+        "fecha_vencimiento": None,
+        "ibc_vigente_anual": None,
+        "cantidad_smlmv_uvt": None,
+        "honorarios_fijos_pactados": None,
+        "cuota_litis_pactada_pct": None,
+        "beneficio_obtenido": None,
+        "costas_pct_manual": None,
+        "moneda": "COP",
+        "trm_aplicable": None,
+        "trm_fecha_referencia": None,
+        "anatocismo_demanda_judicial": False,
+        "anatocismo_fecha_acuerdo": None,
+    }
+
     def __init__(self, expediente_id: int, area: str = "CIVIL_FAMILIA", parent=None):
         super().__init__(parent)
         self.setWindowTitle("Agregar obligacion")
@@ -304,66 +325,12 @@ class ObligacionFormDialog(QDialog):
         if not es_sancionatorio and not es_honorarios and valor <= Decimal("0"):
             raise ValueError("El valor de la obligacion debe ser mayor que cero.")
 
-        cantidad_smlmv_uvt = None
-        if es_sancionatorio:
-            try:
-                cantidad_smlmv_uvt = Decimal(self.campo_cantidad_smlmv_uvt.text())
-            except InvalidOperation as error:
-                raise ValueError("Cantidad SMLMV/UVT debe ser un numero valido.") from error
-
-        honorarios_fijos = None
-        cuota_litis_pct = None
-        beneficio_obtenido = None
-        costas_pct = None
-        if es_honorarios:
-            try:
-                honorarios_fijos = Decimal(self.campo_honorarios_fijos.text())
-                cuota_litis_pct = Decimal(self.campo_cuota_litis_pct.text())
-                beneficio_obtenido = Decimal(self.campo_beneficio_obtenido.text())
-            except InvalidOperation as error:
-                raise ValueError(
-                    "Honorarios fijos, % cuota litis y beneficio obtenido deben ser numeros validos."
-                ) from error
-            texto_costas = self.campo_costas_pct.text().strip()
-            if texto_costas:
-                try:
-                    costas_pct = Decimal(texto_costas)
-                except InvalidOperation as error:
-                    raise ValueError("% Costas judiciales debe ser un numero valido.") from error
-
-        tasa_moratoria = None
-        fecha_vencimiento = None
-        ibc_vigente = None
-        moneda = "COP"
-        trm_aplicable = None
-        trm_fecha_referencia = None
-        anatocismo_demanda_judicial = False
-        anatocismo_fecha_acuerdo = None
-        if self._area == "COMERCIAL":
-            try:
-                tasa_moratoria = Decimal(self.campo_tasa_moratoria.text())
-                ibc_vigente = Decimal(self.campo_ibc_vigente.text())
-            except InvalidOperation as error:
-                raise ValueError("Tasa moratoria e IBC vigente deben ser numeros validos.") from error
-            qdate_vencimiento = self.campo_fecha_vencimiento.date()
-            fecha_vencimiento = date(
-                qdate_vencimiento.year(), qdate_vencimiento.month(), qdate_vencimiento.day()
-            )
-            moneda = self.combo_moneda.currentData()
-            if moneda == "USD":
-                try:
-                    trm_aplicable = Decimal(self.campo_trm_aplicable.text())
-                except InvalidOperation as error:
-                    raise ValueError("La TRM aplicable debe ser un numero valido.") from error
-                qdate_trm = self.campo_trm_fecha_referencia.date()
-                trm_fecha_referencia = date(qdate_trm.year(), qdate_trm.month(), qdate_trm.day())
-
-            anatocismo_demanda_judicial = self.check_anatocismo_demanda_judicial.isChecked()
-            if self.check_anatocismo_acuerdo.isChecked():
-                qdate_acuerdo = self.campo_anatocismo_fecha_acuerdo.date()
-                anatocismo_fecha_acuerdo = date(
-                    qdate_acuerdo.year(), qdate_acuerdo.month(), qdate_acuerdo.day()
-                )
+        parseo_por_area = {
+            "SANCIONATORIO": self._parse_campos_sancionatorio,
+            "HONORARIOS": self._parse_campos_honorarios,
+            "COMERCIAL": self._parse_campos_comercial,
+        }.get(self._area, self._parse_campos_civil_familia)
+        campos_area = {**self._CAMPOS_AREA_POR_DEFECTO, **parseo_por_area()}
 
         tipo = TipoObligacion(self.combo_tipo.currentData())
         qdate_origen = self.campo_fecha_origen.date()
@@ -380,30 +347,93 @@ class ObligacionFormDialog(QDialog):
             fecha_origen=fecha_origen if tipo == TipoObligacion.PUNTUAL else fecha_inicio,
             valor=valor,
             tasa_efectiva_anual=tasa,
-            tasa_moratoria_anual=tasa_moratoria,
-            fecha_vencimiento=fecha_vencimiento,
-            ibc_vigente_anual=ibc_vigente,
-            cantidad_smlmv_uvt=cantidad_smlmv_uvt,
-            honorarios_fijos_pactados=honorarios_fijos,
-            cuota_litis_pactada_pct=cuota_litis_pct,
-            beneficio_obtenido=beneficio_obtenido,
-            costas_pct_manual=costas_pct,
             aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
             interes_sobre_capital_indexado=self.check_interes_sobre_capital_indexado.isChecked(),
-            moneda=moneda,
-            trm_aplicable=trm_aplicable,
-            trm_fecha_referencia=trm_fecha_referencia,
-            anatocismo_demanda_judicial=anatocismo_demanda_judicial,
-            anatocismo_fecha_acuerdo=anatocismo_fecha_acuerdo,
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
             fecha_fin=None,
+            **campos_area,
         )
         session.add(obligacion)
         session.commit()
         obligacion_id = obligacion.id
         session.close()
         return obligacion_id
+
+    def _parse_decimales(self, campos: List[QLineEdit], mensaje_error: str) -> List[Decimal]:
+        """Parsea 1+ QLineEdit a Decimal bajo un solo mensaje de error compartido --
+        replica el try/except conjunto que ya usaban los bloques por area de guardar()
+        (ej. tasa moratoria + IBC bajo un mismo mensaje)."""
+        try:
+            return [Decimal(campo.text()) for campo in campos]
+        except InvalidOperation as error:
+            raise ValueError(mensaje_error) from error
+
+    def _parse_campos_civil_familia(self) -> dict:
+        return {}
+
+    def _parse_campos_sancionatorio(self) -> dict:
+        (cantidad_smlmv_uvt,) = self._parse_decimales(
+            [self.campo_cantidad_smlmv_uvt], "Cantidad SMLMV/UVT debe ser un numero valido."
+        )
+        return {"cantidad_smlmv_uvt": cantidad_smlmv_uvt}
+
+    def _parse_campos_honorarios(self) -> dict:
+        honorarios_fijos, cuota_litis_pct, beneficio_obtenido = self._parse_decimales(
+            [self.campo_honorarios_fijos, self.campo_cuota_litis_pct, self.campo_beneficio_obtenido],
+            "Honorarios fijos, % cuota litis y beneficio obtenido deben ser numeros validos.",
+        )
+        costas_pct = None
+        texto_costas = self.campo_costas_pct.text().strip()
+        if texto_costas:
+            (costas_pct,) = self._parse_decimales(
+                [self.campo_costas_pct], "% Costas judiciales debe ser un numero valido."
+            )
+        return {
+            "honorarios_fijos_pactados": honorarios_fijos,
+            "cuota_litis_pactada_pct": cuota_litis_pct,
+            "beneficio_obtenido": beneficio_obtenido,
+            "costas_pct_manual": costas_pct,
+        }
+
+    def _parse_campos_comercial(self) -> dict:
+        tasa_moratoria, ibc_vigente = self._parse_decimales(
+            [self.campo_tasa_moratoria, self.campo_ibc_vigente],
+            "Tasa moratoria e IBC vigente deben ser numeros validos.",
+        )
+        qdate_vencimiento = self.campo_fecha_vencimiento.date()
+        fecha_vencimiento = date(
+            qdate_vencimiento.year(), qdate_vencimiento.month(), qdate_vencimiento.day()
+        )
+
+        moneda = self.combo_moneda.currentData()
+        trm_aplicable = None
+        trm_fecha_referencia = None
+        if moneda == "USD":
+            (trm_aplicable,) = self._parse_decimales(
+                [self.campo_trm_aplicable], "La TRM aplicable debe ser un numero valido."
+            )
+            qdate_trm = self.campo_trm_fecha_referencia.date()
+            trm_fecha_referencia = date(qdate_trm.year(), qdate_trm.month(), qdate_trm.day())
+
+        anatocismo_demanda_judicial = self.check_anatocismo_demanda_judicial.isChecked()
+        anatocismo_fecha_acuerdo = None
+        if self.check_anatocismo_acuerdo.isChecked():
+            qdate_acuerdo = self.campo_anatocismo_fecha_acuerdo.date()
+            anatocismo_fecha_acuerdo = date(
+                qdate_acuerdo.year(), qdate_acuerdo.month(), qdate_acuerdo.day()
+            )
+
+        return {
+            "tasa_moratoria_anual": tasa_moratoria,
+            "fecha_vencimiento": fecha_vencimiento,
+            "ibc_vigente_anual": ibc_vigente,
+            "moneda": moneda,
+            "trm_aplicable": trm_aplicable,
+            "trm_fecha_referencia": trm_fecha_referencia,
+            "anatocismo_demanda_judicial": anatocismo_demanda_judicial,
+            "anatocismo_fecha_acuerdo": anatocismo_fecha_acuerdo,
+        }
 
     def _guardar_laboral(self) -> int:
         try:
