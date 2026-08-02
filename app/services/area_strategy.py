@@ -211,6 +211,20 @@ class AreaStrategy(ABC):
     def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
         raise NotImplementedError
 
+    @staticmethod
+    def _rate_provider_tasa_plana(
+        fecha_inicio: date, fecha_corte: date, tasa_efectiva_anual: Decimal, source: str = "N/A"
+    ) -> MemoryRateProvider:
+        """Un solo tramo de tasa diaria plana desde `fecha_inicio` hasta `fecha_corte` --
+        patron compartido por Sancionatorio, Honorarios y Civil/Familia (Sprint 22,
+        deduplicacion de `_construir_rate_provider_obligacion`)."""
+        tasa_diaria = EffectiveRateConverter.annual_to_daily(tasa_efectiva_anual)
+        provider = MemoryRateProvider()
+        provider.add_rate_period(
+            start=fecha_inicio - timedelta(days=1), end=fecha_corte, rate=tasa_diaria, source=source,
+        )
+        return provider
+
 
 class CivilFamiliaStrategy(AreaStrategy):
     """
@@ -320,16 +334,10 @@ class CivilFamiliaStrategy(AreaStrategy):
         fecha_inicio = (
             obligacion.fecha_origen if obligacion.tipo.value == "PUNTUAL" else obligacion.fecha_inicio
         )
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
-
-        provider = MemoryRateProvider()
-        provider.add_rate_period(
-            start=fecha_inicio - timedelta(days=1),
-            end=fecha_corte,
-            rate=tasa_diaria,
+        return self._rate_provider_tasa_plana(
+            fecha_inicio, fecha_corte, obligacion.tasa_efectiva_anual,
             source="Tasa pactada en la obligación (Art. 1617 C.C.)",
         )
-        return provider
 
 
 class ComercialStrategy(AreaStrategy):
@@ -913,13 +921,7 @@ class SancionatorioStrategy(AreaStrategy):
         return eventos
 
     def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
-
-        provider = MemoryRateProvider()
-        provider.add_rate_period(
-            start=obligacion.fecha_origen - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
-        )
-        return provider
+        return self._rate_provider_tasa_plana(obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual)
 
 
 class HonorariosStrategy(AreaStrategy):
@@ -1009,13 +1011,7 @@ class HonorariosStrategy(AreaStrategy):
         return eventos
 
     def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(obligacion.tasa_efectiva_anual)
-
-        provider = MemoryRateProvider()
-        provider.add_rate_period(
-            start=obligacion.fecha_origen - timedelta(days=1), end=fecha_corte, rate=tasa_diaria
-        )
-        return provider
+        return self._rate_provider_tasa_plana(obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual)
 
 
 class TributarioStrategy(AreaStrategy):
