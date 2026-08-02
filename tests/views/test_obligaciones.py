@@ -832,4 +832,40 @@ def test_guarda_obligacion_sin_marcar_interes_sobre_capital_indexado_queda_en_fa
     session = session_module.get_session()
     guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
     assert guardada.interes_sobre_capital_indexado is False
-    session.close()
+
+
+def test_comercial_con_ibc_invalido_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("no es un numero")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_honorarios_con_beneficio_obtenido_invalido_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Honorarios proceso ejecutivo")
+    dialog.campo_tasa.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 1, 1))
+    dialog.campo_honorarios_fijos.setText("1000000.00")
+    dialog.campo_cuota_litis_pct.setText("20.00")
+    dialog.campo_beneficio_obtenido.setText("no es un numero")
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
