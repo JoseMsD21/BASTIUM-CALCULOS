@@ -2119,6 +2119,26 @@ liquidación incorrecto sin explicación.
 - No se propone un catálogo de rangos por campo tipo EFDJ (sería sobre-ingeniería para este alcance) —
   bastan validaciones simples de sentido común por campo.
 
+**Estado:** Implementado (2026-08-02) — ver
+`docs/superpowers/specs/2026-08-01-sprint24-validacion-datos-design.md` y
+`docs/superpowers/plans/2026-08-02-sprint24-validacion-datos.md`. Decisiones tomadas con el usuario
+durante el brainstorming previo (no asumidas unilateralmente):
+- Rango de sentido común para tasas/IBC en `ObligacionFormDialog`: `[0, 1000]` (%), plano y sin relación
+  con el cálculo de usura (`usury_validator.py` sigue siendo la única fuente de verdad legal, y sigue
+  corriendo solo al liquidar). Se eligió sobre un tope de 100% para no arriesgar falsos rechazos de tasas
+  moratorias comerciales legítimas que superen 100% anual.
+- La validación cruzada "fecha de origen/inicio no posterior a la fecha de corte del expediente" aplica a
+  **las 6 áreas** (incluye Laboral, donde el campo se reutiliza como "fecha de inicio del contrato", y
+  Tributario) — no solo a Civil/Familia y Comercial como sugería literalmente el hallazgo original.
+- `parametro_service.agregar_valor` rechaza `valor <= 0` para **cualquier clave** del catálogo, sin
+  distinción — ninguna clave cargada hoy (tasas, SMLMV, IPC, UVT, plazos en meses, puntos de descuento)
+  tiene sentido legal en cero.
+
+`app/views/configuracion.py` perdió su chequeo local de `vigente_hasta < vigente_desde` (ahora vive en el
+service, que es donde debía estar desde el principio — cualquier otro caller, no solo la GUI, queda
+protegido). No se tocó `README.md`/`docs/GUIA_USUARIO.md`: este sprint corrige validación de datos sobre
+módulos ya documentados, no agrega ni cambia funcionalidad visible para el usuario final.
+
 **Definición de Hecho:**
 - Tests que confirman que `ObligacionFormDialog` rechaza tasa negativa, porcentaje fuera de rango, y fecha
   de origen posterior a la fecha de corte.
