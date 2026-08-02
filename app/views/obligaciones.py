@@ -24,7 +24,7 @@ from app.core.constants import (
     CATEGORIAS_SANCIONATORIO,
     CATEGORIAS_TRIBUTARIO,
 )
-from database.models import Obligacion, TipoObligacion
+from database.models import Expediente, Obligacion, TipoObligacion
 
 
 class ObligacionFormDialog(QDialog):
@@ -325,6 +325,9 @@ class ObligacionFormDialog(QDialog):
         if not es_sancionatorio and not es_honorarios and valor <= Decimal("0"):
             raise ValueError("El valor de la obligacion debe ser mayor que cero.")
 
+        self._validar_rango(tasa, Decimal("0"), Decimal("1000"), "La tasa efectiva anual")
+        self._validar_concepto_no_vacio()
+
         parseo_por_area = {
             "SANCIONATORIO": self._parse_campos_sancionatorio,
             "HONORARIOS": self._parse_campos_honorarios,
@@ -337,6 +340,9 @@ class ObligacionFormDialog(QDialog):
         fecha_origen = date(qdate_origen.year(), qdate_origen.month(), qdate_origen.day())
         qdate_inicio = self.campo_fecha_inicio.date()
         fecha_inicio = date(qdate_inicio.year(), qdate_inicio.month(), qdate_inicio.day())
+
+        fecha_relevante = fecha_origen if tipo == TipoObligacion.PUNTUAL else fecha_inicio
+        self._validar_fecha_no_posterior_a_corte(fecha_relevante)
 
         session = session_module.get_session()
         obligacion = Obligacion(
@@ -368,6 +374,34 @@ class ObligacionFormDialog(QDialog):
             return [Decimal(campo.text()) for campo in campos]
         except InvalidOperation as error:
             raise ValueError(mensaje_error) from error
+
+    def _validar_rango(self, valor: Decimal, minimo: Decimal, maximo: Decimal, nombre_campo: str) -> None:
+        """Rechaza valores fuera de un rango de sentido comun (Sprint 24) -- no es la
+        validacion de usura (esa sigue viviendo en usury_validator.py y corre solo al
+        liquidar), es solo para atajar errores de tecleo al guardar (ej. una tasa
+        pactada de 99999%)."""
+        if valor < minimo or valor > maximo:
+            raise ValueError(f"{nombre_campo} debe estar entre {minimo} y {maximo}.")
+
+    def _validar_concepto_no_vacio(self) -> None:
+        if not self.campo_concepto.text().strip():
+            raise ValueError("El concepto es obligatorio.")
+
+    def _validar_fecha_no_posterior_a_corte(self, fecha: date) -> None:
+        """La fecha de origen/inicio de una obligacion no puede quedar despues de la
+        fecha de corte del expediente (Sprint 24): de lo contrario la liquidacion no
+        tendria ningun dia que acumular intereses, y el dato casi siempre es un error
+        de captura (ano equivocado, dia/mes invertido)."""
+        session = session_module.get_session()
+        try:
+            expediente = session.get(Expediente, self._expediente_id)
+        finally:
+            session.close()
+        if fecha > expediente.fecha_corte_default:
+            raise ValueError(
+                "La fecha de origen/inicio no puede ser posterior a la fecha de corte "
+                f"del expediente ({expediente.fecha_corte_default.isoformat()})."
+            )
 
     def _parse_campos_civil_familia(self) -> dict:
         return {}

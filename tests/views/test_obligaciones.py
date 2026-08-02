@@ -870,3 +870,80 @@ def test_honorarios_con_beneficio_obtenido_invalido_lanza_error_de_validacion(qt
     import pytest
     with pytest.raises(ValueError):
         dialog.guardar()
+
+
+def test_tasa_efectiva_negativa_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("100000.00")
+    dialog.campo_tasa.setText("-1.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_tasa_efectiva_absurdamente_alta_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("100000.00")
+    dialog.campo_tasa.setText("99999.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_concepto_vacio_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("   ")
+    dialog.campo_valor.setText("100000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_fecha_origen_posterior_a_fecha_de_corte_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)  # fecha_corte_default = 2026-06-01
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("100000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 7, 1))  # posterior al corte
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_fecha_inicio_recurrente_posterior_a_fecha_de_corte_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)  # fecha_corte_default = 2026-06-01
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Cuota alimentaria")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 7, 1))  # posterior al corte
+    dialog.campo_dia_pago.setValue(5)
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
