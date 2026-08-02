@@ -37,6 +37,11 @@ def deserializar_resultado(json_str: str) -> LiquidationResult:
 
 
 def _item_desde_dict(data: dict) -> LiquidationItem:
+    # rate_source y saldo_a_favor usan .get() con el mismo default del dataclass --
+    # a diferencia de los demas campos, ambos se agregaron a LiquidationItem despues
+    # de que existieran AuditLog en produccion, asi que snapshots viejos no tienen
+    # esas claves (bug real de Sprint 23). El resto de campos son intencionalmente
+    # obligatorios: si faltan, la fila esta genuinamente incompleta y debe fallar.
     balance_data = data["balance"]
     debt_data = balance_data["debt"]
 
