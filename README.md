@@ -47,6 +47,12 @@ exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación. 
 queda registrada en un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de
 corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
 
+ℹ️ **Nota sobre auditorías históricas:** las liquidaciones auditadas antes de que el campo
+`rate_source` se agregara al motor (posterior al Sprint 9) se reconstruyen con `rate_source="N/A"`
+en vez de fallar — `AuditLog.resultado_json` es append-only por diseño, esas filas nunca se
+reescriben, así que no existe (ni se planea) un script de backfill que edite el JSON histórico sin
+romper esa garantía de append-only (Sprint 23).
+
 ✅ **Parámetros legales versionados:** desde la pantalla "⚙ Parámetros" cualquier abogado puede consultar
 y agregar, sin tocar código, los valores/tasas/topes que antes solo un desarrollador podía cambiar: el
 multiplicador de usura, los topes de cuota litis, los plazos de prescripción/caducidad, el descuento del
