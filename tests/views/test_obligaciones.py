@@ -515,6 +515,36 @@ def test_guarda_obligacion_laboral_sin_seguridad_social_por_defecto(qtbot, monke
     session.close()
 
 
+def test_laboral_concepto_vacio_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("  ")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_laboral_fecha_inicio_contrato_posterior_a_fecha_de_corte_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)  # corte = 2026-06-01
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 7, 1))  # posterior al corte
+    dialog.campo_fecha_fin.setDate(date(2026, 12, 31))
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
 def test_combo_nivel_riesgo_arl_visible_solo_si_checkbox_activo(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
 

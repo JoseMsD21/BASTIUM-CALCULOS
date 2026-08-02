@@ -482,9 +482,11 @@ class ObligacionFormDialog(QDialog):
             raise ValueError("El valor (salario base) debe ser un numero valido.") from error
         if valor <= Decimal("0"):
             raise ValueError("El valor de la obligacion debe ser mayor que cero.")
+        self._validar_concepto_no_vacio()
 
         qdate_inicio = self.campo_fecha_origen.date()
         fecha_inicio = date(qdate_inicio.year(), qdate_inicio.month(), qdate_inicio.day())
+        self._validar_fecha_no_posterior_a_corte(fecha_inicio)
         qdate_fin = self.campo_fecha_fin.date()
         fecha_fin = date(qdate_fin.year(), qdate_fin.month(), qdate_fin.day())
 
