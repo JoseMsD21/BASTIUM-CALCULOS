@@ -832,6 +832,7 @@ def test_guarda_obligacion_sin_marcar_interes_sobre_capital_indexado_queda_en_fa
     session = session_module.get_session()
     guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
     assert guardada.interes_sobre_capital_indexado is False
+    session.close()
 
 
 def test_comercial_con_ibc_invalido_lanza_error_de_validacion(qtbot, monkeypatch):
