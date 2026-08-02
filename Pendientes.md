@@ -121,7 +121,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada ✅ Completado](#sprint-22--limpieza-técnica-acumulada--completado)
-- [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
+- [Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría--completado)
 - [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados--completado)
 - [Sprint 25 — Rendimiento del motor de tasas, índices e historial](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial)
 - [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui)
@@ -144,6 +144,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 43 — Indexación IPC como opción disponible en todas las áreas](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia)
 - [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte)
 - [Sprint 45 — Sancionatorio: transparencia SMLMV/UVT y aclaración del caso de capital creciente](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente)
+- [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado)
 
 ---
 
@@ -2006,7 +2007,7 @@ Suite completa verde tras cada paso (657 passed, 1 skipped, sin cambios de resul
 
 ---
 
-## Sprint 23 — Bugs críticos de integridad financiera y auditoría
+## Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado
 
 **Prioridad sugerida:** Alta — son bugs reales de ejecución encontrados en auditoría de código
 (2026-07-21), no gaps de alcance; afectan la exactitud de liquidaciones en áreas ya operables y la
@@ -2136,8 +2137,19 @@ durante el brainstorming previo (no asumidas unilateralmente):
 
 `app/views/configuracion.py` perdió su chequeo local de `vigente_hasta < vigente_desde` (ahora vive en el
 service, que es donde debía estar desde el principio — cualquier otro caller, no solo la GUI, queda
-protegido). No se tocó `README.md`/`docs/GUIA_USUARIO.md`: este sprint corrige validación de datos sobre
-módulos ya documentados, no agrega ni cambia funcionalidad visible para el usuario final.
+protegido). No se tocó `README.md` (este sprint corrige validación de datos sobre módulos ya documentados,
+no agrega ni cambia funcionalidad visible para el usuario final, no hay módulo que mover de "en
+desarrollo"). `docs/GUIA_USUARIO.md` sí recibió dos notas breves (§7.6 y §7.6.1) aclarando que la
+validación de sentido común (rango 0%-100%) de cuota litis/costas corre al hacer clic en "Guardar",
+distinta y adicional al tope legal (50% acumulado) / rango por cuantía que sigue corriendo solo al
+liquidar.
+
+Dos hallazgos menores de la revisión final de código de este sprint quedaron fuera de alcance (no
+afectan el resultado, no ameritaban bloquear el cierre) y se documentaron como pendientes en otros
+sprints en vez de corregirse aquí: el orden de las validaciones "genéricas" (concepto/fecha) entre las
+3 rutas de guardado de `ObligacionFormDialog` no es 100% uniforme (ver Sprint 27, hallazgo 8), y
+`_validar_fecha_no_posterior_a_corte` abre una sesión de base de datos adicional en cada guardado que
+podría evitarse (ver Sprint 25, hallazgo 6).
 
 **Definición de Hecho:**
 - Tests que confirman que `ObligacionFormDialog` rechaza tasa negativa, porcentaje fuera de rango, y fecha
@@ -2175,6 +2187,17 @@ baratas que evitan degradación futura conforme crezcan expedientes y años de h
 5. `app/views/expedientes.py` carga la tabla completa (`session.query(Expediente).all()`) sin paginar ni
    filtrar.
 
+**Hallazgos adicionales (revisión final de código del Sprint 24, 2026-08-02):**
+
+6. `app/views/obligaciones.py` (`ObligacionFormDialog._validar_fecha_no_posterior_a_corte`, agregada en el
+   Sprint 24) abre y cierra su propia sesión SQLAlchemy solo para leer `Expediente.fecha_corte_default`,
+   y unas líneas después el mismo método de guardado (`guardar()`/`_guardar_laboral()`/
+   `_guardar_tributario()`) abre una segunda sesión para insertar la `Obligacion` — dos sesiones por cada
+   guardado en vez de una. Mismo patrón de fondo que los hallazgos 2 y 3 de este sprint (sesión nueva donde
+   no hace falta), aunque aquí es una sola llamada extra por guardado (no un loop), así que el impacto es
+   menor. Se podría cachear `fecha_corte_default` una sola vez en `ObligacionFormDialog.__init__` (ya se
+   conoce `expediente_id` desde ahí) en vez de reconsultarlo en cada guardado.
+
 **Código nuevo a crear:**
 - Cachear el resultado de `get_parametro` (o los valores usados repetidamente) fuera de los loops que
   iteran por obligación/cuota dentro de una misma liquidación.
@@ -2183,6 +2206,8 @@ baratas que evitan degradación futura conforme crezcan expedientes y años de h
 - Agregar `index=True` a las 4 columnas señaladas en `database/models.py` (requiere migración de esquema,
   mismo patrón `scripts/migrate_*.py` ya usado).
 - Evaluar paginación o filtro por defecto en `expedientes.py` si el volumen lo justifica.
+- Cachear `fecha_corte_default` en `ObligacionFormDialog.__init__` en vez de reconsultarla en cada
+  guardado (hallazgo 6).
 
 **Alcance explícitamente excluido:**
 - No se propone cambiar `MemoryRateProvider` de diseño en memoria a una base de datos indexada — solo
@@ -2269,6 +2294,54 @@ mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos 
    interpretaría 100x más grande. Bug real, pero hoy inalcanzable: no hay ningún caller de este parser en
    `app/` (código muerto).
 
+**Hallazgos adicionales (auditoría 2026-08-01, tras el cierre del Sprint 22):**
+
+4. Test parametrizado con la lista de parámetros vacía:
+   `test_areas_no_implementadas_lanzan_error_claro_al_liquidar`
+   (`tests/services/test_area_strategy.py:155-164`, `@pytest.mark.parametrize("area_name,strategy_cls", [])`)
+   verificaba que las áreas *aún no implementadas* lanzaran `AreaNoImplementadaError` — quedó con la lista
+   vacía desde que las 6 áreas fueron implementadas (la última, Tributario, en el Sprint 15). pytest lo
+   reporta como `SKIPPED (got empty parameter set)` en cada corrida de la suite; no verifica nada. Detectado
+   porque el cierre del Sprint 22 (2026-08-01) confirmó que este es el único `SKIPPED` de las 657 pruebas.
+5. 14 archivos fuente de 0 bytes, todos con fecha de creación 2026-07-04/05 (scaffold inicial del proyecto,
+   anterior al Sprint 1) y sin ningún import real en todo el repo (confirmado con grep exhaustivo) — mismo
+   patrón que `app/engine/allocation/allocator.py` y `app/engine/financial/allocation.py`, ya eliminados en
+   el Sprint 22:
+   - `app/core/settings.py`, `app/core/types.py`, `app/core/__init_.py` (nombre con typo — falta un guion
+     bajo; nunca funcionó como inicializador de paquete, y el proyecto ya usa paquetes de namespace
+     implícitos en otras carpetas sin `__init__.py`, así que tampoco hace falta reemplazarlo por uno bien
+     nombrado).
+   - `app/engine/financial/balance.py`, `date_range.py`, `event.py`, `period.py`, `statement.py`,
+     `timeline.py` (6 archivos — superados por `entry.py`/`ledger.py`/`rate.py` en la misma carpeta, que sí
+     tienen contenido real y sí se usan).
+   - `app/engine/payments/fifo.py`, `payment_distribution.py`.
+   - `app/engine/reports/chart_builder.py` (no confundir con `app/reports/charts.py`, el módulo real del
+     hallazgo 2 de este mismo sprint).
+   - `app/engine/time/dates.py`, `period.py` (superados por `app/engine/time/calendar.py`, con contenido
+     real y fecha de modificación reciente).
+6. 6 archivos de test de 0 bytes, mismo patrón y fecha, reflejo directo de los del punto 5: `tests/engine/
+   test_dates.py`, `test_event.py`, `test_period.py`, `test_timeline.py`, `tests/financial/test_balance.py`,
+   `test_statement.py`. pytest los recolecta sin error (un módulo vacío no genera advertencia por sí solo),
+   pero no ejercitan nada.
+7. Dos archivos adicionales de 0 bytes con el mismo patrón pero **sin una decisión clara todavía**:
+   `app/views/about.py` y `app/views/reportes.py`. A diferencia de `app/views/dashboard.py` (también vacío,
+   pero explícitamente reclamado como funcionalidad pendiente por el Sprint 33), estos dos no aparecen en
+   ningún otro sprint de este documento — no está claro si son scaffold abandonado (mismo tratamiento que
+   el punto 5) o pantallas planeadas sin documentar todavía (ej. una vista "Acerca de", y una vista
+   "Reportes" en la GUI separada de `app/reports/`, que ya genera PDF/Word pero no tiene pantalla propia).
+
+**Hallazgos adicionales (revisión final de código del Sprint 24, 2026-08-02):**
+
+8. `app/views/obligaciones.py`: las 3 rutas de guardado de `ObligacionFormDialog` (`guardar()`,
+   `_guardar_laboral()`, `_guardar_tributario()`) llaman a los mismos dos chequeos genéricos agregados en
+   el Sprint 24 (`_validar_concepto_no_vacio()`, `_validar_fecha_no_posterior_a_corte(...)`), pero cada una
+   los ubica en un orden distinto relativo al resto de su propia validación de campos (antes/después del
+   parseo de campos numéricos, antes/después de la validación de área). No es un bug — ningún caso deja de
+   lanzar su `ValueError` — pero significa que el mismo tipo de error de captura (ej. concepto vacío +
+   campo numérico inválido a la vez) muestra un mensaje distinto según el área, solo por el orden en que
+   quedó cableado cada ruta. Detectado en la revisión final de la rama del Sprint 24, no ameritaba bloquear
+   ese cierre.
+
 **Decisión de diseño a tomar antes de codificar:**
 - Para `nlp_extractor.py` y `charts.py`: decidir con el usuario si (a) se eliminan por completo (nadie los
   usa, no están en el roadmap de los Sprints 14-22), o (b) se conservan porque hay intención de conectarlos
@@ -2276,15 +2349,30 @@ mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos 
   huérfanos.
 - Para `parsers.py`: mismo criterio — eliminar si no hay intención de usarlo, o corregir el bug de formato
   si se piensa conectar a futuro (ej. para importar montos desde texto libre).
+- Para los hallazgos 4, 5 y 6: no hay decisión que tomar — código y tests muertos sin ambigüedad, eliminar
+  directamente.
+- Para el hallazgo 7 (`about.py`/`reportes.py`): sí requiere decisión del usuario antes de tocarlos (eliminar
+  como scaffold abandonado, o dejarlos como placeholder documentado de una pantalla futura — igual que se
+  hizo con `dashboard.py` en el Sprint 33).
 
 **Código nuevo a crear (según la decisión):**
 - Quitar de `requirements.txt` los paquetes no usados que se decida no conservar.
 - Eliminar o corregir `nlp_extractor.py`, `charts.py`, `parsers.py` según la decisión de diseño.
+- Eliminar el test con parametrize vacío (punto 4) y los 14 archivos fuente + 6 de test de 0 bytes sin
+  ambigüedad (puntos 5 y 6).
+- Resolver `about.py`/`reportes.py` (punto 7) según la decisión del usuario.
+- Unificar el orden de `_validar_concepto_no_vacio()`/`_validar_fecha_no_posterior_a_corte(...)` en las 3
+  rutas de guardado de `ObligacionFormDialog` (punto 8) — ej. siempre "parsear campos de área → validar
+  concepto → validar fecha vs. corte", antes de construir el `Obligacion`.
 
 **Definición de Hecho:**
 - `requirements.txt` solo lista paquetes con al menos un import real en el código fuente.
 - Ningún archivo huérfano queda sin una decisión explícita documentada (eliminado, o conservado con
   motivo).
+- Cero pruebas `SKIPPED` por lista de parámetros vacía; la suite solo tiene skips con una razón vigente
+  (si los hay).
+- Las 3 rutas de guardado de `ObligacionFormDialog` validan concepto/fecha en el mismo orden relativo
+  (punto 8), sin cambiar ningún mensaje de error ya cubierto por un test existente.
 - Suite completa en verde tras cualquier eliminación.
 
 ---
@@ -3340,6 +3428,61 @@ reales — evitar "arreglar" algo que no está roto en el código revisado.
   fecha capturada.
 - El punto 2 queda documentado como pendiente de reproducir, con la pregunta explícita al usuario, hasta
   tener un caso concreto.
+
+---
+
+## Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado
+
+**Prioridad sugerida:** Media-alta — sigue de cerca al Sprint 23: el dato ya no desaparece del modelo de
+datos, pero sigue siendo invisible en todo documento que un abogado o un juez realmente lee. Detectado por
+el revisor final de código del Sprint 23 (2026-08-01), no por un reporte de usuario.
+
+**Depende de:** Sprint 23 (Bugs críticos de integridad financiera y auditoría) — ya completado. Este sprint
+es el cierre real, de cara al usuario, del mismo bug: el Sprint 23 corrigió que `LiquidationCore` capturara
+el remanente de un sobrepago en un campo nuevo `saldo_a_favor` (`LiquidationItem`/`LiquidationResult`), pero
+ese campo nunca llegó a ningún lugar donde un humano lo vea.
+
+**Hallazgos (revisión final del Sprint 23, 2026-08-01):**
+- `app/engine/reports/summary.py` (`ReportSummaryBuilder.build_summary()`) no lee `saldo_a_favor` ni
+  `LiquidationResult.total_saldo_a_favor()` en ningún punto — el resumen ejecutivo del PDF/Word no menciona
+  el sobrepago aunque exista.
+- `app/engine/reports/table_builder.py` (`ReportTableBuilder.build_matrix()`) tampoco agrega una columna ni
+  una fila para `saldo_a_favor` — la tabla de detalle fila por fila no muestra el excedente en la fila del
+  pago que sobrepagó.
+- `app/reports/pdf.py` y `app/reports/word.py` heredan el mismo hueco por construcción, ya que ambos
+  consumen la salida de `summary.py`/`table_builder.py` sin lógica propia de qué campos mostrar.
+- `app/views/liquidaciones.py` (`ResultadoLiquidacionView`) tampoco muestra `saldo_a_favor` en ningún label
+  ni columna de la tabla en pantalla.
+- Consecuencia práctica: hoy, un pago de $10.000.000 contra una deuda de $7.000.000 ya no pierde el dato
+  internamente (corregido en el Sprint 23), pero el PDF/Word entregado y la pantalla de resultado siguen
+  mostrando el mismo total que si el excedente nunca hubiera existido — el bug original sigue siendo visible
+  para el usuario final, solo que ahora el dato correcto sí existe en memoria y en el `AuditLog` para quien
+  sepa consultarlo directamente.
+
+**Código nuevo a crear:**
+- `summary.py`: agregar una línea al resumen ejecutivo (ej. "Saldo a favor del deudor: $X") cuando
+  `resultado.total_saldo_a_favor() > 0`, omitida por completo cuando es cero (no ensuciar el resumen de
+  liquidaciones sin sobrepago).
+- `table_builder.py`: mostrar el `saldo_a_favor` de la fila del evento `PAYMENT` correspondiente, igual que
+  ya se muestra `payment_amount` — mismo formato de columna, sin fila/columna nueva si el patrón existente
+  de la tabla no lo permite fácilmente (evaluar durante la implementación cuál encaja mejor sin romper el
+  layout actual usado por las 6 áreas).
+- `liquidaciones.py`: reflejar el mismo dato en la pantalla de resultado, junto al resto de totales ya
+  mostrados (capital, interés, saldo final).
+
+**Riesgos / notas técnicas conocidas:**
+- No cambiar el significado de ninguna columna/total ya existente — este sprint solo agrega visibilidad de
+  un dato que Sprint 23 ya calcula correctamente, no debe alterar ningún número ya mostrado hoy.
+- Verificar que el PDF/Word de una liquidación con sobrepago real, generado antes de este sprint, se pueda
+  seguir regenerando desde su `AuditLog` (Sprint 9) y ahora sí muestre el saldo a favor correctamente — el
+  dato ya está en el snapshot histórico gracias al fix de deserialización del Sprint 23, así que no hace
+  falta ningún backfill.
+
+**Definición de Hecho:**
+- Test de reporte que liquide un expediente con un sobrepago real y confirme que el PDF/Word generado
+  incluye el saldo a favor, con el monto exacto.
+- Test de GUI que confirme que `ResultadoLiquidacionView` muestra el saldo a favor cuando `total_saldo_a_favor() > 0`, y no muestra nada (ni una fila vacía) cuando es cero.
+- Suite completa en verde.
 
 ---
 
