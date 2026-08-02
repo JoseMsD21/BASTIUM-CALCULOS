@@ -53,8 +53,8 @@ class AbonoFormDialog(QDialog):
                 self,
                 "Posible sobrepago",
                 "El total de abonos para esta obligación "
-                f"(${abonos_previos + monto}) supera el valor registrado "
-                f"(${obligacion.valor}). Verifique el monto antes de continuar: "
+                f"(${abonos_previos + monto:,.2f}) supera el valor registrado "
+                f"(${obligacion.valor:,.2f}). Verifique el monto antes de continuar: "
                 "el excedente quedará reflejado como saldo a favor al liquidar.",
             )
 
