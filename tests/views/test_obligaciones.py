@@ -872,6 +872,41 @@ def test_honorarios_con_beneficio_obtenido_invalido_lanza_error_de_validacion(qt
         dialog.guardar()
 
 
+def test_cuota_litis_fuera_de_rango_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Honorarios proceso ejecutivo")
+    dialog.campo_tasa.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 1, 1))
+    dialog.campo_honorarios_fijos.setText("1000000.00")
+    dialog.campo_cuota_litis_pct.setText("150.00")
+    dialog.campo_beneficio_obtenido.setText("10000000.00")
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_costas_pct_fuera_de_rango_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Honorarios proceso ejecutivo")
+    dialog.campo_tasa.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2026, 1, 1))
+    dialog.campo_honorarios_fijos.setText("1000000.00")
+    dialog.campo_cuota_litis_pct.setText("20.00")
+    dialog.campo_beneficio_obtenido.setText("10000000.00")
+    dialog.campo_costas_pct.setText("-5.00")
+
+    import pytest
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
 def test_tasa_efectiva_negativa_lanza_error_de_validacion(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch)
 

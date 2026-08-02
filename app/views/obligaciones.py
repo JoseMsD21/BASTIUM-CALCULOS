@@ -417,12 +417,14 @@ class ObligacionFormDialog(QDialog):
             [self.campo_honorarios_fijos, self.campo_cuota_litis_pct, self.campo_beneficio_obtenido],
             "Honorarios fijos, % cuota litis y beneficio obtenido deben ser numeros validos.",
         )
+        self._validar_rango(cuota_litis_pct, Decimal("0"), Decimal("100"), "El % de cuota litis pactada")
         costas_pct = None
         texto_costas = self.campo_costas_pct.text().strip()
         if texto_costas:
             (costas_pct,) = self._parse_decimales(
                 [self.campo_costas_pct], "% Costas judiciales debe ser un numero valido."
             )
+            self._validar_rango(costas_pct, Decimal("0"), Decimal("100"), "El % de costas judiciales")
         return {
             "honorarios_fijos_pactados": honorarios_fijos,
             "cuota_litis_pactada_pct": cuota_litis_pct,
