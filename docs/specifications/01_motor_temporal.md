@@ -29,6 +29,10 @@ prescripcion/caducidad.
   terminos procesales con interrupcion y suspension.
 - `app/engine/temporal/prescripcion.py`: motor de prescripcion y caducidad, con los plazos legales
   consultables via `parametro_service` (Sprint 13).
+- `app/engine/labor/ibl.py`: `calcular_ibl`, `calcular_tasa_reemplazo`, `calcular_densidad_semanas` y
+  `semanas_minimas_requeridas` — modulo pensional (IBL, tasa de reemplazo, densidad de semanas
+  post-SL138-2024) implementado como funciones puras probadas (Sprint 17), standalone: sin
+  `PensionalStrategy` ni wiring a ninguna pantalla todavia (mismo patron que `app/engine/tax/*`).
 
 ## Como se usa en el MVP
 `CivilFamiliaStrategy` (`app/services/area_strategy.py`) usa `FamilyScheduler` para expandir obligaciones
@@ -36,7 +40,8 @@ de tipo `RECURRENTE` en eventos mensuales antes de pasarlos al motor de liquidac
 `LaborScheduler` para el finiquito de un contrato terminado.
 
 ## Pendiente (no implementado aun)
-- Modulo pensional (IBL, tasa de reemplazo, densidad de semanas) — ver `Pendientes.md`, Sprint 17.
+- Wiring del modulo pensional (`app/engine/labor/ibl.py`) a una `PensionalStrategy`/pantalla de GUI —
+  hoy solo es invocable como funciones puras (`Pendientes.md`, Sprint 17, nota de alcance).
 - `EstadoTermino`/`terminos.py` todavia no esta conectado a ninguna pantalla de la GUI — hoy sirve como base
   interna para el motor de prescripcion y caducidad.
 
