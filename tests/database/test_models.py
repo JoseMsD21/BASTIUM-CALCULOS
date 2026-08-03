@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session
 
 from database.models import (
@@ -529,3 +529,24 @@ def test_obligacion_anatocismo_activo_con_fecha_acuerdo(session):
     fetched = session.query(Obligacion).filter_by(id=obligacion.id).one()
     assert fetched.anatocismo_fecha_acuerdo == date(2026, 2, 15)
     assert fetched.anatocismo_demanda_judicial is False
+
+
+def test_columnas_de_filtrado_frecuente_tienen_indice(session):
+    inspector = inspect(session.get_bind())
+    indices_obligaciones = {
+        columna for idx in inspector.get_indexes("obligaciones") for columna in idx["column_names"]
+    }
+    indices_audit_logs = {
+        columna for idx in inspector.get_indexes("audit_logs") for columna in idx["column_names"]
+    }
+    indices_abonos = {
+        columna for idx in inspector.get_indexes("abonos") for columna in idx["column_names"]
+    }
+    indices_parametros = {
+        columna for idx in inspector.get_indexes("parametros_legales") for columna in idx["column_names"]
+    }
+
+    assert "expediente_id" in indices_obligaciones
+    assert "expediente_id" in indices_audit_logs
+    assert "obligacion_id" in indices_abonos
+    assert "clave" in indices_parametros

@@ -94,7 +94,7 @@ class Obligacion(Base):
     __tablename__ = "obligaciones"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    expediente_id: Mapped[int] = mapped_column(ForeignKey("expedientes.id"))
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("expedientes.id"), index=True)
     tipo: Mapped[TipoObligacion] = mapped_column(SAEnum(TipoObligacion))
     concepto: Mapped[str] = mapped_column(String(200))
     categoria: Mapped[str] = mapped_column(String(50))
@@ -147,7 +147,7 @@ class Abono(Base):
     __tablename__ = "abonos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    obligacion_id: Mapped[int] = mapped_column(ForeignKey("obligaciones.id"))
+    obligacion_id: Mapped[int] = mapped_column(ForeignKey("obligaciones.id"), index=True)
     fecha: Mapped[date] = mapped_column(Date)
     monto: Mapped[Decimal] = mapped_column(Numeric(18, 2))
     referencia: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -179,7 +179,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    expediente_id: Mapped[int] = mapped_column(ForeignKey("expedientes.id"))
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("expedientes.id"), index=True)
     usuario: Mapped[str] = mapped_column(String(200))
     fecha_ejecucion: Mapped[datetime] = mapped_column(DateTime)
     fecha_corte: Mapped[date] = mapped_column(Date)
@@ -193,7 +193,7 @@ class ParametroLegal(Base):
     __tablename__ = "parametros_legales"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    clave: Mapped[str] = mapped_column(String(100))
+    clave: Mapped[str] = mapped_column(String(100), index=True)
     valor: Mapped[Decimal] = mapped_column(DecimalExacto)
     vigente_desde: Mapped[date] = mapped_column(Date)
     vigente_hasta: Mapped[date | None] = mapped_column(Date, nullable=True)
