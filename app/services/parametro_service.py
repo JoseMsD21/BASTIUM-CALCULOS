@@ -18,6 +18,8 @@ completa (no depende de AuditLog, que exige un expediente_id).
 from __future__ import annotations
 
 import enum
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import date, datetime
 from decimal import Decimal
 from typing import NamedTuple
@@ -244,9 +246,44 @@ def _resolver_fila(clave: str, fecha: date) -> ParametroLegal | None:
         session.close()
 
 
+_cache_liquidacion_activa: ContextVar[dict[tuple[str, date], Decimal] | None] = ContextVar(
+    "_cache_liquidacion_activa", default=None
+)
+
+
+@contextmanager
+def cache_de_liquidacion():
+    """Activa una cache en memoria de get_parametro, valida solo por la
+    duracion de este bloque -- nunca persiste entre llamadas, asi que un
+    agregar_valor hecho desde la GUI (app/views/configuracion.py) entre dos
+    liquidaciones nunca puede servir un valor desactualizado. Evita reabrir
+    una sesion SQLAlchemy por cada (clave, fecha) repetido dentro de la misma
+    liquidacion (Sprint 25, hallazgos 2/3: HonorariosStrategy consulta
+    HONORARIOS_TOTAL_PCT una vez por obligacion; historical_index consulta
+    IPC_INDICE_ACUMULADO/SMLMV una vez por cuota mensual, pero la clave de
+    resolucion es por año -- todas las cuotas de un mismo año colapsan a la
+    misma entrada de cache). contextlib.contextmanager hereda de
+    ContextDecorator, asi que este mismo objeto tambien sirve como decorador
+    (@cache_de_liquidacion()) -- cada invocacion decorada abre su propio
+    bloque nuevo, nunca comparte cache con otra llamada."""
+    token = _cache_liquidacion_activa.set({})
+    try:
+        yield
+    finally:
+        _cache_liquidacion_activa.reset(token)
+
+
 def get_parametro(clave: str, fecha: date) -> Decimal:
     """Resuelve el valor de `clave` vigente en `fecha`, segun el modo_resolucion
-    declarado en CATALOGO_PARAMETROS (ver Adenda de diseno de la spec)."""
+    declarado en CATALOGO_PARAMETROS (ver Adenda de diseno de la spec). Si hay
+    una cache de liquidacion activa (cache_de_liquidacion), reutiliza el valor
+    ya resuelto para el mismo (clave, fecha) en vez de abrir una sesion
+    SQLAlchemy nueva."""
+    cache = _cache_liquidacion_activa.get()
+    clave_cache = (clave, fecha)
+    if cache is not None and clave_cache in cache:
+        return cache[clave_cache]
+
     fila = _resolver_fila(clave, fecha)
     if fila is None:
         info = _validar_clave(clave)
@@ -254,6 +291,8 @@ def get_parametro(clave: str, fecha: date) -> Decimal:
             f"No hay valor configurado para '{info.descripcion}' (clave '{clave}') "
             f"en la fecha {fecha}."
         )
+    if cache is not None:
+        cache[clave_cache] = fila.valor
     return fila.valor
 
 

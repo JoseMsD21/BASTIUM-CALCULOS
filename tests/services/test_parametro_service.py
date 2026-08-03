@@ -222,3 +222,96 @@ def test_agregar_valor_permite_tramo_cerrado_consecutivo_sin_solape():
         vigente_hasta=date(2026, 2, 28),
     )
     assert fila.valor == Decimal("16.82")
+
+
+def test_cache_de_liquidacion_evita_reconsultar_la_misma_clave_y_fecha(monkeypatch):
+    from app.services import parametro_service
+    from app.services.parametro_service import cache_de_liquidacion, get_parametro
+
+    _insertar("USURA_MULTIPLICADOR", "1.5", date(1997, 7, 1))
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    with cache_de_liquidacion():
+        primero = get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+        segundo = get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+
+    assert primero == segundo == Decimal("1.5")
+    assert len(llamadas) == 1
+
+
+def test_cache_de_liquidacion_no_persiste_entre_bloques(monkeypatch):
+    from app.services import parametro_service
+    from app.services.parametro_service import cache_de_liquidacion, get_parametro
+
+    _insertar("USURA_MULTIPLICADOR", "1.5", date(1997, 7, 1))
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    with cache_de_liquidacion():
+        get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+    with cache_de_liquidacion():
+        get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+
+    assert len(llamadas) == 2
+
+
+def test_get_parametro_sin_cache_activa_sigue_consultando_cada_vez(monkeypatch):
+    from app.services import parametro_service
+    from app.services.parametro_service import get_parametro
+
+    _insertar("USURA_MULTIPLICADOR", "1.5", date(1997, 7, 1))
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+    get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+
+    assert len(llamadas) == 2
+
+
+def test_cache_de_liquidacion_usada_como_decorador_crea_bloque_nuevo_por_llamada(monkeypatch):
+    from app.services import parametro_service
+    from app.services.parametro_service import cache_de_liquidacion, get_parametro
+
+    _insertar("USURA_MULTIPLICADOR", "1.5", date(1997, 7, 1))
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    @cache_de_liquidacion()
+    def _dos_consultas_iguales():
+        get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+        get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20))
+
+    _dos_consultas_iguales()
+    _dos_consultas_iguales()
+
+    assert len(llamadas) == 2  # 1 por invocacion de _dos_consultas_iguales, no 4
