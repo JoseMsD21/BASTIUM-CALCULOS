@@ -2175,6 +2175,30 @@ baratas que evitan degradación futura conforme crezcan expedientes y años de h
 - Migración de índices aplicada y verificada contra `bastium.db` real.
 - Suite completa en verde, sin cambios de resultado numérico.
 
+**Cierre (fecha real de la implementación):**
+- `MemoryRateProvider.get_rate`/`get_rate_source`: búsqueda binaria (`bisect`) sobre la lista de periodos, ya
+  ordenada por `start_date`.
+- `get_parametro`: cache con alcance de una sola liquidación (`cache_de_liquidacion`, `ContextVar`), activada
+  en los 6 `liquidar()` de `AreaStrategy`. Nunca persiste entre liquidaciones -- no hay riesgo de servir un
+  valor desactualizado tras un `agregar_valor` desde la GUI.
+- Índices agregados: `ix_obligaciones_expediente_id`, `ix_audit_logs_expediente_id`, `ix_abonos_obligacion_id`,
+  `ix_parametros_legales_clave`. Migración idempotente en `scripts/migrate_add_indices_rendimiento.py`
+  (probada contra bases temporales, incluye manejo de tablas faltantes). **Pendiente:** aplicar a la
+  `bastium.db` real del usuario -- `bastium.db` está en `.gitignore` y no existe en el worktree de
+  implementación, así que este paso queda para ejecutarse manualmente
+  (`python scripts/migrate_add_indices_rendimiento.py` desde el checkout principal) después de fusionar esta
+  rama.
+- Paginación de `expedientes.py`: evaluada y descartada por ahora -- el volumen actual no la justifica (ver
+  "Alcance explícitamente excluido" del plan de implementación).
+- Benchmark (`scripts/benchmark_motor_rendimiento.py`, obligación con 29 años de mora / 348 cuotas con
+  indexación), medido antes y después de este sprint sobre el mismo commit base (`5931b97`) vs. el estado
+  final de esta rama:
+  - Mora larga: 0.034s -> 0.034s (esta ruta concreta ya era rápida en el "antes"; el costo dominante no es
+    el scan lineal de `MemoryRateProvider` sino el propio recorrido día a día del motor)
+  - Recurrente con indexación: 0.841s -> 0.325s (~2.6x más rápido, mejora atribuible al cache de
+    `get_parametro`/`get_smlmv_for_year`/`get_ipc_for_date` dentro del loop de indexación por cuota)
+- Suite completa en verde (700 passed, 1 skipped), sin cambios de resultado numérico.
+
 ---
 
 ## Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI
