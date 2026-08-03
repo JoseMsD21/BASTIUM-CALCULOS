@@ -45,7 +45,7 @@ from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
 from app.engine.temporal.schedulers.labor import LaborScheduler
 from app.services.motor_universal import UniversalLiquidationService
-from app.services.parametro_service import get_parametro
+from app.services.parametro_service import cache_de_liquidacion, get_parametro
 
 
 def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
@@ -241,6 +241,7 @@ class CivilFamiliaStrategy(AreaStrategy):
     no es alcanzable con el modelo de datos actual.
     """
 
+    @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
@@ -373,6 +374,7 @@ class ComercialStrategy(AreaStrategy):
     def __init__(self, trm_provider: TRMProvider | None = None):
         self._trm_provider_default = trm_provider or SFCTRMProvider()
 
+    @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
@@ -690,6 +692,7 @@ class LaboralStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
+    @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
@@ -879,6 +882,7 @@ class SancionatorioStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
+    @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
@@ -948,6 +952,7 @@ class HonorariosStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
+    @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
@@ -1067,6 +1072,7 @@ class TributarioStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
+    @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")

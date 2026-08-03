@@ -318,6 +318,37 @@ def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_prop
     assert eventos_indexacion[0].indexation_amount != eventos_indexacion[1].indexation_amount
 
 
+def test_civil_familia_recurrente_con_indexacion_reutiliza_ipc_entre_cuotas_del_mismo_anio(monkeypatch):
+    from app.services import parametro_service
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    obligacion = Obligacion(
+        id=99, expediente_id=1, tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria", categoria="CHILD_SUPPORT",
+        fecha_origen=date(2025, 1, 1), valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), dia_pago=5,
+        fecha_inicio=date(2025, 1, 1), fecha_fin=date(2025, 12, 5),
+        aplica_indexacion_ipc=True,
+    )
+
+    CivilFamiliaStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 5))
+
+    llamadas_ipc = [l for l in llamadas if l[0] == "IPC_INDICE_ACUMULADO"]
+    # 12 cuotas (una por mes de 2025) todas resuelven IPC_INDICE_ACUMULADO
+    # contra date(2025,1,1) (fecha_causacion, mismo año) y date(2025,1,1)
+    # (fecha_corte 2025-12-05, tambien 2025) -- con la cache activa, ambas
+    # colapsan a una sola consulta real en vez de hasta 24.
+    assert len(llamadas_ipc) <= 2
+
+
 def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
     # valor = 123.500.000, fecha_origen forzada a 2024-06-01 (SMLMV 2024 =
     # 1.300.000.00): punto medio exacto del tier menor cuantia (52.000.000 a
@@ -1205,6 +1236,32 @@ def _obligacion_honorarios(
         beneficio_obtenido=beneficio_obtenido,
         costas_pct_manual=costas_pct_manual,
     )
+
+
+def test_honorarios_liquidar_reutiliza_honorarios_total_pct_entre_obligaciones_con_la_misma_fecha(monkeypatch):
+    from app.services import parametro_service
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    obligaciones = [
+        _obligacion_honorarios(fecha_origen=date(2026, 1, 1)),
+        _obligacion_honorarios(fecha_origen=date(2026, 1, 1)),
+        _obligacion_honorarios(fecha_origen=date(2026, 1, 1)),
+    ]
+    for indice, obligacion in enumerate(obligaciones, start=1):
+        obligacion.id = indice
+
+    HonorariosStrategy().liquidar(obligaciones=obligaciones, abonos=[], fecha_corte=date(2026, 1, 1))
+
+    llamadas_honorarios = [l for l in llamadas if l[0] == "HONORARIOS_TOTAL_PCT"]
+    assert len(llamadas_honorarios) == 1
 
 
 from app.services.area_strategy import _evento_costas_procesales
