@@ -145,3 +145,44 @@ def test_vencimiento_calendario_rechaza_meses_menor_a_uno():
 
     with pytest.raises(ValueError):
         CalendarUtils.vencimiento_calendario(date(2026, 1, 1), 0)
+
+
+def test_dias_comerciales_360_mismo_dia_cuenta_como_1():
+    dia = date(2025, 6, 10)
+    assert CalendarUtils.dias_comerciales_360(dia, dia) == 1
+
+
+def test_dias_comerciales_360_un_ano_completo_da_360_dias():
+    # Contrato de un año calendario completo (2020, bisiesto): bajo la
+    # premisa comercial de meses de 30 días, el 31 de diciembre se topa a
+    # "día 30" -- un año completo da exactamente 360 días comerciales
+    # (12 meses x 30 días), no 365/366 días reales. Verificado también
+    # ejecutando el código real antes de escribir este plan.
+    assert CalendarUtils.dias_comerciales_360(date(2020, 1, 1), date(2020, 12, 31)) == 360
+
+
+def test_dias_comerciales_360_topa_dia_31_a_30():
+    # Enero completo (31 días reales) cuenta como 30 días comerciales: el
+    # día 31 se topa a "día 30" del mes de 30 días.
+    assert CalendarUtils.dias_comerciales_360(date(2025, 1, 1), date(2025, 1, 31)) == 30
+
+
+def test_dias_comerciales_360_febrero_bisiesto_no_se_topa():
+    # Febrero de un año bisiesto (2024, 29 días reales) no excede 30 -- no
+    # hay topeo, cuenta sus 29 días reales + 1 (inclusivo) = 29. Confirma
+    # que el topeo a 30 solo actúa sobre el día 31, no sobre meses cortos.
+    assert CalendarUtils.dias_comerciales_360(date(2024, 2, 1), date(2024, 2, 29)) == 29
+
+
+def test_dias_comerciales_360_periodo_parcial_cinco_meses():
+    # 2024-01-01 a 2024-06-01: 5 meses completos bajo la premisa comercial
+    # (5 x 30 = 150 días) + 1 (inclusivo) = 151. Verificado también
+    # ejecutando el código real antes de escribir este plan.
+    assert CalendarUtils.dias_comerciales_360(date(2024, 1, 1), date(2024, 6, 1)) == 151
+
+
+def test_dias_comerciales_360_rechaza_fin_anterior_a_inicio():
+    import pytest
+
+    with pytest.raises(ValueError):
+        CalendarUtils.dias_comerciales_360(date(2025, 1, 2), date(2025, 1, 1))

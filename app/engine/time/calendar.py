@@ -118,3 +118,32 @@ class CalendarUtils:
             fecha_objetivo += timedelta(days=1)
 
         return fecha_objetivo
+
+    @staticmethod
+    def dias_comerciales_360(fecha_inicio: date, fecha_fin: date) -> int:
+        """Cuenta días trabajados/transcurridos bajo la convención "comercial"
+        colombiana de año de 360 días (12 meses de 30 días), conteo inclusivo
+        (el primer día cuenta) -- confirmado por el despacho para prestaciones
+        sociales (cesantías/prima), Sprint 30/Sprint 3:
+        `Preguntas-Para-Abogado-Respondidas.md`, "Dias_Trabajados =
+        (Fecha_Fin - Fecha_Inicio) + 1... bajo la premisa de meses de 30
+        días". El día 31 de cualquier mes se topa a "día 30" (no existe en un
+        mes comercial de 30 días); los meses de 28/29 días (febrero) NO se
+        topan hacia arriba, cuentan sus días reales -- no es "todo mes vale
+        30", es la posición del día dentro del mes la que se topa hacia
+        abajo. NO usar para densidad de semanas pensional (Sentencia
+        SL138-2024, Sprint 17): ese cómputo usa días calendario reales
+        (365/366), sin esta ficción de 30 días -- son dos convenciones
+        distintas por rubro, confirmadas explícitamente como no
+        intercambiables."""
+        if fecha_fin < fecha_inicio:
+            raise ValueError("fecha_fin no puede ser anterior a fecha_inicio")
+
+        dia_inicio = min(fecha_inicio.day, 30)
+        dia_fin = min(fecha_fin.day, 30)
+        dias = (
+            (fecha_fin.year - fecha_inicio.year) * 360
+            + (fecha_fin.month - fecha_inicio.month) * 30
+            + (dia_fin - dia_inicio)
+        )
+        return dias + 1
