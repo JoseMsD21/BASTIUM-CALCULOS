@@ -121,8 +121,8 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada ✅ Completado](#sprint-22--limpieza-técnica-acumulada--completado)
-- [Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría--completado)
-- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados--completado)
+- [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
+- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
 - [Sprint 25 — Rendimiento del motor de tasas, índices e historial](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial)
 - [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui)
 - [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional)
@@ -2007,7 +2007,7 @@ Suite completa verde tras cada paso (657 passed, 1 skipped, sin cambios de resul
 
 ---
 
-## Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado
+## Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado 
 
 **Prioridad sugerida:** Alta — son bugs reales de ejecución encontrados en auditoría de código
 (2026-07-21), no gaps de alcance; afectan la exactitud de liquidaciones en áreas ya operables y la
@@ -2072,7 +2072,7 @@ alcance. Consultar directamente el código citado abajo.
 
 ---
 
-## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado
+## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados
 
 **Prioridad sugerida:** Alta — hoy es posible guardar datos absurdos (tasas negativas, fechas invertidas,
 tramos de parámetros solapados) sin ningún aviso, y el error solo aparece más tarde como un resultado de
@@ -2120,37 +2120,6 @@ liquidación incorrecto sin explicación.
 - No se propone un catálogo de rangos por campo tipo EFDJ (sería sobre-ingeniería para este alcance) —
   bastan validaciones simples de sentido común por campo.
 
-**Estado:** Implementado (2026-08-02) — ver
-`docs/superpowers/specs/2026-08-01-sprint24-validacion-datos-design.md` y
-`docs/superpowers/plans/2026-08-02-sprint24-validacion-datos.md`. Decisiones tomadas con el usuario
-durante el brainstorming previo (no asumidas unilateralmente):
-- Rango de sentido común para tasas/IBC en `ObligacionFormDialog`: `[0, 1000]` (%), plano y sin relación
-  con el cálculo de usura (`usury_validator.py` sigue siendo la única fuente de verdad legal, y sigue
-  corriendo solo al liquidar). Se eligió sobre un tope de 100% para no arriesgar falsos rechazos de tasas
-  moratorias comerciales legítimas que superen 100% anual.
-- La validación cruzada "fecha de origen/inicio no posterior a la fecha de corte del expediente" aplica a
-  **las 6 áreas** (incluye Laboral, donde el campo se reutiliza como "fecha de inicio del contrato", y
-  Tributario) — no solo a Civil/Familia y Comercial como sugería literalmente el hallazgo original.
-- `parametro_service.agregar_valor` rechaza `valor <= 0` para **cualquier clave** del catálogo, sin
-  distinción — ninguna clave cargada hoy (tasas, SMLMV, IPC, UVT, plazos en meses, puntos de descuento)
-  tiene sentido legal en cero.
-
-`app/views/configuracion.py` perdió su chequeo local de `vigente_hasta < vigente_desde` (ahora vive en el
-service, que es donde debía estar desde el principio — cualquier otro caller, no solo la GUI, queda
-protegido). No se tocó `README.md` (este sprint corrige validación de datos sobre módulos ya documentados,
-no agrega ni cambia funcionalidad visible para el usuario final, no hay módulo que mover de "en
-desarrollo"). `docs/GUIA_USUARIO.md` sí recibió dos notas breves (§7.6 y §7.6.1) aclarando que la
-validación de sentido común (rango 0%-100%) de cuota litis/costas corre al hacer clic en "Guardar",
-distinta y adicional al tope legal (50% acumulado) / rango por cuantía que sigue corriendo solo al
-liquidar.
-
-Dos hallazgos menores de la revisión final de código de este sprint quedaron fuera de alcance (no
-afectan el resultado, no ameritaban bloquear el cierre) y se documentaron como pendientes en otros
-sprints en vez de corregirse aquí: el orden de las validaciones "genéricas" (concepto/fecha) entre las
-3 rutas de guardado de `ObligacionFormDialog` no es 100% uniforme (ver Sprint 27, hallazgo 8), y
-`_validar_fecha_no_posterior_a_corte` abre una sesión de base de datos adicional en cada guardado que
-podría evitarse (ver Sprint 25, hallazgo 6).
-
 **Definición de Hecho:**
 - Tests que confirman que `ObligacionFormDialog` rechaza tasa negativa, porcentaje fuera de rango, y fecha
   de origen posterior a la fecha de corte.
@@ -2187,17 +2156,6 @@ baratas que evitan degradación futura conforme crezcan expedientes y años de h
 5. `app/views/expedientes.py` carga la tabla completa (`session.query(Expediente).all()`) sin paginar ni
    filtrar.
 
-**Hallazgos adicionales (revisión final de código del Sprint 24, 2026-08-02):**
-
-6. `app/views/obligaciones.py` (`ObligacionFormDialog._validar_fecha_no_posterior_a_corte`, agregada en el
-   Sprint 24) abre y cierra su propia sesión SQLAlchemy solo para leer `Expediente.fecha_corte_default`,
-   y unas líneas después el mismo método de guardado (`guardar()`/`_guardar_laboral()`/
-   `_guardar_tributario()`) abre una segunda sesión para insertar la `Obligacion` — dos sesiones por cada
-   guardado en vez de una. Mismo patrón de fondo que los hallazgos 2 y 3 de este sprint (sesión nueva donde
-   no hace falta), aunque aquí es una sola llamada extra por guardado (no un loop), así que el impacto es
-   menor. Se podría cachear `fecha_corte_default` una sola vez en `ObligacionFormDialog.__init__` (ya se
-   conoce `expediente_id` desde ahí) en vez de reconsultarlo en cada guardado.
-
 **Código nuevo a crear:**
 - Cachear el resultado de `get_parametro` (o los valores usados repetidamente) fuera de los loops que
   iteran por obligación/cuota dentro de una misma liquidación.
@@ -2206,8 +2164,6 @@ baratas que evitan degradación futura conforme crezcan expedientes y años de h
 - Agregar `index=True` a las 4 columnas señaladas en `database/models.py` (requiere migración de esquema,
   mismo patrón `scripts/migrate_*.py` ya usado).
 - Evaluar paginación o filtro por defecto en `expedientes.py` si el volumen lo justifica.
-- Cachear `fecha_corte_default` en `ObligacionFormDialog.__init__` en vez de reconsultarla en cada
-  guardado (hallazgo 6).
 
 **Alcance explícitamente excluido:**
 - No se propone cambiar `MemoryRateProvider` de diseño en memoria a una base de datos indexada — solo
@@ -2330,18 +2286,6 @@ mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos 
    el punto 5) o pantallas planeadas sin documentar todavía (ej. una vista "Acerca de", y una vista
    "Reportes" en la GUI separada de `app/reports/`, que ya genera PDF/Word pero no tiene pantalla propia).
 
-**Hallazgos adicionales (revisión final de código del Sprint 24, 2026-08-02):**
-
-8. `app/views/obligaciones.py`: las 3 rutas de guardado de `ObligacionFormDialog` (`guardar()`,
-   `_guardar_laboral()`, `_guardar_tributario()`) llaman a los mismos dos chequeos genéricos agregados en
-   el Sprint 24 (`_validar_concepto_no_vacio()`, `_validar_fecha_no_posterior_a_corte(...)`), pero cada una
-   los ubica en un orden distinto relativo al resto de su propia validación de campos (antes/después del
-   parseo de campos numéricos, antes/después de la validación de área). No es un bug — ningún caso deja de
-   lanzar su `ValueError` — pero significa que el mismo tipo de error de captura (ej. concepto vacío +
-   campo numérico inválido a la vez) muestra un mensaje distinto según el área, solo por el orden en que
-   quedó cableado cada ruta. Detectado en la revisión final de la rama del Sprint 24, no ameritaba bloquear
-   ese cierre.
-
 **Decisión de diseño a tomar antes de codificar:**
 - Para `nlp_extractor.py` y `charts.py`: decidir con el usuario si (a) se eliminan por completo (nadie los
   usa, no están en el roadmap de los Sprints 14-22), o (b) se conservan porque hay intención de conectarlos
@@ -2361,9 +2305,6 @@ mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos 
 - Eliminar el test con parametrize vacío (punto 4) y los 14 archivos fuente + 6 de test de 0 bytes sin
   ambigüedad (puntos 5 y 6).
 - Resolver `about.py`/`reportes.py` (punto 7) según la decisión del usuario.
-- Unificar el orden de `_validar_concepto_no_vacio()`/`_validar_fecha_no_posterior_a_corte(...)` en las 3
-  rutas de guardado de `ObligacionFormDialog` (punto 8) — ej. siempre "parsear campos de área → validar
-  concepto → validar fecha vs. corte", antes de construir el `Obligacion`.
 
 **Definición de Hecho:**
 - `requirements.txt` solo lista paquetes con al menos un import real en el código fuente.
@@ -2371,8 +2312,6 @@ mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos 
   motivo).
 - Cero pruebas `SKIPPED` por lista de parámetros vacía; la suite solo tiene skips con una razón vigente
   (si los hay).
-- Las 3 rutas de guardado de `ObligacionFormDialog` validan concepto/fecha en el mismo orden relativo
-  (punto 8), sin cambiar ningún mensaje de error ya cubierto por un test existente.
 - Suite completa en verde tras cualquier eliminación.
 
 ---
