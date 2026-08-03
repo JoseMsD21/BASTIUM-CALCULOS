@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from datetime import date
-from decimal import Decimal
 from dataclasses import dataclass
-from typing import List
+from datetime import date
+
 from app.engine.financial.rate import Rate
+
 
 class RateProvider(ABC):
     """
@@ -34,7 +34,7 @@ class MemoryRateProvider(RateProvider):
     Proveedor en memoria para inyección en pruebas unitarias y casos estáticos.
     """
     def __init__(self):
-        self._periods: List[RatePeriod] = []
+        self._periods: list[RatePeriod] = []
 
     def add_rate_period(self, start: date, end: date, rate: Rate, source: str = "N/A"):
         self._periods.append(RatePeriod(start, end, rate, source))

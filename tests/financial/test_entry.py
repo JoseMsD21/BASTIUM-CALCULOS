@@ -1,6 +1,5 @@
-from decimal import Decimal
-
 from datetime import date
+from decimal import Decimal
 
 from app.engine.financial.entry import FinancialEntry
 

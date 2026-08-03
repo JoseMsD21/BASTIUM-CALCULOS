@@ -1,6 +1,6 @@
 import calendar
 from datetime import date, timedelta
-from functools import lru_cache
+from functools import cache
 
 import holidays
 
@@ -24,12 +24,12 @@ class CalendarUtils:
         return date(year, month, actual_day)
 
     @staticmethod
-    @lru_cache(maxsize=None)
+    @cache
     def _festivos_colombia(anio: int) -> frozenset:
         return frozenset(holidays.CO(years=anio).keys())
 
     @staticmethod
-    @lru_cache(maxsize=None)
+    @cache
     def _jueves_santo(anio: int) -> date:
         for fecha, nombre in holidays.CO(years=anio).items():
             if "Jueves Santo" in nombre:
@@ -40,7 +40,7 @@ class CalendarUtils:
         )
 
     @staticmethod
-    @lru_cache(maxsize=None)
+    @cache
     def _vacancia_semana_santa(anio: int) -> frozenset:
         # Lunes, Martes y Miercoles Santo (Jueves y Viernes Santo ya son festivos
         # oficiales, cubiertos por _festivos_colombia). Respuesta del despacho,

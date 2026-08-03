@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import List
+
 
 class Event:
 
@@ -14,5 +14,5 @@ class Event:
 class Scheduler(ABC):
 
     @abstractmethod
-    def generate(self, start: date, end: date) -> List[Event]:
+    def generate(self, start: date, end: date) -> list[Event]:
         pass

@@ -7,7 +7,13 @@ from sqlalchemy.orm import sessionmaker
 import database.session as session_module
 from app.views.eventos_laborales import EventoLaboralFormDialog
 from database.models import (
-    AreaDerecho, Base, Expediente, MotivoSuspension, Obligacion, TipoEventoLaboral, TipoObligacion,
+    AreaDerecho,
+    Base,
+    Expediente,
+    MotivoSuspension,
+    Obligacion,
+    TipoEventoLaboral,
+    TipoObligacion,
 )
 
 

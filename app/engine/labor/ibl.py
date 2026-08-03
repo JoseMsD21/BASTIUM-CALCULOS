@@ -1,5 +1,5 @@
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
 from app.engine.indexation.ipc import IPCIndexation

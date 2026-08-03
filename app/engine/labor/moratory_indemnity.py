@@ -39,7 +39,7 @@ class MoratoryIndemnityCalculator:
         monto_adeudado: Decimal,
         fecha_terminacion: date,
         fecha_pago_o_corte: date,
-    ) -> "MoratoryIndemnityResult":
+    ) -> MoratoryIndemnityResult:
         dias_retardo = (fecha_pago_o_corte - fecha_terminacion).days
         if dias_retardo <= 0:
             return MoratoryIndemnityResult(

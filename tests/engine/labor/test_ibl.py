@@ -1,4 +1,5 @@
-from datetime import date, datetime as _dt, timedelta
+from datetime import date, timedelta
+from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest

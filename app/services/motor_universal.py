@@ -1,12 +1,13 @@
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional
-from app.engine.temporal.schedulers.base import Event
-from app.engine.liquidation.engine import LiquidationCore
-from app.engine.liquidation.result import LiquidationResult
+
+from app.domain.obligation.payment import Payment
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import RateProvider
-from app.domain.obligation.payment import Payment
+from app.engine.liquidation.engine import LiquidationCore
+from app.engine.liquidation.result import LiquidationResult
+from app.engine.temporal.schedulers.base import Event
+
 
 class UniversalLiquidationService:
     """
@@ -17,11 +18,11 @@ class UniversalLiquidationService:
     
     def liquidar(
         self,
-        eventos_causacion: List[Event],
-        pagos: List[Payment],
+        eventos_causacion: list[Event],
+        pagos: list[Payment],
         fecha_corte: date,
         tasa_estatica: Decimal = Decimal("0.0"),
-        rate_provider: Optional[RateProvider] = None,
+        rate_provider: RateProvider | None = None,
         usar_suma_unica: bool = False
     ) -> LiquidationResult:
         

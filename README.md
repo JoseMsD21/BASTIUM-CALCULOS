@@ -132,6 +132,16 @@ REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf
 python -m pytest -q
 ```
 
+## Verificar estilo de código (lint)
+
+```
+python -m ruff check .
+```
+
+Configurado en `pyproject.toml` (línea máxima 99, reglas en `[tool.ruff.lint]`). VS Code lo aplica
+automáticamente al guardar si abres la carpeta del proyecto (ver `.vscode/settings.json`) y tienes
+instalada la extensión `charliermarsh.ruff`.
+
 ## Mantenimiento de esta documentación
 
 Cada vez que se completa un sprint de `Pendientes.md` y un módulo pasa de "🚧 en desarrollo" a

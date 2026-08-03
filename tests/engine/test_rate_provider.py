@@ -1,8 +1,11 @@
-import pytest
 from datetime import date
 from decimal import Decimal
+
+import pytest
+
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import MemoryRateProvider, RateProvider
+
 
 def test_memory_rate_provider_resolves_historical_rates():
     provider = MemoryRateProvider()

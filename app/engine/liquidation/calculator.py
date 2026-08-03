@@ -1,5 +1,6 @@
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+
 
 class FamilyLawCalculator:
     """Motor de cálculo para obligaciones de familia (Alimentos, Salud, Educación)."""

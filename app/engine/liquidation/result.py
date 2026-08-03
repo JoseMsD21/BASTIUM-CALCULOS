@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import List, Optional
+
 from app.engine.liquidation.models import LiquidationItem, PendingDebt
 from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
+
 
 @dataclass(frozen=True)
 class LiquidationResult:
@@ -16,8 +17,8 @@ class LiquidationResult:
     informativo, deliberadamente separado (ver design spec, seccion "Renta Liquida
     Gravable no se mezcla con el saldo de deuda").
     """
-    items: List[LiquidationItem]
-    renta_liquida: Optional[RentaLiquidaGravableResult] = None
+    items: list[LiquidationItem]
+    renta_liquida: RentaLiquidaGravableResult | None = None
 
     def total_interest_accrued(self) -> Decimal:
         return sum((item.interest_amount for item in self.items), Decimal("0.00"))

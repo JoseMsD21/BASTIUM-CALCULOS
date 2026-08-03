@@ -1,6 +1,7 @@
 import re
 from decimal import Decimal, InvalidOperation
 
+
 class FinancialParser:
     """
     Sanitizador implacable de entradas financieras.

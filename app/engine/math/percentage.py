@@ -6,8 +6,7 @@ Representa porcentajes matemáticos con precisión Decimal.
 Nunca utiliza float.
 """
 
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 
 class Percentage:

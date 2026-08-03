@@ -1,12 +1,13 @@
 from datetime import date
 from decimal import Decimal
-from typing import List
-from app.engine.temporal.schedulers.family import FamilyScheduler
-from app.engine.temporal.schedulers.base import Event
+
+from app.domain.obligation.payment import Payment
+from app.engine.financial.rate import Rate
 from app.engine.liquidation.engine import LiquidationCore
 from app.engine.liquidation.result import LiquidationResult
-from app.engine.financial.rate import Rate
-from app.domain.obligation.payment import Payment
+from app.engine.temporal.schedulers.base import Event
+from app.engine.temporal.schedulers.family import FamilyScheduler
+
 
 class AlimentosLiquidationService:
     """
@@ -22,7 +23,7 @@ class AlimentosLiquidationService:
         cuota_mensual: Decimal,
         dia_pago: int,
         tasa_diaria_porcentaje: Decimal,
-        pagos: List[Payment]
+        pagos: list[Payment]
     ) -> LiquidationResult:
         
         # 1. Configurar la Tasa de Interés Moratorio Legal/Pactada

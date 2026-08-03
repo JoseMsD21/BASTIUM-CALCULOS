@@ -1,7 +1,8 @@
 from datetime import date
 from decimal import Decimal
-from typing import List, Dict
-from app.engine.temporal.schedulers.base import Scheduler, Event
+
+from app.engine.temporal.schedulers.base import Event, Scheduler
+
 
 class CivilIndemnityScheduler(Scheduler):
     """
@@ -12,7 +13,7 @@ class CivilIndemnityScheduler(Scheduler):
     
     def __init__(self, fecha_hecho_danoso: date):
         self.fecha_hecho = fecha_hecho_danoso
-        self._indemnizaciones: Dict[str, Decimal] = {}
+        self._indemnizaciones: dict[str, Decimal] = {}
 
     def add_indemnity(self, concept: str, amount: Decimal):
         if concept in self._indemnizaciones:
@@ -20,7 +21,7 @@ class CivilIndemnityScheduler(Scheduler):
         else:
             self._indemnizaciones[concept] = amount
 
-    def generate(self, start: date = None, end: date = None) -> List[Event]:
+    def generate(self, start: date = None, end: date = None) -> list[Event]:
         events = []
         for concept, amount in self._indemnizaciones.items():
             if amount > Decimal("0.00"):

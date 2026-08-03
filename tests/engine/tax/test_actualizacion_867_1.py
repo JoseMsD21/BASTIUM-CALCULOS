@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine
@@ -13,7 +14,6 @@ from app.engine.tax.actualizacion_867_1 import (
     calcular_interes_usura_plena,
 )
 from app.engine.tax.moratory_interest import calcular_interes_moratorio_tributario
-from decimal import Decimal
 
 
 @pytest.fixture(autouse=True)

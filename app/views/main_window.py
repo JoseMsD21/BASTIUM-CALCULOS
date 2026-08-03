@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QMainWindow, QPushButton, QStackedWidget, QToolBar
 
 from app.views.configuracion import ParametrosView
-from app.views.expedientes import ExpedientesListView
 from app.views.expediente_detalle import ExpedienteDetallePage
+from app.views.expedientes import ExpedientesListView
 from app.views.liquidaciones import ResultadoLiquidacionView
 
 

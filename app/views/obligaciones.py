@@ -1,6 +1,5 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import List
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
@@ -366,7 +365,7 @@ class ObligacionFormDialog(QDialog):
         session.close()
         return obligacion_id
 
-    def _parse_decimales(self, campos: List[QLineEdit], mensaje_error: str) -> List[Decimal]:
+    def _parse_decimales(self, campos: list[QLineEdit], mensaje_error: str) -> list[Decimal]:
         """Parsea 1+ QLineEdit a Decimal bajo un solo mensaje de error compartido --
         replica el try/except conjunto que ya usaban los bloques por area de guardar()
         (ej. tasa moratoria + IBC bajo un mismo mensaje)."""

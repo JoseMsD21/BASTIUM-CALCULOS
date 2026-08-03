@@ -1,6 +1,7 @@
-from typing import List, Dict
 from decimal import Decimal
+
 from app.engine.liquidation.result import LiquidationResult
+
 
 class ReportTableBuilder:
     """
@@ -9,7 +10,7 @@ class ReportTableBuilder:
     de diccionarios formateados, listos para ser inyectados en PDF, Excel o UI.
     """
 
-    def build_matrix(self, result: LiquidationResult) -> List[Dict[str, str]]:
+    def build_matrix(self, result: LiquidationResult) -> list[dict[str, str]]:
         matrix = []
         
         for item in result.items:

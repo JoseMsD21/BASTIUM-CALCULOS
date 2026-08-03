@@ -1,5 +1,7 @@
 from decimal import Decimal
+
 from app.engine.liquidation.models import PendingDebt
+
 
 class BalanceEngine:
     """

@@ -36,7 +36,7 @@ class IncapacidadCalculator:
     @staticmethod
     def calcular(
         tipo: TipoEventoLaboral, ibc_mensual: Decimal, dias_incapacidad: int
-    ) -> "IncapacidadResult":
+    ) -> IncapacidadResult:
         ibc_diario = ibc_mensual / Decimal("30")
 
         if tipo == TipoEventoLaboral.INCAPACIDAD_LABORAL:

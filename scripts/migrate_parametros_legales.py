@@ -52,10 +52,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from datetime import date, datetime
 from decimal import Decimal
 
-from database.database import init_db
-from database.models import ParametroLegal
-from database.session import get_session
-
 from app.engine.indexation.historical_index import (
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
@@ -70,6 +66,9 @@ from app.engine.temporal.prescripcion import (
     PLAZOS_PRESCRIPCION_MESES,
     TipoAccion,
 )
+from database.database import init_db
+from database.models import ParametroLegal
+from database.session import get_session
 
 USUARIO_MIGRACION = "sistema"
 MOTIVO_MIGRACION = (

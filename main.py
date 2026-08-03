@@ -2,8 +2,8 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from database.database import init_db
 from app.views.main_window import MainWindow
+from database.database import init_db
 
 
 def main() -> None:

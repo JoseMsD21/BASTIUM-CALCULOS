@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
+
 class TimelineEngine:
 
     def __init__(self, events, interest_rate):

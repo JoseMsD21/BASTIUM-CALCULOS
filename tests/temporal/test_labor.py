@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+
 from app.engine.temporal.schedulers.labor import LaborScheduler
 
 

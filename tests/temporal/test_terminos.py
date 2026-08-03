@@ -2,12 +2,12 @@ from datetime import date
 
 from app.engine.temporal.terminos import (
     EstadoTermino,
-    iniciar_termino,
     dias_restantes,
     esta_vencido,
+    iniciar_termino,
     interrumpir,
-    suspender,
     reanudar,
+    suspender,
 )
 
 # Fechas elegidas deliberadamente fuera de la vacancia judicial de fin de año

@@ -7,8 +7,15 @@ from sqlalchemy.orm import sessionmaker
 import database.database as database_module
 import database.session as session_module
 from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO
-from database.models import AreaDerecho, Base, Expediente, Obligacion, ParametroLegal, TipoObligacion, Abono
 from app.views.expediente_detalle import ExpedienteDetallePage
+from database.models import (
+    AreaDerecho,
+    Base,
+    Expediente,
+    Obligacion,
+    ParametroLegal,
+    TipoObligacion,
+)
 
 
 def _expediente_con_obligacion(monkeypatch) -> int:

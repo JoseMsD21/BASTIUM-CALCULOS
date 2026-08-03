@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Callable, List, Optional
 
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.domain.obligation.payment import Payment
@@ -12,25 +12,20 @@ from app.engine.costs.agencias_en_derecho import (
     calcular_agencias_en_derecho,
     validar_costas_pct_manual,
 )
-from app.engine.financial.rate import Rate
-from app.engine.interest.provider import MemoryRateProvider
-from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.currency.converter import convertir_a_pesos
 from app.engine.currency.trm_provider import ManualTRMProvider, SFCTRMProvider, TRMProvider
+from app.engine.financial.rate import Rate
+from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
+from app.engine.indexation.ipc import IPCIndexation
+from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
+from app.engine.interest.provider import MemoryRateProvider
+from app.engine.interest.rate_conversion import EffectiveRateConverter
+from app.engine.interest.usury_validator import calcular_tope_usura
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.seguridad_social import SeguridadSocialCalculator
 from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
 from app.engine.liquidation.result import LiquidationResult
-from app.engine.temporal.schedulers.base import Event
-from app.engine.temporal.schedulers.family import FamilyScheduler
-from app.engine.temporal.schedulers.labor import LaborScheduler
-from app.engine.interest.usury_validator import calcular_tope_usura
-from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
-from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
-from app.engine.indexation.ipc import IPCIndexation
-from app.services.motor_universal import UniversalLiquidationService
-from app.services.parametro_service import get_parametro
 from app.engine.tax.actualizacion_867_1 import (
     aplica_actualizacion_867_1,
     calcular_indexacion_867_1,
@@ -46,6 +41,11 @@ from app.engine.tax.sanciones import (
     calcular_sancion_extemporaneidad,
     calcular_sancion_inexactitud,
 )
+from app.engine.temporal.schedulers.base import Event
+from app.engine.temporal.schedulers.family import FamilyScheduler
+from app.engine.temporal.schedulers.labor import LaborScheduler
+from app.services.motor_universal import UniversalLiquidationService
+from app.services.parametro_service import get_parametro
 
 
 def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
@@ -81,10 +81,10 @@ def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> 
 
 
 def _liquidar_por_obligacion(
-    obligaciones: List,
-    abonos: List,
+    obligaciones: list,
+    abonos: list,
     fecha_corte: date,
-    eventos_fn: Callable[[object], List[Event]],
+    eventos_fn: Callable[[object], list[Event]],
     rate_provider_fn: Callable[[object, date], MemoryRateProvider],
     usar_suma_unica_fn: Callable[[object], bool] = lambda obligacion: False,
     monto_abono_fn: Callable[[object, object], Decimal] = lambda obligacion, abono: abono.monto,
@@ -138,7 +138,7 @@ def _liquidar_por_obligacion(
     return _fusionar_resultados(resultados, fecha_corte)
 
 
-def _fusionar_resultados(resultados: List[LiquidationResult], fecha_corte: date) -> LiquidationResult:
+def _fusionar_resultados(resultados: list[LiquidationResult], fecha_corte: date) -> LiquidationResult:
     """Intercala los items de N LiquidationResult (uno por obligacion) en una sola linea
     de tiempo cronologica, recalculando el saldo consolidado del expediente en cada fila.
     Colapsa a la identidad cuando hay una sola obligacion (garantiza que los expedientes
@@ -158,7 +158,7 @@ def _fusionar_resultados(resultados: List[LiquidationResult], fecha_corte: date)
 
     saldo_cero = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
     ultimo_estado = {indice: saldo_cero for indice in range(len(resultados))}
-    items_fusionados: List[LiquidationItem] = []
+    items_fusionados: list[LiquidationItem] = []
     for _fecha, indice_obligacion, _posicion, item in filas_regulares:
         ultimo_estado[indice_obligacion] = item.balance.debt
         saldo_consolidado = PendingDebt(
@@ -208,7 +208,7 @@ class AreaStrategy(ABC):
     soporta_indexacion_ipc: bool = True
 
     @abstractmethod
-    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+    def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         raise NotImplementedError
 
     @staticmethod
@@ -241,7 +241,7 @@ class CivilFamiliaStrategy(AreaStrategy):
     no es alcanzable con el modelo de datos actual.
     """
 
-    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+    def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
@@ -267,7 +267,7 @@ class CivilFamiliaStrategy(AreaStrategy):
         version original de este metodo, escrita antes del Sprint 21)."""
         return bool(obligacion.aplica_indexacion_ipc) and bool(obligacion.interes_sobre_capital_indexado)
 
-    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
+    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
         if obligacion.tipo.value == "PUNTUAL":
             eventos = [
                 Event(
@@ -370,10 +370,10 @@ class ComercialStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
-    def __init__(self, trm_provider: Optional[TRMProvider] = None):
+    def __init__(self, trm_provider: TRMProvider | None = None):
         self._trm_provider_default = trm_provider or SFCTRMProvider()
 
-    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+    def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
@@ -401,7 +401,7 @@ class ComercialStrategy(AreaStrategy):
 
         return resultado
 
-    def _calcular_sancion_usura(self, obligacion, abonos: List, fecha_corte: date) -> Optional[dict]:
+    def _calcular_sancion_usura(self, obligacion, abonos: list, fecha_corte: date) -> dict | None:
         """Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): una tasa
         pactada por encima de la usura NO se rechaza ni se recorta silenciosamente.
         Se liquida con la tasa realmente pactada y, aparte, se calcula:
@@ -451,7 +451,7 @@ class ComercialStrategy(AreaStrategy):
         }
 
     def _aplicar_sanciones_usura(
-        self, resultado: LiquidationResult, ajustes: List[dict], fecha_corte: date
+        self, resultado: LiquidationResult, ajustes: list[dict], fecha_corte: date
     ) -> LiquidationResult:
         items = list(resultado.items)
         saldo = resultado.final_balance()
@@ -568,19 +568,19 @@ class ComercialStrategy(AreaStrategy):
         sin tocar -- identico al comportamiento de siempre."""
         return self._valor_en_pesos_en_fecha(abono.monto, obligacion, abono.fecha)
 
-    def _fecha_capitalizacion_anatocismo(self, obligacion) -> Optional[date]:
+    def _fecha_capitalizacion_anatocismo(self, obligacion) -> date | None:
         if obligacion.anatocismo_demanda_judicial:
             return obligacion.fecha_vencimiento + timedelta(days=365)
         if obligacion.anatocismo_fecha_acuerdo is not None:
             return obligacion.anatocismo_fecha_acuerdo
         return None
 
-    def _eventos_anatocismo(self, obligacion, fecha_corte: date) -> List[Event]:
+    def _eventos_anatocismo(self, obligacion, fecha_corte: date) -> list[Event]:
         fecha_capitalizacion = self._fecha_capitalizacion_anatocismo(obligacion)
         if fecha_capitalizacion is None or fecha_capitalizacion > fecha_corte:
             return []
 
-        eventos: List[Event] = []
+        eventos: list[Event] = []
         fecha_evento = fecha_capitalizacion
         while fecha_evento <= fecha_corte:
             eventos.append(
@@ -595,7 +595,7 @@ class ComercialStrategy(AreaStrategy):
             fecha_evento += timedelta(days=365)
         return eventos
 
-    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
+    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
         valor_pesos = self._valor_en_pesos(obligacion)
         if obligacion.tipo.value == "PUNTUAL":
             eventos = [
@@ -623,7 +623,7 @@ class ComercialStrategy(AreaStrategy):
         return scheduler.generate(start=obligacion.fecha_inicio, end=fin)
 
     def _construir_rate_provider_obligacion(
-        self, obligacion, fecha_corte: date, tope: Optional[Decimal] = None
+        self, obligacion, fecha_corte: date, tope: Decimal | None = None
     ) -> MemoryRateProvider:
         """`tope` (Sprint 2, sancion de usura): si se pasa, recorta ambas tasas
         (remuneratoria y moratoria) a ese tope antes de convertirlas a diarias --
@@ -690,7 +690,7 @@ class LaboralStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
-    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+    def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
         if len(obligaciones) != 1:
@@ -879,7 +879,7 @@ class SancionatorioStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
-    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+    def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
@@ -906,7 +906,7 @@ class SancionatorioStrategy(AreaStrategy):
                 f"'cantidad_smlmv_uvt' para liquidar."
             )
 
-    def _eventos_de_obligacion(self, obligacion) -> List[Event]:
+    def _eventos_de_obligacion(self, obligacion) -> list[Event]:
         monto_pesos = resolver_base_sancion(obligacion.fecha_origen, obligacion.cantidad_smlmv_uvt)
         eventos = [
             Event(
@@ -948,7 +948,7 @@ class HonorariosStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
-    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+    def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
@@ -994,7 +994,7 @@ class HonorariosStrategy(AreaStrategy):
     def _cuota_litis_monto(self, obligacion) -> Decimal:
         return obligacion.beneficio_obtenido * obligacion.cuota_litis_pactada_pct / Decimal("100")
 
-    def _eventos_de_obligacion(self, obligacion) -> List[Event]:
+    def _eventos_de_obligacion(self, obligacion) -> list[Event]:
         cuota_litis_monto = self._cuota_litis_monto(obligacion)
         total_honorarios = obligacion.honorarios_fijos_pactados + cuota_litis_monto
 
@@ -1067,7 +1067,7 @@ class TributarioStrategy(AreaStrategy):
 
     soporta_indexacion_ipc = False
 
-    def liquidar(self, obligaciones: List, abonos: List, fecha_corte: date) -> LiquidationResult:
+    def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
@@ -1145,7 +1145,7 @@ class TributarioStrategy(AreaStrategy):
             f"Categoria tributaria desconocida: '{obligacion.categoria}'."
         )
 
-    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> List[Event]:
+    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
         eventos = [self._evento_de_obligacion(obligacion)]
         if aplica_actualizacion_867_1(obligacion.fecha_origen, fecha_corte):
             eventos.append(self._evento_actualizacion_867_1(obligacion, fecha_corte))

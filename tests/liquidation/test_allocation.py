@@ -1,7 +1,9 @@
 from datetime import date
 from decimal import Decimal
-from app.engine.liquidation.models import PendingDebt
+
 from app.engine.liquidation.allocation import AllocationEngine
+from app.engine.liquidation.models import PendingDebt
+
 
 def test_full_payment_allocation():
     debt = PendingDebt(Decimal("1000.00"), Decimal("200.00"), Decimal("50.00"))

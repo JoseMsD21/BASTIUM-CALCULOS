@@ -1,10 +1,11 @@
-import pytest
 from datetime import date
 from decimal import Decimal
-from app.services.motor_universal import UniversalLiquidationService
-from app.engine.temporal.schedulers.civil import CivilIndemnityScheduler
-from app.engine.temporal.schedulers.base import Event
+
 from app.domain.obligation.payment import Payment
+from app.engine.temporal.schedulers.base import Event
+from app.engine.temporal.schedulers.civil import CivilIndemnityScheduler
+from app.services.motor_universal import UniversalLiquidationService
+
 
 def test_liquidar_pagare_comercial_con_abonos():
     # Caso 1: Derecho Comercial (Pagaré)

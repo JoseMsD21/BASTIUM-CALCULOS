@@ -1,7 +1,10 @@
 import re
 from datetime import datetime
+
 from rich.prompt import Prompt
+
 from app.engine.math.parsers import FinancialParser
+
 
 class LegalTextExtractor:
     """

@@ -20,7 +20,6 @@ sprint futuro no asignado).
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Tuple
 
 import database.session as session_module
 from app.core.exceptions import IPCMensualNoDisponibleError, ParametroNoDisponibleError
@@ -28,14 +27,13 @@ from app.engine.time.calendar import CalendarUtils
 from app.services.parametro_service import get_parametro, ultimo_anio_disponible
 from database.models import ParametroLegal
 
-
 # ---------------------------------------------------------------------------
 # SMLMV (Salario Minimo Legal Mensual Vigente), 1984-2026.
 # Transcrito de la pagina 55-57 del PDF. 2027 no esta incluido: el PDF lo lista
 # como "Por definir" (el Gobierno aun no lo habia fijado a la fecha del documento).
 # ---------------------------------------------------------------------------
 
-_SMLMV_POR_ANIO: Dict[int, Decimal] = {
+_SMLMV_POR_ANIO: dict[int, Decimal] = {
     1984: Decimal("11298.00"),
     1985: Decimal("13558.00"),
     1986: Decimal("16811.00"),
@@ -104,7 +102,7 @@ def get_smlmv_for_year(anio: int) -> Decimal:
 # espera un indice, asi que se deriva uno encadenando las variaciones anuales.
 # ---------------------------------------------------------------------------
 
-_IPC_VARIACION_ANUAL: Dict[int, Decimal] = {
+_IPC_VARIACION_ANUAL: dict[int, Decimal] = {
     1967: Decimal("7.90"),
     1968: Decimal("6.46"),
     1969: Decimal("8.90"),
@@ -167,7 +165,7 @@ _IPC_VARIACION_ANUAL: Dict[int, Decimal] = {
 }
 
 
-def _construir_indice_ipc_acumulado(variacion_anual: Dict[int, Decimal]) -> Dict[int, Decimal]:
+def _construir_indice_ipc_acumulado(variacion_anual: dict[int, Decimal]) -> dict[int, Decimal]:
     """Encadena la variacion porcentual anual en un indice acumulado de cierre de año
     (31-dic). Base 100 anclada antes del primer año de datos (indice implicito de
     1966 = 100). La eleccion de base no afecta IPCIndexation.calculate(), que solo
@@ -176,14 +174,14 @@ def _construir_indice_ipc_acumulado(variacion_anual: Dict[int, Decimal]) -> Dict
     centavos ya ocurre en Rounding.money() dentro de IPCIndexation.calculate(), no
     aqui."""
     indice = Decimal("100")
-    acumulado: Dict[int, Decimal] = {}
+    acumulado: dict[int, Decimal] = {}
     for anio in sorted(variacion_anual):
         indice = indice * (Decimal("1") + variacion_anual[anio] / Decimal("100"))
         acumulado[anio] = indice
     return acumulado
 
 
-_IPC_INDICE_ACUMULADO: Dict[int, Decimal] = _construir_indice_ipc_acumulado(_IPC_VARIACION_ANUAL)
+_IPC_INDICE_ACUMULADO: dict[int, Decimal] = _construir_indice_ipc_acumulado(_IPC_VARIACION_ANUAL)
 
 
 def get_ipc_for_date(fecha: date) -> Decimal:
@@ -256,7 +254,7 @@ def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
 # misma falta de fuente.
 # ---------------------------------------------------------------------------
 
-_IPC_MENSUAL: Dict[Tuple[int, int], Decimal] = {}
+_IPC_MENSUAL: dict[tuple[int, int], Decimal] = {}
 
 
 def get_ipc_mensual_for_month(anio: int, mes: int) -> Decimal:
@@ -323,7 +321,7 @@ class TramoIBCUsura:
     usura_anual: Decimal
 
 
-_TRAMOS_IBC_USURA: List[TramoIBCUsura] = [
+_TRAMOS_IBC_USURA: list[TramoIBCUsura] = [
     TramoIBCUsura(date(1997, 7, 1), date(1997, 8, 31), Decimal("36.50"), Decimal("54.75")),
     TramoIBCUsura(date(1997, 9, 1), date(1997, 9, 30), Decimal("31.84"), Decimal("47.76")),
     TramoIBCUsura(date(1997, 10, 1), date(1997, 10, 31), Decimal("31.33"), Decimal("46.99")),
@@ -590,7 +588,7 @@ _TRAMOS_IBC_USURA: List[TramoIBCUsura] = [
 ]
 
 
-def get_ibc_usura_for_date(fecha: date) -> Tuple[Decimal, Decimal]:
+def get_ibc_usura_for_date(fecha: date) -> tuple[Decimal, Decimal]:
     """Retorna (ibc_anual, usura_anual) certificados por la SFC para la linea
     'Consumo y Ordinario' (sucesora de 'Comercial' desde 2007) vigentes en
     `fecha`, consultando parametros_legales (claves IBC_CONSUMO_ORDINARIO y
@@ -606,7 +604,7 @@ def get_ibc_usura_for_date(fecha: date) -> Tuple[Decimal, Decimal]:
     return (ibc, usura)
 
 
-def get_tramos_ibc_usura_between(inicio: date, fin: date) -> List[TramoIBCUsura]:
+def get_tramos_ibc_usura_between(inicio: date, fin: date) -> list[TramoIBCUsura]:
     """Tramos de IBC/usura que se solapan con [inicio, fin], en orden
     cronologico, reconstruidos desde parametros_legales (clave
     USURA_CONSUMO_ORDINARIO, la que trae el ibc_anual asociado se resuelve por
@@ -655,7 +653,7 @@ def get_tramos_ibc_usura_between(inicio: date, fin: date) -> List[TramoIBCUsura]
 # tabla completa con resolucion DIAN por año y las URLs consultadas.
 # ---------------------------------------------------------------------------
 
-_UVT_POR_ANIO: Dict[int, Decimal] = {
+_UVT_POR_ANIO: dict[int, Decimal] = {
     2006: Decimal("20000.00"),
     2007: Decimal("20974.00"),
     2008: Decimal("22054.00"),

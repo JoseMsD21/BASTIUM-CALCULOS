@@ -96,7 +96,6 @@ def test_get_parametro_modo_tramo_cerrado_no_extrapola_mas_alla_del_ultimo_tramo
         get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 2, 1))
 
 
-from datetime import datetime as _datetime  # noqa: E402  (kept near top-level imports style of this repo)
 
 
 def test_agregar_valor_modo_abierto_no_admite_vigente_hasta():

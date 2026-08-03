@@ -1,7 +1,9 @@
 from datetime import date
 from decimal import Decimal
-from app.engine.liquidation.models import LiquidationItem, RunningBalance, PendingDebt
+
+from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
 from app.engine.liquidation.result import LiquidationResult
+
 
 def test_liquidation_result_aggregation():
     debt1 = PendingDebt(Decimal("1000"), Decimal("100"), Decimal("0"))

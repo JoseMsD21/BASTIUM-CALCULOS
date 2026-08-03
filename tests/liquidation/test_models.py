@@ -1,12 +1,17 @@
-import pytest
+from dataclasses import FrozenInstanceError
 from datetime import date
 from decimal import Decimal
-from dataclasses import FrozenInstanceError
+
+import pytest
 
 from app.engine.liquidation.models import (
-    Installment, PaymentAllocation, PendingDebt,
-    RunningBalance, LiquidationItem
+    Installment,
+    LiquidationItem,
+    PaymentAllocation,
+    PendingDebt,
+    RunningBalance,
 )
+
 
 def test_installment_creation():
     inst = Installment(

@@ -8,15 +8,15 @@ from sqlalchemy.orm import sessionmaker
 import database.session as session_module
 from app.core.exceptions import TarifaNoDisponibleError
 from app.engine.costs.agencias_en_derecho import (
+    TARIFAS_AGENCIAS_EN_DERECHO,
+    TOPE_MAXIMO_SMLMV,
+    UMBRAL_MENOR_CUANTIA_SMLMV,
+    UMBRAL_MINIMA_CUANTIA_SMLMV,
     CuantiaTier,
     Instancia,
     RangoTarifa,
     TipoProceso,
-    TOPE_MAXIMO_SMLMV,
-    UMBRAL_MENOR_CUANTIA_SMLMV,
-    UMBRAL_MINIMA_CUANTIA_SMLMV,
     UnidadTarifa,
-    TARIFAS_AGENCIAS_EN_DERECHO,
     _interpolar_dentro_de_rango,
     calcular_agencias_en_derecho,
     resolver_cuantia_tier,

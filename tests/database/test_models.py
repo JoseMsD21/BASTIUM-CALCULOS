@@ -6,8 +6,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from database.models import (
-    Base, Expediente, Obligacion, Abono, AuditLog, AreaDerecho, TipoObligacion,
-    EventoLaboral, TipoEventoLaboral, MotivoSuspension,
+    Abono,
+    AreaDerecho,
+    AuditLog,
+    Base,
+    EventoLaboral,
+    Expediente,
+    MotivoSuspension,
+    Obligacion,
+    TipoEventoLaboral,
+    TipoObligacion,
 )
 
 

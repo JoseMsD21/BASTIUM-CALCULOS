@@ -1,9 +1,10 @@
-import pytest
 from datetime import date
 from decimal import Decimal
-from app.engine.liquidation.models import LiquidationItem, RunningBalance, PendingDebt
+
+from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.reports.table_builder import ReportTableBuilder
+
 
 def test_table_builder_formats_currency_and_dates_correctly():
     # Simulamos el final de una liquidación

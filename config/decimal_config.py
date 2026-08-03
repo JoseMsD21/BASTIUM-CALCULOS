@@ -10,8 +10,7 @@ Autor:
 Proyecto LEXIA
 """
 
-from decimal import getcontext
-from decimal import ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, getcontext
 
 # Precisión interna alta para evitar errores acumulativos.
 getcontext().prec = 28

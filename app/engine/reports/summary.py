@@ -1,13 +1,14 @@
-from typing import Dict
 from decimal import Decimal
+
 from app.engine.liquidation.result import LiquidationResult
+
 
 class ReportSummaryBuilder:
     """
     Capa de presentación de alto nivel.
     Extrae las métricas globales de la liquidación para el auto interlocutorio.
     """
-    def build_summary(self, result: LiquidationResult) -> Dict[str, str]:
+    def build_summary(self, result: LiquidationResult) -> dict[str, str]:
         if result.is_empty():
             return self._build_zero_summary()
 
@@ -40,7 +41,7 @@ class ReportSummaryBuilder:
             "renta_liquida_gravable": self._format(rl.renta_liquida_gravable),
         }
 
-    def _build_zero_summary(self) -> Dict[str, str]:
+    def _build_zero_summary(self) -> dict[str, str]:
         zero = self._format(Decimal("0.00"))
         return {
             "total_abonos": zero,

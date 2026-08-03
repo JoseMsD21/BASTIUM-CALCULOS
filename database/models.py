@@ -4,7 +4,8 @@ import enum
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
@@ -81,10 +82,10 @@ class Expediente(Base):
     juzgado: Mapped[str | None] = mapped_column(String(200), nullable=True)
     fecha_corte_default: Mapped[date] = mapped_column(Date)
 
-    obligaciones: Mapped[list["Obligacion"]] = relationship(
+    obligaciones: Mapped[list[Obligacion]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
     )
-    audit_logs: Mapped[list["AuditLog"]] = relationship(
+    audit_logs: Mapped[list[AuditLog]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
     )
 
@@ -133,11 +134,11 @@ class Obligacion(Base):
     incluir_seguridad_social: Mapped[bool] = mapped_column(Boolean, default=False)
     nivel_riesgo_arl: Mapped[str | None] = mapped_column(String(2), nullable=True)
 
-    expediente: Mapped["Expediente"] = relationship(back_populates="obligaciones")
-    abonos: Mapped[list["Abono"]] = relationship(
+    expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
+    abonos: Mapped[list[Abono]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
-    eventos_laborales: Mapped[list["EventoLaboral"]] = relationship(
+    eventos_laborales: Mapped[list[EventoLaboral]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
 
@@ -151,7 +152,7 @@ class Abono(Base):
     monto: Mapped[Decimal] = mapped_column(Numeric(18, 2))
     referencia: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
-    obligacion: Mapped["Obligacion"] = relationship(back_populates="abonos")
+    obligacion: Mapped[Obligacion] = relationship(back_populates="abonos")
 
 
 class EventoLaboral(Base):
@@ -171,7 +172,7 @@ class EventoLaboral(Base):
         SAEnum(MotivoSuspension), nullable=True
     )
 
-    obligacion: Mapped["Obligacion"] = relationship(back_populates="eventos_laborales")
+    obligacion: Mapped[Obligacion] = relationship(back_populates="eventos_laborales")
 
 
 class AuditLog(Base):
@@ -185,7 +186,7 @@ class AuditLog(Base):
     area_derecho: Mapped[str] = mapped_column(String(50))
     resultado_json: Mapped[str] = mapped_column(Text)
 
-    expediente: Mapped["Expediente"] = relationship(back_populates="audit_logs")
+    expediente: Mapped[Expediente] = relationship(back_populates="audit_logs")
 
 
 class ParametroLegal(Base):

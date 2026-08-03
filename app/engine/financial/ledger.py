@@ -1,5 +1,4 @@
 from decimal import Decimal
-from typing import List
 
 from .entry import FinancialEntry
 
@@ -8,7 +7,7 @@ class Ledger:
 
     def __init__(self):
 
-        self.entries: List[FinancialEntry] = []
+        self.entries: list[FinancialEntry] = []
 
     def add(self, entry: FinancialEntry):
 

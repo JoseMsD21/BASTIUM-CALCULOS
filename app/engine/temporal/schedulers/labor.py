@@ -1,8 +1,9 @@
 from datetime import date
 from decimal import Decimal
-from typing import List
-from app.engine.temporal.schedulers.base import Scheduler, Event
+
 from app.engine.math.rounding import Rounding
+from app.engine.temporal.schedulers.base import Event, Scheduler
+
 
 class LaborScheduler(Scheduler):
     """
@@ -20,7 +21,7 @@ class LaborScheduler(Scheduler):
         self.fecha_liquidacion = fecha_liquidacion
         self.base_anual = Decimal("360")
 
-    def generate(self, start: date = None, end: date = None) -> List[Event]:
+    def generate(self, start: date = None, end: date = None) -> list[Event]:
         events = []
 
         # 1. Cesantias: 30 dias de salario por año laborado o proporcional.

@@ -5,8 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
 from app.views.obligaciones import ObligacionFormDialog
+from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
 
 
 def _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA) -> int:

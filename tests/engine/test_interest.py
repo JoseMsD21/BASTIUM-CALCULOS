@@ -1,9 +1,10 @@
-import pytest
 from decimal import Decimal
+
 from app.engine.financial.rate import Rate
+from app.engine.interest.compound_interest import CompoundInterest
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.monthly_interest import MonthlyInterest
-from app.engine.interest.compound_interest import CompoundInterest
+
 
 def test_daily_interest_calculation():
     # Escenario: Capital de $1,000,000 a una tasa diaria del 0.1% durante 15 días.

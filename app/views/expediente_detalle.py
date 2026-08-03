@@ -20,7 +20,11 @@ from app.core.exceptions import (
     TRMNoDisponibleError,
     UVTNoDisponibleError,
 )
-from app.engine.audit.service import historial_de_expediente, reconstruir_liquidacion, registrar_liquidacion
+from app.engine.audit.service import (
+    historial_de_expediente,
+    reconstruir_liquidacion,
+    registrar_liquidacion,
+)
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog

@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import List
-from dataclasses import dataclass
-from app.engine.temporal.schedulers.base import Scheduler, Event
+
+from app.engine.temporal.schedulers.base import Event, Scheduler
 from app.engine.time.calendar import CalendarUtils
+
 
 @dataclass
 class RecurringRule:
@@ -22,7 +23,7 @@ class RecurringScheduler(Scheduler):
         self.event_type = event_type
         self.label = label
 
-    def generate(self, start: date, end: date) -> List[Event]:
+    def generate(self, start: date, end: date) -> list[Event]:
         events = []
         current_year = start.year
         current_month = start.month

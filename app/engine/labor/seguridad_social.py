@@ -37,7 +37,7 @@ class SeguridadSocialCalculator:
         dias_suspension: int,
         nivel_riesgo_arl: str,
         fecha_referencia: date,
-    ) -> "CotizacionesResult":
+    ) -> CotizacionesResult:
         dias_trab = Decimal(str(dias_trabajados))
         dias_susp = Decimal(str(dias_suspension))
 

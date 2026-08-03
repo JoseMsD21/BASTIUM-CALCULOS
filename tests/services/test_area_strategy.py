@@ -1,4 +1,5 @@
-from datetime import date as _date, datetime as _dt
+from datetime import date as _date
+from datetime import datetime as _dt
 from decimal import Decimal as _Decimal
 
 import pytest
@@ -167,7 +168,7 @@ def test_areas_no_implementadas_lanzan_error_claro_al_liquidar(area_name, strate
 from datetime import date, timedelta
 from decimal import Decimal
 
-from database.models import AreaDerecho, Abono, Expediente, Obligacion, TipoObligacion
+from database.models import Abono, Obligacion, TipoObligacion
 
 
 def _obligacion_puntual(expediente_id=1, valor=Decimal("427900.00")):
@@ -1809,7 +1810,11 @@ class TestLaboralStrategy:
         assert resultado is not None  # no lanza error
 
     def test_laboral_genera_evento_de_costas_si_esta_configurado(self):
-        from app.engine.costs.agencias_en_derecho import Instancia, TipoProceso, calcular_agencias_en_derecho
+        from app.engine.costs.agencias_en_derecho import (
+            Instancia,
+            TipoProceso,
+            calcular_agencias_en_derecho,
+        )
         from app.engine.temporal.schedulers.labor import LaborScheduler
 
         # _obligacion_laboral no acepta 'valor' como parametro (usa 'salario'), y

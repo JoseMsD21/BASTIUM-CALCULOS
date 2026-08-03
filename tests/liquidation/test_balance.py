@@ -1,7 +1,8 @@
 from decimal import Decimal
-import pytest
-from app.engine.liquidation.models import PendingDebt
+
 from app.engine.liquidation.balance import BalanceEngine
+from app.engine.liquidation.models import PendingDebt
+
 
 def test_add_principal_creates_new_state():
     initial_debt = PendingDebt(Decimal("1000.00"), Decimal("0.00"), Decimal("0.00"))

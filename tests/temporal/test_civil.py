@@ -1,7 +1,8 @@
-import pytest
 from datetime import date
 from decimal import Decimal
+
 from app.engine.temporal.schedulers.civil import CivilIndemnityScheduler
+
 
 def test_civil_indemnity_scheduler():
     # Escenario: Una sentencia condena al pago de perjuicios por un siniestro

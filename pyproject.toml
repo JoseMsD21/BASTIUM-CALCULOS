@@ -1,0 +1,9 @@
+[tool.ruff]
+line-length = 99
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "config", "database"]

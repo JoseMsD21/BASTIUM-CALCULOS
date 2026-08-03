@@ -1,7 +1,8 @@
-import pytest
 from decimal import Decimal
+
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.indexation.smmlv import SMMLVCalculator
+
 
 def test_ipc_indexation_calculation():
     # Escenario real:

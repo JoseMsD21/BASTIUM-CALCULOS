@@ -7,8 +7,8 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.constants import AREAS_DERECHO
+from app.views.expedientes import ExpedienteFormDialog, ExpedientesListView
 from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
-from app.views.expedientes import ExpedientesListView, ExpedienteFormDialog
 
 
 def _sesion_en_memoria(monkeypatch):

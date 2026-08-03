@@ -1,6 +1,8 @@
 from decimal import Decimal
+
 from app.engine.financial.rate import Rate
 from app.engine.math.rounding import Rounding
+
 
 class DailyInterest:
     """

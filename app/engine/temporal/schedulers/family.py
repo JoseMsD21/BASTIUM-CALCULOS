@@ -1,8 +1,9 @@
 from datetime import date
 from decimal import Decimal
-from typing import List
+
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.recurring import RecurringRule, RecurringScheduler
+
 
 class FamilyScheduler:
     """
@@ -11,7 +12,7 @@ class FamilyScheduler:
     estricta de eventos procesables por el motor de liquidación[cite: 1].
     """
     def __init__(self):
-        self.schedulers: List[RecurringScheduler] = []
+        self.schedulers: list[RecurringScheduler] = []
 
     def add_monthly_obligation(self, amount: Decimal, concept: str, due_day: int, category: str = "CHILD_SUPPORT"):
         rule = RecurringRule(
@@ -30,7 +31,7 @@ class FamilyScheduler:
         )
         self.schedulers.append(RecurringScheduler(rule, category, concept))
 
-    def generate(self, start: date, end: date) -> List[Event]:
+    def generate(self, start: date, end: date) -> list[Event]:
         events = []
         for scheduler in self.schedulers:
             events.extend(scheduler.generate(start, end))

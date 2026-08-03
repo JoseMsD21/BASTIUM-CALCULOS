@@ -1,14 +1,15 @@
-from typing import List, Optional
 from datetime import date, timedelta
 from decimal import Decimal
-from app.engine.temporal.schedulers.base import Event
-from app.engine.liquidation.models import PendingDebt, RunningBalance, LiquidationItem
-from app.engine.liquidation.balance import BalanceEngine
-from app.engine.liquidation.allocation import AllocationEngine
-from app.engine.liquidation.result import LiquidationResult
-from app.engine.interest.daily_interest import DailyInterest
+
 from app.engine.financial.rate import Rate
+from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.provider import RateProvider
+from app.engine.liquidation.allocation import AllocationEngine
+from app.engine.liquidation.balance import BalanceEngine
+from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
+from app.engine.liquidation.result import LiquidationResult
+from app.engine.temporal.schedulers.base import Event
+
 
 class LiquidationCore:
     """
@@ -20,15 +21,15 @@ class LiquidationCore:
     def __init__(
         self,
         default_daily_rate: Rate = Rate(Decimal("0.0")),
-        rate_provider: Optional[RateProvider] = None,
+        rate_provider: RateProvider | None = None,
         usar_suma_unica: bool = False,
     ):
         self._current_debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
-        self._history: List[LiquidationItem] = []
+        self._history: list[LiquidationItem] = []
         self._default_rate = default_daily_rate
         self._rate_provider = rate_provider
         self._usar_suma_unica = usar_suma_unica
-        self._last_event_date: Optional[date] = None
+        self._last_event_date: date | None = None
 
         # Diccionario de rubros jurídicos reconocidos como Capital Base
         self._capital_concepts = {
@@ -46,7 +47,7 @@ class LiquidationCore:
             "INCAPACIDAD_EMPLEADOR", "SUSPENSION_INFORMATIVA", "INCAPACIDAD_INFORMATIVA",
         }
 
-    def process(self, chronological_events: List[Event], cutoff_date: date) -> LiquidationResult:
+    def process(self, chronological_events: list[Event], cutoff_date: date) -> LiquidationResult:
         sorted_events = sorted(chronological_events, key=lambda e: e.date)
 
         for event in sorted_events:

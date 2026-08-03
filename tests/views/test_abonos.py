@@ -6,8 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion, Abono
 from app.views.abonos import AbonoFormDialog
+from database.models import Abono, AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
 
 
 def _obligacion_de_prueba(monkeypatch) -> int:

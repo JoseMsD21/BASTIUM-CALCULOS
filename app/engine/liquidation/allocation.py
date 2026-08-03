@@ -1,7 +1,8 @@
 from datetime import date
 from decimal import Decimal
-from typing import Tuple
-from app.engine.liquidation.models import PendingDebt, PaymentAllocation
+
+from app.engine.liquidation.models import PaymentAllocation, PendingDebt
+
 
 class AllocationEngine:
     """
@@ -13,7 +14,7 @@ class AllocationEngine:
     """
 
     @staticmethod
-    def allocate(payment_amount: Decimal, current_debt: PendingDebt, payment_date: date) -> Tuple[PaymentAllocation, PendingDebt, Decimal]:
+    def allocate(payment_amount: Decimal, current_debt: PendingDebt, payment_date: date) -> tuple[PaymentAllocation, PendingDebt, Decimal]:
         remainder = payment_amount
         
         # 1. Imputación a Indexación

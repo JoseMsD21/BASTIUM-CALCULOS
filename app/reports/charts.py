@@ -1,5 +1,7 @@
-import matplotlib.pyplot as plt
 import os
+
+import matplotlib.pyplot as plt
+
 
 class BastiumChartGenerator:
     """Generador de evidencia gráfica inmutable para anexar a demandas."""
