@@ -32,15 +32,25 @@ tiempo.
 - `app/engine/liquidation/engine.py`: `LiquidationCore` — orquesta el paso del tiempo dia a dia
   (`_accrue_time_passage`) y el procesamiento de cada `Event` (`_process_event`), acumulando el historial
   en `LiquidationItem`.
+- Anatocismo comercial condicionado (Art. 886 C.Co., Sprint 19): `LiquidationCore`/`BalanceEngine` ganaron
+  el evento `CAPITALIZACION_INTERESES_ANATOCISMO`, que traslada el interes simple ya devengado al capital
+  en cada aniversario desde la fecha de capitalizacion (en vez de usar `CompoundInterest.calculate()`,
+  que sigue huerfano). `ComercialStrategy` lo activa solo si hay demanda judicial y/o acuerdo posterior de
+  capitalizacion con al menos un año de intereses vencidos; el resto de la liquidacion sigue en interes
+  simple.
+- Multiples tasas de interes simultaneas por expediente (Sprint 21): cada `Obligacion` corre su propio
+  `LiquidationCore` independiente (`_liquidar_por_obligacion` en `app/services/area_strategy.py`), con su
+  propia tasa y solo sus propios abonos, y los historiales se fusionan en una sola linea de tiempo
+  consolidada. Aplica a `CivilFamiliaStrategy`, `ComercialStrategy`, `SancionatorioStrategy`,
+  `HonorariosStrategy` y `TributarioStrategy` (no a `LaboralStrategy`, que no tiene tasa por obligacion).
 
 ## Como se usa en el MVP
 Cada `AreaStrategy` construye un `MemoryRateProvider` con la(s) tasa(s) efectiva(s) anual(es) pactadas
 (convertidas a diaria), y delega en `UniversalLiquidationService.liquidar(...)`.
 
 ## Pendiente (no implementado aun)
-- Anatocismo comercial condicionado (Art. 886 C.Co.) — el motor actual no aplica interes sobre interes en
-  ningun caso (comportamiento correcto para Civil, pero el area Comercial lo necesitara bajo condiciones) —
-  ver `Pendientes.md`, Sprint 19.
-- Multiples tasas de interes simultaneas por expediente — ver `Pendientes.md`, Sprint 21.
+- `CompoundInterest.calculate()` (`app/engine/interest/compound_interest.py`) sigue huerfano: el
+  anatocismo comercial (arriba) se resolvio con eventos de capitalizacion periodica en vez de esta
+  formula cerrada de una sola pasada.
 
 Ver `Pendientes.md`.
