@@ -599,10 +599,11 @@ def test_liquidar_area_laboral_con_mora_incluye_sancion_moratoria(qtbot, monkeyp
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "SANCION_MORATORIA" in tipos_evento
     # Sin mora, las prestaciones (cesantias + intereses + prima x2 + vacaciones)
-    # de este contrato liquidan exactamente en 7974236.10 (ver TestLaboralStrategy
-    # en tests/services/test_area_strategy.py). Si el saldo final supera ese
+    # de este contrato liquidan exactamente en 7860000.00 (Sprint 30: conteo
+    # inclusivo, base comercial de 360 dias -- ver TestLaboralStrategy en
+    # tests/services/test_area_strategy.py). Si el saldo final supera ese
     # monto, la sancion moratoria realmente sumo un valor distinto de cero.
-    assert resultado.final_balance().principal > Decimal("7974236.10")
+    assert resultado.final_balance().principal > Decimal("7860000.00")
 
 
 def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbot, monkeypatch):
@@ -644,7 +645,7 @@ def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbo
         "VACACIONES",
         "LIQUIDATION_CUTOFF",
     }
-    assert resultado.final_balance().principal == Decimal("7974236.10")
+    assert resultado.final_balance().principal == Decimal("7860000.00")
 
 
 def _expediente_laboral_con_seguridad_social(monkeypatch) -> int:

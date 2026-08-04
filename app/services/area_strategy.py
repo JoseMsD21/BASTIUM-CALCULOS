@@ -44,6 +44,7 @@ from app.engine.tax.sanciones import (
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
 from app.engine.temporal.schedulers.labor import LaborScheduler
+from app.engine.time.calendar import CalendarUtils
 from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import cache_de_liquidacion, get_parametro
 
@@ -704,10 +705,24 @@ class LaboralStrategy(AreaStrategy):
         obligacion = obligaciones[0]
         self._validar_obligacion_laboral(obligacion)
 
+        # dias_trabajados (calendario real, resta simple, SIN +1): sigue
+        # alimentando la seguridad social/incapacidades mas abajo en este
+        # metodo -- fuera de alcance del Sprint 30 (la confirmacion del
+        # despacho de conteo inclusivo aplico especificamente a prestaciones
+        # sociales, no se extendio a cotizaciones de seguridad social en
+        # este sprint).
         dias_trabajados = (obligacion.fecha_fin - obligacion.fecha_inicio).days
+        # dias_trabajados_prestaciones (Sprint 30, corregido 2026-08-03):
+        # conteo inclusivo (+1) sobre base comercial de 360 dias (12 meses de
+        # 30 dias) -- confirmado por el despacho para cesantias/intereses/
+        # prima/vacaciones (Preguntas-Para-Abogado-Respondidas.md, Sprint 3).
+        # NO es el mismo valor que dias_trabajados de arriba.
+        dias_trabajados_prestaciones = CalendarUtils.dias_comerciales_360(
+            obligacion.fecha_inicio, obligacion.fecha_fin
+        )
         eventos = LaborScheduler(
             salario_base=obligacion.valor,
-            dias_trabajados=dias_trabajados,
+            dias_trabajados=dias_trabajados_prestaciones,
             fecha_liquidacion=obligacion.fecha_fin,
         ).generate()
 

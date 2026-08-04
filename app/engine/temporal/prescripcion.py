@@ -113,6 +113,15 @@ def fecha_interrupcion_efectiva(fecha_radicacion: date, fecha_notificacion: date
             f"fecha_notificacion ({fecha_notificacion}) no puede ser anterior a "
             f"fecha_radicacion ({fecha_radicacion})."
         )
-    if (fecha_notificacion - fecha_radicacion).days <= 365:
+    # Sprint 30 (corregido 2026-08-03): "un año" NO son 365 días matemáticos
+    # -- confirmación del despacho (Preguntas-Para-Abogado-Respondidas.md,
+    # Sprint 30). Reutiliza CalendarUtils.vencimiento_calendario (Sprint 6/7,
+    # ya usado por calcular_prescripcion en este mismo archivo) para el
+    # vencimiento fecha-a-fecha real: suma 1 año calendario desde la
+    # radicacion (con tope de fin de mes si el dia no existe, p.ej. 29-feb en
+    # año no bisiesto) y corre al siguiente dia habil si cae en fin de
+    # semana/festivo/vacancia judicial.
+    fecha_limite = CalendarUtils.vencimiento_calendario(fecha_radicacion, 12)
+    if fecha_notificacion <= fecha_limite:
         return fecha_radicacion
     return fecha_notificacion
