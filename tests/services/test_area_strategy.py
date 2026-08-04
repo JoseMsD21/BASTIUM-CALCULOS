@@ -1414,9 +1414,11 @@ class TestLaboralStrategy:
 
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "SANCION_MORATORIA" not in tipos_evento
-        # dias_trabajados = 365 (2020-01-01 a 2020-12-31): cesantias 3041666.67 +
-        # intereses 370069.44 + prima x2 1520833.33 + vacaciones 1520833.33
-        assert resultado.final_balance().principal == Decimal("7974236.10")
+        # dias_trabajados_prestaciones = 360 (2020-01-01 a 2020-12-31, año
+        # comercial completo de 12 meses de 30 dias, conteo inclusivo --
+        # Sprint 30): cesantias 3000000.00 + intereses 360000.00 + prima x2
+        # 3000000.00 + vacaciones 1500000.00 = 7860000.00.
+        assert resultado.final_balance().principal == Decimal("7860000.00")
 
     def test_liquida_con_mora_solo_fase1(self):
         # Pagado 30 dias despues de terminar el contrato -- solo fase 1.
@@ -1429,7 +1431,7 @@ class TestLaboralStrategy:
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "SANCION_MORATORIA" in tipos_evento
         # salario_diario = 3M/30 = 100000; 30 dias de retardo = 3000000.00
-        assert resultado.final_balance().principal == Decimal("10974236.10")  # 7974236.10 + 3000000.00
+        assert resultado.final_balance().principal == Decimal("10860000.00")  # 7860000.00 + 3000000.00
 
     def test_liquida_con_mora_cruzando_a_fase2(self):
         # Sin pagar: fecha_corte muy posterior a la terminacion del contrato,
@@ -1441,7 +1443,7 @@ class TestLaboralStrategy:
             obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
         )
 
-        monto_prestaciones = Decimal("7974236.10")
+        monto_prestaciones = Decimal("7860000.00")
         mora_esperada = MoratoryIndemnityCalculator.calcular(
             salario_mensual=obligacion.valor,
             monto_adeudado=monto_prestaciones,
@@ -1462,7 +1464,7 @@ class TestLaboralStrategy:
         )
 
         assert resultado.total_payments_applied() == Decimal("1000000.00")
-        assert resultado.final_balance().total() < Decimal("7974236.10")
+        assert resultado.final_balance().total() < Decimal("7860000.00")
 
     def test_mas_de_una_obligacion_lanza_value_error(self):
         obligacion_1 = _obligacion_laboral(expediente_id=1)
@@ -1506,7 +1508,7 @@ class TestLaboralStrategy:
             obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
         )
 
-        monto_prestaciones = Decimal("7974236.10")
+        monto_prestaciones = Decimal("7860000.00")
         mora_esperada = MoratoryIndemnityCalculator.calcular(
             salario_mensual=obligacion.valor,
             monto_adeudado=monto_prestaciones,
@@ -1541,12 +1543,15 @@ class TestLaboralStrategy:
         assert "COTIZACION_PENSION" in tipos_evento
         assert "COTIZACION_SALUD" in tipos_evento
         assert "COTIZACION_ARL" in tipos_evento
-        # 7974236.10 (prestaciones existentes) + cotizaciones sobre 365 dias,
-        # IBC 3000000.00, nivel I, sin suspension ni FSP (ver SeguridadSocialCalculator):
+        # 7860000.00 (prestaciones existentes, Sprint 30: dias_trabajados_
+        # prestaciones=360, base comercial) + cotizaciones sobre 365 dias
+        # reales (SIN cambios en este sprint -- fuera de alcance, ver
+        # LaboralStrategy.liquidar), IBC 3000000.00, nivel I, sin suspension
+        # ni FSP (ver SeguridadSocialCalculator):
         # pension = 3000000*0.16*365/30 = 5840000.00
         # salud   = 3000000*0.125*365/30 = 4562500.00
         # arl     = 3000000*0.00522*365/30 = 190530.00
-        assert resultado.final_balance().principal == Decimal("18567266.10")
+        assert resultado.final_balance().principal == Decimal("18453030.00")
 
     def test_sin_incluir_seguridad_social_no_hay_regresion(self):
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
@@ -1558,7 +1563,7 @@ class TestLaboralStrategy:
 
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "COTIZACION_PENSION" not in tipos_evento
-        assert resultado.final_balance().principal == Decimal("7974236.10")
+        assert resultado.final_balance().principal == Decimal("7860000.00")
 
     def test_incapacidad_comun_agrega_solo_el_monto_del_empleador_a_la_deuda(self):
         from database.models import EventoLaboral, TipoEventoLaboral
@@ -1671,7 +1676,7 @@ class TestLaboralStrategy:
             obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
         )
 
-        monto_prestaciones = Decimal("7974236.10")
+        monto_prestaciones = Decimal("7860000.00")
         mora_esperada = MoratoryIndemnityCalculator.calcular(
             salario_mensual=obligacion.valor,
             monto_adeudado=monto_prestaciones,
@@ -1680,11 +1685,13 @@ class TestLaboralStrategy:
         )
         assert mora_esperada.dias_fase2 > 0
 
-        # prestaciones (7974236.10) + cotizaciones (pension+salud+arl sobre
-        # 365 dias, IBC 3000000.00, nivel I, sin suspension/FSP -- mismo
+        # prestaciones (7860000.00, Sprint 30: dias_trabajados_prestaciones=
+        # 360, base comercial) + cotizaciones (pension+salud+arl sobre 365
+        # dias reales, IBC 3000000.00, nivel I, sin suspension/FSP -- mismo
         # valor que test_incluir_seguridad_social_agrega_cotizaciones_a_la_
-        # deuda) + mora calculada SOLO sobre prestaciones (el fix).
-        monto_prestaciones_y_cotizaciones = Decimal("18567266.10")
+        # deuda) + mora calculada SOLO sobre prestaciones (el fix, sin
+        # relacion con el Sprint 30).
+        monto_prestaciones_y_cotizaciones = Decimal("18453030.00")
         assert (
             resultado.final_balance().principal
             == monto_prestaciones_y_cotizaciones + mora_esperada.total
@@ -1851,23 +1858,29 @@ class TestLaboralStrategy:
         # es solo el salario mensual) -- ver LaboralStrategy.liquidar. Se
         # recalcula aqui, de forma independiente, con el mismo LaborScheduler
         # que usa produccion, para no depender de una constante "magica" sin
-        # trazabilidad.
-        dias_trabajados = (obligacion.fecha_fin - obligacion.fecha_inicio).days
+        # trazabilidad. dias_trabajados usa la misma formula comercial de
+        # 360 dias que produccion (Sprint 30) -- ver CalendarUtils.
+        # dias_comerciales_360.
+        from app.engine.time.calendar import CalendarUtils
+
+        dias_trabajados = CalendarUtils.dias_comerciales_360(
+            obligacion.fecha_inicio, obligacion.fecha_fin
+        )
         eventos_prestaciones = LaborScheduler(
             salario_base=obligacion.valor, dias_trabajados=dias_trabajados,
             fecha_liquidacion=obligacion.fecha_fin,
         ).generate()
         monto_prestaciones = sum((e.payload["amount"] for e in eventos_prestaciones), Decimal("0.00"))
-        assert monto_prestaciones == Decimal("133003096.28")
+        assert monto_prestaciones == Decimal("132110808.78")
 
         # fecha_origen (= fecha_inicio) 2024-01-01 -> SMLMV 2024 = 1.300.000,00
         # -> declarativo_general / primera instancia, tier MENOR cuantia
         # (52.000.000-195.000.000): interpolacion lineal Paragrafo 3 art. 3
-        # (Acuerdo PSAA16-10554) da porcentaje = 6.601268687552447552...% ->
-        # 133.003.096,28 * ese % = 8.779.891,75 -- verificado tambien llamando
+        # (Acuerdo PSAA16-10554) da porcentaje = ~6.6387% ->
+        # 132.110.808,78 * ese % = 8.770.449,94 -- verificado tambien llamando
         # calcular_agencias_en_derecho directamente con pretensiones_reconocidas
         # = monto_prestaciones.
-        assert monto_costas == Decimal("8779891.75")
+        assert monto_costas == Decimal("8770449.94")
         assert monto_costas == calcular_agencias_en_derecho(
             tipo_proceso=TipoProceso("declarativo_general"), instancia=Instancia("primera"),
             pretensiones_reconocidas=monto_prestaciones, fecha_radicacion=obligacion.fecha_inicio,
