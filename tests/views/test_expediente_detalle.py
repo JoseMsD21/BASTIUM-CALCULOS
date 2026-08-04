@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 import database.database as database_module
 import database.session as session_module
@@ -19,7 +20,9 @@ from database.models import (
 
 
 def _expediente_con_obligacion(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -73,7 +76,8 @@ def test_liquidar_invoca_callback_con_resultado(qtbot, monkeypatch):
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
 
     assert len(resultados_recibidos) == 1
     resultado, exp_id = resultados_recibidos[0]
@@ -82,7 +86,9 @@ def test_liquidar_invoca_callback_con_resultado(qtbot, monkeypatch):
 
 
 def _expediente_comercial_con_obligacion_usuraria(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -121,7 +127,9 @@ def _expediente_comercial_con_obligacion_usuraria(monkeypatch) -> int:
 
 
 def _expediente_civil_con_obligacion_indexada(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -175,7 +183,8 @@ def test_liquidar_area_civil_con_indexacion_ipc_incluye_evento_de_indexacion(qtb
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
 
     assert len(resultados_recibidos) == 1
     resultado, exp_id = resultados_recibidos[0]
@@ -207,7 +216,8 @@ def test_liquidar_area_comercial_con_tasa_usuraria_no_muestra_advertencia_y_apli
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
 
     assert len(avisos) == 0
     assert len(resultados_recibidos) == 1
@@ -216,7 +226,9 @@ def test_liquidar_area_comercial_con_tasa_usuraria_no_muestra_advertencia_y_apli
 
 
 def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -262,7 +274,9 @@ def _expediente_sancionatorio_con_hecho_posterior_a_2026(monkeypatch) -> int:
     genuinamente quede fuera de rango (la serie historica cubre 2006-2026), en vez de
     que la resolucion falle solo porque la BD en memoria esta vacia.
     """
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(database_module, "engine", engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
@@ -320,7 +334,8 @@ def test_liquidar_area_honorarios_con_cuota_litis_excesiva_muestra_advertencia_s
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()  # no debe lanzar/crashear
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()  # no debe lanzar/crashear
 
     assert len(resultados_recibidos) == 0
     assert len(avisos) == 1
@@ -357,7 +372,8 @@ def test_liquidar_area_sancionatorio_con_hecho_posterior_a_2026_muestra_adverten
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()  # no debe lanzar/crashear
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()  # no debe lanzar/crashear
 
     assert len(resultados_recibidos) == 0
     assert len(avisos) == 1
@@ -371,7 +387,9 @@ def _expediente_tributario_sin_parametros_de_sancion(monkeypatch) -> int:
     todavia no fue sembrado. get_parametro() debe lanzar ParametroNoDisponibleError, y
     _liquidar() debe mostrarlo como advertencia amigable, no como traceback sin control.
     """
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -428,7 +446,8 @@ def test_liquidar_area_tributaria_sin_parametros_de_sancion_muestra_advertencia_
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()  # no debe lanzar/crashear
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()  # no debe lanzar/crashear
 
     assert len(resultados_recibidos) == 0
     assert len(avisos) == 1
@@ -442,7 +461,8 @@ def test_liquidar_registra_auditoria_y_refresca_historial(qtbot, monkeypatch):
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
 
     assert page.tabla_historial.rowCount() == 1
     assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
@@ -473,7 +493,9 @@ class _DialogStub:
 
 
 def _expediente_laboral_con_mora_fase1(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -510,7 +532,9 @@ def _expediente_laboral_con_mora_fase1(monkeypatch) -> int:
 
 
 def _expediente_laboral_pagado_a_tiempo(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -564,7 +588,8 @@ def test_liquidar_area_laboral_con_mora_incluye_sancion_moratoria(qtbot, monkeyp
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()  # no debe lanzar/crashear
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()  # no debe lanzar/crashear
 
     assert len(avisos) == 0
     assert len(resultados_recibidos) == 1
@@ -598,7 +623,8 @@ def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbo
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()  # no debe lanzar/crashear
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()  # no debe lanzar/crashear
 
     assert len(avisos) == 0
     assert len(resultados_recibidos) == 1
@@ -622,7 +648,9 @@ def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbo
 
 
 def _expediente_laboral_con_seguridad_social(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -696,7 +724,8 @@ def test_liquidar_area_laboral_con_seguridad_social_no_lanza_detached_instance_e
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
 
-    page._liquidar()  # no debe lanzar DetachedInstanceError
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()  # no debe lanzar DetachedInstanceError
 
     assert len(avisos) == 0
     assert len(resultados_recibidos) == 1
@@ -752,7 +781,8 @@ def test_doble_clic_en_historial_reconstruye_liquidacion(qtbot, monkeypatch):
     page = ExpedienteDetallePage(on_liquidado=capturar)
     qtbot.addWidget(page)
     page.cargar_expediente(expediente_id)
-    page._liquidar()
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
     resultados_recibidos.clear()
 
     page._reconstruir_desde_historial(0, 0)
@@ -764,7 +794,9 @@ def test_doble_clic_en_historial_reconstruye_liquidacion(qtbot, monkeypatch):
 
 
 def _expediente_laboral_sin_mora(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -828,3 +860,38 @@ def test_refrescar_eventos_laborales_lista_los_eventos_de_todas_las_obligaciones
     pagina.cargar_expediente(expediente_id)
 
     assert pagina.tabla_eventos_laborales.rowCount() == 1
+
+
+def test_liquidar_deshabilita_el_boton_mientras_esta_en_curso(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    assert page.boton_liquidar.isEnabled() is True
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
+        assert page.boton_liquidar.isEnabled() is False
+
+    assert page.boton_liquidar.isEnabled() is True
+
+
+def test_liquidar_ignora_llamada_concurrente_mientras_hay_una_en_curso(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    llamadas = []
+
+    def capturar(resultado, exp_id):
+        llamadas.append((resultado, exp_id))
+
+    page = ExpedienteDetallePage(on_liquidado=capturar)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
+        page._liquidar()  # concurrente -- debe ser ignorada, el boton ya esta deshabilitado
+
+    assert len(llamadas) == 1

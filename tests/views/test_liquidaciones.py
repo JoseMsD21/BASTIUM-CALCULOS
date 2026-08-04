@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 import database.session as session_module
 from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
@@ -95,7 +96,9 @@ def test_oculta_bloque_de_renta_liquida_cuando_no_esta_presente(qtbot):
 
 
 def _expediente_para_exportar(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
 
@@ -128,7 +131,8 @@ def test_exportar_pdf_crea_archivo_en_la_ruta_elegida(qtbot, monkeypatch, tmp_pa
     qtbot.addWidget(view)
     view.mostrar(_resultado_de_prueba(), expediente_id)
 
-    view._exportar_pdf()
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_pdf()
 
     assert ruta_destino.exists()
     assert ruta_destino.stat().st_size > 0
@@ -147,7 +151,8 @@ def test_exportar_word_crea_archivo_en_la_ruta_elegida(qtbot, monkeypatch, tmp_p
     qtbot.addWidget(view)
     view.mostrar(_resultado_de_prueba(), expediente_id)
 
-    view._exportar_word()
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_word()
 
     assert ruta_destino.exists()
     assert ruta_destino.stat().st_size > 0
@@ -196,7 +201,8 @@ def test_exportar_pdf_con_error_muestra_mensaje_critico(qtbot, monkeypatch, tmp_
     qtbot.addWidget(view)
     view.mostrar(_resultado_de_prueba(), expediente_id)
 
-    view._exportar_pdf()
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_pdf()
 
     assert len(errores) == 1
     assert errores[0][0] == "No se pudo exportar"
@@ -206,3 +212,55 @@ def test_sanitizar_nombre_archivo_reemplaza_caracteres_invalidos():
     from app.views.liquidaciones import _sanitizar_nombre_archivo
 
     assert _sanitizar_nombre_archivo("2026/030 A") == "2026_030_A"
+
+
+def test_exportar_pdf_deshabilita_ambos_botones_mientras_esta_en_curso(
+    qtbot, monkeypatch, tmp_path
+):
+    expediente_id = _expediente_para_exportar(monkeypatch)
+    ruta_destino = tmp_path / "salida.pdf"
+    monkeypatch.setattr(
+        "app.views.liquidaciones.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(ruta_destino), "PDF (*.pdf)"),
+    )
+    monkeypatch.setattr("app.views.liquidaciones.QMessageBox.information", lambda *args, **kwargs: None)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(_resultado_de_prueba(), expediente_id)
+
+    assert view.boton_exportar_pdf.isEnabled() is True
+    assert view.boton_exportar_word.isEnabled() is True
+
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_pdf()
+        assert view.boton_exportar_pdf.isEnabled() is False
+        assert view.boton_exportar_word.isEnabled() is False
+
+    assert view.boton_exportar_pdf.isEnabled() is True
+    assert view.boton_exportar_word.isEnabled() is True
+
+
+def test_exportar_pdf_ignora_llamada_concurrente_mientras_hay_una_en_curso(
+    qtbot, monkeypatch, tmp_path
+):
+    expediente_id = _expediente_para_exportar(monkeypatch)
+    ruta_destino = tmp_path / "salida.pdf"
+    llamadas_dialogo = []
+
+    def _dialogo_falso(*args, **kwargs):
+        llamadas_dialogo.append(1)
+        return str(ruta_destino), "PDF (*.pdf)"
+
+    monkeypatch.setattr("app.views.liquidaciones.QFileDialog.getSaveFileName", _dialogo_falso)
+    monkeypatch.setattr("app.views.liquidaciones.QMessageBox.information", lambda *args, **kwargs: None)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(_resultado_de_prueba(), expediente_id)
+
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_pdf()
+        view._exportar_pdf()  # concurrente -- debe ser ignorada, el boton ya esta deshabilitado
+
+    assert len(llamadas_dialogo) == 1
