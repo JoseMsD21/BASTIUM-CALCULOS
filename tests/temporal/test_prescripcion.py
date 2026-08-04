@@ -197,32 +197,65 @@ def test_filtrar_cuotas_prescritas_no_muta_la_lista_original():
 
 
 def test_fecha_interrupcion_efectiva_retrotrae_si_notifica_dentro_del_anio():
-    # 214 dias entre radicacion y notificacion (<= 365) -> retrotrae a la radicacion.
+    # 2024-03-01 + 1 año calendario -> vencimiento 2025-03-01 (sábado) corre
+    # al siguiente hábil, 2025-03-03 (lunes, ver CalendarUtils.vencimiento_
+    # calendario). Notificación 2024-10-01 cae muy dentro de ese plazo ->
+    # retrotrae a la radicación.
     assert fecha_interrupcion_efectiva(
         date(2024, 3, 1), date(2024, 10, 1)
     ) == date(2024, 3, 1)
 
 
 def test_fecha_interrupcion_efectiva_no_retrotrae_si_notifica_fuera_del_anio():
-    # 457 dias entre radicacion y notificacion (> 365) -> no retrotrae.
+    # Notificación muy posterior al vencimiento fecha-a-fecha (2025-03-03,
+    # ver test anterior) -> no retrotrae.
     assert fecha_interrupcion_efectiva(
         date(2024, 3, 1), date(2025, 6, 1)
     ) == date(2025, 6, 1)
 
 
-def test_fecha_interrupcion_efectiva_limite_exacto_365_dias_retrotrae():
-    # 2024-03-01 -> 2025-03-01 es exactamente 365 dias (incluye el 29 de
-    # febrero de 2024, bisiesto) -> retrotrae por el limite inclusivo <=.
+def test_fecha_interrupcion_efectiva_notifica_el_dia_exacto_del_vencimiento_retrotrae():
+    # Vencimiento fecha-a-fecha de 2024-03-01 + 1 año: 2025-03-01 es sábado,
+    # corre al siguiente hábil (CalendarUtils.vencimiento_calendario),
+    # 2025-03-03 (lunes) -- verificado ejecutando el código real antes de
+    # escribir este plan, y cubierto de forma independiente en
+    # tests/temporal/test_calendar.py. Notificar justo ese día límite
+    # (inclusive) retrotrae.
     assert fecha_interrupcion_efectiva(
-        date(2024, 3, 1), date(2025, 3, 1)
+        date(2024, 3, 1), date(2025, 3, 3)
     ) == date(2024, 3, 1)
 
 
-def test_fecha_interrupcion_efectiva_366_dias_no_retrotrae():
-    # Un dia mas que el limite (366 dias) -> ya no retrotrae.
+def test_fecha_interrupcion_efectiva_notifica_un_dia_despues_del_vencimiento_no_retrotrae():
+    # Un día calendario después del vencimiento (2025-03-03, ver test
+    # anterior) -- ya no retrotrae.
     assert fecha_interrupcion_efectiva(
-        date(2024, 3, 1), date(2025, 3, 2)
-    ) == date(2025, 3, 2)
+        date(2024, 3, 1), date(2025, 3, 4)
+    ) == date(2025, 3, 4)
+
+
+def test_fecha_interrupcion_efectiva_bisiesto_366_dias_reales_pero_un_anio_calendario_retrotrae():
+    # Bug corregido (Sprint 30): 2024-01-15 -> 2025-01-15 son 366 días reales
+    # corridos (el 29 de febrero de 2024, bisiesto, cae dentro del rango),
+    # pero es EXACTAMENTE un año fecha-a-fecha (AddYears(1); ambas fechas son
+    # miércoles, día hábil, sin corrimiento -- verificado ejecutando el
+    # código real antes de escribir este plan). La regla vieja
+    # ((notificacion - radicacion).days <= 365) decía "366 > 365, NO
+    # retrotrae" -- un día antes de lo que corresponde jurídicamente
+    # (confirmación del despacho: "un año" es fecha a fecha, no 365 días
+    # matemáticos). La regla corregida sí retrotrae, porque la notificación
+    # llegó justo al año, ni un día tarde.
+    assert fecha_interrupcion_efectiva(
+        date(2024, 1, 15), date(2025, 1, 15)
+    ) == date(2024, 1, 15)
+
+
+def test_fecha_interrupcion_efectiva_bisiesto_367_dias_reales_un_dia_despues_del_anio_no_retrotrae():
+    # Un día calendario después del caso anterior -- ya pasó el año
+    # fecha-a-fecha, no retrotrae.
+    assert fecha_interrupcion_efectiva(
+        date(2024, 1, 15), date(2025, 1, 16)
+    ) == date(2025, 1, 16)
 
 
 def test_fecha_interrupcion_efectiva_rechaza_notificacion_anterior_a_radicacion():
