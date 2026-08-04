@@ -46,3 +46,11 @@ class IPCMensualNoDisponibleError(Exception):
     desde el Sprint 8 (2026-08-01) a la espera de que el despacho aporte la fuente
     (ver Preguntas-Para-Abogado.md); nunca se aproxima con la serie anual ni con el
     ultimo mes disponible."""
+
+
+class DatoFaltanteError(ValueError):
+    """Se lanza cuando LegalTextExtractor.validate_and_fill necesita un dato
+    faltante (capital o fecha de exigibilidad) pero no hay una forma segura
+    de pedirlo: no se inyecto un prompt_fn y tampoco hay stdin interactivo
+    disponible (ver app/engine/text/nlp_extractor.py, Sprint 27) -- evita el
+    bloqueo original en un ejecutable sin consola adjunta."""

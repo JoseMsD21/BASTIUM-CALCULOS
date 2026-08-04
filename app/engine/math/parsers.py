@@ -33,11 +33,51 @@ class FinancialParser:
 
     @staticmethod
     def parse_money(text: str) -> Decimal:
-        # Remueve símbolos de moneda y separadores de miles (puntos), cambia coma decimal a punto
-        clean_text = text.replace('$', '').replace(' ', '')
-        # Si el formato colombiano es 5.000.000,00 -> removemos puntos y cambiamos coma a punto
-        clean_text = clean_text.replace('.', '').replace(',', '.')
+        """Convierte un monto en texto a Decimal exacto.
+
+        Detecta el separador decimal en vez de asumir siempre el formato
+        colombiano de forma incondicional (bug corregido en el Sprint 27: un
+        monto en formato US como "5000000.00" se interpretaba 100x más
+        grande al remover el punto como si fuera separador de miles).
+        Reglas de detección (formato colombiano como valor por defecto en
+        los casos ambiguos, igual que antes):
+
+        - Si el texto trae punto Y coma, el que aparece más a la derecha es
+          el separador decimal (ej. "5.000.000,50" -> colombiano;
+          "5,000,000.50" -> US).
+        - Si solo trae coma, se asume coma decimal (formato colombiano,
+          ej. "5000000,50").
+        - Si solo trae punto:
+            - más de un punto -> son separadores de miles colombianos
+              (ej. "5.000.000" -> 5000000).
+            - un solo punto con exactamente 3 dígitos después -> separador
+              de miles colombiano sin parte decimal (ej. "5.000" -> 5000).
+            - un solo punto con 1, 2 o 4+ dígitos después -> punto decimal
+              (ej. "5000000.00" -> 5000000.00).
+        - Sin punto ni coma -> el texto ya es un número plano.
+        """
+        clean_text = text.replace('$', '').replace(' ', '').strip()
+
+        has_dot = '.' in clean_text
+        has_comma = ',' in clean_text
+
+        if has_dot and has_comma:
+            if clean_text.rfind(',') > clean_text.rfind('.'):
+                normalized = clean_text.replace('.', '').replace(',', '.')
+            else:
+                normalized = clean_text.replace(',', '')
+        elif has_comma:
+            normalized = clean_text.replace(',', '.')
+        elif has_dot:
+            partes = clean_text.split('.')
+            if len(partes) > 2 or len(partes[-1]) == 3:
+                normalized = clean_text.replace('.', '')
+            else:
+                normalized = clean_text
+        else:
+            normalized = clean_text
+
         try:
-            return Decimal(clean_text)
-        except InvalidOperation:
-            raise ValueError(f"Monto financiero inválido: {text}")
+            return Decimal(normalized)
+        except InvalidOperation as error:
+            raise ValueError(f"Monto financiero inválido: {text}") from error
