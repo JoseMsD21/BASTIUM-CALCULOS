@@ -1,8 +1,10 @@
+from PySide6.QtCore import Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QGroupBox,
     QHBoxLayout,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -27,12 +29,49 @@ from app.engine.audit.service import (
 )
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
+from app.views.concurrency import TareaEnHilo
 from app.views.eventos_laborales import EventoLaboralFormDialog
 from app.views.obligaciones import ObligacionFormDialog
 from database.models import AreaDerecho, Expediente
 
 
+def _liquidar_en_hilo_de_fondo(expediente_id: int):
+    """Se ejecuta en el QThreadPool (Sprint 26), no en el hilo de UI.
+
+    Abre y cierra su propia sesion de SQLAlchemy dentro de este mismo hilo -- no
+    recibe una sesion ya abierta del hilo principal, porque SQLAlchemy no es
+    thread-safe si una sesion se comparte entre hilos.
+    """
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    obligaciones = list(expediente.obligaciones)
+    abonos = [abono for obligacion in obligaciones for abono in obligacion.abonos]
+    for obligacion in obligaciones:
+        list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
+    fecha_corte = expediente.fecha_corte_default
+    area = expediente.area_derecho.value
+    session.close()
+
+    estrategia = AreaRegistry.get_strategy(area)
+    resultado = estrategia.liquidar(
+        obligaciones=obligaciones, abonos=abonos, fecha_corte=fecha_corte
+    )
+
+    session = session_module.get_session()
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_id,
+        area_derecho=area,
+        fecha_corte=fecha_corte,
+        resultado=resultado,
+    )
+    session.close()
+    return resultado
+
+
 class ExpedienteDetallePage(QWidget):
+    liquidacion_finalizada = Signal()
+
     def __init__(self, on_liquidado=None):
         super().__init__()
         self._on_liquidado = on_liquidado
@@ -72,8 +111,8 @@ class ExpedienteDetallePage(QWidget):
         layout_eventos_laborales.addWidget(self.tabla_eventos_laborales)
         self.grupo_eventos_laborales.setLayout(layout_eventos_laborales)
 
-        boton_liquidar = QPushButton("Liquidar")
-        boton_liquidar.clicked.connect(self._liquidar)
+        self.boton_liquidar = QPushButton("Liquidar")
+        self.boton_liquidar.clicked.connect(self._liquidar)
 
         self._audit_log_ids_por_fila = []
         self.tabla_historial = QTableWidget(0, 4)
@@ -95,7 +134,7 @@ class ExpedienteDetallePage(QWidget):
 
         layout_principal = QVBoxLayout()
         layout_principal.addLayout(columnas)
-        layout_principal.addWidget(boton_liquidar)
+        layout_principal.addWidget(self.boton_liquidar)
         layout_principal.addWidget(grupo_historial)
         self.setLayout(layout_principal)
 
@@ -213,54 +252,50 @@ class ExpedienteDetallePage(QWidget):
             self._refrescar_eventos_laborales()
 
     def _liquidar(self) -> None:
-        session = session_module.get_session()
-        expediente = session.get(Expediente, self._expediente_id)
-        obligaciones = list(expediente.obligaciones)
-        abonos = [abono for obligacion in obligaciones for abono in obligacion.abonos]
-        for obligacion in obligaciones:
-            list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
-        fecha_corte = expediente.fecha_corte_default
-        area = expediente.area_derecho.value
-        session.close()
+        if not self.boton_liquidar.isEnabled():
+            return  # ya hay una liquidacion en curso: evita doble liquidacion concurrente
+        self.boton_liquidar.setEnabled(False)
 
-        try:
-            estrategia = AreaRegistry.get_strategy(area)
-            resultado = estrategia.liquidar(obligaciones=obligaciones, abonos=abonos, fecha_corte=fecha_corte)
-        except AreaNoImplementadaError as error:
-            QMessageBox.warning(self, "Area no implementada", str(error))
-            return
-        except CuotaLitisExcedeTopeError as error:
-            QMessageBox.warning(self, "Cuota litis excede el tope", str(error))
-            return
-        except CostasFueraDeRangoError as error:
-            QMessageBox.warning(self, "Costas fuera de rango", str(error))
-            return
-        except TarifaNoDisponibleError as error:
-            QMessageBox.warning(self, "Tarifa de costas no disponible", str(error))
-            return
-        except UVTNoDisponibleError as error:
-            QMessageBox.warning(self, "UVT no disponible", str(error))
-            return
-        except TRMNoDisponibleError as error:
-            QMessageBox.warning(self, "TRM no disponible", str(error))
-            return
-        except ParametroNoDisponibleError as error:
-            QMessageBox.warning(self, "Parámetro legal no configurado", str(error))
-            return
-        except ValueError as error:
-            QMessageBox.warning(self, "No se pudo liquidar", str(error))
-            return
+        self._dialogo_progreso_liquidar = QProgressDialog("Liquidando...", None, 0, 0, self)
+        self._dialogo_progreso_liquidar.setWindowModality(Qt.WindowModality.WindowModal)
+        self._dialogo_progreso_liquidar.setCancelButton(None)
+        self._dialogo_progreso_liquidar.setMinimumDuration(0)
+        self._dialogo_progreso_liquidar.show()
 
-        session = session_module.get_session()
-        registrar_liquidacion(
-            session,
-            expediente_id=self._expediente_id,
-            area_derecho=area,
-            fecha_corte=fecha_corte,
-            resultado=resultado,
-        )
-        session.close()
+        self._tarea_liquidar = TareaEnHilo(_liquidar_en_hilo_de_fondo, self._expediente_id)
+        self._tarea_liquidar.senales.completada.connect(self._on_liquidar_completado)
+        self._tarea_liquidar.senales.fallo.connect(self._on_liquidar_fallo)
+        QThreadPool.globalInstance().start(self._tarea_liquidar)
+
+    def _finalizar_liquidacion_en_curso(self) -> None:
+        self._dialogo_progreso_liquidar.close()
+        self.boton_liquidar.setEnabled(True)
+
+    def _on_liquidar_completado(self, resultado) -> None:
+        self._finalizar_liquidacion_en_curso()
         self._refrescar_historial()
-
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
+        self.liquidacion_finalizada.emit()
+
+    def _on_liquidar_fallo(self, error: Exception) -> None:
+        self._finalizar_liquidacion_en_curso()
+        titulos_por_error = {
+            AreaNoImplementadaError: "Area no implementada",
+            CuotaLitisExcedeTopeError: "Cuota litis excede el tope",
+            CostasFueraDeRangoError: "Costas fuera de rango",
+            TarifaNoDisponibleError: "Tarifa de costas no disponible",
+            UVTNoDisponibleError: "UVT no disponible",
+            TRMNoDisponibleError: "TRM no disponible",
+            ParametroNoDisponibleError: "Parámetro legal no configurado",
+        }
+        for tipo_error, titulo in titulos_por_error.items():
+            if isinstance(error, tipo_error):
+                QMessageBox.warning(self, titulo, str(error))
+                self.liquidacion_finalizada.emit()
+                return
+        if isinstance(error, ValueError):
+            QMessageBox.warning(self, "No se pudo liquidar", str(error))
+            self.liquidacion_finalizada.emit()
+            return
+        raise error
