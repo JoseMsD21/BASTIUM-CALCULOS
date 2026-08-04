@@ -35,9 +35,9 @@ tiempo.
 - Anatocismo comercial condicionado (Art. 886 C.Co., Sprint 19): `LiquidationCore`/`BalanceEngine` ganaron
   el evento `CAPITALIZACION_INTERESES_ANATOCISMO`, que traslada el interes simple ya devengado al capital
   en cada aniversario desde la fecha de capitalizacion (en vez de usar `CompoundInterest.calculate()`,
-  que sigue huerfano). `ComercialStrategy` lo activa solo si hay demanda judicial y/o acuerdo posterior de
-  capitalizacion con al menos un año de intereses vencidos; el resto de la liquidacion sigue en interes
-  simple.
+  que sigue huerfano). `ComercialStrategy` lo activa solo si se cumple una de las dos condiciones (demanda
+  judicial o acuerdo posterior de capitalizacion) con al menos un año de intereses vencidos; el resto de
+  la liquidacion sigue en interes simple.
 - Multiples tasas de interes simultaneas por expediente (Sprint 21): cada `Obligacion` corre su propio
   `LiquidationCore` independiente (`_liquidar_por_obligacion` en `app/services/area_strategy.py`), con su
   propia tasa y solo sus propios abonos, y los historiales se fusionan en una sola linea de tiempo

@@ -919,7 +919,7 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   tabla de tarifas requiere todavía fijar `costas_tipo_proceso`/`costas_instancia` a nivel de datos, sin
   campos propios en ningún formulario de esta versión.
 - ✅ **Anatocismo comercial condicionado (Art. 886 C.Co.)** — el área Comercial ya aplica interés sobre
-  interés cuando se cumplen las dos condiciones legales (demanda judicial y/o acuerdo posterior de
+  interés cuando se cumple una de las dos condiciones legales (demanda judicial o acuerdo posterior de
   capitalización, con al menos un año de intereses vencidos), capitalizando periódicamente cada
   aniversario desde la fecha de capitalización; el resto de la liquidación sigue en interés simple
   (`Pendientes.md`, Sprint 19). Ver [sección 5.7](#57-agregar-una-obligación-comercial).
