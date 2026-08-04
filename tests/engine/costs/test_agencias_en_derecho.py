@@ -2,8 +2,6 @@ from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.exceptions import TarifaNoDisponibleError
@@ -21,16 +19,13 @@ from app.engine.costs.agencias_en_derecho import (
     calcular_agencias_en_derecho,
     resolver_cuantia_tier,
 )
-from database.models import Base, ParametroLegal
+from database.models import ParametroLegal
 
 _SMLMV_2024 = Decimal("1300000.00")  # historical_index._SMLMV_POR_ANIO[2024]
 
 
 @pytest.fixture(autouse=True)
-def _db_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+def _db_en_memoria():
     session = session_module.get_session()
     session.add(ParametroLegal(
         clave="SMLMV", valor=_SMLMV_2024, vigente_desde=date(2024, 1, 1),

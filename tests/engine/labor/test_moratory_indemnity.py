@@ -3,19 +3,17 @@ from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.engine.indexation.historical_index import _TRAMOS_IBC_USURA, get_ibc_usura_for_date
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
-from database.models import Base, ParametroLegal
+from database.models import ParametroLegal
 
 
 @pytest.fixture(autouse=True)
-def _parametros_ibc_usura_en_memoria(monkeypatch):
+def _parametros_ibc_usura_en_memoria():
     # Tarea 13: MoratoryIndemnityCalculator.calcular (via get_ibc_usura_for_date)
     # ahora lee IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO de parametros_legales
     # en vez de la tabla en memoria _TRAMOS_IBC_USURA. Sin esta fixture, los tests
@@ -23,9 +21,6 @@ def _parametros_ibc_usura_en_memoria(monkeypatch):
     # (gitignored, estado no garantizado en un checkout limpio o en CI) en vez de
     # una base aislada -- mismo criterio que las fixtures equivalentes de
     # tests/engine/test_historical_index.py y tests/services/test_area_strategy.py.
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
     session = session_module.get_session()
     for tramo in _TRAMOS_IBC_USURA:
         session.add(ParametroLegal(

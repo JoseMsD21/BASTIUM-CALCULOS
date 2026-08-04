@@ -3,8 +3,6 @@ from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.engine.temporal.prescripcion import (
@@ -15,7 +13,7 @@ from app.engine.temporal.prescripcion import (
     filtrar_cuotas_prescritas,
 )
 from app.engine.temporal.schedulers.family import FamilyScheduler
-from database.models import Base, ParametroLegal
+from database.models import ParametroLegal
 
 _PLAZOS_MESES = {
     "PRESCRIPCION_EJECUTIVA_MESES": 60,
@@ -35,10 +33,7 @@ _PLAZOS_MESES = {
 
 
 @pytest.fixture(autouse=True)
-def _parametros_prescripcion_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+def _parametros_prescripcion_en_memoria():
     session = session_module.get_session()
     for clave, meses in _PLAZOS_MESES.items():
         session.add(ParametroLegal(

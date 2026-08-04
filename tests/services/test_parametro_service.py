@@ -2,20 +2,10 @@ from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.exceptions import ParametroNoDisponibleError
-from database.models import Base, ParametroLegal
-
-
-@pytest.fixture(autouse=True)
-def _db_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
-    return engine
+from database.models import ParametroLegal
 
 
 def _insertar(clave, valor, vigente_desde, vigente_hasta=None):

@@ -2,11 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-import database.database as database_module
-import database.session as session_module
 from app.engine.tax.actualizacion_867_1 import (
     aplica_actualizacion_867_1,
     calcular_indexacion_867_1,
@@ -17,15 +13,15 @@ from app.engine.tax.moratory_interest import calcular_interes_moratorio_tributar
 
 
 @pytest.fixture(autouse=True)
-def _parametros_legales_reales_en_memoria(monkeypatch):
+def _parametros_legales_reales_en_memoria():
     # Usa la siembra real (scripts/migrate_parametros_legales.migrar()) en vez
     # de una fixture con datos de prueba: el caso de ejemplo del despacho
     # (Preguntas-Para-Abogado.md, Sprint 15) cae dentro del rango historico
     # real de IPC/IBC-usura (1997-2026 / 1967-2025), asi que se verifica
-    # contra los datos reales del sistema, no contra datos inventados.
-    engine = create_engine("sqlite:///:memory:")
-    monkeypatch.setattr(database_module, "engine", engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    # contra los datos reales del sistema, no contra datos inventados. El
+    # engine en memoria y los parches de database_module.engine /
+    # session_module.SessionLocal ya los deja listos el conftest.py raiz
+    # (Sprint 28) antes de que esta fixture arranque.
     from scripts.migrate_parametros_legales import migrar
     migrar()
 

@@ -3,8 +3,6 @@ from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.engine.indexation.historical_index import _UVT_POR_ANIO
@@ -14,14 +12,11 @@ from app.engine.tax.sanciones import (
     calcular_sancion_extemporaneidad,
     calcular_sancion_inexactitud,
 )
-from database.models import Base, ParametroLegal
+from database.models import ParametroLegal
 
 
 @pytest.fixture(autouse=True)
-def _parametros_sanciones_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+def _parametros_sanciones_en_memoria():
     session = session_module.get_session()
     session.add(ParametroLegal(
         clave="EXTEMPORANEIDAD_PCT_MENSUAL", valor=Decimal("5"), vigente_desde=date(1900, 1, 1),
