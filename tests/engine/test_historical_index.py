@@ -2,11 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-import database.database as database_module
-import database.session as session_module
 from app.engine.indexation.historical_index import (
     _IPC_VARIACION_ANUAL,
     _TRAMOS_IBC_USURA,
@@ -19,10 +15,10 @@ from app.engine.indexation.historical_index import (
 
 
 @pytest.fixture(autouse=True)
-def _parametros_legales_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    monkeypatch.setattr(database_module, "engine", engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+def _parametros_legales_en_memoria():
+    # El engine en memoria y los parches de database_module.engine /
+    # session_module.SessionLocal ya los deja listos el conftest.py raiz
+    # (Sprint 28) antes de que esta fixture arranque.
     from scripts.migrate_parametros_legales import migrar
     migrar()
 

@@ -1,5 +1,14 @@
 # BASTIUM — Ecosistema de Liquidación Forense
 
+[![CI](https://github.com/JoseMsD21/BASTIUM-CALCULOS/actions/workflows/ci.yml/badge.svg)](https://github.com/JoseMsD21/BASTIUM-CALCULOS/actions/workflows/ci.yml)
+![Versión](https://img.shields.io/badge/versi%C3%B3n-0.1.0-blue)
+![Licencia](https://img.shields.io/badge/licencia-por%20definir%20(Sprint%2038)-lightgrey)
+
+> ⚠️ **Aviso legal:** BASTIUM es una herramienta de apoyo para el cálculo de liquidaciones — **no
+> sustituye la asesoría de un abogado colegiado ni garantiza exactitud jurídica**. Verifica los
+> resultados contra la norma vigente antes de usarlos en un proceso real. Ver
+> [SECURITY.md](SECURITY.md#aviso-legal) para el detalle.
+
 BASTIUM es una aplicación de escritorio para abogados y despachos jurídicos en Colombia. Permite
 registrar un expediente, cargar las obligaciones (deudas) y los abonos (pagos) asociados, y calcular
 automáticamente la liquidación — capital, intereses y saldo final — con el mismo rigor matemático y

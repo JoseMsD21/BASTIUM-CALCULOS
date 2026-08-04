@@ -2,20 +2,9 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-import database.database as database_module
 import database.session as session_module
 from database.models import ParametroLegal
-
-
-@pytest.fixture(autouse=True)
-def _db_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    monkeypatch.setattr(database_module, "engine", engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
-    return engine
 
 
 def test_migrar_siembra_las_39_claves_del_catalogo():

@@ -2,19 +2,14 @@ from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.engine.interest.usury_validator import calcular_tope_usura
-from database.models import Base, ParametroLegal
+from database.models import ParametroLegal
 
 
 @pytest.fixture(autouse=True)
-def _db_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+def _db_en_memoria():
     session = session_module.get_session()
     session.add(ParametroLegal(
         clave="USURA_MULTIPLICADOR", valor=Decimal("1.5"), vigente_desde=date(1997, 7, 1),

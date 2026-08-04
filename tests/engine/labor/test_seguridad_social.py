@@ -3,21 +3,16 @@ from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from database.models import Base, ParametroLegal
+from database.models import ParametroLegal
 
 
 @pytest.fixture(autouse=True)
-def _parametros_seguridad_social_en_memoria(monkeypatch):
+def _parametros_seguridad_social_en_memoria():
     # SeguridadSocialCalculator.calcular lee SMLMV y las 7 claves SS_* via
     # parametro_service en cada llamada -- fixture aislada de disco, mismo
     # criterio que tests/engine/labor/test_moratory_indemnity.py.
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
     session = session_module.get_session()
     session.add(ParametroLegal(
         clave="SMLMV", valor=Decimal("877803.00"), vigente_desde=date(2020, 1, 1),

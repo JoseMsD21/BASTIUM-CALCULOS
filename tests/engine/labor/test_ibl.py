@@ -3,21 +3,16 @@ from datetime import datetime as _dt
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from database.models import Base, ParametroLegal
+from database.models import ParametroLegal
 
 
 @pytest.fixture(autouse=True)
-def _ipc_en_memoria(monkeypatch):
+def _ipc_en_memoria():
     # calcular_ibl usa get_ipc_interpolado_for_date, que lee IPC_INDICE_ACUMULADO
     # via parametro_service en cada llamada -- misma fixture aislada de disco
     # que tests/engine/labor/test_seguridad_social.py.
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
     session = session_module.get_session()
     indices = {
         2017: Decimal("100"), 2018: Decimal("105"), 2019: Decimal("110"),
