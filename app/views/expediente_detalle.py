@@ -303,5 +303,11 @@ class ExpedienteDetallePage(QWidget):
         # entre hilos, asi que Qt lo captura con su manejador de excepciones por defecto
         # (imprime el traceback a stderr via sys.excepthook y la app sigue corriendo) en
         # vez de propagarse como una excepcion normal -- mismo comportamiento que tenia
-        # el try/except sincrono original para tipos de error no anticipados.
+        # el try/except sincrono original para tipos de error no anticipados. Se emite la
+        # senal ANTES de relanzar para que liquidacion_finalizada siga siendo un
+        # invariante confiable (se emite en TODO camino de salida de este slot, exito o
+        # fallo, esperado o no) -- de lo contrario un test que haga
+        # qtbot.waitSignal(page.liquidacion_finalizada) alrededor de un error inesperado
+        # colgaria hasta el timeout en vez de fallar de forma clara.
+        self.liquidacion_finalizada.emit()
         raise error
