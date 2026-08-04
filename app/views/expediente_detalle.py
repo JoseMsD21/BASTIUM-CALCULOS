@@ -298,4 +298,10 @@ class ExpedienteDetallePage(QWidget):
             QMessageBox.warning(self, "No se pudo liquidar", str(error))
             self.liquidacion_finalizada.emit()
             return
+        # Error genuinamente inesperado (no es un ValueError de dominio conocido): se
+        # re-lanza tal cual. Este slot corre en el hilo principal via una senal encolada
+        # entre hilos, asi que Qt lo captura con su manejador de excepciones por defecto
+        # (imprime el traceback a stderr via sys.excepthook y la app sigue corriendo) en
+        # vez de propagarse como una excepcion normal -- mismo comportamiento que tenia
+        # el try/except sincrono original para tipos de error no anticipados.
         raise error
