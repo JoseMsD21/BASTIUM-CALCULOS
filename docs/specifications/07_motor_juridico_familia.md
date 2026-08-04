@@ -38,6 +38,9 @@ el `LiquidationResult` en `ResultadoLiquidacionView`. Las 6 areas son selecciona
 desde `ExpedienteFormDialog` (`app/views/expedientes.py`).
 
 ## Pendiente (no implementado aun)
-- Modulo pensional (IBL, tasa de reemplazo, densidad de semanas) — ver `Pendientes.md`, Sprint 17.
+- Wiring del modulo pensional (`app/engine/labor/ibl.py`, implementado como funciones puras standalone
+  desde el Sprint 17: `calcular_ibl`, `calcular_tasa_reemplazo`, `calcular_densidad_semanas`,
+  `semanas_minimas_requeridas`) a una `PensionalStrategy`/pantalla de GUI — hoy no es una de las 6 areas
+  operables listadas arriba.
 - Costas judiciales con tabla real de rangos (hoy se ingresan como porcentaje manual en Honorarios) — ver
   `Pendientes.md`, Sprint 18.

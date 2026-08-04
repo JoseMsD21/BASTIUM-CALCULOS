@@ -5,7 +5,7 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-07-27 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> **Última actualización:** 2026-08-03 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, los botones de
 > navegación (Volver/Inicio) y de editar/eliminar expediente, y la pantalla "⚙ Parámetros" de parámetros
 > legales versionados. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md),
@@ -111,7 +111,7 @@ Si instalas BASTIUM en otro computador y te aparece este mismo error, repite est
 ```
 
 Este comando corre todas las pruebas automáticas del programa. Si al final ves algo como
-`489 passed, 1 skipped` (un número seguido de "passed", sin ningún "failed"), significa que todo está
+`687 passed, 1 skipped` (un número seguido de "passed", sin ningún "failed"), significa que todo está
 instalado y funcionando correctamente. El número exacto sube con cada sprint nuevo, así que no te
 preocupes si no coincide exactamente — lo que importa es que no aparezca ningún "failed". Si ves errores,
 revisa la [sección 9](#9-preguntas-frecuentes-y-solución-de-problemas).
@@ -918,10 +918,11 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio)) — activar el cálculo automático por
   tabla de tarifas requiere todavía fijar `costas_tipo_proceso`/`costas_instancia` a nivel de datos, sin
   campos propios en ningún formulario de esta versión.
-- 🚧 **Anatocismo comercial condicionado (Art. 886 C.Co.)** — el motor de interés compuesto
-  (`CompoundInterest`) existe pero no está conectado; requiere modelar si hubo demanda judicial o
-  acuerdo posterior de capitalización, algo que el modelo de datos todavía no captura (`Pendientes.md`,
-  Sprint 2, nota de alcance diferido).
+- ✅ **Anatocismo comercial condicionado (Art. 886 C.Co.)** — el área Comercial ya aplica interés sobre
+  interés cuando se cumple una de las dos condiciones legales (demanda judicial o acuerdo posterior de
+  capitalización, con al menos un año de intereses vencidos), capitalizando periódicamente cada
+  aniversario desde la fecha de capitalización; el resto de la liquidación sigue en interés simple
+  (`Pendientes.md`, Sprint 19). Ver [sección 5.7](#57-agregar-una-obligación-comercial).
 - ✅ **Indexación por IPC** ya está conectada a Civil/Familia (Sprint 8) — ver
   [sección 7.7](#77-indexación-ipc-corrección-monetaria).
 - 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — el
