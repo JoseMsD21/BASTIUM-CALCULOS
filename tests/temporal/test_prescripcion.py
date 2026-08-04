@@ -250,7 +250,7 @@ def test_fecha_interrupcion_efectiva_bisiesto_366_dias_reales_pero_un_anio_calen
     ) == date(2024, 1, 15)
 
 
-def test_fecha_interrupcion_efectiva_bisiesto_367_dias_reales_un_dia_despues_del_anio_no_retrotrae():
+def test_fecha_interrupcion_efectiva_bisiesto_un_dia_despues_del_anio_no_retrotrae():
     # Un día calendario después del caso anterior -- ya pasó el año
     # fecha-a-fecha, no retrotrae.
     assert fecha_interrupcion_efectiva(
