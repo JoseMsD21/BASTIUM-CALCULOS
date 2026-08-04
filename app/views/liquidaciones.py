@@ -1,11 +1,13 @@
 import re
 
+from PySide6.QtCore import Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -21,6 +23,7 @@ from app.engine.reports.table_builder import ReportTableBuilder
 from app.reports.header import build_encabezado
 from app.reports.pdf import JudicialPDFGenerator
 from app.reports.word import WordReportGenerator
+from app.views.concurrency import TareaEnHilo
 from database.models import Expediente
 
 
@@ -28,7 +31,59 @@ def _sanitizar_nombre_archivo(texto: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "_", texto)
 
 
+def _construir_datos_reporte_en_hilo_de_fondo(resultado: LiquidationResult, expediente_id: int):
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+
+    area_label = expediente.area_derecho.value
+    for codigo, etiqueta, _habilitada in AREAS_DERECHO:
+        if codigo == expediente.area_derecho.value:
+            area_label = etiqueta
+            break
+
+    title = f"LIQUIDACIÓN DE OBLIGACIONES — ÁREA {area_label.upper()}"
+    encabezado = build_encabezado(
+        expediente.radicado, expediente.demandante, expediente.demandado, expediente.juzgado
+    )
+    session.close()
+
+    summary = ReportSummaryBuilder().build_summary(resultado)
+    table_data = ReportTableBuilder().build_matrix(resultado)
+    renta_liquida = ReportSummaryBuilder().build_renta_liquida(resultado)
+
+    return title, encabezado, summary, table_data, renta_liquida
+
+
+def _generar_pdf_en_hilo_de_fondo(
+    resultado: LiquidationResult, expediente_id: int, ruta: str
+) -> str:
+    """Se ejecuta en el QThreadPool (Sprint 26): construye el reporte y genera el
+    PDF fuera del hilo de UI, con su propia sesion de SQLAlchemy."""
+    title, encabezado, summary, table_data, renta_liquida = (
+        _construir_datos_reporte_en_hilo_de_fondo(resultado, expediente_id)
+    )
+    JudicialPDFGenerator(ruta).generate(
+        title, summary, table_data, encabezado, renta_liquida=renta_liquida
+    )
+    return ruta
+
+
+def _generar_word_en_hilo_de_fondo(
+    resultado: LiquidationResult, expediente_id: int, ruta: str
+) -> str:
+    """Version Word de _generar_pdf_en_hilo_de_fondo (Sprint 26)."""
+    title, encabezado, summary, table_data, renta_liquida = (
+        _construir_datos_reporte_en_hilo_de_fondo(resultado, expediente_id)
+    )
+    WordReportGenerator(ruta).generate(
+        title, summary, table_data, encabezado, renta_liquida=renta_liquida
+    )
+    return ruta
+
+
 class ResultadoLiquidacionView(QWidget):
+    exportacion_finalizada = Signal()
+
     def __init__(self):
         super().__init__()
 
@@ -111,57 +166,71 @@ class ResultadoLiquidacionView(QWidget):
         else:
             self.grupo_renta_liquida.setVisible(False)
 
-    def _construir_datos_reporte(self):
+    def _obtener_radicado(self) -> str:
         session = session_module.get_session()
         expediente = session.get(Expediente, self._expediente_id)
-
-        area_label = expediente.area_derecho.value
-        for codigo, etiqueta, _habilitada in AREAS_DERECHO:
-            if codigo == expediente.area_derecho.value:
-                area_label = etiqueta
-                break
-
-        title = f"LIQUIDACIÓN DE OBLIGACIONES — ÁREA {area_label.upper()}"
-        encabezado = build_encabezado(
-            expediente.radicado, expediente.demandante, expediente.demandado, expediente.juzgado
-        )
         radicado = expediente.radicado
         session.close()
-
-        summary = ReportSummaryBuilder().build_summary(self._resultado)
-        table_data = ReportTableBuilder().build_matrix(self._resultado)
-        renta_liquida = ReportSummaryBuilder().build_renta_liquida(self._resultado)
-
-        return title, encabezado, summary, table_data, radicado, renta_liquida
+        return radicado
 
     def _exportar_pdf(self) -> None:
-        title, encabezado, summary, table_data, radicado, renta_liquida = self._construir_datos_reporte()
-        nombre_sugerido = f"Liquidacion_{_sanitizar_nombre_archivo(radicado)}.pdf"
+        if not self.boton_exportar_pdf.isEnabled():
+            return
+        nombre_sugerido = f"Liquidacion_{_sanitizar_nombre_archivo(self._obtener_radicado())}.pdf"
 
-        ruta, _filtro = QFileDialog.getSaveFileName(self, "Exportar a PDF", nombre_sugerido, "PDF (*.pdf)")
+        ruta, _filtro = QFileDialog.getSaveFileName(
+            self, "Exportar a PDF", nombre_sugerido, "PDF (*.pdf)"
+        )
         if not ruta:
             return
 
-        try:
-            JudicialPDFGenerator(ruta).generate(title, summary, table_data, encabezado, renta_liquida=renta_liquida)
-        except Exception as error:
-            QMessageBox.critical(self, "No se pudo exportar", str(error))
-            return
-
-        QMessageBox.information(self, "Exportación completa", f"PDF guardado en: {ruta}")
+        self._iniciar_exportacion(_generar_pdf_en_hilo_de_fondo, ruta, "PDF")
 
     def _exportar_word(self) -> None:
-        title, encabezado, summary, table_data, radicado, renta_liquida = self._construir_datos_reporte()
-        nombre_sugerido = f"Liquidacion_{_sanitizar_nombre_archivo(radicado)}.docx"
+        if not self.boton_exportar_word.isEnabled():
+            return
+        nombre_sugerido = f"Liquidacion_{_sanitizar_nombre_archivo(self._obtener_radicado())}.docx"
 
-        ruta, _filtro = QFileDialog.getSaveFileName(self, "Exportar a Word", nombre_sugerido, "Word (*.docx)")
+        ruta, _filtro = QFileDialog.getSaveFileName(
+            self, "Exportar a Word", nombre_sugerido, "Word (*.docx)"
+        )
         if not ruta:
             return
 
-        try:
-            WordReportGenerator(ruta).generate(title, summary, table_data, encabezado, renta_liquida=renta_liquida)
-        except Exception as error:
-            QMessageBox.critical(self, "No se pudo exportar", str(error))
-            return
+        self._iniciar_exportacion(_generar_word_en_hilo_de_fondo, ruta, "Word")
 
-        QMessageBox.information(self, "Exportación completa", f"Word guardado en: {ruta}")
+    def _iniciar_exportacion(self, funcion_generadora, ruta: str, etiqueta: str) -> None:
+        self.boton_exportar_pdf.setEnabled(False)
+        self.boton_exportar_word.setEnabled(False)
+
+        self._dialogo_progreso_exportar = QProgressDialog(
+            f"Exportando a {etiqueta}...", None, 0, 0, self
+        )
+        self._dialogo_progreso_exportar.setWindowModality(Qt.WindowModality.WindowModal)
+        self._dialogo_progreso_exportar.setCancelButton(None)
+        self._dialogo_progreso_exportar.setMinimumDuration(0)
+        self._dialogo_progreso_exportar.show()
+
+        self._tarea_exportar = TareaEnHilo(
+            funcion_generadora, self._resultado, self._expediente_id, ruta
+        )
+        self._tarea_exportar.senales.completada.connect(
+            lambda ruta_generada: self._on_exportar_completado(ruta_generada, etiqueta)
+        )
+        self._tarea_exportar.senales.fallo.connect(self._on_exportar_fallo)
+        QThreadPool.globalInstance().start(self._tarea_exportar)
+
+    def _finalizar_exportacion_en_curso(self) -> None:
+        self._dialogo_progreso_exportar.close()
+        self.boton_exportar_pdf.setEnabled(True)
+        self.boton_exportar_word.setEnabled(True)
+
+    def _on_exportar_completado(self, ruta: str, etiqueta: str) -> None:
+        self._finalizar_exportacion_en_curso()
+        QMessageBox.information(self, "Exportación completa", f"{etiqueta} guardado en: {ruta}")
+        self.exportacion_finalizada.emit()
+
+    def _on_exportar_fallo(self, error: Exception) -> None:
+        self._finalizar_exportacion_en_curso()
+        QMessageBox.critical(self, "No se pudo exportar", str(error))
+        self.exportacion_finalizada.emit()
