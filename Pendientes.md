@@ -121,14 +121,14 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada ✅ Completado](#sprint-22--limpieza-técnica-acumulada--completado)
-- [Sprint 23 — Bugs críticos de integridad financiera y auditoría](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría)
+- [Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría--completado)
 - [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
 - [Sprint 25 — Rendimiento del motor de tasas, índices e historial](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial)
-- [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui)
-- [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional)
-- [Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests](#sprint-28--cicd-versionado-housekeeping-de-repositorio-e-higiene-de-tests)
+- [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI ✅ Completado](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui--completado)
+- [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional ✅ Completado](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional--completado)
+- [Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests ✅ Completado](#sprint-28--cicd-versionado-housekeeping-de-repositorio-e-higiene-de-tests--completado)
 - [Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos ✅ Completado](#sprint-29--corrección-de-documentación-desactualizada-inconsistente-y-con-enlaces-rotos--completado)
-- [Sprint 30 — Verificación de reglas de dominio con posible error de un día](#sprint-30--verificación-de-reglas-de-dominio-con-posible-error-de-un-día) — ⚠️⚠️ CORRECCIÓN URGENTE (confirmación jurídica ya recibida, bug sin corregir)
+- [Sprint 30 — Verificación de reglas de dominio con posible error de un día ✅ Completado](#sprint-30--verificación-de-reglas-de-dominio-con-posible-error-de-un-día--completado)
 - [Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI](#sprint-31--sistema-de-diseño-visual-tema-color-tipografía-e-íconos-en-la-gui)
 - [Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado](#sprint-32--navegación-barra-mejorada-breadcrumb-y-atajos-de-teclado)
 - [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas)
@@ -141,9 +141,9 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas)](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas)
 - [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono)
 - [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación)
-- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia)
+- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia)](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia)
 - [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte)
-- [Sprint 45 — Sancionatorio: transparencia SMLMV/UVT y aclaración del caso de capital creciente](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente)
+- [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente)
 - [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado)
 
 ---
@@ -2201,7 +2201,7 @@ baratas que evitan degradación futura conforme crezcan expedientes y años de h
 
 ---
 
-## Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI
+## Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI ✅ Completado
 
 **Prioridad sugerida:** Media-alta — impacto directo de UX en operaciones que ya son lentas por diseño
 (loops día a día en el motor).
@@ -2244,9 +2244,19 @@ frecuente, pero no lo elimina para expedientes grandes).
   de responder (se puede mover/redimensionar mientras liquida).
 - Suite completa en verde (tests de GUI con `pytest-qt` cubriendo el nuevo flujo).
 
+**Cierre de implementación (2026-08-04):** Completado. `estrategia.liquidar()` y la exportación a PDF/Word
+ahora corren en `QThreadPool` (vía `TareaEnHilo`, un envoltorio reutilizable de `QRunnable` con señales en
+`app/views/concurrency.py`) con un `QProgressDialog` indeterminado y el botón de acción deshabilitado
+mientras la operación está en curso; cada tarea de fondo abre y cierra su propia sesión SQLAlchemy dentro
+del mismo hilo, sin compartir sesiones entre hilos. El manejo de excepciones de dominio (ej.
+`CuotaLitisExcedeTopeError`, `UVTNoDisponibleError`) se preservó igual que antes, ahora vía un slot
+disparado por señal. Suite completa en verde (`pytest-qt` cubre el nuevo flujo). Pendiente: el smoke test
+manual interactivo (mover/redimensionar la ventana mientras liquida un expediente grande) no se pudo
+automatizar en el entorno de la sesión que implementó esto y queda para confirmación manual del usuario.
+
 ---
 
-## Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional
+## Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional ✅ Completado
 
 **Prioridad sugerida:** Baja — housekeeping, no afecta comportamiento, pero reduce superficie de
 mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos nuevos de la auditoría
@@ -2338,9 +2348,19 @@ mantenimiento y tamaño de instalación. Complementa al Sprint 22 con hallazgos 
   (si los hay).
 - Suite completa en verde tras cualquier eliminación.
 
+**Cierre de implementación (2026-08-04):** Completado. Decisiones tomadas: `nlp_extractor.py` y
+`charts.py` se conservaron y se corrigieron sus bugs (`validate_and_fill` ya no bloquea leyendo stdin,
+acepta un `prompt_fn` inyectable; `BastiumChartGenerator` usa `pathlib.Path` en vez de
+`os.path.join(os.getcwd(), ...)`); `parsers.py` se conservó y `FinancialParser.parse_money` ahora detecta
+formato US vs. colombiano en vez de asumir siempre colombiano; `about.py`/`reportes.py` quedaron
+documentados como placeholders intencionales de pantallas futuras, igual que `dashboard.py`. Se eliminaron
+sin ambigüedad el test con parametrize vacío, los 14 archivos fuente y 6 de test de 0 bytes, y los 7
+paquetes sin uso de `requirements.txt` (`rich` y `matplotlib` se conservan porque `nlp_extractor.py`/
+`charts.py` siguen usándolos). Cero pruebas `SKIPPED` por parámetros vacíos. Suite completa en verde.
+
 ---
 
-## Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests
+## Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests ✅ Completado
 
 **Prioridad sugerida:** Media-alta para CI (protege contra regresiones subidas sin querer); baja para el
 resto (housekeeping).
@@ -2451,6 +2471,18 @@ de comunidad que solo se justifica si BASTIUM efectivamente atrae colaboradores 
 - `README.md` muestra al menos los badges de CI y versión (el de licencia puede decir "por definir" hasta
   que cierre el Sprint 38).
 
+**Cierre de implementación (2026-08-04):** Completado, alcance original y ampliado. Se agregó un pipeline
+de CI (GitHub Actions, corre `pytest` en cada push/PR a `main`), `__version__` (0.1.0, primer tag de git
+`v0.1.0`, local — no empujado al remoto), `BASTIUM_DB_PATH` configurable por variable de entorno, y un
+`conftest.py` raíz en `tests/` que centraliza la fixture de sesión en memoria antes duplicada en 14
+archivos. Las 3 ramas huérfanas del hallazgo 5 ya no existen en el repositorio (confirmado con
+`git branch -a` antes de arrancar este sprint) — se limpiaron en un paso anterior no documentado, nada que
+hacer ahí. El hallazgo 6 (test muerto con parametrize vacío) se resolvió en el Sprint 27, en paralelo.
+Alcance ampliado: `CONTRIBUTING.md`, `SECURITY.md` (con aviso legal — BASTIUM es una herramienta de apoyo,
+no sustituye la asesoría de un abogado colegiado), badges de CI/versión/licencia + aviso legal corto en
+`README.md`, plantillas de Issues/PR, y `CHANGELOG.md` (el badge de licencia queda "por definir" hasta que
+cierre el Sprint 38). Suite completa en verde.
+
 ---
 
 ## Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos ✅ Completado
@@ -2539,7 +2571,7 @@ agregados en GUIA_USUARIO.md secciones 7.1 (interés civil), 7.7 (indexación IP
 
 ---
 
-## Sprint 30 — Verificación de reglas de dominio con posible error de un día
+## Sprint 30 — Verificación de reglas de dominio con posible error de un día ✅ Completado
 
 **Prioridad sugerida:** ~~Media~~ **Alta (actualizado 2026-08-01)** — la confirmación jurídica que este
 sprint pedía como bloqueante ya llegó (ver bloque de abajo); pasa de "pendiente de confirmar" a "bug
@@ -2615,6 +2647,18 @@ sprint es de verificación/corrección puntual, no de construcción nueva.
   para `dias_trabajados` (con la base correcta: 360 comercial para prestaciones, calendario real para
   densidad pensional).
 - Suite completa en verde.
+
+**Cierre de implementación (2026-08-04):** Completado, ambos puntos corregidos según la confirmación
+jurídica del despacho. `fecha_interrupcion_efectiva` (`app/engine/temporal/prescripcion.py`) ahora
+reutiliza `CalendarUtils.vencimiento_calendario` en vez del proxy de `<= 365` días fijos, corrigiendo el
+caso de años bisiestos. `LaboralStrategy.liquidar` (`app/services/area_strategy.py`) calcula los días de
+prestaciones sociales con conteo inclusivo (`+1`) sobre base comercial de 360 días (12 meses de 30), usando
+el nuevo `CalendarUtils.dias_comerciales_360`; la densidad de semanas pensional (base calendario real
+365/366) queda fuera de este sprint, es responsabilidad del Sprint 17. Tests nuevos cubren el caso bisiesto
+de prescripción y el contrato de año completo de prestaciones. **Importante:** este cambio afecta el monto
+calculado de liquidaciones laborales y de prescripción de aquí en adelante; liquidaciones ya guardadas en
+la base de datos no se recalculan automáticamente — quedó fuera de alcance de este sprint a propósito (ver
+riesgo documentado arriba, interactúa con el Sprint 9 de auditoría). Suite completa en verde.
 
 ---
 
