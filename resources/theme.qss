@@ -179,3 +179,11 @@ QHeaderView::section {
 QProgressDialog, QMessageBox {
     background-color: #FAF8F4;
 }
+
+/* --- Breadcrumb de navegacion (Sprint 32) --- */
+
+QLabel#etiqueta_breadcrumb {
+    color: #6B5F57;
+    font-weight: bold;
+    padding-left: 10px;
+}

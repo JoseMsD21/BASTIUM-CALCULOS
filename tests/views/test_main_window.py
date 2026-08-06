@@ -1,4 +1,8 @@
+from datetime import date
+
+import database.session as session_module
 from app.views.main_window import MainWindow
+from database.models import AreaDerecho, Expediente
 
 
 def test_main_window_arranca_en_la_lista_de_expedientes(qtbot):
@@ -169,3 +173,108 @@ def test_botones_de_navegacion_tienen_icono(qtbot):
     assert not window.boton_volver.icon().isNull()
     assert not window.boton_inicio.icon().isNull()
     assert not window.boton_parametros.icon().isNull()
+
+
+def test_breadcrumb_muestra_expedientes_en_pagina_inicial(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.etiqueta_breadcrumb.text() == "Expedientes"
+
+
+def test_breadcrumb_muestra_parametros_en_la_pantalla_de_parametros(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.show_page("parametros")
+
+    assert window.etiqueta_breadcrumb.text() == "Parámetros"
+
+
+def test_breadcrumb_muestra_el_radicado_al_abrir_un_expediente(qtbot):
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-00123",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window._abrir_detalle(expediente_id)
+
+    assert window.etiqueta_breadcrumb.text() == "Expedientes › Radicado 2026-00123"
+
+
+def test_breadcrumb_incluye_liquidacion_al_mostrar_el_resultado(qtbot):
+    from decimal import Decimal
+
+    from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
+    from app.engine.liquidation.result import LiquidationResult
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-00124",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window._abrir_detalle(expediente_id)
+
+    debt = PendingDebt(
+        principal=Decimal("100.00"), interest=Decimal("0.00"), indexation=Decimal("0.00")
+    )
+    balance = RunningBalance(date=date(2026, 1, 1), debt=debt, event_type="LIQUIDATION_CUTOFF")
+    item = LiquidationItem(
+        date=date(2026, 1, 1),
+        concept="Prueba",
+        capital_base=Decimal("100.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("0.00"),
+        balance=balance,
+    )
+    resultado = LiquidationResult(items=[item])
+
+    window._mostrar_resultado(resultado, expediente_id)
+
+    assert window.etiqueta_breadcrumb.text() == "Expedientes › Radicado 2026-00124 › Liquidación"
+
+
+def test_breadcrumb_regresa_a_expedientes_al_ir_a_inicio(qtbot):
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-00125",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window._abrir_detalle(expediente_id)
+
+    window._ir_inicio()
+
+    assert window.etiqueta_breadcrumb.text() == "Expedientes"

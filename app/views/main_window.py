@@ -1,10 +1,12 @@
-from PySide6.QtWidgets import QMainWindow, QPushButton, QStackedWidget, QToolBar
+from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QStackedWidget, QToolBar
 
+import database.session as session_module
 from app.views.configuracion import ParametrosView
 from app.views.expediente_detalle import ExpedienteDetallePage
 from app.views.expedientes import ExpedientesListView
 from app.views.icons import icon, icono_aplicacion
 from app.views.liquidaciones import ResultadoLiquidacionView
+from database.models import Expediente
 
 
 class MainWindow(QMainWindow):
@@ -37,6 +39,7 @@ class MainWindow(QMainWindow):
 
         self._history: list[str] = []
         self._current_page_name = "expedientes"
+        self._radicado_actual: str | None = None
 
         self._crear_barra_navegacion()
         self.show_page("expedientes")
@@ -60,19 +63,44 @@ class MainWindow(QMainWindow):
         self.boton_parametros.clicked.connect(self._ir_a_parametros)
         barra.addWidget(self.boton_parametros)
 
+        barra.addSeparator()
+
+        self.etiqueta_breadcrumb = QLabel()
+        self.etiqueta_breadcrumb.setObjectName("etiqueta_breadcrumb")
+        barra.addWidget(self.etiqueta_breadcrumb)
+
         self.addToolBar(barra)
         self._actualizar_botones_navegacion()
 
     def show_page(self, name: str, add_to_history: bool = True) -> None:
         if add_to_history and self._current_page_name != name:
             self._history.append(self._current_page_name)
+        if name == "expedientes":
+            self._radicado_actual = None
         self.stacked_widget.setCurrentWidget(self._pages[name])
         self._current_page_name = name
         self._actualizar_botones_navegacion()
+        self._actualizar_breadcrumb()
 
     def _actualizar_botones_navegacion(self) -> None:
         self.boton_volver.setVisible(bool(self._history))
         self.boton_inicio.setVisible(self._current_page_name != "expedientes")
+
+    def _actualizar_breadcrumb(self) -> None:
+        self.etiqueta_breadcrumb.setText(self._texto_breadcrumb())
+
+    def _texto_breadcrumb(self) -> str:
+        if self._current_page_name == "parametros":
+            return "Parámetros"
+        if self._current_page_name == "detalle":
+            if self._radicado_actual:
+                return f"Expedientes › Radicado {self._radicado_actual}"
+            return "Expedientes › Detalle"
+        if self._current_page_name == "resultado":
+            if self._radicado_actual:
+                return f"Expedientes › Radicado {self._radicado_actual} › Liquidación"
+            return "Expedientes › Liquidación"
+        return "Expedientes"
 
     def showEvent(self, event) -> None:
         # QToolBar resets the visibility of widgets added via addWidget() to True
@@ -92,7 +120,15 @@ class MainWindow(QMainWindow):
         self._history.clear()
         self.show_page("expedientes", add_to_history=False)
 
+    def _obtener_radicado(self, expediente_id: int) -> str:
+        session = session_module.get_session()
+        expediente = session.get(Expediente, expediente_id)
+        radicado = expediente.radicado
+        session.close()
+        return radicado
+
     def _abrir_detalle(self, expediente_id: int) -> None:
+        self._radicado_actual = self._obtener_radicado(expediente_id)
         self.detalle_page.cargar_expediente(expediente_id)
         self.show_page("detalle")
 
