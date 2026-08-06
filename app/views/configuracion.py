@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import QDate
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -49,6 +50,10 @@ class ParametroFormDialog(QDialog):
         self.boton_guardar.setIcon(icon("save"))
         self.boton_guardar.setProperty("class", "primary")
         self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
+        # Ctrl+S = guardar (Sprint 32). Esc = cancelar ya viene gratis de
+        # QDialog.keyPressEvent() (reject() por defecto) -- no requiere codigo aqui.
+        self.atajo_guardar = QShortcut(QKeySequence("Ctrl+S"), self)
+        self.atajo_guardar.activated.connect(self._guardar_y_cerrar)
 
         layout = QFormLayout()
         layout.addRow("Parametro", self.combo_clave)

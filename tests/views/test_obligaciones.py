@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDialog
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -1103,3 +1105,49 @@ def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
 
     assert not dialog.boton_guardar.icon().isNull()
     assert dialog.boton_guardar.property("class") == "primary"
+
+
+def test_ctrl_s_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("427900.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_S, Qt.KeyboardModifier.ControlModifier)
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.concepto == "Gastos medicos"
+    session.close()
+
+
+def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Gastos medicos")
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_Escape)
+
+    assert dialog.result() == QDialog.DialogCode.Rejected
+    session = session_module.get_session()
+    cantidad = session.query(Obligacion).filter_by(expediente_id=expediente_id).count()
+    assert cantidad == 0
+    session.close()
