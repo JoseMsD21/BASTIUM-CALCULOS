@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QFormLayout,
+    QHBoxLayout,
     QInputDialog,
     QLineEdit,
     QMessageBox,
@@ -116,6 +117,22 @@ class ExpedientesListView(QWidget):
         super().__init__()
         self._on_expediente_abierto = on_expediente_abierto
 
+        self.campo_busqueda = QLineEdit()
+        self.campo_busqueda.setPlaceholderText(
+            "Buscar por radicado, demandante o demandado..."
+        )
+        self.campo_busqueda.textChanged.connect(self.refrescar)
+
+        self.combo_filtro_area = QComboBox()
+        self.combo_filtro_area.addItem("Todas las areas", userData="")
+        for codigo, etiqueta, _habilitada in AREAS_DERECHO:
+            self.combo_filtro_area.addItem(etiqueta, userData=codigo)
+        self.combo_filtro_area.currentIndexChanged.connect(self.refrescar)
+
+        layout_filtros = QHBoxLayout()
+        layout_filtros.addWidget(self.campo_busqueda)
+        layout_filtros.addWidget(self.combo_filtro_area)
+
         self.tabla = QTableWidget(0, 6)
         self.tabla.setHorizontalHeaderLabels(
             ["Radicado", "Demandante", "Demandado", "Area", "Editar", "Eliminar"]
@@ -128,6 +145,7 @@ class ExpedientesListView(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.boton_nuevo)
+        layout.addLayout(layout_filtros)
         layout.addWidget(self.tabla)
         self.setLayout(layout)
 
@@ -138,9 +156,11 @@ class ExpedientesListView(QWidget):
         session = session_module.get_session()
         expedientes = session.query(Expediente).all()
 
-        self.tabla.setRowCount(len(expedientes))
+        expedientes_filtrados = self._filtrar(expedientes)
+
+        self.tabla.setRowCount(len(expedientes_filtrados))
         self._expediente_ids_por_fila = []
-        for fila, expediente in enumerate(expedientes):
+        for fila, expediente in enumerate(expedientes_filtrados):
             self.tabla.setItem(fila, 0, QTableWidgetItem(expediente.radicado))
             self.tabla.setItem(fila, 1, QTableWidgetItem(expediente.demandante))
             self.tabla.setItem(fila, 2, QTableWidgetItem(expediente.demandado))
@@ -162,6 +182,21 @@ class ExpedientesListView(QWidget):
 
             self._expediente_ids_por_fila.append(expediente.id)
         session.close()
+
+    def _filtrar(self, expedientes: list[Expediente]) -> list[Expediente]:
+        texto_busqueda = self.campo_busqueda.text().strip().lower()
+        area_seleccionada = self.combo_filtro_area.currentData()
+
+        def _coincide(expediente: Expediente) -> bool:
+            if area_seleccionada and expediente.area_derecho.value != area_seleccionada:
+                return False
+            if texto_busqueda:
+                campos = (expediente.radicado, expediente.demandante, expediente.demandado)
+                if not any(texto_busqueda in (campo or "").lower() for campo in campos):
+                    return False
+            return True
+
+        return [expediente for expediente in expedientes if _coincide(expediente)]
 
     def _abrir_dialogo_nuevo(self) -> None:
         dialogo = ExpedienteFormDialog(self)

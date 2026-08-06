@@ -365,3 +365,184 @@ def test_boton_eliminar_de_cada_fila_tiene_icono_y_clase_destructiva(qtbot, monk
     boton_eliminar = view.tabla.cellWidget(0, 5)
     assert not boton_eliminar.icon().isNull()
     assert boton_eliminar.property("class") == "destructive"
+
+
+def test_busqueda_filtra_por_radicado(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-100",
+                demandante="Ana",
+                demandado="Luis",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-200",
+                demandante="Carlos",
+                demandado="Maria",
+                area_derecho=AreaDerecho.COMERCIAL,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+    assert view.tabla.rowCount() == 2
+
+    view.campo_busqueda.setText("2026-100")
+
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.item(0, 0).text() == "2026-100"
+
+
+def test_busqueda_filtra_por_demandante_o_demandado(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-101",
+                demandante="Fernanda Gomez",
+                demandado="Luis",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-102",
+                demandante="Carlos",
+                demandado="Rodrigo Gomez",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-103",
+                demandante="Sofia",
+                demandado="Pedro",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view.campo_busqueda.setText("Gomez")
+
+    assert view.tabla.rowCount() == 2
+
+
+def test_busqueda_es_insensible_a_mayusculas_y_a_espacios_al_inicio_o_final(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-104",
+            demandante="Valentina",
+            demandado="Camilo",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view.campo_busqueda.setText("  VALENTINA  ")
+
+    assert view.tabla.rowCount() == 1
+
+
+def test_filtro_area_muestra_solo_expedientes_del_area_seleccionada(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-300",
+                demandante="A",
+                demandado="B",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-301",
+                demandante="C",
+                demandado="D",
+                area_derecho=AreaDerecho.LABORAL,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+    assert view.tabla.rowCount() == 2
+
+    indice_laboral = view.combo_filtro_area.findData("LABORAL")
+    view.combo_filtro_area.setCurrentIndex(indice_laboral)
+
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.item(0, 0).text() == "2026-301"
+
+
+def test_combo_filtro_area_incluye_la_opcion_todas_las_areas_por_defecto(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+
+    assert view.combo_filtro_area.currentData() == ""
+    assert view.combo_filtro_area.count() == len(AREAS_DERECHO) + 1
+
+
+def test_busqueda_y_filtro_de_area_se_combinan(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-400",
+                demandante="Pablo Ruiz",
+                demandado="X",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-401",
+                demandante="Pablo Ruiz",
+                demandado="Y",
+                area_derecho=AreaDerecho.LABORAL,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view.campo_busqueda.setText("Pablo Ruiz")
+    indice_laboral = view.combo_filtro_area.findData("LABORAL")
+    view.combo_filtro_area.setCurrentIndex(indice_laboral)
+
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.item(0, 0).text() == "2026-401"
