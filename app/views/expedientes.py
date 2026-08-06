@@ -32,13 +32,28 @@ class ExpedienteFormDialog(QDialog):
         self.setWindowTitle("Editar expediente" if expediente else "Nuevo expediente")
 
         self.campo_radicado = QLineEdit()
+        self.campo_radicado.setToolTip(
+            "Numero de radicado judicial del proceso, tal como aparece en el expediente "
+            "fisico o electronico del despacho."
+        )
         self.campo_demandante = QLineEdit()
+        self.campo_demandante.setToolTip("Nombre completo de la parte demandante (o accionante).")
         self.campo_demandado = QLineEdit()
+        self.campo_demandado.setToolTip("Nombre completo de la parte demandada (o accionada).")
         self.campo_juzgado = QLineEdit()
+        self.campo_juzgado.setToolTip("Despacho judicial que conoce del proceso (opcional).")
         self.campo_fecha_corte = QDateEdit(QDate.currentDate())
         self.campo_fecha_corte.setCalendarPopup(True)
+        self.campo_fecha_corte.setToolTip(
+            "Fecha hasta la que se calculan los intereses por defecto al liquidar este "
+            "expediente."
+        )
 
         self.combo_area = QComboBox()
+        self.combo_area.setToolTip(
+            "Area del derecho del proceso -- determina que campos y reglas de calculo "
+            "aplican al crear obligaciones dentro de este expediente."
+        )
         for codigo, etiqueta, habilitada in AREAS_DERECHO:
             self.combo_area.addItem(etiqueta, userData=codigo)
             if not habilitada:
@@ -80,6 +95,8 @@ class ExpedienteFormDialog(QDialog):
 
         self._expediente_id_creado = None
 
+        self.campo_radicado.textChanged.connect(self._validar_radicado_en_tiempo_real)
+
     def guardar(self) -> int:
         if not self.campo_radicado.text().strip():
             raise ValueError("El radicado es obligatorio.")
@@ -105,6 +122,28 @@ class ExpedienteFormDialog(QDialog):
         expediente_id = expediente.id
         session.close()
         return expediente_id
+
+    def _marcar_campo_invalido(self, campo: QLineEdit, mensaje: str) -> None:
+        campo.setProperty("class", "invalid")
+        campo.setToolTip(mensaje)
+        campo.style().unpolish(campo)
+        campo.style().polish(campo)
+
+    def _marcar_campo_valido(self, campo: QLineEdit, tooltip_original: str) -> None:
+        campo.setProperty("class", "")
+        campo.setToolTip(tooltip_original)
+        campo.style().unpolish(campo)
+        campo.style().polish(campo)
+
+    def _validar_radicado_en_tiempo_real(self) -> None:
+        tooltip_original = (
+            "Numero de radicado judicial del proceso, tal como aparece en el expediente "
+            "fisico o electronico del despacho."
+        )
+        if not self.campo_radicado.text().strip():
+            self._marcar_campo_invalido(self.campo_radicado, "El radicado es obligatorio.")
+        else:
+            self._marcar_campo_valido(self.campo_radicado, tooltip_original)
 
     def _guardar_y_cerrar(self) -> None:
         try:

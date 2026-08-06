@@ -760,3 +760,38 @@ def test_boton_crear_expediente_del_estado_vacio_abre_el_dialogo_de_nuevo_expedi
     view.boton_accion_estado_vacio.click()
 
     assert dialogos_creados == [1]
+
+
+def test_campo_radicado_tiene_tooltip_explicativo(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_radicado.toolTip() != ""
+
+
+def test_campo_fecha_corte_tiene_tooltip_explicativo(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_corte.toolTip() != ""
+
+
+def test_campo_radicado_vacio_se_marca_invalido_en_tiempo_real(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.campo_radicado.setText("2026-099")
+    assert dialog.campo_radicado.property("class") != "invalid"
+
+    dialog.campo_radicado.setText("   ")
+    assert dialog.campo_radicado.property("class") == "invalid"
+
+    dialog.campo_radicado.setText("2026-100")
+    assert dialog.campo_radicado.property("class") != "invalid"
