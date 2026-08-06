@@ -5,6 +5,30 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y este proyecto usa
 [Versionado Semántico](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+Sprints 31-35: primer sistema de diseño visual de la GUI y mejoras de UX construidas sobre él
+(navegación, pantalla de inicio, formularios, listados). Ningún cambio de lógica de cálculo.
+
+### Added
+- Sistema de diseño visual centralizado (Sprint 31): paleta de marca burdeos/crema
+  (`app/core/theme_colors.py`), stylesheet `resources/theme.qss` y `QPalette` aplicados una sola vez
+  vía `app/core/apariencia.py::aplicar_tema()`, tipografía `AncizarSans` cargada como fuente por
+  defecto, y un set de 9 íconos SVG hechos a mano (`resources/icons/`) reemplazando los emoji sueltos
+  de navegación, cargados vía `app/views/icons.py`.
+- Dashboard de inicio (Sprint 33): `DashboardView` (`app/views/dashboard.py`, antes vacío) con conteo
+  de expedientes por área, alertas de plazos próximos a vencer y actividad reciente; registrado como
+  pantalla inicial de la aplicación en vez del listado plano de expedientes.
+- Navegación mejorada (Sprint 32): breadcrumb contextual, atajos de teclado
+  (`Alt+Izquierda`/`Backspace`/`Ctrl+Home` para navegar, `Ctrl+S`/`Esc` en los 5 diálogos de
+  formulario), y estado visual activo/inactivo del botón "Parámetros".
+- Búsqueda, filtros y estados vacíos (Sprint 35): campo de búsqueda y filtro por área en
+  `ExpedientesListView`, ordenamiento de columnas, y un estado vacío explícito con acción contextual
+  cuando la tabla no tiene filas.
+- UX de formularios (Sprint 34): `ObligacionFormDialog` reorganizado en secciones colapsables con
+  tooltips legales y feedback de validación en tiempo real (reutilizando las reglas del Sprint 24);
+  tooltips y validación en tiempo real del radicado en `ExpedienteFormDialog`.
+
 ## [0.1.0] - 2026-08-04
 
 Primera versión etiquetada del proyecto. BASTIUM ya calcula liquidaciones completas en las áreas

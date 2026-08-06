@@ -152,11 +152,11 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests ✅ Completado](#sprint-28--cicd-versionado-housekeeping-de-repositorio-e-higiene-de-tests--completado)
 - [Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos ✅ Completado](#sprint-29--corrección-de-documentación-desactualizada-inconsistente-y-con-enlaces-rotos--completado)
 - [Sprint 30 — Verificación de reglas de dominio con posible error de un día ✅ Completado](#sprint-30--verificación-de-reglas-de-dominio-con-posible-error-de-un-día--completado)
-- [Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI 📋 Pendiente](#sprint-31--sistema-de-diseño-visual-tema-color-tipografía-e-íconos-en-la-gui--pendiente)
-- [Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado 📋 Pendiente](#sprint-32--navegación-barra-mejorada-breadcrumb-y-atajos-de-teclado--pendiente)
-- [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas 📋 Pendiente](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas--pendiente)
-- [Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real 📋 Pendiente](#sprint-34--ux-de-formularios-agrupación-ayuda-contextual-y-feedback-en-tiempo-real--pendiente)
-- [Sprint 35 — Búsqueda, filtros y estados vacíos en listados 📋 Pendiente](#sprint-35--búsqueda-filtros-y-estados-vacíos-en-listados--pendiente)
+- [Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI ✅ Completado](#sprint-31--sistema-de-diseño-visual-tema-color-tipografía-e-íconos-en-la-gui--completado)
+- [Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado ✅ Completado](#sprint-32--navegación-barra-mejorada-breadcrumb-y-atajos-de-teclado--completado)
+- [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas ✅ Completado](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas--completado)
+- [Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real ✅ Completado](#sprint-34--ux-de-formularios-agrupación-ayuda-contextual-y-feedback-en-tiempo-real--completado)
+- [Sprint 35 — Búsqueda, filtros y estados vacíos en listados ✅ Completado](#sprint-35--búsqueda-filtros-y-estados-vacíos-en-listados--completado)
 - [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones 📋 Pendiente](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones--pendiente)
 - [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado 📋 Pendiente](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado--pendiente)
 - [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` 🔵 Bloqueado — pendiente de decisión](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license--bloqueado--pendiente-de-decisión)
@@ -2731,7 +2731,7 @@ riesgo documentado arriba, interactúa con el Sprint 9 de auditoría). Suite com
 
 ---
 
-## Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI 📋 Pendiente
+## Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI ✅ Completado
 
 **Prioridad sugerida:** Alta — es la base de la que dependen casi todos los demás sprints de UX (32-37);
 sin un sistema de estilos centralizado, cada pantalla seguiría viéndose distinta.
@@ -2803,9 +2803,23 @@ sin un sistema de estilos centralizado, cada pantalla seguiría viéndose distin
 - Ícono de aplicación visible en la barra de tareas de Windows.
 - Suite de tests de GUI (`pytest-qt`) sigue en verde tras aplicar el stylesheet.
 
+**Cierre de implementación (2026-08-06):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint31-sistema-diseno-visual.md`. Paleta de marca centralizada en
+`app/core/theme_colors.py` (burdeos/crema como ancla, con variantes hover/pressed/disabled), aplicada vía
+`app/core/apariencia.py::aplicar_tema()` que carga `resources/theme.qss`, fija la `QPalette` base y
+registra la tipografía `AncizarSans` (`app/assets/fonts.py`) como fuente por defecto de la aplicación. Se
+descartó una librería de íconos de terceros (Feather/Lucide/Material Symbols) por falta de acceso a
+internet del implementador y riesgo de licenciamiento a mitad de sprint — en su lugar, `resources/icons/`
+tiene 7 SVG de línea hechos a mano (`home`, `back`, `settings`, `save`, `cancel`, `delete`, `export`),
+más `resources/icon_app.svg` para el ícono de ventana, cargados vía el helper `app/views/icons.py`
+(`icon(nombre)`/`icono_aplicacion()`). Se introdujo la convención `boton.setProperty("class", "primary"
+/"destructive")` para botones de acción, reutilizada por los Sprints 32, 34 y 35. Implementado en un
+worktree aislado y fusionado a `main` antes de los Sprints 32-35 (que dependen de sus íconos/tema),
+ejecutados después en dos streams paralelos. Suite completa en verde tras el merge.
+
 ---
 
-## Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado 📋 Pendiente
+## Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado ✅ Completado
 
 **Prioridad sugerida:** Alta — la navegación es el primer punto de contacto con la app y hoy es mínima.
 
@@ -2848,9 +2862,23 @@ sin un sistema de estilos centralizado, cada pantalla seguiría viéndose distin
 - La barra de navegación muestra claramente en qué expediente/pantalla se está parado.
 - Suite de tests de GUI en verde.
 
+**Cierre de implementación (2026-08-06):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint32-navegacion-breadcrumb-atajos.md`. Se mantuvo el toolbar
+superior enriquecido en vez de un sidebar completo (decisión de diseño explícita: 4-5 pantallas no lo
+justifican todavía). Se agregó un breadcrumb contextual (`QLabel` en la barra de navegación,
+`app/views/main_window.py`), atajos `Alt+Izquierda`/`Backspace` (Volver) y `Ctrl+Home` (Inicio) vía
+`QShortcut`, estado visual activo/inactivo del botón "Parámetros" (misma convención `class="primary"`
+del Sprint 31), y `Ctrl+S`/`Esc` en los 5 diálogos de formulario del proyecto (`Esc` no requirió código
+nuevo, ya es comportamiento nativo de `QDialog`). Implementado junto con el Sprint 33 en un mismo stream
+secuencial (32 antes de 33, ambos tocan `main_window.py`), y fusionado a `main` resolviendo manualmente
+un conflicto de merge contra el otro stream paralelo (Sprint 35→34) en `app/views/expedientes.py` y
+`resources/theme.qss` — ambos streams agregaron atajos `Ctrl+S`/estilos QSS de forma independiente sobre
+los mismos archivos; se combinaron sin pérdida de ninguno de los dos lados. Suite completa en verde
+(829 tests) tras el merge final.
+
 ---
 
-## Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas 📋 Pendiente
+## Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas ✅ Completado
 
 **Prioridad sugerida:** Media-alta — hoy `app/views/dashboard.py` está vacío (0 bytes) y no se usa; la app
 abre directo a un listado plano de expedientes sin ningún resumen ni contexto.
@@ -2896,9 +2924,23 @@ la GUI.
 - Test de GUI que verifica que el dashboard muestra el conteo correcto de expedientes y al menos una
   alerta de vencimiento con datos sintéticos.
 
+**Cierre de implementación (2026-08-06):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint33-dashboard-inicio.md`. `DashboardView`
+(`app/views/dashboard.py`, antes vacío) muestra conteo de expedientes por área, alertas de plazos
+próximos a vencer (reutilizando `calcular_prescripcion` del Sprint 7 con `TipoAccion.EJECUTIVA` como
+heurística documentada — el modelo `Obligacion` no tiene un campo de tipo de acción procesal para un
+mapeo área→tipo más preciso) y actividad reciente (reutilizando `historial_de_expediente` del Sprint 9).
+Registrada como pantalla de inicio en `MainWindow`, reemplazando al listado plano de expedientes como
+primera pantalla (accesible con un clic vía "Ver todos los expedientes"). Carga de datos síncrona, sin
+`TareaEnHilo` (Sprint 26): son consultas SQL livianas, sin comparación de costo con `liquidar()` o
+exportar PDF/Word. Implementado junto con el Sprint 32 en el mismo stream (32 antes de 33, Sprint 33
+releyó el `main_window.py` real post-Sprint-32 en vez de asumir su contenido, según indicaba su propio
+plan). `docs/GUIA_USUARIO.md` actualizado para reflejar que la app ahora arranca en el Dashboard. Suite
+completa en verde (829 tests) tras el merge final a `main`.
+
 ---
 
-## Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real 📋 Pendiente
+## Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real ✅ Completado
 
 **Prioridad sugerida:** Media-alta — los formularios (`ObligacionFormDialog`, `ExpedienteFormDialog`) son
 donde el abogado pasa más tiempo y hoy son una lista plana de campos sin jerarquía visual.
@@ -2938,9 +2980,24 @@ reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
 - Los campos inválidos se marcan visualmente antes de intentar guardar.
 - Suite de tests de GUI en verde.
 
+**Cierre de implementación (2026-08-06):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint34-ux-formularios.md`. `ObligacionFormDialog`
+(`app/views/obligaciones.py`) reorganizado en 3 secciones colapsables (`QGroupBox` checkeable: "Datos
+básicos", "Tasas e intereses", "Honorarios y costas") en vez de pestañas — un `QTabWidget` habría roto
+las aserciones `isVisible()` ya existentes en la suite de tests, ya que solo mantiene visible la pestaña
+activa. Tooltips legales agregados a los campos técnicos de `ObligacionFormDialog` y a los 6 campos de
+`ExpedienteFormDialog`; feedback visual en tiempo real (borde rojo + ícono de advertencia,
+`resources/icons/warning.svg`) conectado a las validaciones ya existentes del Sprint 24, sin duplicar
+sus reglas; ícono informativo (`resources/icons/info.svg`) junto al campo de tasa con el tooltip exacto
+del hallazgo ("Valor por defecto: interés civil legal, Art. 1617 C.C."). Validación en tiempo real
+también agregada al radicado de `ExpedienteFormDialog`. Implementado junto con el Sprint 35 en un mismo
+stream secuencial (35 antes de 34, ambos tocan `app/views/expedientes.py` — `ExpedienteFormDialog` y
+`ExpedientesListView` viven en el mismo archivo). Suite completa en verde (829 tests) tras el merge
+final a `main`.
+
 ---
 
-## Sprint 35 — Búsqueda, filtros y estados vacíos en listados 📋 Pendiente
+## Sprint 35 — Búsqueda, filtros y estados vacíos en listados ✅ Completado
 
 **Prioridad sugerida:** Media.
 
@@ -2969,6 +3026,22 @@ reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
   manual sobre toda la lista.
 - Una base de datos vacía muestra un mensaje útil, no una tabla en blanco.
 - Suite de tests de GUI en verde.
+
+**Cierre de implementación (2026-08-06):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint35-busqueda-filtros-listados.md`. `ExpedientesListView`
+(`app/views/expedientes.py`) ganó un campo de búsqueda (radicado/demandante/demandado) y un filtro por
+área, combinables, filtrados en memoria dentro de `refrescar()`; ordenamiento de columnas habilitado
+(`setSortingEnabled(True)`); y un estado vacío explícito con mensaje y botón de acción contextual
+("Crear expediente" si la base está realmente vacía, "Limpiar filtros" si hay expedientes pero ninguno
+coincide). El campo "estado" mencionado en el hallazgo original no existe en el modelo `Expediente` — no
+se inventó, el filtro real implementado es solo por área. Se corrigió un bug real que
+`setSortingEnabled(True)` habría introducido de otro modo: el doble clic para abrir un expediente
+indexaba una lista Python por posición de fila, que deja de ser válida en cuanto el usuario ordena una
+columna; se corrigió guardando el id del expediente como `Qt.ItemDataRole.UserRole` en el
+`QTableWidgetItem`, que sí se mueve junto con la fila al ordenar (con test de regresión dedicado). No se
+agregó un ícono de búsqueda (fuera del set del Sprint 31, no justificado por la Definición de Hecho).
+Implementado junto con el Sprint 34 en un mismo stream secuencial (35 antes de 34, mismo archivo
+`expedientes.py`). Suite completa en verde (829 tests) tras el merge final a `main`.
 
 ---
 
