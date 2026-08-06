@@ -7,11 +7,11 @@ from app.views.main_window import MainWindow
 from database.models import AreaDerecho, Expediente
 
 
-def test_main_window_arranca_en_la_lista_de_expedientes(qtbot):
+def test_main_window_arranca_en_el_dashboard(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
 def test_main_window_navega_a_la_pagina_de_detalle(qtbot):
@@ -68,7 +68,7 @@ def test_volver_regresa_a_la_pagina_anterior(qtbot):
     window.show_page("detalle")
     window._volver()
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
 def test_volver_respeta_el_orden_de_visitas(qtbot):
@@ -83,7 +83,7 @@ def test_volver_respeta_el_orden_de_visitas(qtbot):
 
     window._volver()
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
 def test_volver_sin_historial_no_hace_nada(qtbot):
@@ -92,10 +92,10 @@ def test_volver_sin_historial_no_hace_nada(qtbot):
 
     window._volver()
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
-def test_ir_inicio_limpia_el_historial_y_regresa_a_expedientes(qtbot):
+def test_ir_inicio_limpia_el_historial_y_regresa_al_dashboard(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
@@ -103,8 +103,21 @@ def test_ir_inicio_limpia_el_historial_y_regresa_a_expedientes(qtbot):
     window.show_page("resultado")
     window._ir_inicio()
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
     assert window._history == []
+
+
+def test_ir_inicio_refresca_el_dashboard(qtbot, monkeypatch):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    llamadas = []
+    monkeypatch.setattr(window.dashboard_page, "refrescar", lambda: llamadas.append(1))
+
+    window.show_page("detalle")
+    window._ir_inicio()
+
+    assert llamadas == [1]
 
 
 def test_botones_navegacion_ocultos_en_pagina_inicial(qtbot):
@@ -135,10 +148,10 @@ def test_click_en_volver_navega_a_la_pagina_anterior(qtbot):
     window.show_page("detalle")
     window.boton_volver.click()
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
-def test_click_en_inicio_regresa_a_expedientes_y_oculta_los_botones(qtbot):
+def test_click_en_inicio_regresa_al_dashboard_y_oculta_los_botones(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
     window.show()
@@ -147,7 +160,7 @@ def test_click_en_inicio_regresa_a_expedientes_y_oculta_los_botones(qtbot):
     window.show_page("resultado")
     window.boton_inicio.click()
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
     assert window.boton_volver.isVisible() is False
     assert window.boton_inicio.isVisible() is False
 
@@ -293,7 +306,7 @@ def test_alt_izquierda_navega_a_la_pagina_anterior(qtbot):
     window.show_page("detalle")
     qtbot.keyClick(window, Qt.Key.Key_Left, Qt.KeyboardModifier.AltModifier)
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
 def test_backspace_navega_a_la_pagina_anterior(qtbot):
@@ -307,10 +320,10 @@ def test_backspace_navega_a_la_pagina_anterior(qtbot):
     window.show_page("detalle")
     qtbot.keyClick(window, Qt.Key.Key_Backspace)
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
-def test_ctrl_home_regresa_a_expedientes_y_limpia_el_historial(qtbot):
+def test_ctrl_home_regresa_al_dashboard_y_limpia_el_historial(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
     window.show()
@@ -322,7 +335,7 @@ def test_ctrl_home_regresa_a_expedientes_y_limpia_el_historial(qtbot):
     window.show_page("resultado")
     qtbot.keyClick(window, Qt.Key.Key_Home, Qt.KeyboardModifier.ControlModifier)
 
-    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
     assert window._history == []
 
 
@@ -356,3 +369,12 @@ def test_boton_parametros_deja_de_estar_activo_al_salir_de_parametros(qtbot):
     window._ir_inicio()
 
     assert window.boton_parametros.property("class") == ""
+
+
+def test_main_window_dashboard_ver_expedientes_navega_a_la_lista(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.dashboard_page.boton_ver_expedientes.click()
+
+    assert window.stacked_widget.currentWidget() is window.expedientes_page

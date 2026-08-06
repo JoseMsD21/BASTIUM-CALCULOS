@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QStackedWidget, 
 
 import database.session as session_module
 from app.views.configuracion import ParametrosView
+from app.views.dashboard import DashboardView
 from app.views.expediente_detalle import ExpedienteDetallePage
 from app.views.expedientes import ExpedientesListView
 from app.views.icons import icon, icono_aplicacion
@@ -12,7 +13,7 @@ from database.models import Expediente
 
 
 class MainWindow(QMainWindow):
-    """Ventana principal: aloja las 3 pantallas del flujo y la navegacion entre ellas."""
+    """Ventana principal: aloja las pantallas del flujo y la navegacion entre ellas."""
 
     def __init__(self):
         super().__init__()
@@ -22,17 +23,23 @@ class MainWindow(QMainWindow):
         self.stacked_widget = QStackedWidget()
         self.setCentralWidget(self.stacked_widget)
 
+        self.dashboard_page = DashboardView(
+            on_expediente_abierto=self._abrir_detalle,
+            on_ver_expedientes=self._ir_a_expedientes,
+        )
         self.expedientes_page = ExpedientesListView(on_expediente_abierto=self._abrir_detalle)
         self.detalle_page = ExpedienteDetallePage(on_liquidado=self._mostrar_resultado)
         self.resultado_page = ResultadoLiquidacionView()
         self.parametros_page = ParametrosView()
 
+        self.stacked_widget.addWidget(self.dashboard_page)
         self.stacked_widget.addWidget(self.expedientes_page)
         self.stacked_widget.addWidget(self.detalle_page)
         self.stacked_widget.addWidget(self.resultado_page)
         self.stacked_widget.addWidget(self.parametros_page)
 
         self._pages = {
+            "dashboard": self.dashboard_page,
             "expedientes": self.expedientes_page,
             "detalle": self.detalle_page,
             "resultado": self.resultado_page,
@@ -40,12 +47,12 @@ class MainWindow(QMainWindow):
         }
 
         self._history: list[str] = []
-        self._current_page_name = "expedientes"
+        self._current_page_name = "dashboard"
         self._radicado_actual: str | None = None
 
         self._crear_barra_navegacion()
         self._crear_atajos_teclado()
-        self.show_page("expedientes")
+        self.show_page("dashboard")
 
     def _crear_atajos_teclado(self) -> None:
         # Contexto por defecto de QShortcut (Qt.ShortcutContext.WindowShortcut): solo se
@@ -105,7 +112,7 @@ class MainWindow(QMainWindow):
 
     def _actualizar_botones_navegacion(self) -> None:
         self.boton_volver.setVisible(bool(self._history))
-        self.boton_inicio.setVisible(self._current_page_name != "expedientes")
+        self.boton_inicio.setVisible(self._current_page_name != "dashboard")
 
     def _actualizar_breadcrumb(self) -> None:
         self.etiqueta_breadcrumb.setText(self._texto_breadcrumb())
@@ -156,7 +163,12 @@ class MainWindow(QMainWindow):
 
     def _ir_inicio(self) -> None:
         self._history.clear()
-        self.show_page("expedientes", add_to_history=False)
+        self.dashboard_page.refrescar()
+        self.show_page("dashboard", add_to_history=False)
+
+    def _ir_a_expedientes(self) -> None:
+        self.expedientes_page.refrescar()
+        self.show_page("expedientes")
 
     def _obtener_radicado(self, expediente_id: int) -> str:
         session = session_module.get_session()
