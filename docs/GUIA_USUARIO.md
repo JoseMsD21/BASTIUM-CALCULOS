@@ -8,8 +8,9 @@
 > **Última actualización:** 2026-08-06 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, los botones de
 > navegación (Volver/Inicio/Parámetros) con íconos y estado activo, el breadcrumb de contexto y los
-> atajos de teclado de navegación y de los formularios, la edición/eliminación de expediente, y la
-> pantalla de parámetros legales versionados. Cada vez que se complete un sprint nuevo de
+> atajos de teclado de navegación y de los formularios, la edición/eliminación de expediente, la
+> pantalla de parámetros legales versionados, y el Dashboard de inicio con resumen de expedientes y
+> alertas de vencimiento. Cada vez que se complete un sprint nuevo de
 > [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
 > respecto al programa real.
 
@@ -140,23 +141,30 @@ sube a internet ni se comparte con nadie).
 
 ## 4. Tour de la aplicación
 
-BASTIUM tiene **4 pantallas**. Te mueves entre las tres primeras automáticamente según lo que hagas (no
-hay un menú de navegación separado); a la cuarta se entra con un botón de la barra superior:
+BASTIUM tiene **5 pantallas**. Te mueves entre la mayoría automáticamente según lo que hagas (no hay un
+menú de navegación separado); a la de Parámetros se entra con un botón de la barra superior:
 
-1. **Lista de Expedientes** — la pantalla con la que arranca el programa. Muestra una tabla con todos los
-   expedientes que ya creaste (radicado, demandante, demandado, área, y botones de **Editar** y
-   **Eliminar** por fila) y un botón **"Nuevo expediente"**. Si haces doble clic sobre una fila, entras al
-   detalle de ese expediente.
+1. **Dashboard (Inicio)** — la pantalla con la que arranca el programa (Sprint 33). Muestra el total de
+   expedientes y su conteo por área, una tabla de **"Plazos próximos a vencer"** (obligaciones no pagadas
+   cuya prescripción vence dentro de los próximos 90 días, o ya vencida — doble clic sobre una fila abre
+   ese expediente), y una tabla de **"Actividad reciente"** con las últimas liquidaciones ejecutadas en
+   cualquier expediente. El botón **"Ver todos los expedientes"** lleva a la Lista de Expedientes.
 
-2. **Detalle de Expediente** — se abre al hacer doble clic en un expediente de la lista. Aquí ves dos
-   tablas lado a lado: **Obligaciones** (las deudas del expediente) y **Abonos** (los pagos hechos), cada
-   una con su botón de "Agregar". Abajo hay un botón grande **"Liquidar"**.
+2. **Lista de Expedientes** — se abre desde el botón "Ver todos los expedientes" del Dashboard. Muestra
+   una tabla con todos los expedientes que ya creaste (radicado, demandante, demandado, área, y botones de
+   **Editar** y **Eliminar** por fila) y un botón **"Nuevo expediente"**. Si haces doble clic sobre una
+   fila, entras al detalle de ese expediente.
 
-3. **Resultado de Liquidación** — se abre automáticamente después de presionar "Liquidar". Muestra una
+3. **Detalle de Expediente** — se abre al hacer doble clic en un expediente de la lista o de la tabla de
+   alertas del Dashboard. Aquí ves dos tablas lado a lado: **Obligaciones** (las deudas del expediente) y
+   **Abonos** (los pagos hechos), cada una con su botón de "Agregar". Abajo hay un botón grande
+   **"Liquidar"**.
+
+4. **Resultado de Liquidación** — se abre automáticamente después de presionar "Liquidar". Muestra una
    tabla con el detalle día por día de cómo se acumuló el interés, y al final tres totales: interés
    acumulado, pagos aplicados y saldo final.
 
-4. **⚙ Parámetros** — la pantalla de parámetros legales versionados (tasas, topes, plazos e indicadores
+5. **⚙ Parámetros** — la pantalla de parámetros legales versionados (tasas, topes, plazos e indicadores
    históricos). Se abre desde el botón **"⚙ Parámetros"** de la barra superior, disponible siempre, sin
    importar en qué otra pantalla estés. Ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)
    para el detalle completo.
@@ -166,13 +174,14 @@ texto de "breadcrumb" que muestra en qué expediente y pantalla estás parado en
 ejemplo, "Expedientes › Radicado 2026-00123 › Liquidación"):
 
 - **Volver** — regresa a la pantalla anterior (por ejemplo, de Resultado de Liquidación a Detalle de
-  Expediente, y de ahí a la Lista de Expedientes). Recuerda el orden exacto en que navegaste, no solo "la
-  pantalla anterior en general". Está oculto cuando no hay a dónde volver (por ejemplo, recién abierto el
-  programa). Atajo de teclado: **Alt+Izquierda** o **Retroceso (Backspace)**.
-- **Inicio** — regresa directo a la Lista de Expedientes sin importar en qué pantalla estés. Está
-  oculto cuando ya estás en la Lista de Expedientes. Atajo de teclado: **Ctrl+Inicio**.
+  Expediente, y de ahí al Dashboard o a la Lista de Expedientes, según por dónde hayas entrado). Recuerda
+  el orden exacto en que navegaste, no solo "la pantalla anterior en general". Está oculto cuando no hay a
+  dónde volver (por ejemplo, recién abierto el programa). Atajo de teclado: **Alt+Izquierda** o
+  **Retroceso (Backspace)**.
+- **Inicio** — regresa directo al Dashboard sin importar en qué pantalla estés, y refresca sus datos.
+  Está oculto cuando ya estás en el Dashboard. Atajo de teclado: **Ctrl+Inicio**.
 - **Parámetros** — siempre visible, en cualquier pantalla; te lleva a la pantalla de parámetros legales
-  versionados (ver punto 4 arriba). Se resalta con el color de marca de BASTIUM mientras estás dentro de
+  versionados (ver punto 5 arriba). Se resalta con el color de marca de BASTIUM mientras estás dentro de
   esa pantalla, para que sea evidente cuál tienes abierta.
 
 En los formularios (Nuevo expediente, Agregar obligación, Agregar abono, Agregar evento contractual,
