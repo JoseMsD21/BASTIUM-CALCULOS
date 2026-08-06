@@ -1,6 +1,6 @@
 from datetime import date
 
-from PySide6.QtCore import QDate
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -137,6 +137,12 @@ class ExpedientesListView(QWidget):
         self.tabla.setHorizontalHeaderLabels(
             ["Radicado", "Demandante", "Demandado", "Area", "Editar", "Eliminar"]
         )
+        # QHeaderView trae un sortIndicatorSection por defecto de 0 (no -1) aunque el
+        # usuario nunca haya hecho clic en un encabezado: al activar setSortingEnabled(True)
+        # por primera vez, Qt aplica de inmediato un sort "fantasma" por esa columna. Se
+        # limpia el indicador aqui, una sola vez, para que la tabla arranque en el orden de
+        # insercion y solo se reordene cuando el usuario realmente hace clic en un encabezado.
+        self.tabla.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
         self.tabla.cellDoubleClicked.connect(self._abrir_seleccionado)
 
         self.boton_nuevo = QPushButton("Nuevo expediente")
@@ -158,10 +164,21 @@ class ExpedientesListView(QWidget):
 
         expedientes_filtrados = self._filtrar(expedientes)
 
+        # Se desactiva el ordenamiento mientras se puebla la tabla: con
+        # setSortingEnabled(True) ya activo, cada setItem() dispararia un
+        # re-ordenamiento a mitad de poblado y mezclaria filas con datos
+        # incompletos (gotcha conocido de QTableWidget).
+        self.tabla.setSortingEnabled(False)
         self.tabla.setRowCount(len(expedientes_filtrados))
         self._expediente_ids_por_fila = []
         for fila, expediente in enumerate(expedientes_filtrados):
-            self.tabla.setItem(fila, 0, QTableWidgetItem(expediente.radicado))
+            item_radicado = QTableWidgetItem(expediente.radicado)
+            # El id se guarda como UserRole en el item de la columna 0 (no en
+            # una lista Python indexada por fila) porque el item -- con todos
+            # sus roles de datos -- se mueve junto con la fila cuando el
+            # usuario ordena por columna; una lista indexada por posicion no.
+            item_radicado.setData(Qt.ItemDataRole.UserRole, expediente.id)
+            self.tabla.setItem(fila, 0, item_radicado)
             self.tabla.setItem(fila, 1, QTableWidgetItem(expediente.demandante))
             self.tabla.setItem(fila, 2, QTableWidgetItem(expediente.demandado))
             self.tabla.setItem(fila, 3, QTableWidgetItem(expediente.area_derecho.value))
@@ -181,6 +198,7 @@ class ExpedientesListView(QWidget):
             self.tabla.setCellWidget(fila, 5, boton_eliminar)
 
             self._expediente_ids_por_fila.append(expediente.id)
+        self.tabla.setSortingEnabled(True)
         session.close()
 
     def _filtrar(self, expedientes: list[Expediente]) -> list[Expediente]:
@@ -205,7 +223,8 @@ class ExpedientesListView(QWidget):
 
     def _abrir_seleccionado(self, fila: int, _columna: int) -> None:
         if self._on_expediente_abierto:
-            self._on_expediente_abierto(self._expediente_ids_por_fila[fila])
+            expediente_id = self.tabla.item(fila, 0).data(Qt.ItemDataRole.UserRole)
+            self._on_expediente_abierto(expediente_id)
 
     def _editar_expediente(self, expediente_id: int) -> None:
         session = session_module.get_session()

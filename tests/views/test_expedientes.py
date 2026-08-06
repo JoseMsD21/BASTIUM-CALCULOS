@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -546,3 +547,95 @@ def test_busqueda_y_filtro_de_area_se_combinan(qtbot, monkeypatch):
 
     assert view.tabla.rowCount() == 1
     assert view.tabla.item(0, 0).text() == "2026-401"
+
+
+def test_tabla_de_expedientes_tiene_ordenamiento_de_columnas_habilitado(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+
+    assert view.tabla.isSortingEnabled() is True
+
+
+def test_doble_clic_despues_de_ordenar_por_columna_abre_el_expediente_correcto(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente_zulema = Expediente(
+        radicado="2026-900",
+        demandante="Zulema",
+        demandado="Ana",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    expediente_andres = Expediente(
+        radicado="2026-901",
+        demandante="Andres",
+        demandado="Beto",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add_all([expediente_zulema, expediente_andres])
+    session.commit()
+    id_andres = expediente_andres.id
+    session.close()
+
+    abiertos = []
+    view = ExpedientesListView(on_expediente_abierto=abiertos.append)
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    # Orden de insercion original: fila 0 = "Zulema" (2026-900), fila 1 = "Andres" (2026-901).
+    assert view.tabla.item(0, 1).text() == "Zulema"
+
+    # Se ordena por la columna "Demandante" (columna 1) ascendente: invierte el orden.
+    view.tabla.sortItems(1, Qt.SortOrder.AscendingOrder)
+    assert view.tabla.item(0, 1).text() == "Andres"
+
+    view._abrir_seleccionado(0, 0)
+
+    assert abiertos == [id_andres]
+
+
+def test_eliminar_expediente_sigue_borrando_el_correcto_despues_de_ordenar(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente_z = Expediente(
+        radicado="2026-902",
+        demandante="Zulema",
+        demandado="Ana",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    expediente_a = Expediente(
+        radicado="2026-903",
+        demandante="Andres",
+        demandado="Beto",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add_all([expediente_z, expediente_a])
+    session.commit()
+    id_andres = expediente_a.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expedientes.QMessageBox.question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    monkeypatch.setattr(
+        "app.views.expedientes.QInputDialog.getText",
+        lambda *args, **kwargs: ("2026-903", True),
+    )
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+    view.tabla.sortItems(1, Qt.SortOrder.AscendingOrder)
+
+    boton_eliminar_fila_0 = view.tabla.cellWidget(0, 5)
+    boton_eliminar_fila_0.click()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, id_andres) is None
+    session.close()
