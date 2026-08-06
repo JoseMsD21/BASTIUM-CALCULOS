@@ -1,3 +1,5 @@
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QStackedWidget, QToolBar
 
 import database.session as session_module
@@ -42,7 +44,24 @@ class MainWindow(QMainWindow):
         self._radicado_actual: str | None = None
 
         self._crear_barra_navegacion()
+        self._crear_atajos_teclado()
         self.show_page("expedientes")
+
+    def _crear_atajos_teclado(self) -> None:
+        # Contexto por defecto de QShortcut (Qt.ShortcutContext.WindowShortcut): solo se
+        # dispara si `self` (MainWindow) es la ventana activa. Cuando un dialogo modal
+        # (ej. ExpedienteFormDialog) esta abierto, ese dialogo es la ventana activa y
+        # MainWindow no lo es -- por eso Backspace no interfiere con la edicion de texto
+        # dentro de los formularios (que viven en dialogos separados, no en las 4
+        # pantallas alojadas directamente por MainWindow).
+        self.atajo_volver_alt_izquierda = QShortcut(QKeySequence("Alt+Left"), self)
+        self.atajo_volver_alt_izquierda.activated.connect(self._volver)
+
+        self.atajo_volver_backspace = QShortcut(QKeySequence(Qt.Key.Key_Backspace), self)
+        self.atajo_volver_backspace.activated.connect(self._volver)
+
+        self.atajo_inicio = QShortcut(QKeySequence("Ctrl+Home"), self)
+        self.atajo_inicio.activated.connect(self._ir_inicio)
 
     def _crear_barra_navegacion(self) -> None:
         barra = QToolBar("Navegacion")

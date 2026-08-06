@@ -1,5 +1,7 @@
 from datetime import date
 
+from PySide6.QtCore import Qt
+
 import database.session as session_module
 from app.views.main_window import MainWindow
 from database.models import AreaDerecho, Expediente
@@ -278,3 +280,47 @@ def test_breadcrumb_regresa_a_expedientes_al_ir_a_inicio(qtbot):
     window._ir_inicio()
 
     assert window.etiqueta_breadcrumb.text() == "Expedientes"
+
+
+def test_alt_izquierda_navega_a_la_pagina_anterior(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+    window.activateWindow()
+    qtbot.wait(50)
+
+    window.show_page("detalle")
+    qtbot.keyClick(window, Qt.Key.Key_Left, Qt.KeyboardModifier.AltModifier)
+
+    assert window.stacked_widget.currentWidget() is window.expedientes_page
+
+
+def test_backspace_navega_a_la_pagina_anterior(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+    window.activateWindow()
+    qtbot.wait(50)
+
+    window.show_page("detalle")
+    qtbot.keyClick(window, Qt.Key.Key_Backspace)
+
+    assert window.stacked_widget.currentWidget() is window.expedientes_page
+
+
+def test_ctrl_home_regresa_a_expedientes_y_limpia_el_historial(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+    window.activateWindow()
+    qtbot.wait(50)
+
+    window.show_page("detalle")
+    window.show_page("resultado")
+    qtbot.keyClick(window, Qt.Key.Key_Home, Qt.KeyboardModifier.ControlModifier)
+
+    assert window.stacked_widget.currentWidget() is window.expedientes_page
+    assert window._history == []
