@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDialog
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -115,3 +117,48 @@ def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
 
     assert not dialog.boton_guardar.icon().isNull()
     assert dialog.boton_guardar.property("class") == "primary"
+
+
+def test_ctrl_s_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+
+    dialog = EventoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # Suspension
+    dialog.campo_fecha_inicio.setDate(date(2020, 3, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 3, 15))
+    dialog.combo_motivo.setCurrentIndex(0)  # Huelga
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_S, Qt.KeyboardModifier.ControlModifier)
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert len(obligacion.eventos_laborales) == 1
+    session.close()
+
+
+def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+
+    dialog = EventoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # Suspension
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_Escape)
+
+    assert dialog.result() == QDialog.DialogCode.Rejected
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert len(obligacion.eventos_laborales) == 0
+    session.close()

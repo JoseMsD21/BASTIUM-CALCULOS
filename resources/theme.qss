@@ -195,3 +195,11 @@ QLineEdit[class="invalid"] {
 QLineEdit[class="invalid"]:focus {
     border: 2px solid #D32F2F;
 }
+
+/* --- Breadcrumb de navegacion (Sprint 32) --- */
+
+QLabel#etiqueta_breadcrumb {
+    color: #6B5F57;
+    font-weight: bold;
+    padding-left: 10px;
+}

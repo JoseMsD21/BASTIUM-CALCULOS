@@ -2,6 +2,8 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDialog
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -151,3 +153,46 @@ def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
 
     assert not dialog.boton_guardar.icon().isNull()
     assert dialog.boton_guardar.property("class") == "primary"
+
+
+def test_ctrl_s_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_fecha.setDate(date(2026, 1, 15))
+    dialog.campo_monto.setText("100000.00")
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_S, Qt.KeyboardModifier.ControlModifier)
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert len(obligacion.abonos) == 1
+    session.close()
+
+
+def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_monto.setText("100000.00")
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_Escape)
+
+    assert dialog.result() == QDialog.DialogCode.Rejected
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert len(obligacion.abonos) == 0
+    session.close()

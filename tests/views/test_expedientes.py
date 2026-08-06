@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QDialog, QMessageBox
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -795,3 +795,48 @@ def test_campo_radicado_vacio_se_marca_invalido_en_tiempo_real(qtbot, monkeypatc
 
     dialog.campo_radicado.setText("2026-100")
     assert dialog.campo_radicado.property("class") != "invalid"
+
+
+def test_ctrl_s_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-050")
+    dialog.campo_demandante.setText("Ana")
+    dialog.campo_demandado.setText("Luis")
+    dialog.campo_fecha_corte.setDate(date(2026, 1, 1))
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_S, Qt.KeyboardModifier.ControlModifier)
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    session = session_module.get_session()
+    guardado = session.query(Expediente).filter_by(radicado="2026-050").one_or_none()
+    assert guardado is not None
+    session.close()
+
+
+def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-051")
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_Escape)
+
+    assert dialog.result() == QDialog.DialogCode.Rejected
+    session = session_module.get_session()
+    guardado = session.query(Expediente).filter_by(radicado="2026-051").one_or_none()
+    assert guardado is None
+    session.close()

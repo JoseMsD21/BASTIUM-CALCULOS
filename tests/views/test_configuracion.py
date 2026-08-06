@@ -1,7 +1,8 @@
 from datetime import date
 from decimal import Decimal
 
-from PySide6.QtCore import QDate
+from PySide6.QtCore import QDate, Qt
+from PySide6.QtWidgets import QDialog
 
 from app.services.parametro_service import agregar_valor, historial
 from app.views.configuracion import (
@@ -169,3 +170,45 @@ def test_parametros_view_boton_agregar_tiene_clase_primaria(qtbot):
     qtbot.addWidget(vista)
 
     assert vista.boton_agregar.property("class") == "primary"
+
+
+def test_ctrl_s_guarda_y_cierra_el_dialogo(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(
+        dialogo.combo_clave.findData("USURA_MULTIPLICADOR")
+    )
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+
+    dialogo.show()
+    qtbot.waitExposed(dialogo)
+    dialogo.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialogo, Qt.Key.Key_S, Qt.KeyboardModifier.ControlModifier)
+
+    assert dialogo.result() == QDialog.DialogCode.Accepted
+    filas = historial("USURA_MULTIPLICADOR")
+    assert len(filas) == 1
+    assert filas[0].valor == Decimal("1.5")
+
+
+def test_escape_cierra_el_dialogo_sin_guardar(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(
+        dialogo.combo_clave.findData("USURA_MULTIPLICADOR")
+    )
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+
+    dialogo.show()
+    qtbot.waitExposed(dialogo)
+    dialogo.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialogo, Qt.Key.Key_Escape)
+
+    assert dialogo.result() == QDialog.DialogCode.Rejected
+    assert historial("USURA_MULTIPLICADOR") == []
