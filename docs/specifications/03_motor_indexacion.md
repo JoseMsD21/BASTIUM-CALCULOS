@@ -47,7 +47,7 @@ Familia.
   tabla de datos reales (`_IPC_MENSUAL`) sigue vacía (no se consiguió la fuente completa 1967-2025 del
   DANE) y `CivilFamiliaStrategy._evento_indexacion` **sigue usando la interpolación anual** mientras tanto
   — cambiar de una a otra sin datos reales rompería toda indexación IPC existente. Pregunta de seguimiento
-  agregada a `Preguntas-Para-Abogado.md` pidiendo al despacho la fuente/tabla real.
+  agregada a `Preguntas-Para-Abogado-Abiertas.md` pidiendo al despacho la fuente/tabla real.
 - El interes (Art. 1617 C.C.) se calcula sobre el capital ya indexado ("Suma Única", PDF pag. 21-22) solo
   cuando `Obligacion.interes_sobre_capital_indexado` esta activo (ademas de `aplica_indexacion_ipc`) --
   opt-in explicito por obligacion, Sprint 20. Sin ese flag, el comportamiento es el mismo de antes: interes

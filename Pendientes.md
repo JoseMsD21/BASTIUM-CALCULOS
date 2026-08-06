@@ -15,6 +15,22 @@ sacar el módulo correspondiente de la lista "🚧 en desarrollo"/"🚧 no todav
 igual que se documentó Civil/Familia. Estos dos documentos nunca deben quedar desactualizados respecto
 al código real.
 
+**Estados de sprint (2026-08-06):** cada título de sprint —tanto en este índice como en su propio
+encabezado `## Sprint N`— termina con exactamente uno de estos 5 estados, para que sea inmediato saber
+qué hacer sin tener que leer el cuerpo completo:
+
+- ✅ **Completado** — implementado, probado, sin ningún bug de dominio confirmado y sin corregir.
+- ⚠️ **Parcial** — una parte del alcance se implementó y funciona; el resto se difirió a propósito a
+  otro sprint ya existente (el propio sprint dice a cuál).
+- 🔴 **Bug confirmado sin corregir** — el despacho o una auditoría de código confirmó que el
+  comportamiento actual es incorrecto, y ese comportamiento sigue en producción tal cual — máxima
+  prioridad.
+- 🔵 **Bloqueado — pendiente de confirmación/decisión** — no se puede avanzar (o no se puede cerrar del
+  todo) sin una respuesta del despacho (ver `Preguntas-Para-Abogado-Abiertas.md`) o sin una decisión
+  explícita del usuario.
+- 📋 **Pendiente** — backlog puro: nadie lo ha empezado todavía, y no depende de ninguna respuesta o
+  decisión externa para arrancar.
+
 **Contexto ya construido (no repetir):**
 - `docs/superpowers/specs/2026-07-14-mvp-captura-liquidacion-civil-familia-design.md` — diseño del MVP.
 - `docs/superpowers/plans/2026-07-14-mvp-captura-liquidacion-civil-familia.md` — plan TDD tarea por tarea,
@@ -84,6 +100,13 @@ descuentos del empleador, fecha de corte) y Sprint 45 (Sancionatorio: transparen
 confirmada como mejora real; la queja de "capital creciendo exponencialmente" no se pudo reproducir en el
 código y queda pendiente de un caso concreto antes de tratarla como bug).
 
+**Sprints 47-48 (nuevos, 2026-08-06): seguimiento de lo que los Sprints 26-30 dejaron explícitamente fuera
+de su propio alcance.** Sprint 47 (decidir con el usuario si se recalculan las liquidaciones históricas
+afectadas por las dos correcciones de fecha/conteo del Sprint 30 — no arrancar sin esa decisión, mismo
+patrón que los Sprints 13/16/20/41) y Sprint 48 (limpiar los ~400 errores preexistentes de `ruff` que el
+Sprint 28 dejó fuera del pipeline de CI a propósito, y agregar `ruff check` como paso obligatorio una vez
+limpio).
+
 **Sprints 31-37 (nuevos, 2026-07-21): UX/UI de la GUI.** BASTIUM hoy es funcional pero visualmente es 100%
 el estilo nativo de Qt/Windows sin ninguna identidad propia: cero `setStyleSheet`/`QPalette` en toda la
 app, la tipografía de marca (`AncizarSans`, en `app/assets/fonts/`) y los colores de marca (burdeos/crema,
@@ -106,7 +129,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado](#sprint-5--carga-de-datos-históricos-ipc-smlmv-ibc-tasa-de-usura-uvt--completado)
 - [Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado](#sprint-6--calendario-de-días-hábiles-judiciales-y-términos-procesales--completado)
 - [Sprint 7 — Motor de prescripción y caducidad ✅ Completado](#sprint-7--motor-de-prescripción-y-caducidad--completado)
-- [Sprint 8 — Conectar indexación IPC al área Civil/Familia ⚠️ Parcial](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--parcial) — mecanismo mensual listo y probado; falta la fuente real del DANE (pregunta abierta)
+- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔴 Bug confirmado sin corregir](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--bug-confirmado-sin-corregir) — mecanismo mensual listo y probado; falta la fuente real del DANE (pregunta abierta)
 - [Sprint 9 — Motor de auditoría / bitácora ✅ Completado](#sprint-9--motor-de-auditoría--bitácora--completado)
 - [Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado](#sprint-10--exportación-de-liquidación-a-pdfword--completado)
 - [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a) — ver corrección del Sprint 15 (11b)
@@ -116,35 +139,37 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado](#sprint-15--tributario-completo-sanciones-imputación-y-modelo-de-obligación-tributaria-cierre-del-sprint-11b--completado)
 - [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
-- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ⚠️ Parcial](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--parcial) — validación de rango manual implementada; pregunta abierta sobre si la tabla simple reemplaza la granular
+- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🔵 Bloqueado — pendiente de confirmación](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--bloqueado--pendiente-de-confirmación) — validación de rango manual implementada; pregunta abierta sobre si la tabla simple reemplaza la granular
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada ✅ Completado](#sprint-22--limpieza-técnica-acumulada--completado)
 - [Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría--completado)
-- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados)
-- [Sprint 25 — Rendimiento del motor de tasas, índices e historial](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial)
+- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados 📋 Pendiente](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados--pendiente)
+- [Sprint 25 — Rendimiento del motor de tasas, índices e historial ✅ Completado](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial--completado)
 - [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI ✅ Completado](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui--completado)
 - [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional ✅ Completado](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional--completado)
 - [Sprint 28 — CI/CD, versionado, housekeeping de repositorio e higiene de tests ✅ Completado](#sprint-28--cicd-versionado-housekeeping-de-repositorio-e-higiene-de-tests--completado)
 - [Sprint 29 — Corrección de documentación desactualizada, inconsistente y con enlaces rotos ✅ Completado](#sprint-29--corrección-de-documentación-desactualizada-inconsistente-y-con-enlaces-rotos--completado)
 - [Sprint 30 — Verificación de reglas de dominio con posible error de un día ✅ Completado](#sprint-30--verificación-de-reglas-de-dominio-con-posible-error-de-un-día--completado)
-- [Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI](#sprint-31--sistema-de-diseño-visual-tema-color-tipografía-e-íconos-en-la-gui)
-- [Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado](#sprint-32--navegación-barra-mejorada-breadcrumb-y-atajos-de-teclado)
-- [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas)
-- [Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real](#sprint-34--ux-de-formularios-agrupación-ayuda-contextual-y-feedback-en-tiempo-real)
-- [Sprint 35 — Búsqueda, filtros y estados vacíos en listados](#sprint-35--búsqueda-filtros-y-estados-vacíos-en-listados)
-- [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones)
-- [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado)
-- [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE`](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license)
-- [Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral)](#sprint-39--bug-de-ui-etiquetas-huérfanas-en-qformlayout-sancionatorio-y-laboral)
-- [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas)](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas)
-- [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono)
-- [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación)
-- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia)](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia)
-- [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte)
-- [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente)
-- [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado)
+- [Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI 📋 Pendiente](#sprint-31--sistema-de-diseño-visual-tema-color-tipografía-e-íconos-en-la-gui--pendiente)
+- [Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado 📋 Pendiente](#sprint-32--navegación-barra-mejorada-breadcrumb-y-atajos-de-teclado--pendiente)
+- [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas 📋 Pendiente](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas--pendiente)
+- [Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real 📋 Pendiente](#sprint-34--ux-de-formularios-agrupación-ayuda-contextual-y-feedback-en-tiempo-real--pendiente)
+- [Sprint 35 — Búsqueda, filtros y estados vacíos en listados 📋 Pendiente](#sprint-35--búsqueda-filtros-y-estados-vacíos-en-listados--pendiente)
+- [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones 📋 Pendiente](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones--pendiente)
+- [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado 📋 Pendiente](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado--pendiente)
+- [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` 🔵 Bloqueado — pendiente de decisión](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license--bloqueado--pendiente-de-decisión)
+- [Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral) 📋 Pendiente](#sprint-39--bug-de-ui-etiquetas-huérfanas-en-qformlayout-sancionatorio-y-laboral--pendiente)
+- [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) 📋 Pendiente](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas--pendiente)
+- [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono 🔵 Bloqueado — pendiente de decisión](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono--bloqueado--pendiente-de-decisión)
+- [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación 🔵 Bloqueado — pendiente de decisión](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación--bloqueado--pendiente-de-decisión)
+- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--bloqueado--pendiente-de-decisión)
+- [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte 📋 Pendiente](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte--pendiente)
+- [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente 📋 Pendiente](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente--pendiente)
+- [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado 📋 Pendiente](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--pendiente)
+- [Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión](#sprint-47--recalcular-liquidaciones-históricas-afectadas-por-las-correcciones-del-sprint-30--bloqueado--pendiente-de-decisión)
+- [Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI 📋 Pendiente](#sprint-48--limpiar-la-deuda-de-ruff-preexistente-y-agregar-el-chequeo-de-lint-al-pipeline-de-ci--pendiente)
 
 ---
 
@@ -312,6 +337,11 @@ queda documentado como limitación conocida: `dias_trabajados` se calcula como d
 simple, no con la convención comercial exacta de meses de 30 días que usa la nómina real (sobre-causa
 prestaciones en ~1-2% para un año calendario completo).
 
+**Seguimiento de los pendientes diferidos:** los tres puntos explícitamente excluidos ya se cerraron por
+su cuenta — seguridad social/incapacidades/suspensiones en el Sprint 16, el módulo pensional en el
+Sprint 17, y la limitación de `dias_trabajados` (diferencia simple vs. convención comercial de 360 días)
+en el Sprint 30. No queda ningún pendiente de este sprint sin sprint propio ya cerrado o en el índice.
+
 **Definición de Hecho:**
 - `LaboralStrategy` liquida con TDD (obligación puntual = liquidación al terminar contrato, con cesantías
   + intereses + prima + vacaciones + indemnización moratoria si aplica).
@@ -478,6 +508,9 @@ Popular Productivo Rural quedan fuera de alcance, documentado, no omitido por de
 pendiente: el PDF no trae una tabla histórica completa, solo menciones dispersas (confirmado por
 búsqueda de texto en las 80 páginas del documento) — bloquea parcialmente el Sprint 4 hasta conseguir la
 fuente real.
+
+**Seguimiento:** la tabla histórica de UVT quedó completada en el Sprint 14 (serie 2006-2026, verificada
+contra 3 fuentes independientes) — no queda ningún pendiente de este sprint sin resolver.
 
 **Definición de Hecho:**
 - `historical_index.py` deja de estar vacío, con datos verificables contra el PDF.
@@ -654,6 +687,11 @@ Pendiente explícito que quedó fuera de este sprint (documentado, no un olvido)
 caducidad por conciliación extrajudicial (máximo 3 meses, PDF pág. 25) no se modela — no hay ningún caso
 de uso en el sprint que la requiera todavía.
 
+**Seguimiento:** el motor en sí (cálculo puro) está completo y probado, pero **sigue sin conectarse al
+flujo real de liquidación** — cualquier liquidación de cualquier área hoy incluye obligaciones prescritas
+o caducadas sin advertirlo ni excluirlas. Ese gap de integración (no de cálculo) ya está trackeado como
+🔵 Sprint 42.
+
 **Definición de Hecho:**
 - Tests con los plazos de cada tipo de acción mencionados en el PDF.
 - Test específico de prescripción parcial en una obligación recurrente tipo `CHILD_SUPPORT` con cuotas de
@@ -662,7 +700,7 @@ de uso en el sprint que la requiera todavía.
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia ⚠️ Parcial
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔴 Bug confirmado sin corregir
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -870,6 +908,13 @@ hacer doble clic (ver
   coincidiendo exactamente con lo mostrado en pantalla.
 - Test automatizado del adaptador `LiquidationResult` → formato de reporte (no hace falta testear
   reportlab/python-docx en sí, solo que el adaptador arme los datos correctos).
+
+**Estado confirmado (2026-08-06):** implementado — esta sección nunca tuvo una nota de cierre explícita,
+pero la implementación está confirmada por evidencia directa: `app/reports/pdf.py` y `app/reports/word.py`
+existen con la generación real, los botones "Exportar a PDF"/"Exportar a Word" están cableados en
+`ResultadoLiquidacionView` (`app/views/liquidaciones.py`), y el Sprint 26 (2026-08-04) movió exactamente
+esas dos funciones de exportación a `QThreadPool` — no habría tenido nada que mover a un hilo si no
+existieran y funcionaran ya.
 
 ---
 
@@ -1561,7 +1606,7 @@ Suite completa en verde (653 passed, 1 skipped).
 
 ---
 
-## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ⚠️ Parcial
+## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Media — el Sprint 4 ya dejó `costas_pct_manual` como solución temporal por no
 conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa fuente.
@@ -2007,7 +2052,7 @@ Suite completa verde tras cada paso (657 passed, 1 skipped, sin cambios de resul
 
 ---
 
-## Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado 
+## Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado
 
 **Prioridad sugerida:** Alta — son bugs reales de ejecución encontrados en auditoría de código
 (2026-07-21), no gaps de alcance; afectan la exactitud de liquidaciones en áreas ya operables y la
@@ -2070,9 +2115,17 @@ alcance. Consultar directamente el código citado abajo.
   lanza `KeyError`.
 - Suite completa en verde.
 
+**Estado confirmado (2026-08-06):** implementado — ver plan dedicado
+`docs/superpowers/plans/2026-08-01-sprint23-bugs-integridad-financiera.md` (7 tareas, todas cerradas).
+Ambos bugs corregidos: `LiquidationItem`/`LiquidationResult` ahora exponen `saldo_a_favor`,
+`_item_desde_dict` deserializa con `.get(..., default)` para `rate_source` y `saldo_a_favor` sin lanzar
+`KeyError`, y se agregó una advertencia no bloqueante en la GUI al guardar un abono que genera sobrepago.
+Confirmado además indirectamente por el Sprint 46, que depende de este sprint "ya completado" y usa el
+campo `saldo_a_favor` como algo ya existente.
+
 ---
 
-## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados
+## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados 📋 Pendiente
 
 **Prioridad sugerida:** Alta — hoy es posible guardar datos absurdos (tasas negativas, fechas invertidas,
 tramos de parámetros solapados) sin ningún aviso, y el error solo aparece más tarde como un resultado de
@@ -2129,7 +2182,7 @@ liquidación incorrecto sin explicación.
 
 ---
 
-## Sprint 25 — Rendimiento del motor de tasas, índices e historial
+## Sprint 25 — Rendimiento del motor de tasas, índices e historial ✅ Completado
 
 **Prioridad sugerida:** Media — no degrada hoy con el volumen actual de un solo abogado, pero son mejoras
 baratas que evitan degradación futura conforme crezcan expedientes y años de historial.
@@ -2253,6 +2306,11 @@ del mismo hilo, sin compartir sesiones entre hilos. El manejo de excepciones de 
 disparado por señal. Suite completa en verde (`pytest-qt` cubre el nuevo flujo). Pendiente: el smoke test
 manual interactivo (mover/redimensionar la ventana mientras liquida un expediente grande) no se pudo
 automatizar en el entorno de la sesión que implementó esto y queda para confirmación manual del usuario.
+Dos notas menores de la revisión de calidad, no bloqueantes: el diccionario de despacho de excepciones en
+`_on_liquidar_fallo` depende del orden de inserción en vez de un match exacto por tipo (seguro hoy porque
+las 7 excepciones de dominio son hermanas directas de `Exception`, pero podría volverse frágil si la
+jerarquía cambia); y el `QProgressDialog` no tiene botón de cancelar ni timeout si una liquidación
+realmente se cuelga (mismo riesgo que ya existía con la UI congelada, no es una regresión nueva).
 
 ---
 
@@ -2357,6 +2415,11 @@ documentados como placeholders intencionales de pantallas futuras, igual que `da
 sin ambigüedad el test con parametrize vacío, los 14 archivos fuente y 6 de test de 0 bytes, y los 7
 paquetes sin uso de `requirements.txt` (`rich` y `matplotlib` se conservan porque `nlp_extractor.py`/
 `charts.py` siguen usándolos). Cero pruebas `SKIPPED` por parámetros vacíos. Suite completa en verde.
+Nota de seguimiento no bloqueante de la revisión de calidad: `FinancialParser.parse_money` interpreta
+`,` siempre como separador decimal en su rama de "solo coma" (regla explícita de este sprint), así que un
+formato US de miles sin decimales (ej. `"5,000"`) se interpretaría como `5.000` — caso límite plausible
+pero hoy inalcanzable (`parsers.py` sigue sin ningún caller en `app/`), a revisar si `nlp_extractor.py`
+llega a conectarse alguna vez a texto libre real.
 
 ---
 
@@ -2481,7 +2544,13 @@ hacer ahí. El hallazgo 6 (test muerto con parametrize vacío) se resolvió en e
 Alcance ampliado: `CONTRIBUTING.md`, `SECURITY.md` (con aviso legal — BASTIUM es una herramienta de apoyo,
 no sustituye la asesoría de un abogado colegiado), badges de CI/versión/licencia + aviso legal corto en
 `README.md`, plantillas de Issues/PR, y `CHANGELOG.md` (el badge de licencia queda "por definir" hasta que
-cierre el Sprint 38). Suite completa en verde.
+cierre el Sprint 38). Suite completa en verde. Nota de seguimiento no bloqueante de la revisión de
+calidad: `tests/services/test_area_strategy.py` quedó fuera de la migración al `conftest.py` raíz (fuera
+de alcance de este sprint) y sigue con el bloque de fixture duplicado — limpieza cosmética menor para un
+sprint de housekeeping futuro, no afecta el comportamiento de los tests. El `ruff check .` del repo
+completo sigue mostrando ~400 errores preexistentes (no introducidos por este sprint) — deliberadamente
+no se agregó como paso de CI porque haría fallar la primera corrida sin culpa de este sprint; ver
+🔴 Sprint 48.
 
 ---
 
@@ -2662,7 +2731,7 @@ riesgo documentado arriba, interactúa con el Sprint 9 de auditoría). Suite com
 
 ---
 
-## Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI
+## Sprint 31 — Sistema de diseño visual: tema, color, tipografía e íconos en la GUI 📋 Pendiente
 
 **Prioridad sugerida:** Alta — es la base de la que dependen casi todos los demás sprints de UX (32-37);
 sin un sistema de estilos centralizado, cada pantalla seguiría viéndose distinta.
@@ -2736,7 +2805,7 @@ sin un sistema de estilos centralizado, cada pantalla seguiría viéndose distin
 
 ---
 
-## Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado
+## Sprint 32 — Navegación: barra mejorada, breadcrumb y atajos de teclado 📋 Pendiente
 
 **Prioridad sugerida:** Alta — la navegación es el primer punto de contacto con la app y hoy es mínima.
 
@@ -2781,7 +2850,7 @@ sin un sistema de estilos centralizado, cada pantalla seguiría viéndose distin
 
 ---
 
-## Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas
+## Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas 📋 Pendiente
 
 **Prioridad sugerida:** Media-alta — hoy `app/views/dashboard.py` está vacío (0 bytes) y no se usa; la app
 abre directo a un listado plano de expedientes sin ningún resumen ni contexto.
@@ -2829,7 +2898,7 @@ la GUI.
 
 ---
 
-## Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real
+## Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real 📋 Pendiente
 
 **Prioridad sugerida:** Media-alta — los formularios (`ObligacionFormDialog`, `ExpedienteFormDialog`) son
 donde el abogado pasa más tiempo y hoy son una lista plana de campos sin jerarquía visual.
@@ -2871,7 +2940,7 @@ reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
 
 ---
 
-## Sprint 35 — Búsqueda, filtros y estados vacíos en listados
+## Sprint 35 — Búsqueda, filtros y estados vacíos en listados 📋 Pendiente
 
 **Prioridad sugerida:** Media.
 
@@ -2903,7 +2972,7 @@ reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
 
 ---
 
-## Sprint 36 — Feedback no bloqueante y jerarquía visual de botones
+## Sprint 36 — Feedback no bloqueante y jerarquía visual de botones 📋 Pendiente
 
 **Prioridad sugerida:** Media.
 
@@ -2937,7 +3006,7 @@ reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
 
 ---
 
-## Sprint 37 — Comportamiento de ventana y accesibilidad de teclado
+## Sprint 37 — Comportamiento de ventana y accesibilidad de teclado 📋 Pendiente
 
 **Prioridad sugerida:** Baja-media.
 
@@ -2968,7 +3037,7 @@ reemplaza; se benefician mutuamente pero pueden ejecutarse en cualquier orden.
 
 ---
 
-## Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE`
+## Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` 🔵 Bloqueado — pendiente de decisión
 
 **Prioridad sugerida:** Baja — no bloquea nada técnico; el usuario pidió explícitamente posponer esta
 decisión (2026-07-26) para pensarla con calma, separada del resto de la profesionalización del repo
@@ -3023,7 +3092,7 @@ aunque lo parezca por estar en GitHub.
 
 ---
 
-## Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral)
+## Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral) 📋 Pendiente
 
 **Prioridad sugerida:** Alta — bug confirmado, de esfuerzo pequeño (una línea por caso), pero visible en
 cada liquidación de dos áreas completas; reportado directamente por un usuario real probando la app
@@ -3072,7 +3141,7 @@ también la etiqueta, por si hay más casos del mismo patrón no reportados toda
 
 ---
 
-## Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas)
+## Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) 📋 Pendiente
 
 **Prioridad sugerida:** Alta — bug real de cálculo/reporte, no de UI; afecta la credibilidad del documento
 que se entrega al juzgado en las 6 áreas operables (Civil/Familia, Comercial, Laboral, Sancionatorio,
@@ -3129,7 +3198,7 @@ pesos en intereses generados, pero aparece el saldo final de intereses" (con val
 
 ---
 
-## Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono
+## Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono 🔵 Bloqueado — pendiente de decisión
 
 **Prioridad sugerida:** Alta — reportado por un usuario real usando el módulo de Familia recién cerrado
 (Sprint 20/21, "Suma Única"/múltiples tasas, 2026-07-31 → 2026-08-01), describe una funcionalidad central
@@ -3240,7 +3309,7 @@ existentes — solo aplica hacia adelante salvo que el usuario pida explícitame
 
 ---
 
-## Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación
+## Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación 🔵 Bloqueado — pendiente de decisión
 
 **Prioridad sugerida:** Alta — el motor matemático (Sprint 7) es correcto y está probado, pero aislado; hoy
 cualquier liquidación de cualquier área incluye obligaciones prescritas o caducadas sin advertirlo ni
@@ -3285,7 +3354,7 @@ cargar el dato.
 
 ---
 
-## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia)
+## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión
 
 **Prioridad sugerida:** Media — no es un bug, es un límite de alcance documentado desde el Sprint 8, pero el
 usuario pide explícitamente que la indexación sea "opcional para cualquier liquidación de cualquier área",
@@ -3326,7 +3395,7 @@ Conviene revisar sprint por sprint antes de simplemente activar el flag en las 5
 
 ---
 
-## Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte
+## Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte 📋 Pendiente
 
 **Prioridad sugerida:** Media-alta — agrupa varios gaps de UX/alcance reales reportados por el usuario
 probando el área Laboral; ninguno es un bug de cálculo del motor, todos son huecos de formulario/edición.
@@ -3392,7 +3461,7 @@ usuario decide no extenderlo a Laboral en la misma ronda, queda como sprint prop
 
 ---
 
-## Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente
+## Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente 📋 Pendiente
 
 **Prioridad sugerida:** Media — un punto es una mejora de UX confirmada (transparencia de unidad), el otro
 es una queja de usuario que **no se pudo reproducir** revisando el código; necesita más información antes
@@ -3438,7 +3507,7 @@ reales — evitar "arreglar" algo que no está roto en el código revisado.
 
 ---
 
-## Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado
+## Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado 📋 Pendiente
 
 **Prioridad sugerida:** Media-alta — sigue de cerca al Sprint 23: el dato ya no desaparece del modelo de
 datos, pero sigue siendo invisible en todo documento que un abogado o un juez realmente lee. Detectado por
@@ -3490,6 +3559,98 @@ ese campo nunca llegó a ningún lugar donde un humano lo vea.
   incluye el saldo a favor, con el monto exacto.
 - Test de GUI que confirme que `ResultadoLiquidacionView` muestra el saldo a favor cuando `total_saldo_a_favor() > 0`, y no muestra nada (ni una fila vacía) cuando es cero.
 - Suite completa en verde.
+
+---
+
+## Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión
+
+**Prioridad sugerida:** Media-alta si hay liquidaciones reales ya entregadas a un juzgado o cliente con los
+valores antiguos; baja si el uso hasta ahora fue solo de prueba/desarrollo.
+
+**Depende de:** Sprint 30 (ya completado — las dos correcciones de cómputo que este sprint evalúa
+recalcular) y Sprint 9 (motor de auditoría, que es la fuente de verdad de qué liquidaciones existen y con
+qué parámetros se generaron).
+
+**Contexto:** el Sprint 30 (cerrado 2026-08-04) corrigió dos cómputos de fecha/conteo confirmados como
+incorrectos por el despacho — `fecha_interrupcion_efectiva` (prescripción, ahora fecha-a-fecha real en vez
+de `<= 365` días) y el conteo de días de prestaciones sociales en `LaboralStrategy.liquidar` (ahora
+inclusivo sobre base comercial de 360 días). Esos cambios afectan el resultado numérico de cualquier
+liquidación calculada **de ahora en adelante**, pero **por diseño explícito no tocaron ninguna liquidación
+ya guardada** en `bastium.db` — el Sprint 30 documentó el riesgo pero dejó la decisión de si recalcular el
+histórico fuera de su alcance.
+
+**Hallazgos:**
+- No existe hoy ningún script en `scripts/` que identifique qué `AuditLog`/liquidaciones guardadas
+  quedaron calculadas con la lógica vieja (pre-Sprint-30) para poder distinguirlas de las nuevas.
+- Recalcular una liquidación ya entregada (a un juzgado, a un cliente) no es solo un cambio de dato — puede
+  tener implicación legal/práctica real (un documento ya presentado con un valor, y ahora otro valor
+  "correcto" para el mismo periodo). Esto es una decisión de negocio/legal, no una decisión técnica.
+
+**Decisión de diseño a tomar con el usuario antes de codificar (no arrancar sin esa validación, mismo
+patrón que exigieron los Sprints 13/16/20/41):**
+- ¿Se recalculan todas las liquidaciones históricas afectadas, solo las de expedientes todavía activos, o
+  ninguna (dejar el histórico tal como se calculó en su momento, y que solo las liquidaciones nuevas usen
+  la lógica corregida)?
+- Si se recalculan: ¿se sobrescribe el registro existente, o se guarda como una liquidación nueva
+  vinculada a la anterior (para no perder el rastro de auditoría de "qué se le entregó a quién y cuándo")?
+- ¿Hace falta notificar a alguien (cliente, juzgado) si un valor ya entregado cambia?
+
+**Código nuevo a crear (una vez tomada la decisión):**
+- Script en `scripts/` que identifique, vía `AuditLog`, las liquidaciones afectadas por cualquiera de los
+  dos cómputos del Sprint 30 (comparando fecha de cálculo original contra la fecha del commit de la
+  corrección).
+- Mecanismo de recálculo/regeneración según lo que decida el usuario arriba, con su propio registro de
+  auditoría (no perder el historial de qué cambió y por qué).
+
+**Definición de Hecho:**
+- Confirmación explícita del usuario sobre el alcance del recálculo, documentada aquí, antes de tocar
+  código.
+- Si se decide recalcular: test que verifique que una liquidación histórica sintética con la lógica vieja
+  se identifica y recalcula correctamente, preservando el rastro de auditoría original.
+- Suite completa en verde.
+
+---
+
+## Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI 📋 Pendiente
+
+**Prioridad sugerida:** Baja-media — housekeeping, no afecta comportamiento, pero cierra un hueco real de
+la red de seguridad de CI que el Sprint 28 dejó documentado a propósito.
+
+**Depende de:** Sprint 28 (CI/CD — el pipeline de GitHub Actions ya existe y corre `pytest`; este sprint
+solo le agrega el paso de lint una vez que el repo esté limpio).
+
+**Contexto:** el commit `5931b97` ("chore: configurar ruff como linter/formatter...") adoptó `ruff` como
+linter/formatter del proyecto (`pyproject.toml`, reglas `E`/`F`/`I`/`UP`/`B`, line-length 99) justo antes
+del arranque de los Sprints 26-30, pero no limpió todo el código existente de una vez — quedaron ~400
+errores preexistentes repartidos por el repo (confirmado al cierre de cada uno de los Sprints 26-30: cada
+uno verificó que no introdujo errores *nuevos*, pero ninguno tocó la deuda preexistente por estar fuera de
+su alcance individual). El Sprint 28, al armar el pipeline de CI, decidió deliberadamente **no** incluir
+`ruff check` como paso — lo documentó como que agregarlo haría fallar la primera corrida de CI sin que sea
+culpa de ningún cambio nuevo.
+
+**Hallazgos:**
+- `ruff check .` sobre el repo completo (post-Sprint-30) reporta 400 errores, mayoritariamente `E501`
+  (línea demasiado larga) y `E402` (import fuera de orden), concentrados en archivos de test más viejos que
+  el commit que adoptó `ruff`.
+- Sin un paso de lint en CI, un commit nuevo puede seguir agregando código que no respeta el estilo del
+  repo sin que nada lo marque — el pipeline de CI del Sprint 28 solo protege contra romper tests, no contra
+  degradar el estilo.
+
+**Código nuevo a crear:**
+- Limpiar (o suprimir explícitamente con justificación, si algún caso no vale la pena tocar) los ~400
+  errores preexistentes, archivo por archivo o por categoría de regla.
+- Agregar un paso `ruff check .` al workflow de GitHub Actions creado en el Sprint 28
+  (`.github/workflows/ci.yml`), una vez que el repo esté limpio.
+
+**Alcance explícitamente excluido:**
+- No cambiar reglas de `ruff` ni relajar `pyproject.toml` para "hacer trampa" y que la deuda desaparezca
+  sin limpiarla — el objetivo es limpiar el código, no bajar el estándar.
+
+**Definición de Hecho:**
+- `ruff check .` sobre el repo completo devuelve cero errores.
+- El pipeline de CI incluye `ruff check .` como paso obligatorio y falla si alguien reintroduce una
+  violación.
+- Suite completa en verde (la limpieza de lint no debe cambiar comportamiento).
 
 ---
 

@@ -819,7 +819,7 @@ al hacer clic en "Liquidar" y no calcula nada — **rechaza, no recorta** el val
 Esta tabla es distinta (más simple, y con rangos propios) de la tabla granular por tipo de proceso del
 Acuerdo PSAA16-10554 que ya usa el cálculo automático (`costas_tipo_proceso`/`costas_instancia`, ver
 [sección 8](#8-funciones-pendientes-o-en-desarrollo)) — solo aplica al porcentaje manual. Queda una
-pregunta de seguimiento con el despacho (`Preguntas-Para-Abogado.md`, Sprint 18) sobre si esta tabla simple
+pregunta de seguimiento con el despacho (`Preguntas-Para-Abogado-Abiertas.md`, Sprint 18) sobre si esta tabla simple
 en realidad reemplaza a la granular en vez de solo acotar el valor manual.
 
 **Nota (Sprint 24):** igual que con la cuota litis (sección 7.6), el campo "% Costas judiciales" tiene
