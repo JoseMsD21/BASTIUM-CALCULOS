@@ -324,3 +324,35 @@ def test_ctrl_home_regresa_a_expedientes_y_limpia_el_historial(qtbot):
 
     assert window.stacked_widget.currentWidget() is window.expedientes_page
     assert window._history == []
+
+
+def test_boton_parametros_activo_en_la_pantalla_de_parametros(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.show_page("parametros")
+
+    assert window.boton_parametros.property("class") == "primary"
+
+
+def test_boton_parametros_inactivo_en_otras_pantallas(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.boton_parametros.property("class") == ""
+
+    window.show_page("detalle")
+
+    assert window.boton_parametros.property("class") == ""
+
+
+def test_boton_parametros_deja_de_estar_activo_al_salir_de_parametros(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.show_page("parametros")
+    assert window.boton_parametros.property("class") == "primary"
+
+    window._ir_inicio()
+
+    assert window.boton_parametros.property("class") == ""

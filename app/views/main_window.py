@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
 
         self.boton_parametros = QPushButton(" Parametros")
         self.boton_parametros.setIcon(icon("settings"))
+        self.boton_parametros.setProperty("class", "")
         self.boton_parametros.clicked.connect(self._ir_a_parametros)
         barra.addWidget(self.boton_parametros)
 
@@ -100,6 +101,7 @@ class MainWindow(QMainWindow):
         self._current_page_name = name
         self._actualizar_botones_navegacion()
         self._actualizar_breadcrumb()
+        self._actualizar_estado_activo_navegacion()
 
     def _actualizar_botones_navegacion(self) -> None:
         self.boton_volver.setVisible(bool(self._history))
@@ -120,6 +122,23 @@ class MainWindow(QMainWindow):
                 return f"Expedientes › Radicado {self._radicado_actual} › Liquidación"
             return "Expedientes › Liquidación"
         return "Expedientes"
+
+    def _actualizar_estado_activo_navegacion(self) -> None:
+        # boton_parametros es el unico boton de la barra que representa una pantalla fija
+        # a la que el usuario puede "estar": Volver es una accion sin pantalla propia
+        # (depende del historial) e Inicio se oculta justo cuando el usuario ya esta en
+        # "expedientes" (nunca tendria sentido marcarlo "activo"). Se reutiliza la
+        # convencion class="primary" del Sprint 31 (resources/theme.qss) para el estado
+        # activo; fuera de "parametros" vuelve a la cadena vacia (estilo neutral). A
+        # diferencia del Sprint 31 (que fijaba la propiedad una sola vez en __init__,
+        # antes del primer show), aca el cambio ocurre en tiempo de ejecucion despues de
+        # que la ventana ya se mostro, asi que hace falta unpolish()/polish() manual para
+        # que Qt vuelva a evaluar el selector QSS.
+        self.boton_parametros.setProperty(
+            "class", "primary" if self._current_page_name == "parametros" else ""
+        )
+        self.boton_parametros.style().unpolish(self.boton_parametros)
+        self.boton_parametros.style().polish(self.boton_parametros)
 
     def showEvent(self, event) -> None:
         # QToolBar resets the visibility of widgets added via addWidget() to True
