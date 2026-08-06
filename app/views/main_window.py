@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QMainWindow, QPushButton, QStackedWidget, QToolBar
 from app.views.configuracion import ParametrosView
 from app.views.expediente_detalle import ExpedienteDetallePage
 from app.views.expedientes import ExpedientesListView
+from app.views.icons import icon, icono_aplicacion
 from app.views.liquidaciones import ResultadoLiquidacionView
 
 
@@ -12,6 +13,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BASTIUM - Ecosistema de Liquidacion Forense")
+        self.setWindowIcon(icono_aplicacion())
 
         self.stacked_widget = QStackedWidget()
         self.setCentralWidget(self.stacked_widget)
@@ -43,15 +45,18 @@ class MainWindow(QMainWindow):
         barra = QToolBar("Navegacion")
         barra.setMovable(False)
 
-        self.boton_volver = QPushButton("← Volver")
+        self.boton_volver = QPushButton(" Volver")
+        self.boton_volver.setIcon(icon("back"))
         self.boton_volver.clicked.connect(self._volver)
         barra.addWidget(self.boton_volver)
 
-        self.boton_inicio = QPushButton("\U0001F3E0 Inicio")
+        self.boton_inicio = QPushButton(" Inicio")
+        self.boton_inicio.setIcon(icon("home"))
         self.boton_inicio.clicked.connect(self._ir_inicio)
         barra.addWidget(self.boton_inicio)
 
-        self.boton_parametros = QPushButton("⚙ Parametros")
+        self.boton_parametros = QPushButton(" Parametros")
+        self.boton_parametros.setIcon(icon("settings"))
         self.boton_parametros.clicked.connect(self._ir_a_parametros)
         barra.addWidget(self.boton_parametros)
 
