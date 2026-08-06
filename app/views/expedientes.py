@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QInputDialog,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
+from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
 from app.views.icons import icon
 from database.models import AreaDerecho, Expediente
@@ -116,6 +118,7 @@ class ExpedientesListView(QWidget):
     def __init__(self, on_expediente_abierto=None):
         super().__init__()
         self._on_expediente_abierto = on_expediente_abierto
+        self._estado_vacio_es_por_filtros = False
 
         self.campo_busqueda = QLineEdit()
         self.campo_busqueda.setPlaceholderText(
@@ -149,10 +152,31 @@ class ExpedientesListView(QWidget):
         self.boton_nuevo.setProperty("class", "primary")
         self.boton_nuevo.clicked.connect(self._abrir_dialogo_nuevo)
 
+        self.etiqueta_estado_vacio = QLabel()
+        self.etiqueta_estado_vacio.setWordWrap(True)
+        self.etiqueta_estado_vacio.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.etiqueta_estado_vacio.setStyleSheet(
+            f"color: {colores.TEXTO_SECUNDARIO}; padding: 24px; font-size: 11pt;"
+        )
+
+        self.boton_accion_estado_vacio = QPushButton()
+        self.boton_accion_estado_vacio.setProperty("class", "primary")
+        self.boton_accion_estado_vacio.clicked.connect(self._accion_estado_vacio)
+
+        layout_estado_vacio = QVBoxLayout()
+        layout_estado_vacio.addWidget(self.etiqueta_estado_vacio)
+        layout_estado_vacio.addWidget(
+            self.boton_accion_estado_vacio, alignment=Qt.AlignmentFlag.AlignCenter
+        )
+        self.widget_estado_vacio = QWidget()
+        self.widget_estado_vacio.setLayout(layout_estado_vacio)
+        self.widget_estado_vacio.setVisible(False)
+
         layout = QVBoxLayout()
         layout.addWidget(self.boton_nuevo)
         layout.addLayout(layout_filtros)
         layout.addWidget(self.tabla)
+        layout.addWidget(self.widget_estado_vacio)
         self.setLayout(layout)
 
         self._expediente_ids_por_fila = []
@@ -199,7 +223,53 @@ class ExpedientesListView(QWidget):
 
             self._expediente_ids_por_fila.append(expediente.id)
         self.tabla.setSortingEnabled(True)
+        total_en_base_de_datos = len(expedientes)
         session.close()
+
+        self._actualizar_estado_vacio(
+            total_en_base_de_datos=total_en_base_de_datos,
+            hay_resultados=bool(expedientes_filtrados),
+        )
+
+    def _actualizar_estado_vacio(
+        self, *, total_en_base_de_datos: int, hay_resultados: bool
+    ) -> None:
+        if hay_resultados:
+            self.tabla.setVisible(True)
+            self.widget_estado_vacio.setVisible(False)
+            return
+
+        self.tabla.setVisible(False)
+        self.widget_estado_vacio.setVisible(True)
+
+        if total_en_base_de_datos == 0:
+            self._estado_vacio_es_por_filtros = False
+            self.etiqueta_estado_vacio.setText(
+                "Todavia no hay expedientes cargados.\n"
+                "Crea el primero para empezar a liquidar."
+            )
+            self.boton_accion_estado_vacio.setText("Crear expediente")
+        else:
+            self._estado_vacio_es_por_filtros = True
+            self.etiqueta_estado_vacio.setText(
+                "Ningun expediente coincide con la busqueda o el filtro actual."
+            )
+            self.boton_accion_estado_vacio.setText("Limpiar filtros")
+
+    def _accion_estado_vacio(self) -> None:
+        if self._estado_vacio_es_por_filtros:
+            self._limpiar_filtros()
+        else:
+            self._abrir_dialogo_nuevo()
+
+    def _limpiar_filtros(self) -> None:
+        self.campo_busqueda.blockSignals(True)
+        self.combo_filtro_area.blockSignals(True)
+        self.campo_busqueda.clear()
+        self.combo_filtro_area.setCurrentIndex(0)
+        self.campo_busqueda.blockSignals(False)
+        self.combo_filtro_area.blockSignals(False)
+        self.refrescar()
 
     def _filtrar(self, expedientes: list[Expediente]) -> list[Expediente]:
         texto_busqueda = self.campo_busqueda.text().strip().lower()

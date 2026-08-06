@@ -639,3 +639,124 @@ def test_eliminar_expediente_sigue_borrando_el_correcto_despues_de_ordenar(qtbot
     session = session_module.get_session()
     assert session.get(Expediente, id_andres) is None
     session.close()
+
+
+def test_base_de_datos_vacia_muestra_estado_vacio_con_boton_crear_expediente(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+
+    assert view.tabla.isVisible() is False
+    assert view.widget_estado_vacio.isVisible() is True
+    assert "no hay expedientes" in view.etiqueta_estado_vacio.text().lower()
+    assert view.boton_accion_estado_vacio.isVisible() is True
+    assert view.boton_accion_estado_vacio.text() == "Crear expediente"
+
+
+def test_estado_vacio_se_oculta_y_la_tabla_se_muestra_cuando_hay_resultados(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-960",
+            demandante="Ines",
+            demandado="Tomas",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+    view.refrescar()
+
+    assert view.tabla.isVisible() is True
+    assert view.widget_estado_vacio.isVisible() is False
+
+
+def test_filtro_sin_resultados_muestra_estado_vacio_con_boton_limpiar_filtros(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-950",
+            demandante="Fernanda",
+            demandado="Ricardo",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+    view.refrescar()
+    assert view.tabla.isVisible() is True
+
+    view.campo_busqueda.setText("no-existe-este-radicado")
+
+    assert view.tabla.isVisible() is False
+    assert view.widget_estado_vacio.isVisible() is True
+    assert "coincide" in view.etiqueta_estado_vacio.text().lower()
+    assert view.boton_accion_estado_vacio.text() == "Limpiar filtros"
+
+
+def test_boton_limpiar_filtros_del_estado_vacio_restaura_la_lista_completa(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-951",
+            demandante="Gustavo",
+            demandado="Helena",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+    view.campo_busqueda.setText("no-existe-este-radicado")
+    assert view.tabla.rowCount() == 0
+
+    view.boton_accion_estado_vacio.click()
+
+    assert view.campo_busqueda.text() == ""
+    assert view.combo_filtro_area.currentData() == ""
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.isVisible() is True
+
+
+def test_boton_crear_expediente_del_estado_vacio_abre_el_dialogo_de_nuevo_expediente(
+    qtbot, monkeypatch
+):
+    _sesion_en_memoria(monkeypatch)
+
+    dialogos_creados = []
+
+    class _DialogStub:
+        def __init__(self, parent):
+            dialogos_creados.append(1)
+
+        def exec(self):
+            return False
+
+    monkeypatch.setattr("app.views.expedientes.ExpedienteFormDialog", _DialogStub)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.boton_accion_estado_vacio.click()
+
+    assert dialogos_creados == [1]
