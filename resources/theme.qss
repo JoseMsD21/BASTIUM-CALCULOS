@@ -179,3 +179,19 @@ QHeaderView::section {
 QProgressDialog, QMessageBox {
     background-color: #FAF8F4;
 }
+
+/* --- Estado de validacion en tiempo real (Sprint 34) --- */
+/* Se asigna/quita dinamicamente con campo.setProperty("class", "invalid"/"") mientras el
+ * usuario escribe -- a diferencia de la clase "primary"/"destructive" de QPushButton (que se
+ * fija una sola vez antes del primer render), aqui SI hace falta un ciclo manual de
+ * campo.style().unpolish(campo)/campo.style().polish(campo) despues de cada cambio, porque la
+ * propiedad cambia en caliente con el widget ya visible. */
+
+QLineEdit[class="invalid"] {
+    border: 2px solid #D32F2F;
+    background-color: #FDECEA;
+}
+
+QLineEdit[class="invalid"]:focus {
+    border: 2px solid #D32F2F;
+}
