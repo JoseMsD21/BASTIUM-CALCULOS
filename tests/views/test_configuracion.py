@@ -154,3 +154,18 @@ def test_parametro_form_dialog_vigente_hasta_anterior_a_desde_lanza_value_error(
         assert False, "se esperaba ValueError"
     except ValueError:
         pass
+
+
+def test_parametro_form_dialog_boton_guardar_tiene_icono_y_clase_primaria(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    assert not dialogo.boton_guardar.icon().isNull()
+    assert dialogo.boton_guardar.property("class") == "primary"
+
+
+def test_parametros_view_boton_agregar_tiene_clase_primaria(qtbot):
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    assert vista.boton_agregar.property("class") == "primary"

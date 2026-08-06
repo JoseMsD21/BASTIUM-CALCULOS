@@ -1093,3 +1093,13 @@ def test_fecha_inicio_recurrente_posterior_a_fecha_de_corte_lanza_error_de_valid
     import pytest
     with pytest.raises(ValueError):
         dialog.guardar()
+
+
+def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+
+    assert not dialog.boton_guardar.icon().isNull()
+    assert dialog.boton_guardar.property("class") == "primary"

@@ -24,6 +24,7 @@ from app.reports.header import build_encabezado
 from app.reports.pdf import JudicialPDFGenerator
 from app.reports.word import WordReportGenerator
 from app.views.concurrency import TareaEnHilo
+from app.views.icons import icon
 from database.models import Expediente
 
 
@@ -115,8 +116,12 @@ class ResultadoLiquidacionView(QWidget):
         self.grupo_renta_liquida.setVisible(False)
 
         self.boton_exportar_pdf = QPushButton("Exportar a PDF")
+        self.boton_exportar_pdf.setIcon(icon("export"))
+        self.boton_exportar_pdf.setProperty("class", "primary")
         self.boton_exportar_pdf.clicked.connect(self._exportar_pdf)
         self.boton_exportar_word = QPushButton("Exportar a Word")
+        self.boton_exportar_word.setIcon(icon("export"))
+        self.boton_exportar_word.setProperty("class", "primary")
         self.boton_exportar_word.clicked.connect(self._exportar_word)
 
         layout_botones = QHBoxLayout()

@@ -23,6 +23,7 @@ from app.core.constants import (
     CATEGORIAS_SANCIONATORIO,
     CATEGORIAS_TRIBUTARIO,
 )
+from app.views.icons import icon
 from database.models import Expediente, Obligacion, TipoObligacion
 
 
@@ -137,8 +138,10 @@ class ObligacionFormDialog(QDialog):
         for nivel in ("I", "II", "III", "IV", "V"):
             self.combo_nivel_riesgo_arl.addItem(f"Nivel {nivel}", userData=nivel)
 
-        boton_guardar = QPushButton("Guardar")
-        boton_guardar.clicked.connect(self._guardar_y_cerrar)
+        self.boton_guardar = QPushButton("Guardar")
+        self.boton_guardar.setIcon(icon("save"))
+        self.boton_guardar.setProperty("class", "primary")
+        self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
         self.layout_formulario = QFormLayout()
         self.layout_formulario.addRow("Tipo", self.combo_tipo)
@@ -179,7 +182,7 @@ class ObligacionFormDialog(QDialog):
         self.layout_formulario.addRow("Fecha de pago real", self.campo_fecha_pago_total)
         self.layout_formulario.addRow(self.check_incluir_seguridad_social)
         self.layout_formulario.addRow("Nivel de riesgo ARL", self.combo_nivel_riesgo_arl)
-        self.layout_formulario.addRow(boton_guardar)
+        self.layout_formulario.addRow(self.boton_guardar)
         self.setLayout(self.layout_formulario)
 
         es_comercial = self._area == "COMERCIAL"

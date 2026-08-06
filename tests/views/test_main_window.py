@@ -153,3 +153,19 @@ def test_boton_parametros_navega_a_la_pantalla_de_parametros(qtbot):
     window.boton_parametros.click()
 
     assert window.stacked_widget.currentWidget() is window.parametros_page
+
+
+def test_ventana_principal_tiene_icono_de_aplicacion(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert not window.windowIcon().isNull()
+
+
+def test_botones_de_navegacion_tienen_icono(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert not window.boton_volver.icon().isNull()
+    assert not window.boton_inicio.icon().isNull()
+    assert not window.boton_parametros.icon().isNull()

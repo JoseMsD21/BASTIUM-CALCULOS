@@ -896,3 +896,10 @@ def test_liquidar_ignora_llamada_concurrente_mientras_hay_una_en_curso(qtbot, mo
         page._liquidar()  # concurrente -- debe ser ignorada, el boton ya esta deshabilitado
 
     assert len(llamadas) == 1
+
+
+def test_boton_liquidar_tiene_clase_primaria(qtbot):
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+
+    assert page.boton_liquidar.property("class") == "primary"

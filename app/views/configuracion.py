@@ -25,6 +25,7 @@ from app.services.parametro_service import (
     historial,
     valor_vigente_hoy,
 )
+from app.views.icons import icon
 
 
 class ParametroFormDialog(QDialog):
@@ -44,8 +45,10 @@ class ParametroFormDialog(QDialog):
         self.campo_usuario = QLineEdit()
         self.campo_motivo = QLineEdit()
 
-        boton_guardar = QPushButton("Guardar")
-        boton_guardar.clicked.connect(self._guardar_y_cerrar)
+        self.boton_guardar = QPushButton("Guardar")
+        self.boton_guardar.setIcon(icon("save"))
+        self.boton_guardar.setProperty("class", "primary")
+        self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
         layout = QFormLayout()
         layout.addRow("Parametro", self.combo_clave)
@@ -54,7 +57,7 @@ class ParametroFormDialog(QDialog):
         layout.addRow("Vigente hasta", self.campo_vigente_hasta)
         layout.addRow("Usuario", self.campo_usuario)
         layout.addRow("Motivo (opcional)", self.campo_motivo)
-        layout.addRow(boton_guardar)
+        layout.addRow(self.boton_guardar)
         self.setLayout(layout)
 
         self.combo_clave.currentIndexChanged.connect(self._actualizar_visibilidad_vigente_hasta)
@@ -146,11 +149,12 @@ class ParametrosView(QWidget):
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla.cellDoubleClicked.connect(self._abrir_historial)
 
-        boton_agregar = QPushButton("+ Agregar valor nuevo")
-        boton_agregar.clicked.connect(self._abrir_dialogo_agregar)
+        self.boton_agregar = QPushButton("+ Agregar valor nuevo")
+        self.boton_agregar.setProperty("class", "primary")
+        self.boton_agregar.clicked.connect(self._abrir_dialogo_agregar)
 
         botones = QHBoxLayout()
-        botones.addWidget(boton_agregar)
+        botones.addWidget(self.boton_agregar)
 
         layout = QVBoxLayout()
         layout.addLayout(botones)

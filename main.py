@@ -3,6 +3,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from app._version import __version__
+from app.core.apariencia import aplicar_tema
 from app.views.main_window import MainWindow
 from database.database import init_db
 
@@ -12,6 +13,7 @@ def main() -> None:
     app = QApplication(sys.argv)
     app.setApplicationName("BASTIUM")
     app.setApplicationVersion(__version__)
+    aplicar_tema(app)
     window = MainWindow()
     window.resize(1000, 700)
     window.show()
