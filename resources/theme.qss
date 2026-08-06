@@ -1,0 +1,181 @@
+/*
+ * BASTIUM - Sistema de diseno visual (Sprint 31)
+ *
+ * Paleta de marca (debe mantenerse sincronizada a mano con
+ * app/core/theme_colors.py -- Qt QSS no soporta variables ni importar
+ * constantes de Python):
+ *
+ *   Primario (burdeos):  #AE1C21  hover #931116  pressed #7A0D12  disabled #D9A8AA
+ *   Secundario (crema):  #F5F1E9  hover #ECE4D4  pressed #E0D5BD  borde #D8CDBB
+ *   Destructivo:         #D32F2F  hover #B71C1C  pressed #961515  disabled #E8B4B0
+ *   Fondo / superficie:  #FAF8F4 / #FFFFFF  (superficie alterna #F5F1E9)
+ *   Texto:               primario #2B2320  secundario #6B5F57
+ *                        sobre-primario #F5F1E9  deshabilitado #A69C92
+ *
+ * Convencion de clase para QPushButton (Sprint 31, ampliada por Sprint 36):
+ *   sin "class"          -> boton secundario/neutral (por defecto)
+ *   class="primary"      -> accion principal de la pantalla (Guardar, Liquidar, Exportar)
+ *   class="destructive"  -> accion irreversible (Eliminar)
+ * Se asigna en Python con `boton.setProperty("class", "primary")` ANTES de
+ * mostrar el widget -- Qt aplica el stylesheet la primera vez que el widget
+ * se pinta, asi que no hace falta un unpolish()/polish() manual en ese caso.
+ *
+ * Riesgo conocido (Pendientes.md Sprint 31): selectores demasiado genericos
+ * pueden romper widgets nativos que dependen del estilo del SO, como el
+ * calendario emergente de QDateEdit. Por eso este archivo NO estiliza
+ * QCalendarWidget ni QToolButton (los botones de navegacion de mes/anio del
+ * popup de QDateEdit son QToolButton, no QPushButton) -- quedan con el
+ * chrome nativo de Windows a proposito.
+ */
+
+QWidget {
+    background-color: #FAF8F4;
+    color: #2B2320;
+    font-family: "Ancizar Sans";
+    font-size: 10pt;
+}
+
+QMainWindow, QDialog {
+    background-color: #FAF8F4;
+}
+
+QLabel {
+    color: #2B2320;
+    background: transparent;
+}
+
+QToolBar {
+    background-color: #F5F1E9;
+    border-bottom: 1px solid #D8CDBB;
+    padding: 4px;
+    spacing: 6px;
+}
+
+QGroupBox {
+    border: 1px solid #D8CDBB;
+    border-radius: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    font-weight: bold;
+    color: #AE1C21;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 8px;
+    padding: 0 4px;
+}
+
+/* --- Botones --- */
+
+QPushButton {
+    background-color: #F5F1E9;
+    color: #AE1C21;
+    border: 1px solid #AE1C21;
+    border-radius: 4px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #ECE4D4;
+}
+
+QPushButton:pressed {
+    background-color: #E0D5BD;
+}
+
+QPushButton:disabled {
+    background-color: #F5F1E9;
+    color: #A69C92;
+    border-color: #D8CDBB;
+}
+
+QPushButton[class="primary"] {
+    background-color: #AE1C21;
+    color: #F5F1E9;
+    border: 1px solid #AE1C21;
+}
+
+QPushButton[class="primary"]:hover {
+    background-color: #931116;
+}
+
+QPushButton[class="primary"]:pressed {
+    background-color: #7A0D12;
+}
+
+QPushButton[class="primary"]:disabled {
+    background-color: #D9A8AA;
+    color: #F5F1E9;
+    border-color: #D9A8AA;
+}
+
+QPushButton[class="destructive"] {
+    background-color: #D32F2F;
+    color: #F5F1E9;
+    border: 1px solid #D32F2F;
+}
+
+QPushButton[class="destructive"]:hover {
+    background-color: #B71C1C;
+}
+
+QPushButton[class="destructive"]:pressed {
+    background-color: #961515;
+}
+
+QPushButton[class="destructive"]:disabled {
+    background-color: #E8B4B0;
+    color: #F5F1E9;
+    border-color: #E8B4B0;
+}
+
+/* --- Campos de entrada --- */
+
+QLineEdit, QComboBox, QDateEdit, QSpinBox {
+    background-color: #FFFFFF;
+    color: #2B2320;
+    border: 1px solid #D8CDBB;
+    border-radius: 3px;
+    padding: 4px 6px;
+    selection-background-color: #AE1C21;
+    selection-color: #F5F1E9;
+}
+
+QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QSpinBox:focus {
+    border: 1px solid #AE1C21;
+}
+
+QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled, QSpinBox:disabled {
+    background-color: #F5F1E9;
+    color: #A69C92;
+}
+
+/* --- Tablas (misma identidad de encabezado que los PDF de app/reports/pdf.py) --- */
+
+QTableWidget {
+    background-color: #FFFFFF;
+    alternate-background-color: #F5F1E9;
+    gridline-color: #D8CDBB;
+    border: 1px solid #D8CDBB;
+}
+
+QTableWidget::item:selected {
+    background-color: #AE1C21;
+    color: #F5F1E9;
+}
+
+QHeaderView::section {
+    background-color: #AE1C21;
+    color: #F5F1E9;
+    padding: 6px;
+    border: none;
+    border-right: 1px solid #931116;
+    font-weight: bold;
+}
+
+/* --- Dialogos de progreso/mensaje --- */
+
+QProgressDialog, QMessageBox {
+    background-color: #FAF8F4;
+}
