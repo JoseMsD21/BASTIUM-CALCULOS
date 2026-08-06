@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -365,3 +366,432 @@ def test_boton_eliminar_de_cada_fila_tiene_icono_y_clase_destructiva(qtbot, monk
     boton_eliminar = view.tabla.cellWidget(0, 5)
     assert not boton_eliminar.icon().isNull()
     assert boton_eliminar.property("class") == "destructive"
+
+
+def test_busqueda_filtra_por_radicado(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-100",
+                demandante="Ana",
+                demandado="Luis",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-200",
+                demandante="Carlos",
+                demandado="Maria",
+                area_derecho=AreaDerecho.COMERCIAL,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+    assert view.tabla.rowCount() == 2
+
+    view.campo_busqueda.setText("2026-100")
+
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.item(0, 0).text() == "2026-100"
+
+
+def test_busqueda_filtra_por_demandante_o_demandado(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-101",
+                demandante="Fernanda Gomez",
+                demandado="Luis",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-102",
+                demandante="Carlos",
+                demandado="Rodrigo Gomez",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-103",
+                demandante="Sofia",
+                demandado="Pedro",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view.campo_busqueda.setText("Gomez")
+
+    assert view.tabla.rowCount() == 2
+
+
+def test_busqueda_es_insensible_a_mayusculas_y_a_espacios_al_inicio_o_final(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-104",
+            demandante="Valentina",
+            demandado="Camilo",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view.campo_busqueda.setText("  VALENTINA  ")
+
+    assert view.tabla.rowCount() == 1
+
+
+def test_filtro_area_muestra_solo_expedientes_del_area_seleccionada(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-300",
+                demandante="A",
+                demandado="B",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-301",
+                demandante="C",
+                demandado="D",
+                area_derecho=AreaDerecho.LABORAL,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+    assert view.tabla.rowCount() == 2
+
+    indice_laboral = view.combo_filtro_area.findData("LABORAL")
+    view.combo_filtro_area.setCurrentIndex(indice_laboral)
+
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.item(0, 0).text() == "2026-301"
+
+
+def test_combo_filtro_area_incluye_la_opcion_todas_las_areas_por_defecto(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+
+    assert view.combo_filtro_area.currentData() == ""
+    assert view.combo_filtro_area.count() == len(AREAS_DERECHO) + 1
+
+
+def test_busqueda_y_filtro_de_area_se_combinan(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add_all(
+        [
+            Expediente(
+                radicado="2026-400",
+                demandante="Pablo Ruiz",
+                demandado="X",
+                area_derecho=AreaDerecho.CIVIL_FAMILIA,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+            Expediente(
+                radicado="2026-401",
+                demandante="Pablo Ruiz",
+                demandado="Y",
+                area_derecho=AreaDerecho.LABORAL,
+                fecha_corte_default=date(2026, 1, 1),
+            ),
+        ]
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    view.campo_busqueda.setText("Pablo Ruiz")
+    indice_laboral = view.combo_filtro_area.findData("LABORAL")
+    view.combo_filtro_area.setCurrentIndex(indice_laboral)
+
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.item(0, 0).text() == "2026-401"
+
+
+def test_tabla_de_expedientes_tiene_ordenamiento_de_columnas_habilitado(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+
+    assert view.tabla.isSortingEnabled() is True
+
+
+def test_doble_clic_despues_de_ordenar_por_columna_abre_el_expediente_correcto(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente_zulema = Expediente(
+        radicado="2026-900",
+        demandante="Zulema",
+        demandado="Ana",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    expediente_andres = Expediente(
+        radicado="2026-901",
+        demandante="Andres",
+        demandado="Beto",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add_all([expediente_zulema, expediente_andres])
+    session.commit()
+    id_andres = expediente_andres.id
+    session.close()
+
+    abiertos = []
+    view = ExpedientesListView(on_expediente_abierto=abiertos.append)
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    # Orden de insercion original: fila 0 = "Zulema" (2026-900), fila 1 = "Andres" (2026-901).
+    assert view.tabla.item(0, 1).text() == "Zulema"
+
+    # Se ordena por la columna "Demandante" (columna 1) ascendente: invierte el orden.
+    view.tabla.sortItems(1, Qt.SortOrder.AscendingOrder)
+    assert view.tabla.item(0, 1).text() == "Andres"
+
+    view._abrir_seleccionado(0, 0)
+
+    assert abiertos == [id_andres]
+
+
+def test_eliminar_expediente_sigue_borrando_el_correcto_despues_de_ordenar(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente_z = Expediente(
+        radicado="2026-902",
+        demandante="Zulema",
+        demandado="Ana",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    expediente_a = Expediente(
+        radicado="2026-903",
+        demandante="Andres",
+        demandado="Beto",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 1, 1),
+    )
+    session.add_all([expediente_z, expediente_a])
+    session.commit()
+    id_andres = expediente_a.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expedientes.QMessageBox.question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    monkeypatch.setattr(
+        "app.views.expedientes.QInputDialog.getText",
+        lambda *args, **kwargs: ("2026-903", True),
+    )
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+    view.tabla.sortItems(1, Qt.SortOrder.AscendingOrder)
+
+    boton_eliminar_fila_0 = view.tabla.cellWidget(0, 5)
+    boton_eliminar_fila_0.click()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, id_andres) is None
+    session.close()
+
+
+def test_base_de_datos_vacia_muestra_estado_vacio_con_boton_crear_expediente(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+
+    assert view.tabla.isVisible() is False
+    assert view.widget_estado_vacio.isVisible() is True
+    assert "no hay expedientes" in view.etiqueta_estado_vacio.text().lower()
+    assert view.boton_accion_estado_vacio.isVisible() is True
+    assert view.boton_accion_estado_vacio.text() == "Crear expediente"
+
+
+def test_estado_vacio_se_oculta_y_la_tabla_se_muestra_cuando_hay_resultados(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-960",
+            demandante="Ines",
+            demandado="Tomas",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+    view.refrescar()
+
+    assert view.tabla.isVisible() is True
+    assert view.widget_estado_vacio.isVisible() is False
+
+
+def test_filtro_sin_resultados_muestra_estado_vacio_con_boton_limpiar_filtros(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-950",
+            demandante="Fernanda",
+            demandado="Ricardo",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+    view.refrescar()
+    assert view.tabla.isVisible() is True
+
+    view.campo_busqueda.setText("no-existe-este-radicado")
+
+    assert view.tabla.isVisible() is False
+    assert view.widget_estado_vacio.isVisible() is True
+    assert "coincide" in view.etiqueta_estado_vacio.text().lower()
+    assert view.boton_accion_estado_vacio.text() == "Limpiar filtros"
+
+
+def test_boton_limpiar_filtros_del_estado_vacio_restaura_la_lista_completa(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-951",
+            demandante="Gustavo",
+            demandado="Helena",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+    view.campo_busqueda.setText("no-existe-este-radicado")
+    assert view.tabla.rowCount() == 0
+
+    view.boton_accion_estado_vacio.click()
+
+    assert view.campo_busqueda.text() == ""
+    assert view.combo_filtro_area.currentData() == ""
+    assert view.tabla.rowCount() == 1
+    assert view.tabla.isVisible() is True
+
+
+def test_boton_crear_expediente_del_estado_vacio_abre_el_dialogo_de_nuevo_expediente(
+    qtbot, monkeypatch
+):
+    _sesion_en_memoria(monkeypatch)
+
+    dialogos_creados = []
+
+    class _DialogStub:
+        def __init__(self, parent):
+            dialogos_creados.append(1)
+
+        def exec(self):
+            return False
+
+    monkeypatch.setattr("app.views.expedientes.ExpedienteFormDialog", _DialogStub)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.boton_accion_estado_vacio.click()
+
+    assert dialogos_creados == [1]
+
+
+def test_campo_radicado_tiene_tooltip_explicativo(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_radicado.toolTip() != ""
+
+
+def test_campo_fecha_corte_tiene_tooltip_explicativo(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_corte.toolTip() != ""
+
+
+def test_campo_radicado_vacio_se_marca_invalido_en_tiempo_real(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.campo_radicado.setText("2026-099")
+    assert dialog.campo_radicado.property("class") != "invalid"
+
+    dialog.campo_radicado.setText("   ")
+    assert dialog.campo_radicado.property("class") == "invalid"
+
+    dialog.campo_radicado.setText("2026-100")
+    assert dialog.campo_radicado.property("class") != "invalid"

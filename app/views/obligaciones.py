@@ -8,10 +8,15 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
     QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
 
 import database.session as session_module
@@ -53,6 +58,7 @@ class ObligacionFormDialog(QDialog):
         self.setWindowTitle("Agregar obligacion")
         self._expediente_id = expediente_id
         self._area = area
+        self._iconos_advertencia: dict[QLineEdit, QLabel] = {}
 
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("Puntual", userData="PUNTUAL")
@@ -76,8 +82,17 @@ class ObligacionFormDialog(QDialog):
             self.combo_categoria.addItem(etiqueta, userData=codigo)
 
         self.campo_concepto = QLineEdit()
+        self.campo_concepto.setToolTip(
+            "Descripcion corta de la obligacion (ej. 'Cuota alimentaria noviembre 2025')."
+        )
         self.campo_valor = QLineEdit()
+        self.campo_valor.setToolTip(
+            "Monto en pesos (o en la moneda elegida) sobre el que se calculan los intereses."
+        )
         self.campo_tasa = QLineEdit("6.00")
+        self.campo_tasa.setToolTip(
+            "Tasa de interes pactada o aplicable, en porcentaje efectivo anual (%EA)."
+        )
 
         self.campo_fecha_origen = QDateEdit(QDate.currentDate())
         self.campo_fecha_origen.setCalendarPopup(True)
@@ -89,11 +104,23 @@ class ObligacionFormDialog(QDialog):
         self.campo_dia_pago.setValue(5)
 
         self.campo_tasa_moratoria = QLineEdit("24.00")
+        self.campo_tasa_moratoria.setToolTip(
+            "Tasa de interes que se cobra automaticamente despues del vencimiento (mora), "
+            "en porcentaje efectivo anual."
+        )
         self.campo_fecha_vencimiento = QDateEdit(QDate.currentDate())
         self.campo_fecha_vencimiento.setCalendarPopup(True)
         self.campo_ibc_vigente = QLineEdit()
+        self.campo_ibc_vigente.setToolTip(
+            "Interes Bancario Corriente vigente certificado por la Superfinanciera, usado "
+            "para el tope de usura (Art. 884 C.Co.)."
+        )
         self.check_anatocismo_demanda_judicial = QCheckBox(
             "Demanda judicial (habilita anatocismo, Art. 886 C.Co.)"
+        )
+        self.check_anatocismo_demanda_judicial.setToolTip(
+            "El anatocismo (interes sobre interes) solo aplica en materia comercial si hay "
+            "una demanda judicial en curso."
         )
         self.check_anatocismo_acuerdo = QCheckBox("¿Hay acuerdo posterior de capitalización?")
         self.campo_anatocismo_fecha_acuerdo = QDateEdit(QDate.currentDate())
@@ -103,18 +130,41 @@ class ObligacionFormDialog(QDialog):
         self.combo_moneda.addItem("COP (peso colombiano)", userData="COP")
         self.combo_moneda.addItem("USD (dolar)", userData="USD")
         self.campo_trm_aplicable = QLineEdit()
+        self.campo_trm_aplicable.setToolTip(
+            "Tasa Representativa del Mercado (COP por USD) aplicable en la fecha de referencia."
+        )
         self.campo_trm_fecha_referencia = QDateEdit(QDate.currentDate())
         self.campo_trm_fecha_referencia.setCalendarPopup(True)
 
         self.campo_cantidad_smlmv_uvt = QLineEdit()
+        self.campo_cantidad_smlmv_uvt.setToolTip(
+            "Cantidad de Salarios Minimos Legales Mensuales Vigentes (SMLMV) o Unidades de "
+            "Valor Tributario (UVT) sobre la que se calcula la multa."
+        )
 
         self.campo_honorarios_fijos = QLineEdit()
         self.campo_cuota_litis_pct = QLineEdit()
+        self.campo_cuota_litis_pct.setToolTip(
+            "Porcentaje del beneficio obtenido por el cliente pactado como honorarios "
+            "(cuota litis), entre 0% y 100%."
+        )
         self.campo_beneficio_obtenido = QLineEdit()
         self.campo_costas_pct = QLineEdit()
+        self.campo_costas_pct.setToolTip(
+            "Porcentaje adicional por costas judiciales a cargo de la parte vencida, si se "
+            "pacto o decreto."
+        )
         self.check_aplica_indexacion_ipc = QCheckBox("Aplica indexación IPC (corrección monetaria)")
+        self.check_aplica_indexacion_ipc.setToolTip(
+            "Corrige el valor historico de la obligacion con el Indice de Precios al "
+            "Consumidor (IPC) antes de calcular intereses."
+        )
         self.check_interes_sobre_capital_indexado = QCheckBox(
             "Interés sobre capital ya indexado (algoritmo Suma Única / Ley 80 de 1993)"
+        )
+        self.check_interes_sobre_capital_indexado.setToolTip(
+            "Calcula el interes sobre el capital ya indexado, en vez de sobre el capital "
+            "historico (algoritmo de Suma Unica, Ley 80 de 1993)."
         )
 
         self.campo_base_sancion = QLineEdit()
@@ -137,53 +187,128 @@ class ObligacionFormDialog(QDialog):
         self.combo_nivel_riesgo_arl = QComboBox()
         for nivel in ("I", "II", "III", "IV", "V"):
             self.combo_nivel_riesgo_arl.addItem(f"Nivel {nivel}", userData=nivel)
+        self.combo_nivel_riesgo_arl.setToolTip(
+            "Nivel de riesgo laboral asignado por la ARL (I a V), usado para calcular el "
+            "aporte de riesgos laborales no pagado."
+        )
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
         self.boton_guardar.setProperty("class", "primary")
         self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
-        self.layout_formulario = QFormLayout()
-        self.layout_formulario.addRow("Tipo", self.combo_tipo)
-        self.layout_formulario.addRow("Categoria", self.combo_categoria)
-        self.layout_formulario.addRow("Concepto", self.campo_concepto)
-        self.layout_formulario.addRow("Valor", self.campo_valor)
-        self.layout_formulario.addRow("Tasa efectiva anual (%)", self.campo_tasa)
-        self.layout_formulario.addRow("Fecha de origen (Puntual)", self.campo_fecha_origen)
-        self.label_fecha_origen = self.layout_formulario.labelForField(self.campo_fecha_origen)
-        self.layout_formulario.addRow("Fecha de inicio (Recurrente)", self.campo_fecha_inicio)
-        self.layout_formulario.addRow("Dia de pago (Recurrente)", self.campo_dia_pago)
-        self.layout_formulario.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
-        self.layout_formulario.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
-        self.layout_formulario.addRow("IBC vigente aplicable (%)", self.campo_ibc_vigente)
-        self.layout_formulario.addRow(self.check_anatocismo_demanda_judicial)
-        self.layout_formulario.addRow(self.check_anatocismo_acuerdo)
-        self.layout_formulario.addRow("Fecha del acuerdo posterior", self.campo_anatocismo_fecha_acuerdo)
-        self.layout_formulario.addRow("Moneda", self.combo_moneda)
-        self.layout_formulario.addRow("TRM aplicable (COP por USD)", self.campo_trm_aplicable)
-        self.layout_formulario.addRow("Fecha de referencia de la TRM", self.campo_trm_fecha_referencia)
-        self.layout_formulario.addRow("Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt)
-        self.layout_formulario.addRow("Honorarios fijos pactados", self.campo_honorarios_fijos)
-        self.layout_formulario.addRow("% Cuota litis pactada", self.campo_cuota_litis_pct)
-        self.layout_formulario.addRow("Beneficio obtenido por el cliente", self.campo_beneficio_obtenido)
-        self.layout_formulario.addRow("% Costas judiciales (opcional)", self.campo_costas_pct)
-        self.layout_formulario.addRow(self.check_aplica_indexacion_ipc)
-        self.layout_formulario.addRow(self.check_interes_sobre_capital_indexado)
-        self.layout_formulario.addRow("Base de la sancion (impuesto a cargo o diferencia)", self.campo_base_sancion)
-        self.layout_formulario.addRow("Meses o fraccion de atraso (extemporaneidad)", self.campo_meses_extemporaneidad)
-        self.layout_formulario.addRow(self.check_sancion_agravada)
-        self.layout_formulario.addRow("Ingresos brutos (Renta liquida)", self.campo_ingresos_brutos)
-        self.layout_formulario.addRow("Devoluciones/rebajas/descuentos (Renta liquida)", self.campo_devoluciones)
-        self.layout_formulario.addRow("Costos (Renta liquida)", self.campo_costos)
-        self.layout_formulario.addRow("Deducciones (Renta liquida)", self.campo_deducciones)
-        self.layout_formulario.addRow("Rentas exentas (Renta liquida)", self.campo_rentas_exentas)
-        self.layout_formulario.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
-        self.layout_formulario.addRow(self.check_pagada)
-        self.layout_formulario.addRow("Fecha de pago real", self.campo_fecha_pago_total)
-        self.layout_formulario.addRow(self.check_incluir_seguridad_social)
-        self.layout_formulario.addRow("Nivel de riesgo ARL", self.combo_nivel_riesgo_arl)
-        self.layout_formulario.addRow(self.boton_guardar)
-        self.setLayout(self.layout_formulario)
+        # --- Reorganizacion en secciones colapsables (Sprint 34) -- 3 QGroupBox
+        # checkeables en vez del unico QFormLayout plano de antes: agrupan los ~15
+        # campos por proposito ("Datos basicos" siempre visible; "Tasas e intereses"
+        # y "Honorarios y costas" se ocultan por completo si el area no los usa mas
+        # abajo). Colapsar un grupo (desmarcar su checkbox de titulo) solo oculta su
+        # contenido -- nunca borra lo ya digitado.
+        self.grupo_datos_basicos = QGroupBox("Datos básicos")
+        self.grupo_datos_basicos.setCheckable(True)
+        self.grupo_datos_basicos.setChecked(True)
+        contenido_datos_basicos = QWidget()
+        self.layout_datos_basicos = QFormLayout(contenido_datos_basicos)
+        layout_grupo_datos_basicos = QVBoxLayout(self.grupo_datos_basicos)
+        layout_grupo_datos_basicos.addWidget(contenido_datos_basicos)
+        self.grupo_datos_basicos.toggled.connect(contenido_datos_basicos.setVisible)
+
+        self.grupo_tasas_intereses = QGroupBox("Tasas e intereses")
+        self.grupo_tasas_intereses.setCheckable(True)
+        self.grupo_tasas_intereses.setChecked(True)
+        contenido_tasas_intereses = QWidget()
+        self.layout_tasas_intereses = QFormLayout(contenido_tasas_intereses)
+        layout_grupo_tasas_intereses = QVBoxLayout(self.grupo_tasas_intereses)
+        layout_grupo_tasas_intereses.addWidget(contenido_tasas_intereses)
+        self.grupo_tasas_intereses.toggled.connect(contenido_tasas_intereses.setVisible)
+
+        self.grupo_honorarios_costas = QGroupBox("Honorarios y costas")
+        self.grupo_honorarios_costas.setCheckable(True)
+        self.grupo_honorarios_costas.setChecked(True)
+        contenido_honorarios_costas = QWidget()
+        self.layout_honorarios_costas = QFormLayout(contenido_honorarios_costas)
+        layout_grupo_honorarios_costas = QVBoxLayout(self.grupo_honorarios_costas)
+        layout_grupo_honorarios_costas.addWidget(contenido_honorarios_costas)
+        self.grupo_honorarios_costas.toggled.connect(contenido_honorarios_costas.setVisible)
+
+        # Concepto/Valor/Tasa se envuelven con iconos de advertencia (y, para Tasa,
+        # tambien un icono informativo del valor por defecto) -- ver
+        # _envolver_campo_con_iconos. A partir de aqui, ocultar/mostrar la FILA de
+        # Valor/Tasa segun el area debe apuntar al contenedor devuelto, no al
+        # QLineEdit interno (que solo controla su propia visibilidad, no la del
+        # icono que lo acompaña).
+        self._contenedor_campo_concepto = self._envolver_campo_con_iconos(self.campo_concepto)
+        self._contenedor_campo_valor = self._envolver_campo_con_iconos(self.campo_valor)
+        self._contenedor_campo_tasa = self._envolver_campo_con_iconos(
+            self.campo_tasa,
+            icono_info="info",
+            tooltip_info="Valor por defecto: interés civil legal, Art. 1617 C.C.",
+        )
+
+        self.layout_datos_basicos.addRow("Tipo", self.combo_tipo)
+        self.layout_datos_basicos.addRow("Categoria", self.combo_categoria)
+        self.layout_datos_basicos.addRow("Concepto", self._contenedor_campo_concepto)
+        self.layout_datos_basicos.addRow("Valor", self._contenedor_campo_valor)
+        self.layout_datos_basicos.addRow("Fecha de origen (Puntual)", self.campo_fecha_origen)
+        self.label_fecha_origen = self.layout_datos_basicos.labelForField(self.campo_fecha_origen)
+        self.layout_datos_basicos.addRow("Fecha de inicio (Recurrente)", self.campo_fecha_inicio)
+        self.layout_datos_basicos.addRow("Dia de pago (Recurrente)", self.campo_dia_pago)
+        self.layout_datos_basicos.addRow(
+            "Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt
+        )
+        self.layout_datos_basicos.addRow(
+            "Base de la sancion (impuesto a cargo o diferencia)", self.campo_base_sancion
+        )
+        self.layout_datos_basicos.addRow(
+            "Meses o fraccion de atraso (extemporaneidad)", self.campo_meses_extemporaneidad
+        )
+        self.layout_datos_basicos.addRow(self.check_sancion_agravada)
+        self.layout_datos_basicos.addRow("Ingresos brutos (Renta liquida)", self.campo_ingresos_brutos)
+        self.layout_datos_basicos.addRow(
+            "Devoluciones/rebajas/descuentos (Renta liquida)", self.campo_devoluciones
+        )
+        self.layout_datos_basicos.addRow("Costos (Renta liquida)", self.campo_costos)
+        self.layout_datos_basicos.addRow("Deducciones (Renta liquida)", self.campo_deducciones)
+        self.layout_datos_basicos.addRow("Rentas exentas (Renta liquida)", self.campo_rentas_exentas)
+        self.layout_datos_basicos.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
+        self.layout_datos_basicos.addRow(self.check_pagada)
+        self.layout_datos_basicos.addRow("Fecha de pago real", self.campo_fecha_pago_total)
+        self.layout_datos_basicos.addRow(self.check_incluir_seguridad_social)
+        self.layout_datos_basicos.addRow("Nivel de riesgo ARL", self.combo_nivel_riesgo_arl)
+
+        self.layout_tasas_intereses.addRow("Tasa efectiva anual (%)", self._contenedor_campo_tasa)
+        self.layout_tasas_intereses.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
+        self.layout_tasas_intereses.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
+        self.layout_tasas_intereses.addRow("IBC vigente aplicable (%)", self.campo_ibc_vigente)
+        self.layout_tasas_intereses.addRow(self.check_anatocismo_demanda_judicial)
+        self.layout_tasas_intereses.addRow(self.check_anatocismo_acuerdo)
+        self.layout_tasas_intereses.addRow(
+            "Fecha del acuerdo posterior", self.campo_anatocismo_fecha_acuerdo
+        )
+        self.layout_tasas_intereses.addRow("Moneda", self.combo_moneda)
+        self.layout_tasas_intereses.addRow("TRM aplicable (COP por USD)", self.campo_trm_aplicable)
+        self.layout_tasas_intereses.addRow(
+            "Fecha de referencia de la TRM", self.campo_trm_fecha_referencia
+        )
+        self.layout_tasas_intereses.addRow(self.check_aplica_indexacion_ipc)
+        self.layout_tasas_intereses.addRow(self.check_interes_sobre_capital_indexado)
+
+        self.layout_honorarios_costas.addRow(
+            "Honorarios fijos pactados", self.campo_honorarios_fijos
+        )
+        self.layout_honorarios_costas.addRow("% Cuota litis pactada", self.campo_cuota_litis_pct)
+        self.layout_honorarios_costas.addRow(
+            "Beneficio obtenido por el cliente", self.campo_beneficio_obtenido
+        )
+        self.layout_honorarios_costas.addRow(
+            "% Costas judiciales (opcional)", self.campo_costas_pct
+        )
+
+        layout_principal = QVBoxLayout()
+        layout_principal.addWidget(self.grupo_datos_basicos)
+        layout_principal.addWidget(self.grupo_tasas_intereses)
+        layout_principal.addWidget(self.grupo_honorarios_costas)
+        layout_principal.addWidget(self.boton_guardar)
+        self.setLayout(layout_principal)
 
         es_comercial = self._area == "COMERCIAL"
         es_sancionatorio = self._area == "SANCIONATORIO"
@@ -208,12 +333,16 @@ class ObligacionFormDialog(QDialog):
 
         # "Valor" no aplica a Sancionatorio/Honorarios/Tributario (salvo IMPUESTO_A_CARGO,
         # ver _actualizar_campos_tributario): el monto se calcula a partir de otros campos.
-        self.campo_valor.setVisible(not es_sancionatorio and not es_honorarios and not es_tributario)
+        # Se oculta el CONTENEDOR (campo + iconos), no el QLineEdit directamente, para que
+        # el icono de advertencia tambien desaparezca junto con la fila.
+        self._contenedor_campo_valor.setVisible(
+            not es_sancionatorio and not es_honorarios and not es_tributario
+        )
 
         # Laboral y Tributario son siempre PUNTUAL y no usan tasa efectiva anual pactada
         # (Tributario: el interes es automatico, E.T. art. 635, nunca se pacta).
         self.combo_tipo.setVisible(not es_laboral and not es_tributario)
-        self.campo_tasa.setVisible(not es_laboral and not es_tributario)
+        self._contenedor_campo_tasa.setVisible(not es_laboral and not es_tributario)
         self.campo_fecha_fin.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
@@ -227,6 +356,13 @@ class ObligacionFormDialog(QDialog):
         self.campo_costos.setVisible(False)
         self.campo_deducciones.setVisible(False)
         self.campo_rentas_exentas.setVisible(False)
+
+        # Secciones enteras que no aplican al area elegida quedan completamente
+        # ocultas (Sprint 34) en vez de mostrar un grupo con todos sus campos
+        # individualmente invisibles -- menos ruido visual para un abogado sin
+        # conocimiento tecnico. "Datos basicos" siempre aplica, no se oculta nunca.
+        self.grupo_tasas_intereses.setVisible(not es_laboral and not es_tributario)
+        self.grupo_honorarios_costas.setVisible(es_honorarios)
 
         # campo_fecha_origen se reutiliza en Laboral como "fecha de inicio del contrato"
         # (ver _actualizar_campos_visibles) -- se ajusta la etiqueta del formulario para
@@ -246,6 +382,15 @@ class ObligacionFormDialog(QDialog):
         self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
+
+        # Feedback de validacion en tiempo real (Sprint 34): reutiliza los mismos
+        # helpers de validacion del Sprint 24 (_validar_concepto_no_vacio,
+        # _validar_rango) en vez de duplicar las reglas -- solo cambia que aqui se
+        # capturan por campo individual mientras el usuario escribe, en vez de
+        # dejar que revienten unicamente al presionar Guardar.
+        self.campo_concepto.textChanged.connect(self._validar_concepto_en_tiempo_real)
+        self.campo_valor.textChanged.connect(self._validar_valor_en_tiempo_real)
+        self.campo_tasa.textChanged.connect(self._validar_tasa_en_tiempo_real)
 
         self._actualizar_campos_visibles()
         self._actualizar_visibilidad_trm()
@@ -268,7 +413,7 @@ class ObligacionFormDialog(QDialog):
         es_renta_liquida = categoria == "RENTA_LIQUIDA"
         es_sancion = es_extemporaneidad or es_inexactitud or es_error_aritmetico
 
-        self.campo_valor.setVisible(es_impuesto)
+        self._contenedor_campo_valor.setVisible(es_impuesto)
         self.campo_base_sancion.setVisible(es_sancion)
         self.campo_meses_extemporaneidad.setVisible(es_extemporaneidad)
         self.check_sancion_agravada.setVisible(es_inexactitud)
@@ -404,6 +549,107 @@ class ObligacionFormDialog(QDialog):
                 "La fecha de origen/inicio no puede ser posterior a la fecha de corte "
                 f"del expediente ({expediente.fecha_corte_default.isoformat()})."
             )
+
+    def _envolver_campo_con_iconos(
+        self, campo: QLineEdit, *, icono_info: str | None = None, tooltip_info: str = ""
+    ) -> QWidget:
+        """Envuelve `campo` en un contenedor horizontal con, opcionalmente, un
+        icono de informacion fijo (explica de donde sale un valor por defecto,
+        Sprint 34) y siempre un icono de advertencia oculto por defecto que
+        `_marcar_campo_invalido` muestra cuando la validacion en tiempo real
+        detecta un error. QFormLayout no admite dos widgets de "campo" en la
+        misma fila sin este contenedor intermedio -- por eso las llamadas que
+        antes ocultaban `campo` directamente (para ocultar/mostrar toda la fila
+        segun el area) ahora deben apuntar al contenedor devuelto por este
+        metodo, no al QLineEdit interno (ver __init__).
+        """
+        contenedor = QWidget()
+        layout_fila = QHBoxLayout(contenedor)
+        layout_fila.setContentsMargins(0, 0, 0, 0)
+        layout_fila.addWidget(campo)
+        if icono_info is not None:
+            etiqueta_info = QLabel()
+            etiqueta_info.setPixmap(icon(icono_info).pixmap(16, 16))
+            etiqueta_info.setToolTip(tooltip_info)
+            layout_fila.addWidget(etiqueta_info)
+        etiqueta_advertencia = QLabel()
+        etiqueta_advertencia.setPixmap(icon("warning").pixmap(16, 16))
+        etiqueta_advertencia.setVisible(False)
+        layout_fila.addWidget(etiqueta_advertencia)
+        self._iconos_advertencia[campo] = etiqueta_advertencia
+        return contenedor
+
+    def _marcar_campo_invalido(self, campo: QLineEdit, mensaje: str) -> None:
+        campo.setProperty("class", "invalid")
+        campo.setToolTip(mensaje)
+        campo.style().unpolish(campo)
+        campo.style().polish(campo)
+        icono_advertencia = self._iconos_advertencia.get(campo)
+        if icono_advertencia is not None:
+            icono_advertencia.setToolTip(mensaje)
+            icono_advertencia.setVisible(True)
+
+    def _marcar_campo_valido(self, campo: QLineEdit, tooltip_original: str = "") -> None:
+        campo.setProperty("class", "")
+        campo.setToolTip(tooltip_original)
+        campo.style().unpolish(campo)
+        campo.style().polish(campo)
+        icono_advertencia = self._iconos_advertencia.get(campo)
+        if icono_advertencia is not None:
+            icono_advertencia.setVisible(False)
+
+    def _validar_concepto_en_tiempo_real(self) -> None:
+        tooltip_original = (
+            "Descripcion corta de la obligacion (ej. 'Cuota alimentaria noviembre 2025')."
+        )
+        try:
+            self._validar_concepto_no_vacio()
+        except ValueError as error:
+            self._marcar_campo_invalido(self.campo_concepto, str(error))
+        else:
+            self._marcar_campo_valido(self.campo_concepto, tooltip_original)
+
+    def _validar_valor_en_tiempo_real(self) -> None:
+        tooltip_original = (
+            "Monto en pesos (o en la moneda elegida) sobre el que se calculan los intereses."
+        )
+        texto = self.campo_valor.text().strip()
+        if not texto:
+            self._marcar_campo_valido(self.campo_valor, tooltip_original)
+            return
+        try:
+            valor = Decimal(texto)
+        except InvalidOperation:
+            self._marcar_campo_invalido(self.campo_valor, "El valor debe ser un numero valido.")
+            return
+        if valor <= Decimal("0"):
+            self._marcar_campo_invalido(
+                self.campo_valor, "El valor de la obligacion debe ser mayor que cero."
+            )
+            return
+        self._marcar_campo_valido(self.campo_valor, tooltip_original)
+
+    def _validar_tasa_en_tiempo_real(self) -> None:
+        tooltip_original = (
+            "Tasa de interes pactada o aplicable, en porcentaje efectivo anual (%EA)."
+        )
+        texto = self.campo_tasa.text().strip()
+        if not texto:
+            self._marcar_campo_valido(self.campo_tasa, tooltip_original)
+            return
+        try:
+            tasa = Decimal(texto)
+        except InvalidOperation:
+            self._marcar_campo_invalido(
+                self.campo_tasa, "La tasa efectiva anual debe ser un numero valido."
+            )
+            return
+        try:
+            self._validar_rango(tasa, Decimal("0"), Decimal("1000"), "La tasa efectiva anual")
+        except ValueError as error:
+            self._marcar_campo_invalido(self.campo_tasa, str(error))
+        else:
+            self._marcar_campo_valido(self.campo_tasa, tooltip_original)
 
     def _parse_campos_civil_familia(self) -> dict:
         return {}

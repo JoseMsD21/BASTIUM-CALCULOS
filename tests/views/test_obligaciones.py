@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from PySide6.QtWidgets import QLabel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -566,8 +567,12 @@ def test_label_fecha_origen_cambia_para_area_laboral(qtbot, monkeypatch):
     dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
     qtbot.addWidget(dialog_civil)
 
-    etiqueta_laboral = dialog_laboral.layout_formulario.labelForField(dialog_laboral.campo_fecha_origen).text()
-    etiqueta_civil = dialog_civil.layout_formulario.labelForField(dialog_civil.campo_fecha_origen).text()
+    etiqueta_laboral = dialog_laboral.layout_datos_basicos.labelForField(
+        dialog_laboral.campo_fecha_origen
+    ).text()
+    etiqueta_civil = dialog_civil.layout_datos_basicos.labelForField(
+        dialog_civil.campo_fecha_origen
+    ).text()
 
     assert etiqueta_laboral != etiqueta_civil
     assert etiqueta_laboral == "Fecha de inicio del contrato"
@@ -1103,3 +1108,156 @@ def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
 
     assert not dialog.boton_guardar.icon().isNull()
     assert dialog.boton_guardar.property("class") == "primary"
+
+
+def test_grupo_datos_basicos_siempre_visible(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.grupo_datos_basicos.isVisible() is True
+
+
+def test_grupo_tasas_intereses_oculto_para_laboral_y_tributario(qtbot, monkeypatch):
+    expediente_id_laboral = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    dialog_laboral = ObligacionFormDialog(expediente_id=expediente_id_laboral, area="LABORAL")
+    qtbot.addWidget(dialog_laboral)
+    dialog_laboral.show()
+    assert dialog_laboral.grupo_tasas_intereses.isVisible() is False
+
+    expediente_id_tributario = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+    dialog_tributario = ObligacionFormDialog(
+        expediente_id=expediente_id_tributario, area="TRIBUTARIO"
+    )
+    qtbot.addWidget(dialog_tributario)
+    dialog_tributario.show()
+    assert dialog_tributario.grupo_tasas_intereses.isVisible() is False
+
+    expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+    dialog_comercial = ObligacionFormDialog(expediente_id=expediente_id_comercial, area="COMERCIAL")
+    qtbot.addWidget(dialog_comercial)
+    dialog_comercial.show()
+    assert dialog_comercial.grupo_tasas_intereses.isVisible() is True
+
+
+def test_grupo_honorarios_costas_visible_solo_para_esa_area(qtbot, monkeypatch):
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+    dialog_civil.show()
+    assert dialog_civil.grupo_honorarios_costas.isVisible() is False
+
+    expediente_id_honorarios = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+    dialog_honorarios = ObligacionFormDialog(
+        expediente_id=expediente_id_honorarios, area="HONORARIOS"
+    )
+    qtbot.addWidget(dialog_honorarios)
+    dialog_honorarios.show()
+    assert dialog_honorarios.grupo_honorarios_costas.isVisible() is True
+
+
+def test_grupo_datos_basicos_es_colapsable_y_conserva_los_datos_al_colapsar(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.campo_concepto.setText("Gastos medicos")
+
+    dialog.grupo_datos_basicos.setChecked(False)
+
+    assert dialog.campo_concepto.isVisible() is False
+    assert dialog.campo_concepto.text() == "Gastos medicos"
+
+    dialog.grupo_datos_basicos.setChecked(True)
+    assert dialog.campo_concepto.isVisible() is True
+
+
+def test_campo_tasa_tiene_tooltip_legal(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_tasa.toolTip() != ""
+
+
+def test_campo_tasa_muestra_icono_informativo_del_valor_por_defecto(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+
+    etiquetas_info = [
+        hijo
+        for hijo in dialog._contenedor_campo_tasa.findChildren(QLabel)
+        if hijo.toolTip() == "Valor por defecto: interés civil legal, Art. 1617 C.C."
+    ]
+    assert len(etiquetas_info) == 1
+
+
+def test_concepto_vacio_se_marca_invalido_en_tiempo_real(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.campo_concepto.setText("Gastos medicos")
+    assert dialog.campo_concepto.property("class") != "invalid"
+
+    dialog.campo_concepto.setText("   ")
+    assert dialog.campo_concepto.property("class") == "invalid"
+    assert dialog._iconos_advertencia[dialog.campo_concepto].isVisible() is True
+
+    dialog.campo_concepto.setText("Gastos medicos otra vez")
+    assert dialog.campo_concepto.property("class") != "invalid"
+    assert dialog._iconos_advertencia[dialog.campo_concepto].isVisible() is False
+
+
+def test_valor_negativo_se_marca_invalido_en_tiempo_real(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.campo_valor.setText("-100.00")
+
+    assert dialog.campo_valor.property("class") == "invalid"
+    assert dialog._iconos_advertencia[dialog.campo_valor].isVisible() is True
+
+    dialog.campo_valor.setText("100.00")
+    assert dialog.campo_valor.property("class") != "invalid"
+    assert dialog._iconos_advertencia[dialog.campo_valor].isVisible() is False
+
+
+def test_tasa_fuera_de_rango_se_marca_invalida_en_tiempo_real(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.campo_tasa.setText("99999.00")
+
+    assert dialog.campo_tasa.property("class") == "invalid"
+    assert dialog._iconos_advertencia[dialog.campo_tasa].isVisible() is True
+
+    dialog.campo_tasa.setText("6.00")
+    assert dialog.campo_tasa.property("class") != "invalid"
+    assert dialog._iconos_advertencia[dialog.campo_tasa].isVisible() is False
+
+
+def test_tasa_no_numerica_se_marca_invalida_en_tiempo_real(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.campo_tasa.setText("abc")
+
+    assert dialog.campo_tasa.property("class") == "invalid"
