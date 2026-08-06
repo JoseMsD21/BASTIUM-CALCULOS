@@ -141,3 +141,13 @@ def test_abonos_acumulados_que_superan_el_valor_muestran_advertencia(qtbot, monk
     segundo_dialog.guardar()
 
     assert len(avisos) == 1
+
+
+def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    assert not dialog.boton_guardar.icon().isNull()
+    assert dialog.boton_guardar.property("class") == "primary"

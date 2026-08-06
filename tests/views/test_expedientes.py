@@ -320,3 +320,48 @@ def test_eliminar_expediente_borra_en_cascada_sus_obligaciones(qtbot, monkeypatc
     assert session.query(Expediente).count() == 0
     assert session.query(Obligacion).count() == 0
     session.close()
+
+
+def test_boton_guardar_del_formulario_tiene_icono_y_clase_primaria(qtbot):
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    assert not dialog.boton_guardar.icon().isNull()
+    assert dialog.boton_guardar.property("class") == "primary"
+
+
+def test_boton_nuevo_expediente_tiene_clase_primaria(qtbot, monkeypatch):
+    from app.views.expedientes import ExpedientesListView
+
+    _sesion_en_memoria(monkeypatch)
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+
+    assert view.boton_nuevo.property("class") == "primary"
+
+
+def test_boton_eliminar_de_cada_fila_tiene_icono_y_clase_destructiva(qtbot, monkeypatch):
+    from app.views.expedientes import ExpedientesListView
+
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-099",
+            demandante="Ana",
+            demandado="Luis",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    boton_eliminar = view.tabla.cellWidget(0, 5)
+    assert not boton_eliminar.icon().isNull()
+    assert boton_eliminar.property("class") == "destructive"

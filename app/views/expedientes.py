@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 
 import database.session as session_module
 from app.core.constants import AREAS_DERECHO
+from app.views.icons import icon
 from database.models import AreaDerecho, Expediente
 
 
@@ -59,8 +60,10 @@ class ExpedienteFormDialog(QDialog):
             if indice_area >= 0:
                 self.combo_area.setCurrentIndex(indice_area)
 
-        boton_guardar = QPushButton("Guardar")
-        boton_guardar.clicked.connect(self._guardar_y_cerrar)
+        self.boton_guardar = QPushButton("Guardar")
+        self.boton_guardar.setIcon(icon("save"))
+        self.boton_guardar.setProperty("class", "primary")
+        self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
         layout = QFormLayout()
         layout.addRow("Radicado", self.campo_radicado)
@@ -69,7 +72,7 @@ class ExpedienteFormDialog(QDialog):
         layout.addRow("Area del derecho", self.combo_area)
         layout.addRow("Juzgado", self.campo_juzgado)
         layout.addRow("Fecha de corte", self.campo_fecha_corte)
-        layout.addRow(boton_guardar)
+        layout.addRow(self.boton_guardar)
         self.setLayout(layout)
 
         self._expediente_id_creado = None
@@ -119,11 +122,12 @@ class ExpedientesListView(QWidget):
         )
         self.tabla.cellDoubleClicked.connect(self._abrir_seleccionado)
 
-        boton_nuevo = QPushButton("Nuevo expediente")
-        boton_nuevo.clicked.connect(self._abrir_dialogo_nuevo)
+        self.boton_nuevo = QPushButton("Nuevo expediente")
+        self.boton_nuevo.setProperty("class", "primary")
+        self.boton_nuevo.clicked.connect(self._abrir_dialogo_nuevo)
 
         layout = QVBoxLayout()
-        layout.addWidget(boton_nuevo)
+        layout.addWidget(self.boton_nuevo)
         layout.addWidget(self.tabla)
         self.setLayout(layout)
 
@@ -149,6 +153,8 @@ class ExpedientesListView(QWidget):
             self.tabla.setCellWidget(fila, 4, boton_editar)
 
             boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.setIcon(icon("delete"))
+            boton_eliminar.setProperty("class", "destructive")
             boton_eliminar.clicked.connect(
                 lambda _checked=False, id_=expediente.id: self._eliminar_expediente(id_)
             )

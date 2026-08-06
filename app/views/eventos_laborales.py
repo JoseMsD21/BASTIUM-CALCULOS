@@ -4,6 +4,7 @@ from PySide6.QtCore import QDate
 from PySide6.QtWidgets import QComboBox, QDateEdit, QDialog, QFormLayout, QMessageBox, QPushButton
 
 import database.session as session_module
+from app.views.icons import icon
 from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
 
 
@@ -28,15 +29,17 @@ class EventoLaboralFormDialog(QDialog):
         self.combo_motivo.addItem("Licencia no remunerada", userData=MotivoSuspension.LICENCIA_NO_REMUNERADA)
         self.combo_motivo.addItem("Disciplinaria", userData=MotivoSuspension.DISCIPLINARIA)
 
-        boton_guardar = QPushButton("Guardar")
-        boton_guardar.clicked.connect(self._guardar_y_cerrar)
+        self.boton_guardar = QPushButton("Guardar")
+        self.boton_guardar.setIcon(icon("save"))
+        self.boton_guardar.setProperty("class", "primary")
+        self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
         layout = QFormLayout()
         layout.addRow("Tipo de evento", self.combo_tipo)
         layout.addRow("Fecha de inicio", self.campo_fecha_inicio)
         layout.addRow("Fecha de fin", self.campo_fecha_fin)
         layout.addRow("Motivo de suspension", self.combo_motivo)
-        layout.addRow(boton_guardar)
+        layout.addRow(self.boton_guardar)
         self.setLayout(layout)
 
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_visibilidad_motivo)

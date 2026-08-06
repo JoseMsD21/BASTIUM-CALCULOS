@@ -112,6 +112,7 @@ class ExpedienteDetallePage(QWidget):
         self.grupo_eventos_laborales.setLayout(layout_eventos_laborales)
 
         self.boton_liquidar = QPushButton("Liquidar")
+        self.boton_liquidar.setProperty("class", "primary")
         self.boton_liquidar.clicked.connect(self._liquidar)
 
         self._audit_log_ids_por_fila = []

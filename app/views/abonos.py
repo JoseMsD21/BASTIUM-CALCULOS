@@ -5,6 +5,7 @@ from PySide6.QtCore import QDate
 from PySide6.QtWidgets import QDateEdit, QDialog, QFormLayout, QLineEdit, QMessageBox, QPushButton
 
 import database.session as session_module
+from app.views.icons import icon
 from database.models import Abono, Obligacion
 
 
@@ -19,14 +20,16 @@ class AbonoFormDialog(QDialog):
         self.campo_monto = QLineEdit()
         self.campo_referencia = QLineEdit()
 
-        boton_guardar = QPushButton("Guardar")
-        boton_guardar.clicked.connect(self._guardar_y_cerrar)
+        self.boton_guardar = QPushButton("Guardar")
+        self.boton_guardar.setIcon(icon("save"))
+        self.boton_guardar.setProperty("class", "primary")
+        self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
 
         layout = QFormLayout()
         layout.addRow("Fecha", self.campo_fecha)
         layout.addRow("Monto", self.campo_monto)
         layout.addRow("Referencia", self.campo_referencia)
-        layout.addRow(boton_guardar)
+        layout.addRow(self.boton_guardar)
         self.setLayout(layout)
 
     def guardar(self) -> int:

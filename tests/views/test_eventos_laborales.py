@@ -105,3 +105,13 @@ def test_fecha_fin_anterior_o_igual_a_fecha_inicio_lanza_value_error(qtbot, monk
 
     with pytest.raises(ValueError):
         dialog.guardar()
+
+
+def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+
+    dialog = EventoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    assert not dialog.boton_guardar.icon().isNull()
+    assert dialog.boton_guardar.property("class") == "primary"

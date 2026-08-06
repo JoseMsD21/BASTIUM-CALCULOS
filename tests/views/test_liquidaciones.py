@@ -264,3 +264,13 @@ def test_exportar_pdf_ignora_llamada_concurrente_mientras_hay_una_en_curso(
         view._exportar_pdf()  # concurrente -- debe ser ignorada, el boton ya esta deshabilitado
 
     assert len(llamadas_dialogo) == 1
+
+
+def test_botones_exportar_tienen_icono_y_clase_primaria(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+
+    assert not view.boton_exportar_pdf.icon().isNull()
+    assert view.boton_exportar_pdf.property("class") == "primary"
+    assert not view.boton_exportar_word.icon().isNull()
+    assert view.boton_exportar_word.property("class") == "primary"
