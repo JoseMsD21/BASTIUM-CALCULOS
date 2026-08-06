@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -11,7 +13,11 @@ from PySide6.QtWidgets import (
 
 import database.session as session_module
 from app.core.constants import AREAS_DERECHO
+from app.core.exceptions import ParametroNoDisponibleError
+from app.engine.temporal.prescripcion import TipoAccion, calcular_prescripcion
 from database.models import Expediente
+
+DIAS_ALERTA_VENCIMIENTO = 90
 
 
 class DashboardView(QWidget):
@@ -48,6 +54,18 @@ class DashboardView(QWidget):
         layout_resumen.addWidget(self.tabla_por_area)
         grupo_resumen.setLayout(layout_resumen)
 
+        self.tabla_alertas = QTableWidget(0, 4)
+        self.tabla_alertas.setHorizontalHeaderLabels(
+            ["Radicado", "Concepto", "Fecha límite", "Estado"]
+        )
+        self.tabla_alertas.cellDoubleClicked.connect(self._abrir_expediente_de_alerta)
+        self._expediente_ids_por_fila_alerta: list[int] = []
+
+        grupo_alertas = QGroupBox("Plazos próximos a vencer")
+        layout_alertas = QVBoxLayout()
+        layout_alertas.addWidget(self.tabla_alertas)
+        grupo_alertas.setLayout(layout_alertas)
+
         layout_cta = QHBoxLayout()
         layout_cta.addStretch()
         layout_cta.addWidget(self.boton_ver_expedientes)
@@ -55,6 +73,7 @@ class DashboardView(QWidget):
         layout_principal = QVBoxLayout()
         layout_principal.addLayout(layout_cta)
         layout_principal.addWidget(grupo_resumen)
+        layout_principal.addWidget(grupo_alertas)
         self.setLayout(layout_principal)
 
         self.refrescar()
@@ -63,11 +82,17 @@ class DashboardView(QWidget):
         if self._on_ver_expedientes:
             self._on_ver_expedientes()
 
-    def refrescar(self) -> None:
+    def _abrir_expediente_de_alerta(self, fila: int, _columna: int) -> None:
+        if self._on_expediente_abierto:
+            self._on_expediente_abierto(self._expediente_ids_por_fila_alerta[fila])
+
+    def refrescar(self, hoy: date | None = None) -> None:
+        hoy = hoy or date.today()
         session = session_module.get_session()
         expedientes = session.query(Expediente).all()
 
         self._refrescar_conteo_por_area(expedientes)
+        self._refrescar_alertas_vencimiento(expedientes, hoy)
 
         session.close()
 
@@ -83,3 +108,45 @@ class DashboardView(QWidget):
             self.tabla_por_area.setItem(
                 fila, 1, QTableWidgetItem(str(conteo_por_area[codigo]))
             )
+
+    def _refrescar_alertas_vencimiento(
+        self, expedientes: list[Expediente], hoy: date
+    ) -> None:
+        """Alerta si la prescripción de la acción ejecutiva (`TipoAccion.EJECUTIVA`
+        -- el mismo default que usa `filtrar_cuotas_prescritas` en
+        `app/engine/temporal/prescripcion.py`, ver Architecture del plan de este
+        sprint) de alguna obligación no pagada cae dentro de los próximos
+        `DIAS_ALERTA_VENCIMIENTO` días, o ya venció."""
+        limite = hoy + timedelta(days=DIAS_ALERTA_VENCIMIENTO)
+        alertas = []
+        for expediente in expedientes:
+            for obligacion in expediente.obligaciones:
+                if obligacion.pagada:
+                    continue
+                try:
+                    fecha_limite = calcular_prescripcion(
+                        obligacion.fecha_origen, TipoAccion.EJECUTIVA
+                    )
+                except ParametroNoDisponibleError:
+                    # Sin PRESCRIPCION_EJECUTIVA_MESES configurado en Parametros no
+                    # se puede calcular la fecha limite de esta obligacion -- se
+                    # omite de las alertas en vez de tumbar todo el dashboard.
+                    continue
+                if fecha_limite <= limite:
+                    dias_restantes = (fecha_limite - hoy).days
+                    if dias_restantes < 0:
+                        estado = "Vencido"
+                    else:
+                        estado = f"Vence en {dias_restantes} días"
+                    alertas.append((expediente, obligacion, fecha_limite, estado))
+
+        alertas.sort(key=lambda item: item[2])
+
+        self.tabla_alertas.setRowCount(len(alertas))
+        self._expediente_ids_por_fila_alerta = []
+        for fila, (expediente, obligacion, fecha_limite, estado) in enumerate(alertas):
+            self.tabla_alertas.setItem(fila, 0, QTableWidgetItem(expediente.radicado))
+            self.tabla_alertas.setItem(fila, 1, QTableWidgetItem(obligacion.concepto))
+            self.tabla_alertas.setItem(fila, 2, QTableWidgetItem(fecha_limite.isoformat()))
+            self.tabla_alertas.setItem(fila, 3, QTableWidgetItem(estado))
+            self._expediente_ids_por_fila_alerta.append(expediente.id)
