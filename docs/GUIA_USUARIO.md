@@ -5,11 +5,13 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-03 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> **Última actualización:** 2026-08-06 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, los botones de
-> navegación (Volver/Inicio) y de editar/eliminar expediente, y la pantalla "⚙ Parámetros" de parámetros
-> legales versionados. Cada vez que se complete un sprint nuevo de [`Pendientes.md`](../Pendientes.md),
-> esta guía se actualiza para que nunca quede desactualizada respecto al programa real.
+> navegación (Volver/Inicio/Parámetros) con íconos y estado activo, el breadcrumb de contexto y los
+> atajos de teclado de navegación y de los formularios, la edición/eliminación de expediente, y la
+> pantalla de parámetros legales versionados. Cada vez que se complete un sprint nuevo de
+> [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
+> respecto al programa real.
 
 ## Índice
 
@@ -159,16 +161,23 @@ hay un menú de navegación separado); a la cuarta se entra con un botón de la 
    importar en qué otra pantalla estés. Ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)
    para el detalle completo.
 
-En la parte superior de la ventana hay botones de navegación:
+En la parte superior de la ventana hay una barra de navegación con tres botones y, a su derecha, un
+texto de "breadcrumb" que muestra en qué expediente y pantalla estás parado en cada momento (por
+ejemplo, "Expedientes › Radicado 2026-00123 › Liquidación"):
 
-- **← Volver** — regresa a la pantalla anterior (por ejemplo, de Resultado de Liquidación a Detalle de
+- **Volver** — regresa a la pantalla anterior (por ejemplo, de Resultado de Liquidación a Detalle de
   Expediente, y de ahí a la Lista de Expedientes). Recuerda el orden exacto en que navegaste, no solo "la
   pantalla anterior en general". Está oculto cuando no hay a dónde volver (por ejemplo, recién abierto el
-  programa).
-- **🏠 Inicio** — regresa directo a la Lista de Expedientes sin importar en qué pantalla estés. Está
-  oculto cuando ya estás en la Lista de Expedientes.
-- **⚙ Parámetros** — siempre visible, en cualquier pantalla; te lleva a la pantalla de parámetros legales
-  versionados (ver punto 4 arriba).
+  programa). Atajo de teclado: **Alt+Izquierda** o **Retroceso (Backspace)**.
+- **Inicio** — regresa directo a la Lista de Expedientes sin importar en qué pantalla estés. Está
+  oculto cuando ya estás en la Lista de Expedientes. Atajo de teclado: **Ctrl+Inicio**.
+- **Parámetros** — siempre visible, en cualquier pantalla; te lleva a la pantalla de parámetros legales
+  versionados (ver punto 4 arriba). Se resalta con el color de marca de BASTIUM mientras estás dentro de
+  esa pantalla, para que sea evidente cuál tienes abierta.
+
+En los formularios (Nuevo expediente, Agregar obligación, Agregar abono, Agregar evento contractual,
+Agregar valor de parámetro): **Ctrl+S** guarda y cierra el formulario (equivale a hacer clic en
+"Guardar"), y **Esc** lo cierra sin guardar nada.
 
 ---
 
