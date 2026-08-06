@@ -14,10 +14,12 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core.constants import AREAS_DERECHO
 from app.core.exceptions import ParametroNoDisponibleError
+from app.engine.audit.service import historial_de_expediente
 from app.engine.temporal.prescripcion import TipoAccion, calcular_prescripcion
-from database.models import Expediente
+from database.models import AuditLog, Expediente
 
 DIAS_ALERTA_VENCIMIENTO = 90
+MAX_LIQUIDACIONES_RECIENTES = 10
 
 
 class DashboardView(QWidget):
@@ -66,6 +68,14 @@ class DashboardView(QWidget):
         layout_alertas.addWidget(self.tabla_alertas)
         grupo_alertas.setLayout(layout_alertas)
 
+        self.tabla_actividad = QTableWidget(0, 3)
+        self.tabla_actividad.setHorizontalHeaderLabels(["Fecha", "Radicado", "Área"])
+
+        grupo_actividad = QGroupBox("Actividad reciente")
+        layout_actividad = QVBoxLayout()
+        layout_actividad.addWidget(self.tabla_actividad)
+        grupo_actividad.setLayout(layout_actividad)
+
         layout_cta = QHBoxLayout()
         layout_cta.addStretch()
         layout_cta.addWidget(self.boton_ver_expedientes)
@@ -74,6 +84,7 @@ class DashboardView(QWidget):
         layout_principal.addLayout(layout_cta)
         layout_principal.addWidget(grupo_resumen)
         layout_principal.addWidget(grupo_alertas)
+        layout_principal.addWidget(grupo_actividad)
         self.setLayout(layout_principal)
 
         self.refrescar()
@@ -93,6 +104,7 @@ class DashboardView(QWidget):
 
         self._refrescar_conteo_por_area(expedientes)
         self._refrescar_alertas_vencimiento(expedientes, hoy)
+        self._refrescar_actividad_reciente(session, expedientes)
 
         session.close()
 
@@ -150,3 +162,28 @@ class DashboardView(QWidget):
             self.tabla_alertas.setItem(fila, 2, QTableWidgetItem(fecha_limite.isoformat()))
             self.tabla_alertas.setItem(fila, 3, QTableWidgetItem(estado))
             self._expediente_ids_por_fila_alerta.append(expediente.id)
+
+    def _refrescar_actividad_reciente(
+        self, session, expedientes: list[Expediente]
+    ) -> None:
+        """Últimas liquidaciones ejecutadas en cualquier expediente, más recientes
+        primero -- reutiliza `historial_de_expediente` (Sprint 9,
+        `app/engine/audit/service.py`) una vez por expediente y fusiona/recorta el
+        resultado combinado, en vez de duplicar la consulta a `AuditLog` aquí."""
+        registros: list[AuditLog] = []
+        for expediente in expedientes:
+            registros.extend(historial_de_expediente(session, expediente.id))
+        registros.sort(key=lambda log: log.fecha_ejecucion, reverse=True)
+        registros = registros[:MAX_LIQUIDACIONES_RECIENTES]
+
+        self.tabla_actividad.setRowCount(len(registros))
+        for fila, registro in enumerate(registros):
+            self.tabla_actividad.setItem(
+                fila,
+                0,
+                QTableWidgetItem(registro.fecha_ejecucion.strftime("%Y-%m-%d %H:%M")),
+            )
+            self.tabla_actividad.setItem(
+                fila, 1, QTableWidgetItem(registro.expediente.radicado)
+            )
+            self.tabla_actividad.setItem(fila, 2, QTableWidgetItem(registro.area_derecho))

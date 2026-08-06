@@ -6,6 +6,8 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.constants import AREAS_DERECHO
+from app.engine.audit.service import registrar_liquidacion
+from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.prescripcion import TipoAccion, calcular_prescripcion
 from app.views.dashboard import DashboardView
 from database.models import (
@@ -242,3 +244,50 @@ def test_dashboard_doble_clic_en_alerta_abre_el_expediente(qtbot, monkeypatch):
     view.tabla_alertas.cellDoubleClicked.emit(0, 0)
 
     assert abiertos == [expediente_id]
+
+
+def test_dashboard_muestra_liquidaciones_recientes_de_todos_los_expedientes(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = _crear_expediente(session, "2026-020", AreaDerecho.CIVIL_FAMILIA)
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente.id,
+        area_derecho="CIVIL_FAMILIA",
+        fecha_corte=date(2026, 1, 1),
+        resultado=LiquidationResult(items=[]),
+        fecha_ejecucion=datetime(2026, 1, 2, 10, 0),
+    )
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    assert view.tabla_actividad.rowCount() == 1
+    assert view.tabla_actividad.item(0, 1).text() == "2026-020"
+    assert view.tabla_actividad.item(0, 2).text() == "CIVIL_FAMILIA"
+
+
+def test_dashboard_actividad_reciente_ordena_recientes_primero_y_recorta_a_10(
+    qtbot, monkeypatch
+):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = _crear_expediente(session, "2026-021", AreaDerecho.CIVIL_FAMILIA)
+    for dia in range(1, 13):
+        registrar_liquidacion(
+            session,
+            expediente_id=expediente.id,
+            area_derecho="CIVIL_FAMILIA",
+            fecha_corte=date(2026, 1, 1),
+            resultado=LiquidationResult(items=[]),
+            fecha_ejecucion=datetime(2026, 1, dia, 10, 0),
+        )
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    assert view.tabla_actividad.rowCount() == 10
+    assert view.tabla_actividad.item(0, 0).text() == "2026-01-12 10:00"
+    assert view.tabla_actividad.item(9, 0).text() == "2026-01-03 10:00"
