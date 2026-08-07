@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/JoseMsD21/BASTIUM-CALCULOS/actions/workflows/ci.yml/badge.svg)](https://github.com/JoseMsD21/BASTIUM-CALCULOS/actions/workflows/ci.yml)
 ![Versión](https://img.shields.io/badge/versi%C3%B3n-0.1.0-blue)
-![Licencia](https://img.shields.io/badge/licencia-por%20definir%20(Sprint%2038)-lightgrey)
+[![Licencia](https://img.shields.io/badge/licencia-Apache%202.0-blue)](LICENSE)
 
 > ⚠️ **Aviso legal:** BASTIUM es una herramienta de apoyo para el cálculo de liquidaciones — **no
 > sustituye la asesoría de un abogado colegiado ni garantiza exactitud jurídica**. Verifica los
