@@ -245,3 +245,77 @@ def test_engine_pago_exacto_no_genera_saldo_a_favor():
     item_pago = next(i for i in result.items if i.balance.event_type == "PAYMENT")
     assert item_pago.payment_amount == Decimal("500000.00")
     assert item_pago.saldo_a_favor == Decimal("0.00")
+
+
+def test_engine_atribuye_interes_causado_por_paso_del_tiempo_a_cada_item():
+    # Bug real (Sprint 40): la tabla de detalle del PDF mostraba 0 en la columna de
+    # interes en todas las filas, aunque el interes si se causaba silenciosamente via
+    # _accrue_time_passage (el saldo final de intereses ya era correcto). Cada fila
+    # debe reflejar cuanto interes se causo desde el evento anterior hasta este.
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        # 10 dias de mora (2026-01-02 a 2026-01-11) sobre 1000.00 al 1% diario = 100.00
+        Event(date=date(2026, 1, 11), payload={"amount": Decimal("500.00")}, event_type="INSTALLMENT"),
+        # 10 dias mas (2026-01-12 a 2026-01-21) sobre 1500.00 al 1% diario = 150.00
+        Event(date=date(2026, 1, 21), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 21))
+
+    item_segundo_installment = result.items[1]
+    assert item_segundo_installment.interest_amount == Decimal("100.00")
+
+    item_capitalizacion = result.items[2]
+    assert item_capitalizacion.interest_amount == Decimal("150.00")
+
+    # La primera fila no tuvo paso del tiempo antes (mismo dia del primer evento)
+    assert result.items[0].interest_amount == Decimal("0.00")
+
+
+def test_engine_suma_de_columna_interes_coincide_con_interes_final_sin_pagos():
+    # Test de regresion clave del plan: sin pagos que reduzcan intereses ni
+    # capitalizacion, la suma de interest_amount de todas las filas (incluida la fila
+    # de cierre final) debe coincidir exactamente con final_debt.interest.
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2026, 1, 11), payload={"amount": Decimal("500.00")}, event_type="INSTALLMENT"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate)
+
+    # Fecha de corte posterior al ultimo evento -- genera la fila de cierre final
+    result = engine.process(events, cutoff_date=date(2026, 1, 25))
+
+    suma_columna_interes = sum((item.interest_amount for item in result.items), Decimal("0.00"))
+    final_debt = result.final_balance()
+
+    assert suma_columna_interes == final_debt.interest
+    assert final_debt.interest > Decimal("0.00")
+
+    # La fila de cierre final tambien debe tener interest_amount > 0 (dejo de ser el
+    # Decimal("0.00") hardcodeado)
+    item_cierre = result.items[-1]
+    assert item_cierre.balance.event_type == "LIQUIDATION_CUTOFF"
+    assert item_cierre.interest_amount > Decimal("0.00")
+
+
+def test_engine_evento_interest_explicito_se_suma_al_interes_causado_por_tiempo():
+    # El branch event_type == "INTEREST" sigue existiendo para compatibilidad con
+    # tests que lo usan explicitamente. Debe SUMARSE al interes causado por el paso
+    # del tiempo en ese mismo tramo, no reemplazarlo.
+    events = [
+        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        # 10 dias de mora sobre 1000.00 al 1% diario = 100.00 causados por tiempo,
+        # mas 50.00 inyectados explicitamente por el evento INTEREST = 150.00 en la fila
+        Event(date=date(2026, 1, 11), payload={"amount": Decimal("50.00")}, event_type="INTEREST"),
+    ]
+    rate = Rate.from_percent(Decimal("1.00"))
+    engine = LiquidationCore(default_daily_rate=rate)
+
+    result = engine.process(events, cutoff_date=date(2026, 1, 11))
+
+    item_interest = result.items[-1]
+    assert item_interest.balance.event_type == "INTEREST"
+    assert item_interest.interest_amount == Decimal("150.00")
