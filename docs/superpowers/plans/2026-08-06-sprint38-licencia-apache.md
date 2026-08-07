@@ -25,24 +25,26 @@ repo cuando el archivo se llama exactamente `LICENSE` (sin extensión) en la ra�
 
 ### Task 1: Archivo LICENSE
 
-- [ ] Crear `LICENSE` en la raíz del repo con el texto completo y oficial de la Apache License 2.0 2004,
+- [x] Crear `LICENSE` en la raíz del repo con el texto completo y oficial de la Apache License 2.0 2004,
       incluyendo el apéndice "How to apply the Apache License to your work" completado con el año 2026 y
-      el titular de copyright.
+      el titular de copyright. Titular usado: "Jose Miguel Silva Diaz (BASTIUM)" — inferido del `git config
+      user.name` del repo y del usuario de GitHub `JoseMsD21` referenciado en `README.md`; queda pendiente
+      que el usuario lo confirme o ajuste si prefiere otro nombre legal/razón social.
 
 ### Task 2: Badge de licencia en README.md
 
-- [ ] Reemplazar el badge actual (`licencia-por%20definir...`) por uno que indique Apache 2.0 (ej.
+- [x] Reemplazar el badge actual (`licencia-por%20definir...`) por uno que indique Apache 2.0 (ej.
       `![Licencia](https://img.shields.io/badge/licencia-Apache%202.0-blue)`) enlazado al archivo
       `LICENSE`.
 
 ### Task 3: Línea de licencia en CONTRIBUTING.md
 
-- [ ] Reemplazar la frase "La licencia definitiva todavía está pendiente de elegir" por una confirmación de
+- [x] Reemplazar la frase "La licencia definitiva todavía está pendiente de elegir" por una confirmación de
       que las contribuciones se licencian bajo Apache 2.0, enlazando al archivo `LICENSE`.
 
 ### Task 4: Verificación final
 
-- [ ] Confirmar que no queda ninguna referencia a "Sprint 38" o "por definir" respecto a la licencia en
+- [x] Confirmar que no queda ninguna referencia a "Sprint 38" o "por definir" respecto a la licencia en
       `README.md`/`CONTRIBUTING.md`.
-- [ ] Suite completa de tests (`pytest`) en verde (no debería haber cambiado nada de código, pero confirmar
-      igual que no se rompió nada).
+- [x] Suite completa de tests (`pytest`) en verde (no debería haber cambiado nada de código, pero confirmar
+      igual que no se rompió nada). Resultado: 834 passed en 31.20s.

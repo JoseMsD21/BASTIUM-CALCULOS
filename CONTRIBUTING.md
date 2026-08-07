@@ -88,5 +88,4 @@ en vez de reabrir el ya cerrado.
 ## Al contribuir
 
 Al enviar una contribución (issue, pull request, o cualquier otro aporte), aceptas que se licencie
-bajo los mismos términos del proyecto. La licencia definitiva todavía está pendiente de elegir — ver
-el Sprint 38 en [`Pendientes.md`](Pendientes.md).
+bajo los mismos términos del proyecto: [Apache License 2.0](LICENSE).
