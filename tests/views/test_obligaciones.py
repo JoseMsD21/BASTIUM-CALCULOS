@@ -1308,3 +1308,64 @@ def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
     cantidad = session.query(Obligacion).filter_by(expediente_id=expediente_id).count()
     assert cantidad == 0
     session.close()
+
+
+def test_enter_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("427900.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_Return)
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.concepto == "Gastos medicos"
+    session.close()
+
+
+def test_orden_de_tabulacion_sigue_el_orden_visual_para_civil_familia(qtbot, monkeypatch):
+    # Caso representativo (CIVIL_FAMILIA, tipo PUNTUAL por defecto): de los ~35 campos
+    # del formulario (repartido en 3 QGroupBox colapsables, Sprint 34), solo estos
+    # quedan visibles -- el resto son especificos de otras areas (Comercial,
+    # Sancionatorio, Honorarios, Laboral, Tributario) y Qt salta automaticamente los
+    # widgets no visibles al tabular, siguiendo el orden estatico configurado.
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    orden_esperado = [
+        dialog.combo_tipo,
+        dialog.combo_categoria,
+        dialog.campo_concepto,
+        dialog.campo_valor,
+        dialog.campo_fecha_origen,
+        dialog.campo_tasa,
+        dialog.check_aplica_indexacion_ipc,
+        dialog.check_interes_sobre_capital_indexado,
+        dialog.boton_guardar,
+    ]
+
+    orden_esperado[0].setFocus()
+    qtbot.wait(20)
+    assert dialog.focusWidget() is orden_esperado[0]
+
+    for widget_esperado in orden_esperado[1:]:
+        qtbot.keyClick(dialog, Qt.Key.Key_Tab)
+        assert dialog.focusWidget() is widget_esperado

@@ -102,6 +102,24 @@ class ExpedienteFormDialog(QDialog):
 
         self.campo_radicado.textChanged.connect(self._validar_radicado_en_tiempo_real)
 
+        # Orden de tabulacion explicito (Sprint 37), siguiendo el orden visual de
+        # arriba hacia abajo del formulario (mismo orden en que se llamo addRow() mas
+        # arriba). QFormLayout ya encadena el tab order automaticamente entre sus
+        # propias filas siguiendo ese mismo orden, pero se fija aqui de forma
+        # explicita para no depender de ese comportamiento implicito si el formulario
+        # cambia en el futuro.
+        orden = [
+            self.campo_radicado,
+            self.campo_demandante,
+            self.campo_demandado,
+            self.combo_area,
+            self.campo_juzgado,
+            self.campo_fecha_corte,
+            self.boton_guardar,
+        ]
+        for anterior, siguiente in zip(orden, orden[1:]):
+            self.setTabOrder(anterior, siguiente)
+
     def guardar(self) -> int:
         if not self.campo_radicado.text().strip():
             raise ValueError("El radicado es obligatorio.")

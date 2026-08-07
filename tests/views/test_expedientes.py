@@ -840,3 +840,56 @@ def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
     guardado = session.query(Expediente).filter_by(radicado="2026-051").one_or_none()
     assert guardado is None
     session.close()
+
+
+def test_enter_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-052")
+    dialog.campo_demandante.setText("Ana")
+    dialog.campo_demandado.setText("Luis")
+    dialog.campo_fecha_corte.setDate(date(2026, 1, 1))
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_Return)
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    session = session_module.get_session()
+    guardado = session.query(Expediente).filter_by(radicado="2026-052").one_or_none()
+    assert guardado is not None
+    session.close()
+
+
+def test_orden_de_tabulacion_sigue_el_orden_visual_del_formulario(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    orden_esperado = [
+        dialog.campo_radicado,
+        dialog.campo_demandante,
+        dialog.campo_demandado,
+        dialog.combo_area,
+        dialog.campo_juzgado,
+        dialog.campo_fecha_corte,
+        dialog.boton_guardar,
+    ]
+
+    orden_esperado[0].setFocus()
+    qtbot.wait(20)
+    assert dialog.focusWidget() is orden_esperado[0]
+
+    for widget_esperado in orden_esperado[1:]:
+        qtbot.keyClick(dialog, Qt.Key.Key_Tab)
+        assert dialog.focusWidget() is widget_esperado
