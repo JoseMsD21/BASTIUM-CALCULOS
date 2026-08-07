@@ -196,3 +196,25 @@ def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
     obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
     assert len(obligacion.abonos) == 0
     session.close()
+
+
+def test_enter_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_fecha.setDate(date(2026, 1, 15))
+    dialog.campo_monto.setText("100000.00")
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
+    dialog.activateWindow()
+    qtbot.wait(50)
+
+    qtbot.keyClick(dialog, Qt.Key.Key_Return)
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert len(obligacion.abonos) == 1
+    session.close()

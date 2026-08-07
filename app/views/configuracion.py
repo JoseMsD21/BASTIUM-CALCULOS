@@ -49,6 +49,11 @@ class ParametroFormDialog(QDialog):
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
         self.boton_guardar.setProperty("class", "primary")
+        # Enter/Return dispara Guardar (Sprint 37): Qt ya trata automaticamente al
+        # unico QPushButton de un QDialog como boton por defecto, pero se fija
+        # explicitamente para no depender de ese comportamiento implicito si en el
+        # futuro se agrega otro boton (ej. "Cancelar").
+        self.boton_guardar.setDefault(True)
         self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
         # Ctrl+S = guardar (Sprint 32). Esc = cancelar ya viene gratis de
         # QDialog.keyPressEvent() (reject() por defecto) -- no requiere codigo aqui.
