@@ -252,6 +252,7 @@ class ExpedientesListView(QWidget):
             self.tabla.setItem(fila, 3, QTableWidgetItem(expediente.area_derecho.value))
 
             boton_editar = QPushButton("Editar")
+            boton_editar.setProperty("class", "secondary")
             boton_editar.clicked.connect(
                 lambda _checked=False, id_=expediente.id: self._editar_expediente(id_)
             )

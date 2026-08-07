@@ -368,6 +368,31 @@ def test_boton_eliminar_de_cada_fila_tiene_icono_y_clase_destructiva(qtbot, monk
     assert boton_eliminar.property("class") == "destructive"
 
 
+def test_boton_editar_de_cada_fila_tiene_clase_secundaria(qtbot, monkeypatch):
+    from app.views.expedientes import ExpedientesListView
+
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    session.add(
+        Expediente(
+            radicado="2026-099",
+            demandante="Ana",
+            demandado="Luis",
+            area_derecho=AreaDerecho.CIVIL_FAMILIA,
+            fecha_corte_default=date(2026, 1, 1),
+        )
+    )
+    session.commit()
+    session.close()
+
+    view = ExpedientesListView()
+    qtbot.addWidget(view)
+    view.refrescar()
+
+    boton_editar = view.tabla.cellWidget(0, 4)
+    assert boton_editar.property("class") == "secondary"
+
+
 def test_busqueda_filtra_por_radicado(qtbot, monkeypatch):
     _sesion_en_memoria(monkeypatch)
     session = session_module.get_session()

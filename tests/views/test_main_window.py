@@ -352,11 +352,11 @@ def test_boton_parametros_inactivo_en_otras_pantallas(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    assert window.boton_parametros.property("class") == ""
+    assert window.boton_parametros.property("class") == "secondary"
 
     window.show_page("detalle")
 
-    assert window.boton_parametros.property("class") == ""
+    assert window.boton_parametros.property("class") == "secondary"
 
 
 def test_boton_parametros_deja_de_estar_activo_al_salir_de_parametros(qtbot):
@@ -368,7 +368,15 @@ def test_boton_parametros_deja_de_estar_activo_al_salir_de_parametros(qtbot):
 
     window._ir_inicio()
 
-    assert window.boton_parametros.property("class") == ""
+    assert window.boton_parametros.property("class") == "secondary"
+
+
+def test_botones_volver_e_inicio_tienen_clase_secundaria(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.boton_volver.property("class") == "secondary"
+    assert window.boton_inicio.property("class") == "secondary"
 
 
 def test_main_window_dashboard_ver_expedientes_navega_a_la_lista(qtbot):

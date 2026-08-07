@@ -25,6 +25,7 @@ from app.reports.pdf import JudicialPDFGenerator
 from app.reports.word import WordReportGenerator
 from app.views.concurrency import TareaEnHilo
 from app.views.icons import icon
+from app.views.toast import mostrar_toast
 from database.models import Expediente
 
 
@@ -232,7 +233,12 @@ class ResultadoLiquidacionView(QWidget):
 
     def _on_exportar_completado(self, ruta: str, etiqueta: str) -> None:
         self._finalizar_exportacion_en_curso()
-        QMessageBox.information(self, "Exportación completa", f"{etiqueta} guardado en: {ruta}")
+        # Sprint 36: confirmacion de bajo riesgo (exportar con exito no es destructivo
+        # ni requiere validar nada mas) -- toast no bloqueante en vez de QMessageBox
+        # modal, para no interrumpir al usuario con un dialogo que hay que cerrar a
+        # mano. QMessageBox.critical() se mantiene para el caso de error (ver
+        # _on_exportar_fallo), que si amerita bloquear hasta que el usuario lo note.
+        mostrar_toast(self, f"{etiqueta} guardado en: {ruta}")
         self.exportacion_finalizada.emit()
 
     def _on_exportar_fallo(self, error: Exception) -> None:
