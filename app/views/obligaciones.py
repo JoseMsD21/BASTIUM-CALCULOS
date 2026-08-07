@@ -29,6 +29,7 @@ from app.core.constants import (
     CATEGORIAS_SANCIONATORIO,
     CATEGORIAS_TRIBUTARIO,
 )
+from app.views.form_utils import set_row_visible
 from app.views.icons import icon
 from database.models import Expediente, Obligacion, TipoObligacion
 
@@ -321,46 +322,61 @@ class ObligacionFormDialog(QDialog):
         es_laboral = self._area == "LABORAL"
         es_tributario = self._area == "TRIBUTARIO"
 
-        self.campo_tasa_moratoria.setVisible(es_comercial)
-        self.campo_fecha_vencimiento.setVisible(es_comercial)
-        self.campo_ibc_vigente.setVisible(es_comercial)
-        self.combo_moneda.setVisible(es_comercial)
-
-        self.campo_cantidad_smlmv_uvt.setVisible(es_sancionatorio)
-
-        self.campo_honorarios_fijos.setVisible(es_honorarios)
-        self.campo_cuota_litis_pct.setVisible(es_honorarios)
-        self.campo_beneficio_obtenido.setVisible(es_honorarios)
-        self.campo_costas_pct.setVisible(es_honorarios)
-
-        self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
-        self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
-
-        # "Valor" no aplica a Sancionatorio/Honorarios/Tributario (salvo IMPUESTO_A_CARGO,
-        # ver _actualizar_campos_tributario): el monto se calcula a partir de otros campos.
-        # Se oculta el CONTENEDOR (campo + iconos), no el QLineEdit directamente, para que
-        # el icono de advertencia tambien desaparezca junto con la fila.
-        self._contenedor_campo_valor.setVisible(
-            not es_sancionatorio and not es_honorarios and not es_tributario
-        )
-
         # Laboral y Tributario son siempre PUNTUAL y no usan tasa efectiva anual pactada
         # (Tributario: el interes es automatico, E.T. art. 635, nunca se pacta).
-        self.combo_tipo.setVisible(not es_laboral and not es_tributario)
-        self._contenedor_campo_tasa.setVisible(not es_laboral and not es_tributario)
-        self.campo_fecha_fin.setVisible(es_laboral)
+        self._aplicar_visibilidad_filas(
+            self.layout_datos_basicos,
+            {
+                self.campo_cantidad_smlmv_uvt: es_sancionatorio,
+                # "Valor" no aplica a Sancionatorio/Honorarios/Tributario (salvo
+                # IMPUESTO_A_CARGO, ver _actualizar_campos_tributario): el monto se
+                # calcula a partir de otros campos. Se oculta el CONTENEDOR (campo +
+                # iconos), no el QLineEdit directamente, para que el icono de
+                # advertencia tambien desaparezca junto con la fila.
+                self._contenedor_campo_valor: not es_sancionatorio
+                and not es_honorarios
+                and not es_tributario,
+                self.combo_tipo: not es_laboral and not es_tributario,
+                self.campo_fecha_fin: es_laboral,
+                self.combo_nivel_riesgo_arl: False,
+                self.campo_base_sancion: False,
+                self.campo_meses_extemporaneidad: False,
+                self.campo_ingresos_brutos: False,
+                self.campo_devoluciones: False,
+                self.campo_costos: False,
+                self.campo_deducciones: False,
+                self.campo_rentas_exentas: False,
+            },
+        )
+        self._aplicar_visibilidad_filas(
+            self.layout_tasas_intereses,
+            {
+                self.campo_tasa_moratoria: es_comercial,
+                self.campo_fecha_vencimiento: es_comercial,
+                self.campo_ibc_vigente: es_comercial,
+                self.combo_moneda: es_comercial,
+                self._contenedor_campo_tasa: not es_laboral and not es_tributario,
+            },
+        )
+        self._aplicar_visibilidad_filas(
+            self.layout_honorarios_costas,
+            {
+                self.campo_honorarios_fijos: es_honorarios,
+                self.campo_cuota_litis_pct: es_honorarios,
+                self.campo_beneficio_obtenido: es_honorarios,
+                self.campo_costas_pct: es_honorarios,
+            },
+        )
+
+        # Estos checkboxes se agregaron con addRow(widget) de un solo argumento (sin
+        # etiqueta de texto separada) -- QFormLayout no genera QLabel para ellos, asi
+        # que no sufren el bug de fila huerfana y pueden seguir usando setVisible()
+        # directo (Sprint 39).
+        self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
+        self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
-        self.combo_nivel_riesgo_arl.setVisible(False)
-
-        self.campo_base_sancion.setVisible(False)
-        self.campo_meses_extemporaneidad.setVisible(False)
         self.check_sancion_agravada.setVisible(False)
-        self.campo_ingresos_brutos.setVisible(False)
-        self.campo_devoluciones.setVisible(False)
-        self.campo_costos.setVisible(False)
-        self.campo_deducciones.setVisible(False)
-        self.campo_rentas_exentas.setVisible(False)
 
         # Secciones enteras que no aplican al area elegida quedan completamente
         # ocultas (Sprint 34) en vez de mostrar un grupo con todos sus campos
@@ -401,11 +417,28 @@ class ObligacionFormDialog(QDialog):
         self._actualizar_visibilidad_trm()
         self._actualizar_campos_tributario()
 
+    def _aplicar_visibilidad_filas(
+        self, layout: QFormLayout, visibilidad_por_widget: dict[QWidget, bool]
+    ) -> None:
+        """Aplica `set_row_visible` a cada par (widget, visible) de `layout` de una
+        sola vez (Sprint 39) -- evita repetir `widget.setVisible(...)` suelto por
+        cada campo condicional, que es justo el patron que deja etiquetas huerfanas
+        (la fila conserva su QLabel de QFormLayout.addRow(str, widget) visible
+        aunque el widget se oculte). Centralizar la iteracion aqui tambien evita que
+        el bug reaparezca al agregar un campo condicional nuevo."""
+        for widget, visible in visibilidad_por_widget.items():
+            set_row_visible(layout, widget, visible)
+
     def _actualizar_visibilidad_trm(self) -> None:
         es_comercial = self._area == "COMERCIAL"
         es_usd = self.combo_moneda.currentData() == "USD"
-        self.campo_trm_aplicable.setVisible(es_comercial and es_usd)
-        self.campo_trm_fecha_referencia.setVisible(es_comercial and es_usd)
+        self._aplicar_visibilidad_filas(
+            self.layout_tasas_intereses,
+            {
+                self.campo_trm_aplicable: es_comercial and es_usd,
+                self.campo_trm_fecha_referencia: es_comercial and es_usd,
+            },
+        )
 
     def _actualizar_campos_tributario(self) -> None:
         if self._area != "TRIBUTARIO":
@@ -418,40 +451,60 @@ class ObligacionFormDialog(QDialog):
         es_renta_liquida = categoria == "RENTA_LIQUIDA"
         es_sancion = es_extemporaneidad or es_inexactitud or es_error_aritmetico
 
-        self._contenedor_campo_valor.setVisible(es_impuesto)
-        self.campo_base_sancion.setVisible(es_sancion)
-        self.campo_meses_extemporaneidad.setVisible(es_extemporaneidad)
+        self._aplicar_visibilidad_filas(
+            self.layout_datos_basicos,
+            {
+                self._contenedor_campo_valor: es_impuesto,
+                self.campo_base_sancion: es_sancion,
+                self.campo_meses_extemporaneidad: es_extemporaneidad,
+                self.campo_ingresos_brutos: es_renta_liquida,
+                self.campo_devoluciones: es_renta_liquida,
+                self.campo_costos: es_renta_liquida,
+                self.campo_deducciones: es_renta_liquida,
+                self.campo_rentas_exentas: es_renta_liquida,
+            },
+        )
+        # addRow(check_sancion_agravada) es de un solo argumento -- sin etiqueta
+        # separada, no sufre el bug de fila huerfana (Sprint 39).
         self.check_sancion_agravada.setVisible(es_inexactitud)
-        self.campo_ingresos_brutos.setVisible(es_renta_liquida)
-        self.campo_devoluciones.setVisible(es_renta_liquida)
-        self.campo_costos.setVisible(es_renta_liquida)
-        self.campo_deducciones.setVisible(es_renta_liquida)
-        self.campo_rentas_exentas.setVisible(es_renta_liquida)
 
     def _actualizar_campos_visibles(self) -> None:
         if self._area == "LABORAL":
-            self.campo_fecha_origen.setVisible(True)  # reutilizado como "fecha de inicio del contrato"
-            self.campo_fecha_inicio.setVisible(False)
-            self.campo_dia_pago.setVisible(False)
-            self.campo_fecha_pago_total.setVisible(self.check_pagada.isChecked())
-            self.combo_nivel_riesgo_arl.setVisible(self.check_incluir_seguridad_social.isChecked())
+            self._aplicar_visibilidad_filas(
+                self.layout_datos_basicos,
+                {
+                    # reutilizado como "fecha de inicio del contrato"
+                    self.campo_fecha_origen: True,
+                    self.campo_fecha_inicio: False,
+                    self.campo_dia_pago: False,
+                    self.campo_fecha_pago_total: self.check_pagada.isChecked(),
+                    self.combo_nivel_riesgo_arl: self.check_incluir_seguridad_social.isChecked(),
+                },
+            )
             self.check_anatocismo_demanda_judicial.setVisible(False)
             self.check_anatocismo_acuerdo.setVisible(False)
-            self.campo_anatocismo_fecha_acuerdo.setVisible(False)
+            set_row_visible(self.layout_tasas_intereses, self.campo_anatocismo_fecha_acuerdo, False)
             return
 
-        self.campo_fecha_pago_total.setVisible(False)
         es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
-        self.campo_fecha_origen.setVisible(not es_recurrente)
-        self.campo_fecha_inicio.setVisible(es_recurrente)
-        self.campo_dia_pago.setVisible(es_recurrente)
+        self._aplicar_visibilidad_filas(
+            self.layout_datos_basicos,
+            {
+                self.campo_fecha_pago_total: False,
+                self.campo_fecha_origen: not es_recurrente,
+                self.campo_fecha_inicio: es_recurrente,
+                self.campo_dia_pago: es_recurrente,
+            },
+        )
 
         es_comercial = self._area == "COMERCIAL"
         mostrar_anatocismo = es_comercial and not es_recurrente
         self.check_anatocismo_demanda_judicial.setVisible(mostrar_anatocismo)
         self.check_anatocismo_acuerdo.setVisible(mostrar_anatocismo)
-        self.campo_anatocismo_fecha_acuerdo.setVisible(
-            mostrar_anatocismo and self.check_anatocismo_acuerdo.isChecked()
+        set_row_visible(
+            self.layout_tasas_intereses,
+            self.campo_anatocismo_fecha_acuerdo,
+            mostrar_anatocismo and self.check_anatocismo_acuerdo.isChecked(),
         )
 
     def guardar(self) -> int:

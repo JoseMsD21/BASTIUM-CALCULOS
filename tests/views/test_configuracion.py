@@ -92,6 +92,25 @@ def test_parametro_form_dialog_muestra_vigente_hasta_solo_para_tramo_cerrado(qtb
     assert dialogo.campo_vigente_hasta.isVisible() is True
 
 
+def test_parametro_form_dialog_label_vigente_hasta_no_queda_huerfana(qtbot):
+    """Sprint 39 (barrido de app/views/): la etiqueta "Vigente hasta" generada
+    por QFormLayout.addRow(str, campo_vigente_hasta) debe ocultarse junto con
+    el campo cuando el parametro no es de tramo cerrado -- si solo se oculta
+    el QDateEdit queda una fila huerfana."""
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.show()
+
+    etiqueta_vigente_hasta = dialogo._layout_formulario.labelForField(dialogo.campo_vigente_hasta)
+    assert etiqueta_vigente_hasta is not None
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    assert etiqueta_vigente_hasta.isVisible() is False
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
+    assert etiqueta_vigente_hasta.isVisible() is True
+
+
 def test_parametro_form_dialog_valor_no_finito_lanza_value_error(qtbot):
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)

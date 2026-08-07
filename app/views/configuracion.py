@@ -26,6 +26,7 @@ from app.services.parametro_service import (
     historial,
     valor_vigente_hoy,
 )
+from app.views.form_utils import set_row_visible
 from app.views.icons import icon
 
 
@@ -55,15 +56,19 @@ class ParametroFormDialog(QDialog):
         self.atajo_guardar = QShortcut(QKeySequence("Ctrl+S"), self)
         self.atajo_guardar.activated.connect(self._guardar_y_cerrar)
 
-        layout = QFormLayout()
-        layout.addRow("Parametro", self.combo_clave)
-        layout.addRow("Valor", self.campo_valor)
-        layout.addRow("Vigente desde", self.campo_vigente_desde)
-        layout.addRow("Vigente hasta", self.campo_vigente_hasta)
-        layout.addRow("Usuario", self.campo_usuario)
-        layout.addRow("Motivo (opcional)", self.campo_motivo)
-        layout.addRow(self.boton_guardar)
-        self.setLayout(layout)
+        # Guardado como atributo (en vez de variable local `layout`) para que
+        # _actualizar_visibilidad_vigente_hasta pueda ocultar la fila completa
+        # (etiqueta + campo) con set_row_visible (Sprint 39) en vez de solo el
+        # QDateEdit.
+        self._layout_formulario = QFormLayout()
+        self._layout_formulario.addRow("Parametro", self.combo_clave)
+        self._layout_formulario.addRow("Valor", self.campo_valor)
+        self._layout_formulario.addRow("Vigente desde", self.campo_vigente_desde)
+        self._layout_formulario.addRow("Vigente hasta", self.campo_vigente_hasta)
+        self._layout_formulario.addRow("Usuario", self.campo_usuario)
+        self._layout_formulario.addRow("Motivo (opcional)", self.campo_motivo)
+        self._layout_formulario.addRow(self.boton_guardar)
+        self.setLayout(self._layout_formulario)
 
         self.combo_clave.currentIndexChanged.connect(self._actualizar_visibilidad_vigente_hasta)
         self._actualizar_visibilidad_vigente_hasta()
@@ -71,7 +76,14 @@ class ParametroFormDialog(QDialog):
     def _actualizar_visibilidad_vigente_hasta(self) -> None:
         clave = self.combo_clave.currentData()
         info = CATALOGO_PARAMETROS[clave]
-        self.campo_vigente_hasta.setVisible(info.modo == ModoResolucion.TRAMO_CERRADO)
+        # set_row_visible (no campo_vigente_hasta.setVisible() suelto) para que la
+        # etiqueta "Vigente hasta" generada por addRow(str, widget) se oculte junto
+        # con el campo -- de lo contrario queda una fila huerfana (Sprint 39).
+        set_row_visible(
+            self._layout_formulario,
+            self.campo_vigente_hasta,
+            info.modo == ModoResolucion.TRAMO_CERRADO,
+        )
 
     def guardar(self):
         clave = self.combo_clave.currentData()

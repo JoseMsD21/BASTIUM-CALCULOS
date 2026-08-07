@@ -5,6 +5,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QComboBox, QDateEdit, QDialog, QFormLayout, QMessageBox, QPushButton
 
 import database.session as session_module
+from app.views.form_utils import set_row_visible
 from app.views.icons import icon
 from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
 
@@ -39,19 +40,29 @@ class EventoLaboralFormDialog(QDialog):
         self.atajo_guardar = QShortcut(QKeySequence("Ctrl+S"), self)
         self.atajo_guardar.activated.connect(self._guardar_y_cerrar)
 
-        layout = QFormLayout()
-        layout.addRow("Tipo de evento", self.combo_tipo)
-        layout.addRow("Fecha de inicio", self.campo_fecha_inicio)
-        layout.addRow("Fecha de fin", self.campo_fecha_fin)
-        layout.addRow("Motivo de suspension", self.combo_motivo)
-        layout.addRow(self.boton_guardar)
-        self.setLayout(layout)
+        # Guardado como atributo (en vez de variable local `layout`) para que
+        # _actualizar_visibilidad_motivo pueda ocultar la fila completa (etiqueta +
+        # combo) con set_row_visible (Sprint 39) en vez de solo el combo.
+        self._layout_formulario = QFormLayout()
+        self._layout_formulario.addRow("Tipo de evento", self.combo_tipo)
+        self._layout_formulario.addRow("Fecha de inicio", self.campo_fecha_inicio)
+        self._layout_formulario.addRow("Fecha de fin", self.campo_fecha_fin)
+        self._layout_formulario.addRow("Motivo de suspension", self.combo_motivo)
+        self._layout_formulario.addRow(self.boton_guardar)
+        self.setLayout(self._layout_formulario)
 
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_visibilidad_motivo)
         self._actualizar_visibilidad_motivo()
 
     def _actualizar_visibilidad_motivo(self) -> None:
-        self.combo_motivo.setVisible(self.combo_tipo.currentData() == TipoEventoLaboral.SUSPENSION)
+        # set_row_visible (no combo_motivo.setVisible() suelto) para que la etiqueta
+        # "Motivo de suspension" generada por addRow(str, widget) se oculte junto con
+        # el combo -- de lo contrario queda una fila huerfana (Sprint 39).
+        set_row_visible(
+            self._layout_formulario,
+            self.combo_motivo,
+            self.combo_tipo.currentData() == TipoEventoLaboral.SUSPENSION,
+        )
 
     def guardar(self) -> int:
         qdate_inicio = self.campo_fecha_inicio.date()
