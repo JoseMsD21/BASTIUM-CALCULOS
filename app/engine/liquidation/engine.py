@@ -53,18 +53,22 @@ class LiquidationCore:
         for event in sorted_events:
             if event.date > cutoff_date:
                 break
-                
+
+            interes_antes = self._current_debt.interest
             self._accrue_time_passage(event.date)
-            item = self._process_event(event)
+            interes_causado_periodo = self._current_debt.interest - interes_antes
+            item = self._process_event(event, interes_causado_periodo)
             self._history.append(item)
             self._last_event_date = event.date
 
+        interes_antes_cierre = self._current_debt.interest
         self._accrue_time_passage(cutoff_date)
-        
+        interes_causado_cierre = self._current_debt.interest - interes_antes_cierre
+
         if self._last_event_date and self._last_event_date < cutoff_date:
              closing_rb = RunningBalance(
-                 date=cutoff_date, 
-                 debt=self._current_debt, 
+                 date=cutoff_date,
+                 debt=self._current_debt,
                  event_type="LIQUIDATION_CUTOFF"
              )
              closing_item = LiquidationItem(
@@ -72,7 +76,7 @@ class LiquidationCore:
                  concept="Corte final de liquidación",
                  capital_base=self._capital_base_actual(),
                  interest_rate=self._get_rate_for_date(cutoff_date).percent(),
-                 interest_amount=Decimal("0.00"),
+                 interest_amount=interes_causado_cierre,
                  indexation_amount=Decimal("0.00"),
                  payment_amount=Decimal("0.00"),
                  balance=closing_rb,
@@ -127,10 +131,13 @@ class LiquidationCore:
         if total_interest_accumulated > Decimal("0.00"):
             self._current_debt = BalanceEngine.add_interest(self._current_debt, total_interest_accumulated)
 
-    def _process_event(self, event: Event) -> LiquidationItem:
+    def _process_event(self, event: Event, interes_causado_periodo: Decimal = Decimal("0.00")) -> LiquidationItem:
         concept = event.payload.get("label", event.event_type)
         payment_amount = Decimal("0.00")
-        interest_amount = Decimal("0.00")
+        # Interés causado por el paso del tiempo (_accrue_time_passage) inmediatamente
+        # antes de este evento -- ver Sprint 40. Se acumula aparte del interés inyectado
+        # explícitamente por el (raro) evento tipo INTEREST, ambos son aditivos.
+        interest_amount = interes_causado_periodo
         indexation_amount = Decimal("0.00")
         saldo_a_favor = Decimal("0.00")
 
@@ -141,7 +148,7 @@ class LiquidationCore:
 
         elif event.event_type == "INTEREST":
             amount = Decimal(str(event.payload.get("amount", "0.00")))
-            interest_amount = amount
+            interest_amount += amount
             self._current_debt = BalanceEngine.add_interest(self._current_debt, amount)
 
         elif event.event_type in ("INDEXATION", "SANCION_TRIBUTARIA"):
