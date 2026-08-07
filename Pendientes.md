@@ -172,6 +172,7 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI 📋 Pendiente](#sprint-48--limpiar-la-deuda-de-ruff-preexistente-y-agregar-el-chequeo-de-lint-al-pipeline-de-ci--pendiente)
 - [Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana 📋 Pendiente](#sprint-49--bug-de-ui-los-botones-volverinicio-reaparecen-visibles-tras-el-primer-render-de-la-ventana--pendiente)
 - [Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) 📋 Pendiente](#sprint-50--mejoras-de-personalización-y-presentación-diferidas-de-los-sprints-31-33-modo-oscuro-sidebar-gráficas-del-dashboard--pendiente)
+- [Sprint 51 — Migración automática de esquema y datos al arrancar la app ✅ Completado](#sprint-51--migración-automática-de-esquema-y-datos-al-arrancar-la-app--completado)
 
 ---
 
@@ -3850,6 +3851,78 @@ igual que se hizo con decisiones de diseño anteriores (Sprints 13/16/20/41).
 
 **Definición de Hecho:** no aplica todavía — este sprint se cierra dividiéndose en sprints concretos (uno
 por punto que el usuario decida priorizar) el día que se retome, no completando los 3 de una vez.
+
+---
+
+## Sprint 51 — Migración automática de esquema y datos al arrancar la app ✅ Completado
+
+**Prioridad sugerida:** Alta — bloqueaba el uso real de la app para el usuario (crash al abrir, y el motor
+de cálculo entero sin parámetros legales sembrados).
+
+**Depende de:** Nada técnicamente, pero es la causa raíz de un bug reportado en producción tras cerrar los
+Sprints 31-35: `sqlite3.OperationalError: no such column: obligaciones.costas_tipo_proceso` al abrir
+`main.py`, porque el Dashboard nuevo (Sprint 33) es la primera pantalla que carga *todas* las obligaciones
+de *todos* los expedientes al arrancar.
+
+**Contexto (reporte del usuario, 2026-08-06):** al correr `python main.py` la app crasheaba con un
+traceback completo de SQLAlchemy terminando en `no such column: obligaciones.costas_tipo_proceso`.
+
+**Hallazgos (auditoría completa de esquema, verificada leyendo la `bastium.db` real del usuario):**
+1. El proyecto no usa Alembic — cada sprint que agrega una columna/índice trae su propio script
+   idempotente en `scripts/migrate_*.py` (9 scripts: Sprints 8, 12, 15, 16, 18, 19, 20, 25, y el de
+   `parametros_legales`), pero **nada los invoca automáticamente** — dependían de que alguien los
+   recordara correr a mano, y `README.md` solo documentaba 4 de los 9 (huecos ya existían en la propia
+   documentación).
+2. Diff completo del esquema real de la `bastium.db` del usuario contra el modelo actual
+   (`database/models.py`, las 6 tablas): la tabla `obligaciones` le faltaban 5 columnas
+   (`costas_tipo_proceso`, `costas_instancia` del Sprint 18; `interes_sobre_capital_indexado` del Sprint
+   20; `anatocismo_demanda_judicial`, `anatocismo_fecha_acuerdo` del Sprint 19) — exactamente los 3
+   scripts que nunca se corrieron. Las otras 5 tablas coincidían.
+3. **Hallazgo más grave que el bug reportado:** la tabla `parametros_legales` tenía **0 filas**. El script
+   `scripts/migrate_parametros_legales.py` (que siembra las 39 claves de tasas/topes/plazos legales que
+   `get_parametro()` usa en casi todos los motores: intereses, usura, prescripción, seguridad social,
+   sanciones tributarias) tampoco se había corrido nunca. El Dashboard captura
+   `ParametroNoDisponibleError` con gracia (Sprint 33), pero cualquier liquidación real habría fallado con
+   esa misma excepción sin capturar en el motor — el software estaba, en la práctica, inutilizable para su
+   propósito principal, no solo con el Dashboard roto.
+4. Este patrón (una `bastium.db` existente que se queda atrás del modelo) le pasaría exactamente igual a
+   **cualquiera que clone el repositorio y ya tuviera una `bastium.db` de una versión anterior** — y, de
+   forma más sutil, incluso a un clon completamente nuevo, porque nada garantizaba que
+   `migrate_parametros_legales.py` se corriera antes del primer uso real.
+
+**Código nuevo a crear:**
+- `database/database.py::aplicar_migraciones_pendientes(db_path=None)`: importa y ejecuta, en orden y con
+  imports diferidos (evita import circular con `scripts/migrate_parametros_legales.py`, que importa
+  `init_db` de este mismo módulo), los 9 scripts de migración existentes — cada uno ya verifica con
+  `PRAGMA table_info`/`PRAGMA index_list` antes de alterar, así que correrlos de más en una base ya al día
+  es gratis (una consulta, no un `ALTER TABLE`).
+- `main.py`: llama a `aplicar_migraciones_pendientes()` justo después de `init_db()`, antes de crear
+  `MainWindow` — ningún paso manual, ni para una `bastium.db` vieja ni para una recién creada.
+- `tests/database/test_migrations.py` (5 tests nuevos): agrega columnas faltantes a un esquema viejo
+  reproducido con SQL crudo, siembra `parametros_legales` (39 claves), es idempotente, agrega los 4
+  índices de rendimiento, y un test de regresión directo que reproduce el crash exacto del Dashboard
+  contra un esquema viejo y confirma que ya no lanza `OperationalError`.
+
+**Aplicado sobre la `bastium.db` real del usuario (2026-08-06):** backup previo
+(`bastium.db.bak-20260806193037`), migración aplicada, verificado que el expediente y la obligación que
+ya tenía cargados siguen intactos (mismo `id`/contenido antes y después), esquema final coincide
+exactamente con el modelo en las 6 tablas, `parametros_legales` sembrada (39 claves, 683 filas incluyendo
+las series históricas de SMLMV/IPC/IBC/UVT), y se reprodujo el arranque real de `main.py` contra esa misma
+base confirmando que ya no crashea.
+
+**Alcance explícitamente excluido:**
+- No se migró a Alembic — se mantiene el patrón de scripts idempotentes ya establecido en el proyecto,
+  solo se automatizó su invocación. Adoptar una herramienta de migraciones formal, si se justifica más
+  adelante, es un sprint aparte.
+- Los 9 scripts individuales en `scripts/migrate_*.py` no se borraron — siguen siendo válidos para
+  correrse de forma aislada o para auditar qué cambió en cada sprint; `README.md` se actualizó para dejar
+  claro que ya no hace falta correrlos a mano.
+
+**Definición de Hecho:**
+- `python main.py` arranca sin errores contra una `bastium.db` de cualquier sprint anterior, sin ningún
+  paso manual.
+- Suite completa en verde, incluidos los 5 tests nuevos de `tests/database/test_migrations.py`.
+- La `bastium.db` real del usuario quedó migrada, con sus datos existentes intactos y un backup previo.
 
 ---
 

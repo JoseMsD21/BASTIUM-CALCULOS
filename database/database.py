@@ -23,3 +23,53 @@ def init_db() -> None:
     from database.models import Base
 
     Base.metadata.create_all(engine)
+
+
+def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
+    """Aplica, en orden y de forma idempotente, todas las migraciones de
+    esquema/indices/datos que el proyecto acumulo sprint a sprint en
+    scripts/migrate_*.py (Sprints 8, 12, 15, 16, 18, 19, 20, 25) mas la
+    siembra de parametros_legales.
+
+    `Base.metadata.create_all()` (init_db(), arriba) solo crea tablas que
+    todavia no existen -- nunca agrega una columna o un indice a una tabla
+    que ya existia con un esquema mas viejo. Sin esta funcion, cualquier
+    bastium.db creada antes de que un sprint agregara una columna nueva se
+    queda desactualizada para siempre a menos que alguien recuerde correr a
+    mano el script de ese sprint -- eso fue exactamente lo que le paso a la
+    bastium.db real de este proyecto (le faltaban 5 columnas de los Sprints
+    18/19/20 y las 39 filas de parametros_legales del sprint de parametros
+    versionados, y `DashboardView` -- la primera pantalla que carga TODAS
+    las obligaciones de TODOS los expedientes al arrancar -- fue quien
+    primero disparo el error).
+
+    Se llama automaticamente en cada arranque de la app (`main.py`, despues
+    de `init_db()`) para que ni un checkout existente desactualizado ni un
+    clon nuevo del repositorio necesiten un paso manual: cada script
+    individual ya verifica con PRAGMA table_info/index_list antes de
+    alterar, asi que correrlos de mas es gratis (una consulta PRAGMA, no un
+    ALTER TABLE) tanto en una bastium.db ya al dia como en una recien
+    creada."""
+    from scripts.migrate_add_indices_rendimiento import migrar as migrar_indices
+    from scripts.migrate_anatocismo_comercial import migrar as migrar_anatocismo
+    from scripts.migrate_aplica_indexacion_ipc import migrar as migrar_indexacion_ipc
+    from scripts.migrate_costas_tipo_proceso import migrar as migrar_costas
+    from scripts.migrate_interes_sobre_capital_indexado import (
+        migrar as migrar_interes_capital_indexado,
+    )
+    from scripts.migrate_moneda_trm import migrar as migrar_moneda_trm
+    from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
+    from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
+    from scripts.migrate_tributario import migrar as migrar_tributario
+
+    ruta = db_path if db_path is not None else _resolve_db_path()
+
+    migrar_indexacion_ipc(ruta)
+    migrar_moneda_trm(ruta)
+    migrar_seguridad_social(ruta)
+    migrar_tributario(ruta)
+    migrar_anatocismo(ruta)
+    migrar_costas(ruta)
+    migrar_interes_capital_indexado(ruta)
+    migrar_indices(ruta)
+    migrar_parametros_legales()

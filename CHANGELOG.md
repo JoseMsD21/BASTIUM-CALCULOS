@@ -28,6 +28,18 @@ Sprints 31-35: primer sistema de diseño visual de la GUI y mejoras de UX constr
 - UX de formularios (Sprint 34): `ObligacionFormDialog` reorganizado en secciones colapsables con
   tooltips legales y feedback de validación en tiempo real (reutilizando las reglas del Sprint 24);
   tooltips y validación en tiempo real del radicado en `ExpedienteFormDialog`.
+- Migración automática de esquema y datos al arrancar la app (Sprint 51):
+  `database/database.py::aplicar_migraciones_pendientes()`, llamada desde `main.py` en cada arranque,
+  compone los 9 scripts de `scripts/migrate_*.py` acumulados sprint a sprint — agrega cualquier
+  columna/índice que una `bastium.db` existente todavía no tenga y siembra `parametros_legales` si está
+  vacía. Ya no hace falta ningún paso manual de migración, ni para una base existente de un sprint
+  anterior ni para un clon nuevo del repositorio.
+
+### Fixed
+- `sqlite3.OperationalError: no such column: obligaciones.costas_tipo_proceso` al abrir la app con una
+  `bastium.db` creada antes de los Sprints 18-20 (Sprint 51) — causa raíz: 3 scripts de migración de
+  esquema nunca se habían corrido, y además la tabla `parametros_legales` estaba completamente vacía
+  (el motor de cálculo entero dependía de ella). Ambos huecos se cierran automáticamente ahora.
 
 ## [0.1.0] - 2026-08-04
 

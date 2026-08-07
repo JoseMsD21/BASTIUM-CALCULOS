@@ -93,27 +93,14 @@ python main.py
 Para el paso a paso completo (incluyendo un problema conocido de Windows con rutas largas y cómo
 resolverlo), ver la [Guía de Usuario](docs/GUIA_USUARIO.md#2-instalación-paso-a-paso).
 
-**Si ya tenías `bastium.db` creado antes del Sprint 8**, corre una vez
-`python scripts/migrate_aplica_indexacion_ipc.py` antes de abrir la app — agrega la columna
-`aplica_indexacion_ipc` que la indexación IPC necesita. `init_db()` (creación de tablas nuevas) no
-altera tablas existentes, así que sin este paso la app falla al leer o guardar cualquier obligación. El
-script es idempotente (se puede correr de más sin riesgo) y solo hace falta una vez por instalación.
-
-**Si ya tenías `bastium.db` creado antes del Sprint 12**, corre una vez
-`python scripts/migrate_moneda_trm.py` antes de abrir la app — agrega las columnas `moneda`,
-`trm_aplicable` y `trm_fecha_referencia` que necesitan las obligaciones comerciales en moneda extranjera.
-Igual que el script del Sprint 8, es idempotente y solo hace falta una vez por instalación.
-
-**Si ya tenías `bastium.db` creado antes del Sprint 20**, corre una vez
-`python scripts/migrate_interes_sobre_capital_indexado.py` antes de abrir la app — agrega la columna
-`interes_sobre_capital_indexado` que el algoritmo "Suma Única" necesita. Igual que los scripts anteriores,
-es idempotente y solo hace falta una vez por instalación.
-
-**Si ya tenías `bastium.db` creado antes de este sprint**, corre una vez
-`python scripts/migrate_parametros_legales.py` antes de abrir la app — crea y siembra la tabla
-`parametros_legales` con los valores hoy vigentes (usura, cuota litis, prescripción/caducidad, SMLMV,
-IPC, IBC/usura, UVT), para que la pantalla "⚙ Parámetros" y todos los motores que ahora la consultan tengan
-datos desde el primer arranque. Es idempotente y solo hace falta una vez por instalación.
+**No hace falta ningún paso manual de migración.** `main.py` corre `aplicar_migraciones_pendientes()`
+automáticamente en cada arranque (Sprint 51) — agrega cualquier columna/índice que un `bastium.db` viejo
+todavía no tenga y siembra `parametros_legales` si está vacía, comparando el esquema real contra el
+modelo actual antes de tocar nada. Es idempotente y no afecta datos existentes: si ya está todo al día no
+hace nada; si te falta algo, lo agrega solo. Esto reemplaza los ~9 scripts `scripts/migrate_*.py` que
+antes había que recordar correr a mano uno por uno según de qué sprint viniera tu `bastium.db` — ya no
+hace falta, aunque los scripts individuales se conservan (`scripts/`) y siguen siendo idempotentes por si
+alguna vez hace falta correr uno de forma aislada o auditar qué hace cada uno.
 
 ## Estructura del proyecto
 
