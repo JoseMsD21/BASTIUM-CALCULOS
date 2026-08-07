@@ -95,6 +95,29 @@ def test_combo_motivo_oculto_si_tipo_no_es_suspension(qtbot, monkeypatch):
     assert dialog.combo_motivo.isVisible() is False
 
 
+def test_label_motivo_suspension_no_queda_huerfana_en_evento_incapacidad(qtbot, monkeypatch):
+    """Sprint 39: la etiqueta "Motivo de suspension" generada por
+    QFormLayout.addRow(str, combo_motivo) debe ocultarse junto con el combo
+    cuando el tipo de evento no es Suspension -- si solo se oculta el combo
+    queda una fila huerfana (etiqueta de texto visible sin su campo)."""
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+
+    dialog = EventoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    etiqueta_motivo = dialog._layout_formulario.labelForField(dialog.combo_motivo)
+    assert etiqueta_motivo is not None
+
+    dialog.combo_tipo.setCurrentIndex(1)  # Incapacidad comun
+    assert etiqueta_motivo.isVisible() is False
+    assert dialog.combo_motivo.isVisible() is False
+
+    dialog.combo_tipo.setCurrentIndex(0)  # Suspension
+    assert etiqueta_motivo.isVisible() is True
+    assert dialog.combo_motivo.isVisible() is True
+
+
 def test_fecha_fin_anterior_o_igual_a_fecha_inicio_lanza_value_error(qtbot, monkeypatch):
     import pytest
 
