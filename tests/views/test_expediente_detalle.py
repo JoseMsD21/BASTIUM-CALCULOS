@@ -903,3 +903,12 @@ def test_boton_liquidar_tiene_clase_primaria(qtbot):
     qtbot.addWidget(page)
 
     assert page.boton_liquidar.property("class") == "primary"
+
+
+def test_botones_agregar_tienen_clase_secundaria(qtbot):
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+
+    assert page.boton_agregar_obligacion.property("class") == "secondary"
+    assert page.boton_agregar_abono.property("class") == "secondary"
+    assert page.boton_agregar_evento_laboral.property("class") == "secondary"

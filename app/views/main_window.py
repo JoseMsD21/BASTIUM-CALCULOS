@@ -76,17 +76,19 @@ class MainWindow(QMainWindow):
 
         self.boton_volver = QPushButton(" Volver")
         self.boton_volver.setIcon(icon("back"))
+        self.boton_volver.setProperty("class", "secondary")
         self.boton_volver.clicked.connect(self._volver)
         barra.addWidget(self.boton_volver)
 
         self.boton_inicio = QPushButton(" Inicio")
         self.boton_inicio.setIcon(icon("home"))
+        self.boton_inicio.setProperty("class", "secondary")
         self.boton_inicio.clicked.connect(self._ir_inicio)
         barra.addWidget(self.boton_inicio)
 
         self.boton_parametros = QPushButton(" Parametros")
         self.boton_parametros.setIcon(icon("settings"))
-        self.boton_parametros.setProperty("class", "")
+        self.boton_parametros.setProperty("class", "secondary")
         self.boton_parametros.clicked.connect(self._ir_a_parametros)
         barra.addWidget(self.boton_parametros)
 
@@ -136,13 +138,13 @@ class MainWindow(QMainWindow):
         # (depende del historial) e Inicio se oculta justo cuando el usuario ya esta en
         # "expedientes" (nunca tendria sentido marcarlo "activo"). Se reutiliza la
         # convencion class="primary" del Sprint 31 (resources/theme.qss) para el estado
-        # activo; fuera de "parametros" vuelve a la cadena vacia (estilo neutral). A
-        # diferencia del Sprint 31 (que fijaba la propiedad una sola vez en __init__,
-        # antes del primer show), aca el cambio ocurre en tiempo de ejecucion despues de
-        # que la ventana ya se mostro, asi que hace falta unpolish()/polish() manual para
-        # que Qt vuelva a evaluar el selector QSS.
+        # activo; fuera de "parametros" vuelve a "secondary" (su estilo neutral de
+        # reposo, ver Sprint 36). A diferencia del Sprint 31 (que fijaba la propiedad
+        # una sola vez en __init__, antes del primer show), aca el cambio ocurre en
+        # tiempo de ejecucion despues de que la ventana ya se mostro, asi que hace falta
+        # unpolish()/polish() manual para que Qt vuelva a evaluar el selector QSS.
         self.boton_parametros.setProperty(
-            "class", "primary" if self._current_page_name == "parametros" else ""
+            "class", "primary" if self._current_page_name == "parametros" else "secondary"
         )
         self.boton_parametros.style().unpolish(self.boton_parametros)
         self.boton_parametros.style().polish(self.boton_parametros)

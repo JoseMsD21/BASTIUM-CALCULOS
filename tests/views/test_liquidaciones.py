@@ -125,7 +125,6 @@ def test_exportar_pdf_crea_archivo_en_la_ruta_elegida(qtbot, monkeypatch, tmp_pa
         "app.views.liquidaciones.QFileDialog.getSaveFileName",
         lambda *args, **kwargs: (str(ruta_destino), "PDF (*.pdf)"),
     )
-    monkeypatch.setattr("app.views.liquidaciones.QMessageBox.information", lambda *args, **kwargs: None)
 
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
@@ -138,6 +137,34 @@ def test_exportar_pdf_crea_archivo_en_la_ruta_elegida(qtbot, monkeypatch, tmp_pa
     assert ruta_destino.stat().st_size > 0
 
 
+def test_exportar_pdf_muestra_toast_no_bloqueante_en_vez_de_dialogo_modal(
+    qtbot, monkeypatch, tmp_path
+):
+    expediente_id = _expediente_para_exportar(monkeypatch)
+    ruta_destino = tmp_path / "salida.pdf"
+    monkeypatch.setattr(
+        "app.views.liquidaciones.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(ruta_destino), "PDF (*.pdf)"),
+    )
+    llamadas_toast = []
+    monkeypatch.setattr(
+        "app.views.liquidaciones.mostrar_toast",
+        lambda parent, mensaje, **kwargs: llamadas_toast.append((parent, mensaje)),
+    )
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(_resultado_de_prueba(), expediente_id)
+
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_pdf()
+
+    assert len(llamadas_toast) == 1
+    parent, mensaje = llamadas_toast[0]
+    assert parent is view
+    assert str(ruta_destino) in mensaje
+
+
 def test_exportar_word_crea_archivo_en_la_ruta_elegida(qtbot, monkeypatch, tmp_path):
     expediente_id = _expediente_para_exportar(monkeypatch)
     ruta_destino = tmp_path / "salida.docx"
@@ -145,7 +172,6 @@ def test_exportar_word_crea_archivo_en_la_ruta_elegida(qtbot, monkeypatch, tmp_p
         "app.views.liquidaciones.QFileDialog.getSaveFileName",
         lambda *args, **kwargs: (str(ruta_destino), "Word (*.docx)"),
     )
-    monkeypatch.setattr("app.views.liquidaciones.QMessageBox.information", lambda *args, **kwargs: None)
 
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
@@ -223,7 +249,6 @@ def test_exportar_pdf_deshabilita_ambos_botones_mientras_esta_en_curso(
         "app.views.liquidaciones.QFileDialog.getSaveFileName",
         lambda *args, **kwargs: (str(ruta_destino), "PDF (*.pdf)"),
     )
-    monkeypatch.setattr("app.views.liquidaciones.QMessageBox.information", lambda *args, **kwargs: None)
 
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
@@ -253,7 +278,6 @@ def test_exportar_pdf_ignora_llamada_concurrente_mientras_hay_una_en_curso(
         return str(ruta_destino), "PDF (*.pdf)"
 
     monkeypatch.setattr("app.views.liquidaciones.QFileDialog.getSaveFileName", _dialogo_falso)
-    monkeypatch.setattr("app.views.liquidaciones.QMessageBox.information", lambda *args, **kwargs: None)
 
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
