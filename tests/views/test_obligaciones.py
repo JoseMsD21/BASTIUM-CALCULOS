@@ -2,13 +2,34 @@ from datetime import date
 from decimal import Decimal
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QLabel
+from PySide6.QtWidgets import QDialog, QFormLayout, QLabel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.obligaciones import ObligacionFormDialog
 from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
+
+
+def _filas_con_etiqueta_huerfana(layout: QFormLayout) -> list[str]:
+    """Devuelve el texto de cada etiqueta de `layout` cuya visibilidad no
+    coincide con la de su widget de campo (Sprint 39): una fila "huerfana" es
+    una etiqueta visible sin su campo (o viceversa), que es exactamente el
+    bug que produce QFormLayout.addRow(str, widget) + widget.setVisible(...)
+    suelto sin ocultar tambien la etiqueta generada."""
+    huerfanas = []
+    for fila in range(layout.rowCount()):
+        item_etiqueta = layout.itemAt(fila, QFormLayout.ItemRole.LabelRole)
+        item_campo = layout.itemAt(fila, QFormLayout.ItemRole.FieldRole)
+        if item_etiqueta is None or item_campo is None:
+            continue
+        etiqueta = item_etiqueta.widget()
+        campo = item_campo.widget()
+        if etiqueta is None or campo is None:
+            continue
+        if etiqueta.isVisible() != campo.isVisible():
+            huerfanas.append(etiqueta.text())
+    return huerfanas
 
 
 def _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA) -> int:
@@ -1308,3 +1329,64 @@ def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
     cantidad = session.query(Obligacion).filter_by(expediente_id=expediente_id).count()
     assert cantidad == 0
     session.close()
+
+
+def test_sancionatorio_sin_labels_huerfanas_valor_y_nivel_riesgo_arl(qtbot, monkeypatch):
+    """Definicion de Hecho del Sprint 39: en area SANCIONATORIO, 'Valor' y
+    'Nivel de riesgo ARL' (los 2 casos originalmente reportados) no deben
+    quedar como filas huerfanas -- ni ellos ni ningun otro campo del
+    formulario."""
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_valor.isVisible() is False
+    assert dialog.combo_nivel_riesgo_arl.isVisible() is False
+
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+    assert _filas_con_etiqueta_huerfana(dialog.layout_tasas_intereses) == []
+    assert _filas_con_etiqueta_huerfana(dialog.layout_honorarios_costas) == []
+
+
+def test_civil_familia_puntual_sin_labels_huerfanas(qtbot, monkeypatch):
+    """Ningun campo no aplicable a CIVIL_FAMILIA/Puntual (ej. 'Fecha de inicio
+    (Recurrente)', 'Dia de pago (Recurrente)', los campos de Sancionatorio,
+    Honorarios, Tributario y Laboral) debe dejar su etiqueta visible sin su
+    widget."""
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(0)  # Puntual
+
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+    assert _filas_con_etiqueta_huerfana(dialog.layout_tasas_intereses) == []
+    assert _filas_con_etiqueta_huerfana(dialog.layout_honorarios_costas) == []
+
+
+def test_sin_labels_huerfanas_en_cada_area_y_categoria_tributaria(qtbot, monkeypatch):
+    """Barrido amplio (Sprint 39): ninguna combinacion de area (y, para
+    TRIBUTARIO, de categoria) deja una fila huerfana en ninguno de los 3
+    QFormLayout del dialogo."""
+    for area in ("CIVIL_FAMILIA", "COMERCIAL", "SANCIONATORIO", "HONORARIOS", "LABORAL", "TRIBUTARIO"):
+        area_derecho = getattr(AreaDerecho, area)
+        expediente_id = _expediente_de_prueba(monkeypatch, area=area_derecho)
+
+        dialog = ObligacionFormDialog(expediente_id=expediente_id, area=area)
+        qtbot.addWidget(dialog)
+        dialog.show()
+
+        if area == "TRIBUTARIO":
+            for indice_categoria in range(dialog.combo_categoria.count()):
+                dialog.combo_categoria.setCurrentIndex(indice_categoria)
+                assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == [], (
+                    f"area={area} categoria={dialog.combo_categoria.currentData()}"
+                )
+        else:
+            assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == [], f"area={area}"
+
+        assert _filas_con_etiqueta_huerfana(dialog.layout_tasas_intereses) == [], f"area={area}"
+        assert _filas_con_etiqueta_huerfana(dialog.layout_honorarios_costas) == [], f"area={area}"
