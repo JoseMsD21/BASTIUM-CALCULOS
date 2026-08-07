@@ -1,10 +1,29 @@
 import pytest
+from PySide6.QtCore import QSettings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.database as database_module
 import database.session as session_module
 from database.models import Base
+
+
+@pytest.fixture(autouse=True)
+def _qsettings_aislado(tmp_path):
+    """
+    Aisla cada test de la configuracion QSettings real del sistema (Sprint 37:
+    persistencia de geometria de ventana en MainWindow). Sin esto, cualquier test
+    que construya MainWindow (docenas, en tests/views/test_main_window.py y otros)
+    leeria y escribiria el archivo .ini real del usuario (ej. %APPDATA%/BASTIUM/
+    BASTIUM.ini en Windows) cada vez que se corre la suite.
+
+    QSettings.setPath() es un override global por (formato, alcance) -- redirige
+    CUALQUIER QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, ...)
+    a `tmp_path`, sin importar que organizacion/aplicacion se le pase, asi que no
+    hace falta parchear QCoreApplication.organizationName()/applicationName() por
+    separado. `tmp_path` es unico por test, asi que tampoco hay fuga entre tests.
+    """
+    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path))
 
 
 @pytest.fixture(autouse=True)

@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QCoreApplication, QSettings, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QStackedWidget, QToolBar
 
@@ -10,6 +10,17 @@ from app.views.expedientes import ExpedientesListView
 from app.views.icons import icon, icono_aplicacion
 from app.views.liquidaciones import ResultadoLiquidacionView
 from database.models import Expediente
+
+# Namespace de QSettings usado si QCoreApplication.organizationName()/applicationName()
+# todavia no se fijaron (ej. tests que construyen MainWindow sin pasar por main.py) --
+# coincide con los valores que main.py fija en la app real (Sprint 37).
+_ORGANIZACION_POR_DEFECTO = "BASTIUM"
+_APLICACION_POR_DEFECTO = "BASTIUM"
+_CLAVE_GEOMETRIA = "ventana/geometria"
+# Tamaño que main.py fijaba incondicionalmente con window.resize(1000, 700) antes del
+# Sprint 37 -- ahora es solo el fallback para el primer arranque (sin QSettings previo).
+ANCHO_POR_DEFECTO = 1000
+ALTO_POR_DEFECTO = 700
 
 
 class MainWindow(QMainWindow):
@@ -52,7 +63,33 @@ class MainWindow(QMainWindow):
 
         self._crear_barra_navegacion()
         self._crear_atajos_teclado()
+        self._restaurar_geometria()
         self.show_page("dashboard")
+
+    def _crear_settings(self) -> QSettings:
+        """QSettings con formato Ini explicito (no el nativo por plataforma, ej. el
+        Registro de Windows): asi `QSettings.setPath()` puede redirigir por completo
+        donde se lee/escribe en los tests (ver tests/conftest.py::_qsettings_aislado),
+        cosa que no es posible con el Registro de Windows."""
+        organizacion = QCoreApplication.organizationName() or _ORGANIZACION_POR_DEFECTO
+        aplicacion = QCoreApplication.applicationName() or _APLICACION_POR_DEFECTO
+        return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, organizacion, aplicacion)
+
+    def _restaurar_geometria(self) -> None:
+        """Restaura tamaño/posicion/estado maximizado de la sesion anterior (Sprint 37).
+        Si no hay geometria guardada (primer arranque, o QSettings vacio en tests) o
+        `restoreGeometry()` la rechaza (formato invalido/corrupto), cae al tamaño por
+        defecto 1000x700 que antes fijaba main.py incondicionalmente."""
+        settings = self._crear_settings()
+        geometria = settings.value(_CLAVE_GEOMETRIA)
+        restaurada = geometria is not None and self.restoreGeometry(geometria)
+        if not restaurada:
+            self.resize(ANCHO_POR_DEFECTO, ALTO_POR_DEFECTO)
+
+    def closeEvent(self, event) -> None:
+        settings = self._crear_settings()
+        settings.setValue(_CLAVE_GEOMETRIA, self.saveGeometry())
+        super().closeEvent(event)
 
     def _crear_atajos_teclado(self) -> None:
         # Contexto por defecto de QShortcut (Qt.ShortcutContext.WindowShortcut): solo se
