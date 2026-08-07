@@ -102,6 +102,22 @@ antes había que recordar correr a mano uno por uno según de qué sprint vinier
 hace falta, aunque los scripts individuales se conservan (`scripts/`) y siguen siendo idempotentes por si
 alguna vez hace falta correr uno de forma aislada o auditar qué hace cada uno.
 
+## Actualizar a una versión nueva
+
+Si ya tenías BASTIUM instalado, actualizar es igual de simple — no importa de qué tan atrás venga tu
+copia:
+
+```
+git pull origin main
+pip install -r requirements.txt
+python main.py
+```
+
+No hay que correr ningún script de migración a mano ni borrar `bastium.db`: el paso 3 lo actualiza solo
+(ver la nota de arriba) y tus datos capturados nunca se sobrescriben. Detalle completo, incluyendo qué
+hacer si descargaste un ZIP en vez de clonar con Git, en la
+[Guía de Usuario](docs/GUIA_USUARIO.md#27-actualizar-a-una-versión-nueva-si-ya-tenías-bastium-instalado).
+
 ## Estructura del proyecto
 
 ```

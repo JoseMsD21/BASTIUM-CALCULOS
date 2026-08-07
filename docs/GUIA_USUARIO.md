@@ -119,6 +119,33 @@ instalado y funcionando correctamente. El número exacto sube con cada sprint nu
 preocupes si no coincide exactamente — lo que importa es que no aparezca ningún "failed". Si ves errores,
 revisa la [sección 9](#9-preguntas-frecuentes-y-solución-de-problemas).
 
+### 2.7. Actualizar a una versión nueva (si ya tenías BASTIUM instalado)
+
+Si ya tenías el programa instalado en tu computador y quieres pasar a una versión más nueva —o si
+alguien te comparte una copia y no sabes de qué tan atrás viene—, **no hace falta repetir la
+instalación completa ni borrar nada**. Con la terminal abierta en la carpeta del proyecto:
+
+```
+git pull origin main
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe main.py
+```
+
+- `git pull origin main` trae el código más reciente. Si no clonaste el proyecto con Git sino que
+  descargaste el ZIP desde GitHub, la alternativa es descargar el ZIP nuevo y reemplazar todos los
+  archivos **excepto** tu `bastium.db` — ese archivo es tu base de datos con todos tus expedientes,
+  no lo sobrescribas.
+- El segundo comando instala cualquier pieza nueva que se haya agregado en sprints recientes (no
+  afecta lo que ya tienes instalado).
+- Al abrir el programa con el tercer comando, **no necesitas correr ningún script de migración a
+  mano**: `main.py` revisa automáticamente tu `bastium.db` contra la estructura más reciente y le
+  agrega lo que le falte (columnas, índices, valores legales), sin importar de qué sprint venga tu
+  base ni si ya está al día — en ese caso simplemente no hace nada. Tus datos capturados
+  (expedientes, obligaciones, abonos) nunca se borran ni se sobrescriben en este proceso.
+
+Solo necesitas la instalación completa de la [sección 2.1 a 2.6](#2-instalación-paso-a-paso) si es
+la primera vez que instalas BASTIUM en ese computador.
+
 ---
 
 ## 3. Cómo iniciar el programa

@@ -17,3 +17,6 @@ exports/*.pdf
 
 # Configuracion local de Claude Code (no compartida en el repo)
 .claude/settings.local.json
+
+# Notas personales de uso local (guias para reuniones, etc.) - nunca al repo
+docs/local/
