@@ -170,6 +170,8 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado 📋 Pendiente](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--pendiente)
 - [Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión](#sprint-47--recalcular-liquidaciones-históricas-afectadas-por-las-correcciones-del-sprint-30--bloqueado--pendiente-de-decisión)
 - [Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI 📋 Pendiente](#sprint-48--limpiar-la-deuda-de-ruff-preexistente-y-agregar-el-chequeo-de-lint-al-pipeline-de-ci--pendiente)
+- [Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana 📋 Pendiente](#sprint-49--bug-de-ui-los-botones-volverinicio-reaparecen-visibles-tras-el-primer-render-de-la-ventana--pendiente)
+- [Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) 📋 Pendiente](#sprint-50--mejoras-de-personalización-y-presentación-diferidas-de-los-sprints-31-33-modo-oscuro-sidebar-gráficas-del-dashboard--pendiente)
 
 ---
 
@@ -2929,7 +2931,9 @@ la GUI.
 (`app/views/dashboard.py`, antes vacío) muestra conteo de expedientes por área, alertas de plazos
 próximos a vencer (reutilizando `calcular_prescripcion` del Sprint 7 con `TipoAccion.EJECUTIVA` como
 heurística documentada — el modelo `Obligacion` no tiene un campo de tipo de acción procesal para un
-mapeo área→tipo más preciso) y actividad reciente (reutilizando `historial_de_expediente` del Sprint 9).
+mapeo área→tipo más preciso; pregunta abierta al despacho sobre esto en
+[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard))
+y actividad reciente (reutilizando `historial_de_expediente` del Sprint 9).
 Registrada como pantalla de inicio en `MainWindow`, reemplazando al listado plano de expedientes como
 primera pantalla (accesible con un clic vía "Ver todos los expedientes"). Carga de datos síncrona, sin
 `TareaEnHilo` (Sprint 26): son consultas SQL livianas, sin comparación de costo con `liquidar()` o
@@ -3205,11 +3209,33 @@ seleccionado.
 `app/views/` buscando otros `setVisible(False)` sobre un widget de un `addRow(str, widget)` sin ocultar
 también la etiqueta, por si hay más casos del mismo patrón no reportados todavía.
 
+**Hallazgo adicional (QA visual del Sprint 34, 2026-08-06):** al verificar visualmente
+`ObligacionFormDialog` reorganizado en secciones colapsables (Sprint 34,
+`docs/superpowers/plans/2026-08-06-sprint34-ux-formularios.md`), se confirmó que el patrón es mucho más
+extendido de lo que documentaban los 3 casos originales — **no es exclusivo de Sancionatorio/Laboral**.
+Con `area="CIVIL_FAMILIA"` (tipo Puntual), la sección "Datos básicos" muestra simultáneamente las
+etiquetas huérfanas de "Fecha de inicio (Recurrente)", "Dia de pago (Recurrente)", "Cantidad SMLMV/UVT
+(Sancionatorio)", "Base de la sancion (impuesto a cargo o diferencia)", "Meses o fraccion de atraso
+(extemporaneidad)", "Ingresos brutos (Renta liquida)", "Devoluciones/rebajas/descuentos (Renta liquida)",
+"Costos (Renta liquida)", "Deducciones (Renta liquida)", "Rentas exentas (Renta liquida)", "Fecha de
+terminacion de contrato", "Fecha de pago real" y "Nivel de riesgo ARL" — es decir, prácticamente todos los
+campos condicionales de `ObligacionFormDialog` que se ocultan según área/tipo dejan su etiqueta visible en
+cualquier área donde no aplican, no solo los 3 campos puntuales ya documentados arriba. Captura de pantalla
+de referencia tomada durante el cierre de los Sprints 31-35 (no versionada en el repo). El "Alcance
+incluido" de este sprint debe ampliarse: aplicar `layout.labelForField(widget)` +
+`setVisible()` sincronizado (o `QFormLayout.setRowVisible()` si la versión de PySide6 en uso lo soporta,
+confirmar) a **todos** los `addRow(str, widget)` condicionales de `ObligacionFormDialog`
+(`app/views/obligaciones.py`), no solo a los 2 originalmente listados ahí ("Valor" y "Nivel de riesgo
+ARL").
+
 **Definición de Hecho:**
 - Verificación (test de GUI o manual documentada) de que al abrir el formulario de obligaciones con
   `area="SANCIONATORIO"` ni "Valor" ni "Nivel de riesgo ARL" quedan visibles como fila huérfana.
 - Verificación de que al seleccionar un evento laboral tipo Incapacidad, la etiqueta "Motivo de suspension"
   no es visible.
+- Verificación adicional (agregada 2026-08-06): con `area="CIVIL_FAMILIA"` (u otra área no Sancionatorio/
+  Laboral/Tributario), ningún campo de las secciones "Datos básicos"/"Tasas e intereses"/"Honorarios y
+  costas" que no aplique a esa área/tipo deja su etiqueta visible sin el widget correspondiente.
 - Suite completa en verde.
 
 ---
@@ -3724,6 +3750,106 @@ culpa de ningún cambio nuevo.
 - El pipeline de CI incluye `ruff check .` como paso obligatorio y falla si alguien reintroduce una
   violación.
 - Suite completa en verde (la limpieza de lint no debe cambiar comportamiento).
+
+---
+
+## Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana 📋 Pendiente
+
+**Prioridad sugerida:** Media — bug real y reproducible en cada arranque de la app, pero de bajo impacto
+funcional (los botones funcionan igual, solo aparecen visibles cuando no deberían).
+
+**Depende de:** Nada — corrige código ya existente (el intento de fix vía `showEvent()` es anterior al
+Sprint 26).
+
+**Contexto (hallazgo de QA visual durante el cierre de los Sprints 31-35, 2026-08-06):** al hacer la
+verificación visual manual explícitamente pendiente en los planes de los Sprints 31/32/35 (lanzando la app
+real con un script standalone, sin `pytest-qt`), se confirmó que `MainWindow.boton_volver` y
+`MainWindow.boton_inicio` — que deberían estar ocultos al arrancar la app (pantalla inicial, sin
+historial) — aparecen visibles en el primer render real de la ventana, a pesar de que `showEvent()` ya
+llama a `_actualizar_botones_navegacion()` explícitamente para corregir justo este síntoma (ver el
+comentario ya existente en ese método, que describe el mismo problema).
+
+**Hallazgos (reproducido con un script que imita el arranque real de `main.py`, sin `pytest-qt`):**
+- `window.show()` deja `boton_volver.isVisible()` y `boton_inicio.isVisible()` en `False` (correcto)
+  inmediatamente después de llamarse.
+- El primer `app.processEvents()` posterior — que ocurre de forma natural en el bucle de eventos real de
+  `main.py` (`app.exec()`) pero que la suite de tests actual nunca ejerce después de `show()` — hace que
+  ambos vuelvan a `True`, y el estado incorrecto persiste en llamadas posteriores (no es un parpadeo de un
+  solo frame).
+- **Confirmado que el bug es preexistente, no introducido por los Sprints 31-35:** se reproduce igual en
+  el commit `5931b97` (anterior al Sprint 31, sin tema visual ni breadcrumb ni dashboard). El comentario ya
+  existente en `showEvent()` sugiere que se intentó corregir este mismo síntoma antes, pero el fix solo
+  cubre el instante síncrono de `showEvent()`, no un evento adicional en cola que `QToolBar` dispara
+  después (posible causa: un reset asíncrono al agregar widgets vía `addWidget()`, o el primer
+  `polish()`/`repolish()` del stylesheet — hace falta investigar la causa raíz exacta).
+- La suite de tests existente (`test_botones_navegacion_ocultos_en_pagina_inicial`,
+  `tests/views/test_main_window.py`) no detecta el bug porque llama `window.show()` y verifica
+  `isVisible()` inmediatamente, sin ceder el control al bucle de eventos (`qtbot.wait(...)` o
+  `app.processEvents()`) — el test pasa porque nunca llega al punto donde el síntoma se manifiesta.
+
+**Código nuevo a crear:**
+- Investigar la causa raíz exacta (revisar si `QToolBar` dispara el reset de visibilidad vía un evento en
+  cola al agregar action widgets, o si es un efecto del primer `polish()` del stylesheet del Sprint 31).
+- Corregir de forma que la visibilidad correcta sobreviva al menos un ciclo completo del bucle de eventos
+  después de `show()` — candidato: reconectar `_actualizar_botones_navegacion()` a través de
+  `QTimer.singleShot(0, self._actualizar_botones_navegacion)` dentro de `showEvent()`, o investigar si fijar
+  la visibilidad sobre `QAction` (`QToolBar.actions()`) en vez de sobre el `QPushButton` directamente evita
+  el reset.
+- Actualizar `test_botones_navegacion_ocultos_en_pagina_inicial` (y cualquier otro test de
+  `tests/views/test_main_window.py` que dependa de la visibilidad de estos botones tras `show()`) para
+  ceder el control al bucle de eventos (`qtbot.wait(0)`/`app.processEvents()`) después de `show()`, de
+  forma que ejerza el mismo camino que la app real — así, si el bug reaparece, el test lo atrapa.
+
+**Alcance explícitamente excluido:**
+- No se propone rediseñar la barra de navegación (ya cubierta por el Sprint 32) — es un fix puntual de
+  timing/visibilidad sobre código ya existente.
+
+**Definición de Hecho:**
+- Un script que reproduce el arranque real de la app (`show()` + `processEvents()`, sin `pytest-qt`)
+  confirma que `boton_volver`/`boton_inicio` permanecen ocultos en la pantalla inicial.
+- `test_botones_navegacion_ocultos_en_pagina_inicial` actualizado para ejercer el mismo camino de
+  ejecución y sigue en verde.
+- Suite completa en verde.
+
+---
+
+## Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) 📋 Pendiente
+
+**Prioridad sugerida:** Baja — ninguno de los 3 puntos es un bug ni un gap funcional; son mejoras
+explícitamente diferidas por decisión de diseño al cerrar los Sprints 31, 32 y 33, agrupadas aquí para que
+no se pierdan.
+
+**Depende de:** Nada técnicamente. Se beneficia de que los Sprints 31 (tema/paleta), 32 (navegación) y 33
+(dashboard) ya estén cerrados — lo están, desde 2026-08-06.
+
+**Contexto:** al cerrar los Sprints 31-35 se identificaron 3 mejoras que cada sprint dejó explícitamente
+fuera de su propio alcance, con la intención de revisarlas después. Ninguna tenía un sprint propio que las
+recogiera — este sprint corrige ese hueco documental agrupándolas:
+
+1. **Modo oscuro/claro** — el "Alcance explícitamente excluido" del Sprint 31 decía "ver Sprint 37 para
+   otras mejoras de personalización, si se decide agregar un modo oscuro en el futuro sería un sprint
+   propio". **Corrección:** el Sprint 37 ("Comportamiento de ventana y accesibilidad de teclado"), ya
+   escrito, **no menciona modo oscuro en ningún punto** — cubre persistencia de geometría de ventana y
+   orden de tabulación, nada de tema visual. La referencia cruzada del Sprint 31 apuntaba a un lugar que no
+   existía. Si se decide implementarlo: requiere una segunda paleta completa en
+   `app/core/theme_colors.py` (o una estructura de temas intercambiable) y un mecanismo para alternar el
+   `.qss` cargado en `app/core/apariencia.py::aplicar_tema()` en caliente.
+2. **Sidebar de navegación completo** — el Sprint 32 decidió explícitamente mantener el `QToolBar`
+   superior enriquecido en vez de construir un sidebar, justificado en que 5 pantallas (hoy: Dashboard,
+   Expedientes, Detalle, Resultado, Parámetros) no lo ameritan. Revisar esta decisión si un sprint futuro
+   agrega una sexta pantalla o introduce sub-secciones jerárquicas dentro de un expediente.
+3. **Gráficas/visualizaciones en el Dashboard** — el Sprint 33 excluyó explícitamente cualquier gráfica
+   (ej. con `matplotlib`, hoy huérfano de uso real según el Sprint 27) del Dashboard, dejándolo con datos
+   tabulares/listas simples. Evaluar agregar una gráfica (ej. expedientes por área, o evolución de
+   liquidaciones en el tiempo) una vez que el Dashboard base (ya construido) se valide como útil en uso
+   real.
+
+**Código nuevo a crear:** ninguno todavía — este sprint es un placeholder de seguimiento. Antes de
+codificar cualquiera de los 3 puntos, confirmar con el usuario cuál (si alguno) vale la pena priorizar,
+igual que se hizo con decisiones de diseño anteriores (Sprints 13/16/20/41).
+
+**Definición de Hecho:** no aplica todavía — este sprint se cierra dividiéndose en sprints concretos (uno
+por punto que el usuario decida priorizar) el día que se retome, no completando los 3 de una vez.
 
 ---
 

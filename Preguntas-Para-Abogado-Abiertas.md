@@ -35,6 +35,7 @@ Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archi
 - [Sprint 13 — Motor de reglas / parámetros legales](#sprint-13--motor-de-reglas--parámetros-legales)
 - [Sprint 18 — Costas judiciales (tabla de rangos)](#sprint-18--costas-judiciales-tabla-de-rangos)
 - [Sprint 18 (seguimiento) — ¿La tabla simple reemplaza el Acuerdo PSAA16-10554?](#sprint-18-seguimiento--la-tabla-simple-de-rangos-reemplaza-el-acuerdo-psaa16-10554)
+- [Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard](#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -152,6 +153,33 @@ manual, y la tabla granular sigue siendo la fuente correcta para el cálculo aut
 
 **Qué necesito exactamente:** Una de las dos opciones (a/b), o la aclaración que corresponda si ninguna es
 exacta.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard
+
+**Contexto:** El Dashboard nuevo de BASTIUM (pantalla de inicio) avisa cuando una obligación está por
+prescribir, para que no se pase la fecha límite sin darse cuenta. Para calcular esa fecha límite, el
+software necesita saber qué "tipo de acción" judicial aplica (por ejemplo, ejecutiva, ordinaria,
+cambiaria), porque cada tipo tiene un plazo de prescripción distinto. Hoy el software **no guarda ese dato
+en ningún expediente ni obligación** — no existe un campo para eso — así que, por ahora, se está usando
+"acción ejecutiva" para calcular la alerta en **todas** las áreas del derecho por igual (Civil/Familia,
+Comercial, Sancionatorio, Honorarios, Laboral, Tributario). Esto es una simplificación técnica temporal,
+no una regla legal confirmada por el despacho.
+
+**Pregunta:** ¿La acción ejecutiva es el tipo correcto para calcular la prescripción en las 6 áreas que
+maneja el software, o cada área debería usar un tipo de acción distinto (por ejemplo, ordinaria para
+algunos casos de Familia, cambiaria para pagarés/letras en Comercial, etc.), con plazos diferentes?
+
+**Qué necesito exactamente:** Si la respuesta es "cada área es distinta", una tabla simple de
+Área del derecho → Tipo de acción → Plazo de prescripción (en años o meses), con la norma que lo respalda
+si es posible. Si "ejecutiva para todo" es una aproximación razonable mientras tanto, basta la confirmación
+de que sirve como estimado provisional (sabiendo que puede no ser exacto para casos puntuales).
 
 **Respuesta del despacho:**
 
