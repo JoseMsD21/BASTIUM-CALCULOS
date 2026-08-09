@@ -114,6 +114,46 @@ def test_muestra_los_totales(qtbot):
     assert "429400.50" in view.etiqueta_saldo_final.text()
 
 
+def _resultado_con_sobrepago() -> LiquidationResult:
+    # Sprint 46: mismo escenario del bug real usado en
+    # tests/liquidation/test_engine.py::test_engine_sobrepago_expone_remanente_como_saldo_a_favor
+    debt = PendingDebt(principal=Decimal("0.00"), interest=Decimal("0.00"), indexation=Decimal("0.00"))
+    balance = RunningBalance(date=date(2026, 1, 10), debt=debt, event_type="PAYMENT")
+    item = LiquidationItem(
+        date=date(2026, 1, 10),
+        concept="Pago",
+        capital_base=Decimal("7000000.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("7000000.00"),
+        balance=balance,
+        saldo_a_favor=Decimal("3000000.00"),
+    )
+    return LiquidationResult(items=[item])
+
+
+def test_muestra_saldo_a_favor_cuando_hay_sobrepago(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_con_sobrepago(), expediente_id=1)
+
+    assert view.etiqueta_saldo_a_favor.isVisible()
+    assert "3000000.00" in view.etiqueta_saldo_a_favor.text()
+
+
+def test_oculta_saldo_a_favor_cuando_no_hay_sobrepago(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.etiqueta_saldo_a_favor.isVisible()
+
+
 def test_muestra_bloque_de_renta_liquida_cuando_esta_presente(qtbot):
     from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
 
