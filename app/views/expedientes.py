@@ -122,7 +122,7 @@ class ExpedienteFormDialog(QDialog):
             self.campo_fecha_corte,
             self.boton_guardar,
         ]
-        for anterior, siguiente in zip(orden, orden[1:]):
+        for anterior, siguiente in zip(orden, orden[1:], strict=False):
             self.setTabOrder(anterior, siguiente)
 
     def guardar(self) -> int:

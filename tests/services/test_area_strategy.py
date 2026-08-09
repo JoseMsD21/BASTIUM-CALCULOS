@@ -1041,7 +1041,7 @@ class TestComercialStrategy:
         assert resultado.final_balance().principal == obligacion.valor
 
     def test_timing_del_abono_relativo_a_la_capitalizacion_determina_cuanto_se_capitaliza(self):
-        fecha_capitalizacion = date(2026, 2, 1)  # vencimiento (2025-02-01) + 365 dias
+        # Capitalizacion: 2026-02-01 (vencimiento 2025-02-01 + 365 dias).
         monto_abono = Decimal("50.00")  # deliberadamente pequeno: nunca llega a tocar el
         # capital, solo el bucket de interes -- eso es lo que hace la comparacion exacta.
 

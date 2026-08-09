@@ -149,7 +149,7 @@ def test_ibc_usura_fuera_de_rango_lanza_value_error():
 
 def test_tramos_ibc_usura_sin_vacios_ni_solapes():
     tramos = sorted(_TRAMOS_IBC_USURA, key=lambda t: t.inicio)
-    for anterior, actual in zip(tramos, tramos[1:]):
+    for anterior, actual in zip(tramos, tramos[1:], strict=False):
         assert actual.inicio == anterior.fin + timedelta(days=1), (
             f"Vacio o solape entre {anterior} y {actual}"
         )

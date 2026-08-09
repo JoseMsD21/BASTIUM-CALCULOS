@@ -12,14 +12,14 @@ verificado en 2 fuentes independientes durante este sprint."""
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 from app.core.exceptions import CostasFueraDeRangoError, TarifaNoDisponibleError
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 
 
-class TipoProceso(str, Enum):
+class TipoProceso(StrEnum):
     DECLARATIVO_GENERAL = "declarativo_general"
     EXPROPIACION = "expropiacion"
     DESLINDE_AMOJONAMIENTO = "deslinde_amojonamiento"
@@ -42,19 +42,19 @@ class TipoProceso(str, Enum):
     EXEQUATUR = "exequatur"
 
 
-class Instancia(str, Enum):
+class Instancia(StrEnum):
     UNICA = "unica"
     PRIMERA = "primera"
     SEGUNDA = "segunda"
 
 
-class CuantiaTier(str, Enum):
+class CuantiaTier(StrEnum):
     MINIMA = "minima"
     MENOR = "menor"
     MAYOR = "mayor"
 
 
-class UnidadTarifa(str, Enum):
+class UnidadTarifa(StrEnum):
     PORCENTAJE = "porcentaje"
     SMLMV = "smlmv"
 

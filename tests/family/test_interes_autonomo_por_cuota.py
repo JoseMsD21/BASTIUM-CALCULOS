@@ -36,11 +36,11 @@ exacta con el motor, porque es literalmente el mismo calculo.
 from datetime import date, timedelta
 from decimal import Decimal
 
+import database.session as session_module
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.services.area_strategy import CivilFamiliaStrategy
 from database.models import AreaDerecho, Expediente, Obligacion, TipoObligacion
-import database.session as session_module
 
 
 def _interes_aislado_dia_a_dia(capital: Decimal, tasa_efectiva_anual: Decimal, fecha_origen: date, fecha_corte: date) -> Decimal:

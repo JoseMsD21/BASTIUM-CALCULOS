@@ -8,7 +8,14 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.obligaciones import ObligacionFormDialog
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
+from database.models import (
+    AreaDerecho,
+    Base,
+    Expediente,
+    Obligacion,
+    TipoObligacion,
+    TipoReajusteAnual,
+)
 
 
 def _filas_con_etiqueta_huerfana(layout: QFormLayout) -> list[str]:

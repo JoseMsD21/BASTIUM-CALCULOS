@@ -945,7 +945,7 @@ class LaboralStrategy(AreaStrategy):
                 )
 
         eventos_ordenados = sorted(obligacion.eventos_laborales, key=lambda e: e.fecha_inicio)
-        for anterior, siguiente in zip(eventos_ordenados, eventos_ordenados[1:]):
+        for anterior, siguiente in zip(eventos_ordenados, eventos_ordenados[1:], strict=False):
             if anterior.fecha_fin > siguiente.fecha_inicio:
                 raise ValueError(
                     "Dos eventos contractuales se solapan en el tiempo: "

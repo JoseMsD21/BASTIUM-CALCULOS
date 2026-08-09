@@ -9,7 +9,14 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
-from database.models import AreaDerecho, Base, DescuentoLaboral, Expediente, Obligacion, TipoObligacion
+from database.models import (
+    AreaDerecho,
+    Base,
+    DescuentoLaboral,
+    Expediente,
+    Obligacion,
+    TipoObligacion,
+)
 
 
 def _obligacion_laboral_de_prueba(monkeypatch) -> int:

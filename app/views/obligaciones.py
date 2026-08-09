@@ -641,7 +641,7 @@ class ObligacionFormDialog(QDialog):
             self.campo_costas_pct,
             self.boton_guardar,
         ]
-        for anterior, siguiente in zip(orden, orden[1:]):
+        for anterior, siguiente in zip(orden, orden[1:], strict=False):
             self.setTabOrder(anterior, siguiente)
 
     def _aplicar_visibilidad_filas(

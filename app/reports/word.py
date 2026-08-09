@@ -62,7 +62,9 @@ class WordReportGenerator:
         ]
         tabla_cronologia = documento.add_table(rows=1, cols=len(columnas_cronologia))
         tabla_cronologia.style = "Table Grid"
-        for celda, texto in zip(tabla_cronologia.rows[0].cells, columnas_cronologia):
+        for celda, texto in zip(
+            tabla_cronologia.rows[0].cells, columnas_cronologia, strict=True
+        ):
             celda.text = texto
         for fila_datos in table_data:
             celdas_fila = tabla_cronologia.add_row().cells
@@ -85,7 +87,7 @@ class WordReportGenerator:
             # explicito (en vez de `celda.text = ...`) para poder colorear el
             # texto: el setter `.text` de python-docx no expone color de fuente.
             es_prescrita = bool(fila_datos.get("prescrita"))
-            for celda, texto in zip(celdas_fila, valores_fila):
+            for celda, texto in zip(celdas_fila, valores_fila, strict=True):
                 run = celda.paragraphs[0].add_run(texto)
                 if es_prescrita:
                     run.font.color.rgb = self.c_prescrita
