@@ -124,6 +124,18 @@ def test_botones_navegacion_ocultos_en_pagina_inicial(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
     window.show()
+    # QToolBar resetea a True la visibilidad de los widgets agregados via
+    # addWidget() en un evento adicional que queda en cola tras show() y solo
+    # se dispara cuando el bucle de eventos real corre (app.exec() en main.py).
+    # qtbot.wait(0) NO sirve para reproducir esto: en esta version de
+    # pytest-qt, MultiSignalBlocker.wait() con timeout=0 salta por completo
+    # el `qt_api.exec(self._loop)` (ver `if self.timeout != 0:` en
+    # pytestqt/wait_signal.py) y retorna sin procesar ni un solo evento --
+    # es un no-op disfrazado. qtbot.wait(1) si arranca un QEventLoop real
+    # (via QTimer + loop.exec()) y por lo tanto procesa la cola de eventos
+    # pendiente, igual que el bucle de eventos real de la app (app.exec() en
+    # main.py).
+    qtbot.wait(1)
 
     assert window.boton_volver.isVisible() is False
     assert window.boton_inicio.isVisible() is False
