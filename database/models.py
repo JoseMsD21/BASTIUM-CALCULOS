@@ -133,12 +133,21 @@ class Obligacion(Base):
     rentas_exentas: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     incluir_seguridad_social: Mapped[bool] = mapped_column(Boolean, default=False)
     nivel_riesgo_arl: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    # es_smmlv (Sprint 44, punto 1): cuando esta marcado, LaboralStrategy ignora
+    # el `valor` capturado a mano y resuelve el salario base desde
+    # get_smlmv_for_year(fecha_origen.year) en cada liquidacion -- asi el
+    # contrato nunca queda desactualizado si el SMLMV de ese año se corrige
+    # despues via la tabla parametros_legales (ver historical_index.py).
+    es_smmlv: Mapped[bool] = mapped_column(Boolean, default=False)
 
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
     eventos_laborales: Mapped[list[EventoLaboral]] = relationship(
+        back_populates="obligacion", cascade="all, delete-orphan"
+    )
+    descuentos_laborales: Mapped[list[DescuentoLaboral]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
 
@@ -173,6 +182,27 @@ class EventoLaboral(Base):
     )
 
     obligacion: Mapped[Obligacion] = relationship(back_populates="eventos_laborales")
+
+
+class DescuentoLaboral(Base):
+    """Descuento del empleador sobre la liquidacion laboral (Sprint 44, punto
+    3) -- mismo patron que `Abono` (tabla propia, no un campo simple) para
+    permitir varios descuentos independientes por obligacion, cada uno con su
+    propia fecha y monto. `es_legal` es metadata descriptiva para el reporte
+    (permite al abogado distinguir un descuento autorizado de uno que no lo
+    fue) -- ambos reducen el neto adeudado de la misma forma, reutilizando el
+    mecanismo de pagos/allocation ya existente (ver LaboralStrategy.liquidar,
+    que los inyecta como eventos PAYMENT igual que los abonos)."""
+    __tablename__ = "descuentos_laborales"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    obligacion_id: Mapped[int] = mapped_column(ForeignKey("obligaciones.id"), index=True)
+    fecha: Mapped[date] = mapped_column(Date)
+    monto: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    es_legal: Mapped[bool] = mapped_column(Boolean, default=True)
+    motivo: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    obligacion: Mapped[Obligacion] = relationship(back_populates="descuentos_laborales")
 
 
 class AuditLog(Base):

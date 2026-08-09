@@ -11,6 +11,7 @@ from app.views.eventos_laborales import EventoLaboralFormDialog
 from database.models import (
     AreaDerecho,
     Base,
+    EventoLaboral,
     Expediente,
     MotivoSuspension,
     Obligacion,
@@ -184,6 +185,72 @@ def test_escape_cierra_el_dialogo_sin_guardar(qtbot, monkeypatch):
     session = session_module.get_session()
     obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
     assert len(obligacion.eventos_laborales) == 0
+    session.close()
+
+
+def test_evento_id_precarga_los_campos_del_evento_existente(qtbot, monkeypatch):
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    evento = EventoLaboral(
+        obligacion_id=obligacion_id, tipo=TipoEventoLaboral.SUSPENSION,
+        fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 15),
+        motivo_suspension=MotivoSuspension.HUELGA,
+    )
+    session.add(evento)
+    session.commit()
+    evento_id = evento.id
+    session.close()
+
+    dialog = EventoLaboralFormDialog(obligacion_id=obligacion_id, evento_id=evento_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo.currentData() == TipoEventoLaboral.SUSPENSION
+    assert dialog.campo_fecha_inicio.date().toPython() == date(2020, 3, 1)
+    assert dialog.campo_fecha_fin.date().toPython() == date(2020, 3, 15)
+    assert dialog.combo_motivo.currentData() == MotivoSuspension.HUELGA
+
+
+def test_evento_id_titulo_del_dialogo_dice_editar(qtbot, monkeypatch):
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    evento = EventoLaboral(
+        obligacion_id=obligacion_id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+    )
+    session.add(evento)
+    session.commit()
+    evento_id = evento.id
+    session.close()
+
+    dialog = EventoLaboralFormDialog(obligacion_id=obligacion_id, evento_id=evento_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.windowTitle() == "Editar evento contractual"
+
+
+def test_guardar_con_evento_id_actualiza_en_vez_de_crear_uno_nuevo(qtbot, monkeypatch):
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    evento = EventoLaboral(
+        obligacion_id=obligacion_id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+    )
+    session.add(evento)
+    session.commit()
+    evento_id = evento.id
+    session.close()
+
+    dialog = EventoLaboralFormDialog(obligacion_id=obligacion_id, evento_id=evento_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_fecha_fin.setDate(date(2020, 5, 10))  # cambia la fecha de fin
+
+    id_devuelto = dialog.guardar()
+
+    assert id_devuelto == evento_id
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert len(obligacion.eventos_laborales) == 1  # no se creo una fila nueva
+    assert obligacion.eventos_laborales[0].fecha_fin == date(2020, 5, 10)
     session.close()
 
 

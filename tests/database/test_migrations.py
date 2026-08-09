@@ -69,6 +69,30 @@ def test_aplicar_migraciones_pendientes_agrega_las_columnas_faltantes_de_obligac
         assert columna in columnas
 
 
+def test_aplicar_migraciones_pendientes_agrega_es_smmlv(tmp_path):
+    """Sprint 44, punto 1: una bastium.db creada antes de este sprint no tiene
+    la columna es_smmlv -- aplicar_migraciones_pendientes() debe agregarla,
+    mismo criterio que las 5 columnas de Sprints 18/19/20 arriba."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_es_smmlv.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN es_smmlv")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "es_smmlv" in columnas
+
+
 def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path, monkeypatch):
     from database.database import aplicar_migraciones_pendientes
 

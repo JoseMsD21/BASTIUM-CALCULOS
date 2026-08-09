@@ -1,6 +1,72 @@
-from PySide6.QtWidgets import QDialog, QFormLayout, QLineEdit
+from datetime import date
+from decimal import Decimal
 
-from app.views.form_utils import set_row_visible
+from PySide6.QtWidgets import QDialog, QFormLayout, QLineEdit
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import database.session as session_module
+from app.views.form_utils import guardar_o_actualizar, set_row_visible
+from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
+
+
+def _sesion_en_memoria(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    return session_module.get_session()
+
+
+def test_guardar_o_actualizar_sin_id_existente_crea_una_fila_nueva(monkeypatch):
+    session = _sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-090", demandante="Ana", demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA, fecha_corte_default=date(2026, 6, 1),
+    )
+    session.add(expediente)
+    session.commit()
+
+    obligacion_id = guardar_o_actualizar(
+        session, Obligacion, None,
+        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL, concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("100.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+
+    assert session.query(Obligacion).count() == 1
+    guardada = session.get(Obligacion, obligacion_id)
+    assert guardada.concepto == "Gastos medicos"
+
+
+def test_guardar_o_actualizar_con_id_existente_actualiza_en_vez_de_insertar(monkeypatch):
+    session = _sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-091", demandante="Ana", demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA, fecha_corte_default=date(2026, 6, 1),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL, concepto="Original",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("100.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+
+    id_devuelto = guardar_o_actualizar(
+        session, Obligacion, obligacion_id,
+        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL, concepto="Editado",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("200.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+
+    assert id_devuelto == obligacion_id
+    assert session.query(Obligacion).count() == 1  # no se creo una fila nueva
+    actualizada = session.get(Obligacion, obligacion_id)
+    assert actualizada.concepto == "Editado"
+    assert actualizada.valor == Decimal("200.00")
 
 
 def test_set_row_visible_oculta_tambien_la_etiqueta_generada_por_addrow(qtbot):

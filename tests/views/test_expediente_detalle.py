@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
+from PySide6.QtWidgets import QMessageBox
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -912,3 +913,203 @@ def test_botones_agregar_tienen_clase_secundaria(qtbot):
     assert page.boton_agregar_obligacion.property("class") == "secondary"
     assert page.boton_agregar_abono.property("class") == "secondary"
     assert page.boton_agregar_evento_laboral.property("class") == "secondary"
+    assert page.boton_agregar_descuento_laboral.property("class") == "secondary"
+
+
+# --- Sprint 44 -------------------------------------------------------------
+
+
+def test_fecha_corte_liquidacion_se_precarga_con_la_del_expediente(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)  # fecha_corte_default = 2026-06-01
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    assert page.campo_fecha_corte_liquidacion.date().toPython() == date(2026, 6, 1)
+
+
+def test_override_de_fecha_de_corte_afecta_la_liquidacion_pero_no_el_expediente(qtbot, monkeypatch):
+    # _expediente_laboral_con_mora_fase1 tiene fecha_corte_default = 2021-06-01, que
+    # produce mora (contrato termina 2020-12-31). Si se cambia el override a la misma
+    # fecha de terminacion del contrato (sin mora) y se liquida, el resultado no debe
+    # tener SANCION_MORATORIA -- pero fecha_corte_default en la BD debe seguir intacta.
+    expediente_id = _expediente_laboral_con_mora_fase1(monkeypatch)
+
+    resultados_recibidos = []
+
+    def capturar(resultado, exp_id):
+        resultados_recibidos.append((resultado, exp_id))
+
+    page = ExpedienteDetallePage(on_liquidado=capturar)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page.campo_fecha_corte_liquidacion.setDate(date(2020, 12, 31))
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
+
+    resultado, _exp_id = resultados_recibidos[0]
+    tipos_evento = {item.balance.event_type for item in resultado.items}
+    assert "SANCION_MORATORIA" not in tipos_evento
+    assert resultado.final_balance().principal == Decimal("7860000.00")
+
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    assert expediente.fecha_corte_default == date(2021, 6, 1)  # sin cambios
+    session.close()
+
+
+def test_grupo_descuentos_laborales_visible_para_area_laboral(qtbot, monkeypatch):
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.show()
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.grupo_descuentos_laborales.isVisible() is True
+
+
+def test_grupo_descuentos_laborales_oculto_para_area_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)  # CIVIL_FAMILIA
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.show()
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.grupo_descuentos_laborales.isVisible() is False
+
+
+def test_refrescar_descuentos_laborales_lista_los_descuentos(qtbot, monkeypatch):
+    from database.models import DescuentoLaboral
+
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    session.add(DescuentoLaboral(
+        obligacion_id=obligacion.id, fecha=date(2021, 1, 15), monto=Decimal("500000.00"),
+        es_legal=True, motivo="Prestamo",
+    ))
+    session.commit()
+    session.close()
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.tabla_descuentos_laborales.rowCount() == 1
+    assert pagina.tabla_descuentos_laborales.item(0, 2).text() == "Legal"
+
+
+def test_abrir_dialogo_descuento_laboral_sin_seleccion_muestra_advertencia(qtbot, monkeypatch):
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._abrir_dialogo_descuento_laboral()
+
+    assert len(avisos) == 1
+
+
+def test_editar_obligacion_actualiza_la_fila_en_vez_de_agregar_una_nueva(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    obligacion_id = page._obligacion_ids_por_fila[0]
+
+    def _simular_edicion_y_guardado(self):
+        self.campo_concepto.setText("Editado")
+        self.guardar()
+        return True
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.ObligacionFormDialog.exec", _simular_edicion_y_guardado,
+    )
+
+    page._editar_obligacion(obligacion_id)
+
+    assert page.tabla_obligaciones.rowCount() == 1  # no se agrego una fila nueva
+    assert page.tabla_obligaciones.item(0, 0).text() == "Editado"
+    session = session_module.get_session()
+    assert session.query(Obligacion).count() == 1
+    session.close()
+
+
+def test_eliminar_evento_laboral_lo_quita_de_la_tabla(qtbot, monkeypatch):
+    from database.models import EventoLaboral, TipoEventoLaboral
+
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    session.add(EventoLaboral(
+        obligacion_id=obligacion.id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+    ))
+    session.commit()
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_eventos_laborales.rowCount() == 1
+
+    session = session_module.get_session()
+    evento_id = session.query(EventoLaboral).filter_by(obligacion_id=obligacion.id).one().id
+    session.close()
+
+    page._eliminar_evento_laboral(evento_id)
+
+    assert page.tabla_eventos_laborales.rowCount() == 0
+    session = session_module.get_session()
+    assert session.query(EventoLaboral).count() == 0
+    session.close()
+
+
+def test_eliminar_evento_laboral_cancelado_no_lo_elimina(qtbot, monkeypatch):
+    from database.models import EventoLaboral, TipoEventoLaboral
+
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    session.add(EventoLaboral(
+        obligacion_id=obligacion.id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+    ))
+    session.commit()
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.No,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    session = session_module.get_session()
+    evento_id = session.query(EventoLaboral).filter_by(obligacion_id=obligacion.id).one().id
+    session.close()
+
+    page._eliminar_evento_laboral(evento_id)
+
+    session = session_module.get_session()
+    assert session.query(EventoLaboral).count() == 1
+    session.close()

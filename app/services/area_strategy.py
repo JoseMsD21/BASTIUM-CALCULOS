@@ -15,7 +15,7 @@ from app.engine.costs.agencias_en_derecho import (
 from app.engine.currency.converter import convertir_a_pesos
 from app.engine.currency.trm_provider import ManualTRMProvider, SFCTRMProvider, TRMProvider
 from app.engine.financial.rate import Rate
-from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
+from app.engine.indexation.historical_index import get_ipc_interpolado_for_date, get_smlmv_for_year
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from app.engine.interest.provider import MemoryRateProvider
@@ -703,6 +703,14 @@ class LaboralStrategy(AreaStrategy):
             )
 
         obligacion = obligaciones[0]
+        # es_smmlv (Sprint 44, punto 1): el valor digitado a mano se descarta y
+        # se resuelve en memoria (nunca se persiste aqui -- eso lo hace el
+        # formulario al guardar) desde el SMLMV vigente del año de origen del
+        # contrato, para que la liquidacion siempre use el SMLMV mas
+        # actualizado en parametros_legales, incluso si se corrigio despues
+        # de que la obligacion se guardo.
+        if obligacion.es_smmlv:
+            obligacion.valor = get_smlmv_for_year(obligacion.fecha_origen.year)
         self._validar_obligacion_laboral(obligacion)
 
         # dias_trabajados (calendario real, resta simple, SIN +1): sigue
@@ -814,6 +822,24 @@ class LaboralStrategy(AreaStrategy):
                     payload={"amount": mora.total, "label": "Indemnizacion moratoria Art. 65 CST"},
                     event_type="SANCION_MORATORIA",
                 ))
+
+        # Descuentos del empleador (Sprint 44, punto 3): se inyectan como
+        # eventos PAYMENT mas -- mismo mecanismo de pagos/allocation que ya
+        # usan los abonos (AllocationEngine.allocate, via LiquidationCore),
+        # no uno nuevo. `es_legal` es solo metadata descriptiva para que el
+        # reporte distinga un descuento autorizado de uno que no lo fue (la
+        # etiqueta queda en el concepto de la fila); matematicamente ambos
+        # reducen el neto adeudado exactamente igual.
+        for descuento in obligacion.descuentos_laborales:
+            calificacion = "legal" if descuento.es_legal else "ilegal"
+            etiqueta = f"Descuento del empleador ({calificacion})"
+            if descuento.motivo:
+                etiqueta += f": {descuento.motivo}"
+            eventos.append(Event(
+                date=descuento.fecha,
+                payload={"amount": descuento.monto, "label": etiqueta},
+                event_type="PAYMENT",
+            ))
 
         pagos = [
             Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
