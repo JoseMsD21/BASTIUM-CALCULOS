@@ -1,6 +1,14 @@
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QStackedWidget, QToolBar
+from PySide6.QtWidgets import (
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSplitter,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 import database.session as session_module
 from app.core.settings import crear_settings
@@ -28,7 +36,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(icono_aplicacion())
 
         self.stacked_widget = QStackedWidget()
-        self.setCentralWidget(self.stacked_widget)
 
         self.dashboard_page = DashboardView(
             on_expediente_abierto=self._abrir_detalle,
@@ -105,34 +112,58 @@ class MainWindow(QMainWindow):
         self.atajo_inicio.activated.connect(self._ir_inicio)
 
     def _crear_barra_navegacion(self) -> None:
-        barra = QToolBar("Navegacion")
-        barra.setMovable(False)
+        """Sidebar de navegacion (Sprint 50): reemplaza el QToolBar superior del
+        Sprint 32 por un panel lateral dentro de un QSplitter horizontal junto al
+        QStackedWidget de paginas -- mismos 3 botones + breadcrumb, mismos nombres
+        de atributo (`boton_volver`, `boton_inicio`, `boton_parametros`,
+        `etiqueta_breadcrumb`) para no romper los tests existentes de
+        tests/views/test_main_window.py. `_actualizar_botones_navegacion()`/
+        `_actualizar_breadcrumb()`/`_actualizar_estado_activo_navegacion()` no
+        cambian: son independientes de si estos widgets viven en un QToolBar o
+        en un sidebar.
+        """
+        self.boton_inicio = QPushButton(" Inicio")
+        self.boton_inicio.setIcon(icon("home"))
+        self.boton_inicio.setProperty("class", "secondary")
+        self.boton_inicio.clicked.connect(self._ir_inicio)
 
         self.boton_volver = QPushButton(" Volver")
         self.boton_volver.setIcon(icon("back"))
         self.boton_volver.setProperty("class", "secondary")
         self.boton_volver.clicked.connect(self._volver)
-        barra.addWidget(self.boton_volver)
-
-        self.boton_inicio = QPushButton(" Inicio")
-        self.boton_inicio.setIcon(icon("home"))
-        self.boton_inicio.setProperty("class", "secondary")
-        self.boton_inicio.clicked.connect(self._ir_inicio)
-        barra.addWidget(self.boton_inicio)
 
         self.boton_parametros = QPushButton(" Parametros")
         self.boton_parametros.setIcon(icon("settings"))
         self.boton_parametros.setProperty("class", "secondary")
         self.boton_parametros.clicked.connect(self._ir_a_parametros)
-        barra.addWidget(self.boton_parametros)
 
-        barra.addSeparator()
+        sidebar = QWidget()
+        sidebar.setObjectName("sidebar_navegacion")
+        layout_sidebar = QVBoxLayout(sidebar)
+        layout_sidebar.addWidget(self.boton_inicio)
+        layout_sidebar.addWidget(self.boton_volver)
+        layout_sidebar.addWidget(self.boton_parametros)
+        layout_sidebar.addStretch()
 
         self.etiqueta_breadcrumb = QLabel()
         self.etiqueta_breadcrumb.setObjectName("etiqueta_breadcrumb")
-        barra.addWidget(self.etiqueta_breadcrumb)
 
-        self.addToolBar(barra)
+        contenedor_contenido = QWidget()
+        layout_contenido = QVBoxLayout(contenedor_contenido)
+        layout_contenido.setContentsMargins(0, 0, 0, 0)
+        layout_contenido.addWidget(self.etiqueta_breadcrumb)
+        layout_contenido.addWidget(self.stacked_widget)
+
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._splitter.addWidget(sidebar)
+        self._splitter.addWidget(contenedor_contenido)
+        # El sidebar mantiene un ancho fijo compacto; el contenido se lleva todo
+        # el espacio que sobra al redimensionar la ventana.
+        self._splitter.setStretchFactor(0, 0)
+        self._splitter.setStretchFactor(1, 1)
+        self._splitter.setSizes([180, ANCHO_POR_DEFECTO - 180])
+        self.setCentralWidget(self._splitter)
+
         self._actualizar_botones_navegacion()
 
     def show_page(self, name: str, add_to_history: bool = True) -> None:
@@ -184,10 +215,15 @@ class MainWindow(QMainWindow):
         self.boton_parametros.style().polish(self.boton_parametros)
 
     def showEvent(self, event) -> None:
-        # QToolBar resets the visibility of widgets added via addWidget() to True
-        # the first time the toolbar itself becomes visible, overriding any
-        # setVisible(False) applied while the window was not yet shown. Resync
-        # the buttons' visibility once the window is actually shown.
+        # Historicamente (Sprint 32-49, mientras la navegacion vivia en un
+        # QToolBar): QToolBar reseteaba a True la visibilidad de los widgets
+        # agregados via addWidget() la primera vez que el toolbar mismo se hacia
+        # visible, pisando cualquier setVisible(False) aplicado con la ventana
+        # todavia no mostrada. El sidebar del Sprint 50 (QWidget/QSplitter, sin
+        # QToolBar) no deberia sufrir ese reset por construccion, pero se deja
+        # este resync defensivo -- es barato y los tests que cubren el bug
+        # original (test_botones_navegacion_ocultos_en_pagina_inicial) siguen en
+        # verde con el.
         super().showEvent(event)
         self._actualizar_botones_navegacion()
 

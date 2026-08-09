@@ -1,6 +1,7 @@
 from datetime import date
 
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QSplitter, QToolBar
 
 import database.session as session_module
 from app.views.main_window import MainWindow
@@ -419,6 +420,40 @@ def test_ventana_restaura_tamano_guardado_entre_sesiones(qtbot):
 
     assert segunda.size().width() == 780
     assert segunda.size().height() == 650
+
+
+def test_main_window_reemplaza_el_toolbar_por_un_sidebar(qtbot):
+    """Sprint 50: la barra de navegacion superior (QToolBar, Sprint 32) se
+    reemplaza por un sidebar lateral dentro de un QSplitter horizontal junto al
+    QStackedWidget de paginas."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.findChildren(QToolBar) == []
+    assert isinstance(window.centralWidget(), QSplitter)
+    assert window.centralWidget().orientation() == Qt.Orientation.Horizontal
+
+
+def test_sidebar_aloja_los_botones_de_navegacion_y_el_stacked_widget_sigue_visible(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    splitter = window.centralWidget()
+    # El stacked_widget de paginas sigue siendo hijo directo o indirecto del splitter
+    # (no del sidebar) -- los botones/breadcrumb no reemplazan su rol, lo acompanan.
+    ancestro_stacked = window.stacked_widget.parentWidget()
+    while ancestro_stacked is not None and ancestro_stacked is not splitter:
+        ancestro_stacked = ancestro_stacked.parentWidget()
+    assert ancestro_stacked is splitter
+
+    for boton in (window.boton_volver, window.boton_inicio, window.boton_parametros):
+        # Cada boton de navegacion vive dentro del splitter (en el sidebar), pero
+        # fuera del stacked_widget de paginas.
+        assert not window.stacked_widget.isAncestorOf(boton)
+        ancestro = boton.parentWidget()
+        while ancestro is not None and ancestro is not splitter:
+            ancestro = ancestro.parentWidget()
+        assert ancestro is splitter
 
 
 def test_ventana_restaura_estado_maximizado_entre_sesiones(qtbot):

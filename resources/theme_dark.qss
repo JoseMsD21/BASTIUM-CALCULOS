@@ -47,6 +47,13 @@ QToolBar {
     spacing: 6px;
 }
 
+/* --- Sidebar de navegacion (Sprint 50, reemplaza el QToolBar de arriba) --- */
+
+QWidget#sidebar_navegacion {
+    background-color: #2A2422;
+    border-right: 1px solid #4A4039;
+}
+
 QGroupBox {
     border: 1px solid #4A4039;
     border-radius: 4px;
