@@ -36,6 +36,8 @@ Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archi
 - [Sprint 18 — Costas judiciales (tabla de rangos)](#sprint-18--costas-judiciales-tabla-de-rangos)
 - [Sprint 18 (seguimiento) — ¿La tabla simple reemplaza el Acuerdo PSAA16-10554?](#sprint-18-seguimiento--la-tabla-simple-de-rangos-reemplaza-el-acuerdo-psaa16-10554)
 - [Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard](#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard)
+- [Sprint 41 — Fórmula de reajuste anual de la cuota alimentaria](#sprint-41--fórmula-de-reajuste-anual-de-la-cuota-alimentaria)
+- [Sprint 43 — Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario](#sprint-43--indexación-ipc-en-comercial-laboral-honorarios-sancionatorio-y-tributario)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -180,6 +182,64 @@ algunos casos de Familia, cambiaria para pagarés/letras en Comercial, etc.), co
 Área del derecho → Tipo de acción → Plazo de prescripción (en años o meses), con la norma que lo respalda
 si es posible. Si "ejecutiva para todo" es una aproximación razonable mientras tanto, basta la confirmación
 de que sirve como estimado provisional (sabiendo que puede no ser exacto para casos puntuales).
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 41 — Fórmula de reajuste anual de la cuota alimentaria
+
+**Contexto:** Un usuario del software aportó una demanda ejecutiva de alimentos real (Daniela Aranda
+Andrade c. Jorge Andrés Carvajal Córdoba, Juzgado de Familia de Neiva, radicada 2026-06-28, Acta de
+Conciliación No. 036-2019, Comisaría de Familia de Yaguará, 2019-07-23) donde la cuota alimentaria base de
+$100.000 crece cada 1 de enero según el porcentaje de incremento del SMMLV decretado por el Gobierno
+Nacional, manteniéndose constante durante el resto del año, hasta llegar a $212.450 vigente en 2026. El
+software va a automatizar este reajuste anual (capital constante dentro del año calendario, reajustado cada
+1° de enero) con la fórmula `cuota_nueva = cuota_anterior + (cuota_anterior × porcentaje_variación_anual /
+100)`, usando el índice que indique el acta o título ejecutivo de cada caso (SMMLV o IPC).
+
+**Pregunta:** ¿Es correcta esa fórmula de reajuste anual (aplicar el % de variación completo del SMMLV o
+IPC del año anterior sobre la cuota vigente, cada 1 de enero) para cualquier acta/título ejecutivo que fije
+un reajuste "según el SMMLV" o "según el IPC", o hay casos donde la fórmula real difiere (ej. un tope
+máximo, un redondeo específico, un mes de corte distinto al 1 de enero, o un porcentaje parcial en vez del
+100% de la variación)?
+
+**Qué necesito exactamente:** Confirmación de que la fórmula de arriba es la interpretación jurídica
+correcta y general para este tipo de cláusula, o la corrección exacta si difiere en algún escenario.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 43 — Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario
+
+**Contexto:** El software ya tiene indexación por IPC construida y probada, pero hoy solo está disponible
+para el área Civil/Familia — en las otras 5 áreas el checkbox correspondiente ni siquiera aparece en el
+formulario. Se quiere ofrecerla como opción en cualquier liquidación de cualquier área, pero dos de esas
+áreas ya tienen su **propio** mecanismo de actualización monetaria: Tributario (Art. 867-1 E.T.) y
+Sancionatorio (conversión SMLMV/UVT según la fecha del hecho, Ley 1955/2019 art. 49) — activar IPC ahí
+también podría estar duplicando el ajuste sobre el mismo capital.
+
+**Pregunta:** ¿En cuáles de estas áreas tiene sentido jurídico ofrecer indexación IPC como opción adicional
+a la que ya tiene el área hoy?
+- **Comercial** (sin mecanismo propio de actualización monetaria detectado en el código).
+- **Laboral** (sin mecanismo propio de actualización monetaria detectado en el código).
+- **Honorarios** (sin mecanismo propio de actualización monetaria detectado en el código).
+- **Sancionatorio** — ¿la indexación IPC puede coexistir con la conversión SMLMV/UVT ya existente, o sería
+  una doble actualización sobre el mismo capital?
+- **Tributario** — ¿la indexación IPC puede coexistir con la actualización del Art. 867-1 E.T. ya existente,
+  o sería una doble actualización sobre el mismo capital?
+
+**Qué necesito exactamente:** Para cada una de las 5 áreas, sí/no sobre si debe ofrecerse IPC; para
+Sancionatorio y Tributario en particular, si la respuesta es sí, aclarar si IPC reemplaza al mecanismo
+propio, se suma a él, o son mutuamente excluyentes (el abogado elige uno u otro por liquidación, nunca
+ambos).
 
 **Respuesta del despacho:**
 
