@@ -1,8 +1,12 @@
-from PySide6.QtCore import Qt, QThreadPool, Signal
+from datetime import date
+
+from PySide6.QtCore import QDate, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QDateEdit,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QMessageBox,
     QProgressDialog,
     QPushButton,
@@ -30,17 +34,23 @@ from app.engine.audit.service import (
 from app.engine.liquidation.registry import AreaRegistry
 from app.views.abonos import AbonoFormDialog
 from app.views.concurrency import TareaEnHilo
+from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog
+from app.views.icons import icon
 from app.views.obligaciones import ObligacionFormDialog
-from database.models import AreaDerecho, Expediente
+from database.models import AreaDerecho, EventoLaboral, Expediente
 
 
-def _liquidar_en_hilo_de_fondo(expediente_id: int):
+def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
     """Se ejecuta en el QThreadPool (Sprint 26), no en el hilo de UI.
 
     Abre y cierra su propia sesion de SQLAlchemy dentro de este mismo hilo -- no
     recibe una sesion ya abierta del hilo principal, porque SQLAlchemy no es
     thread-safe si una sesion se comparte entre hilos.
+
+    `fecha_corte` (Sprint 44, punto 5) la decide el llamador -- ya no se lee
+    aqui de `expediente.fecha_corte_default` -- para permitir un override
+    puntual desde la pantalla de liquidacion sin tocar el expediente guardado.
     """
     session = session_module.get_session()
     expediente = session.get(Expediente, expediente_id)
@@ -48,7 +58,7 @@ def _liquidar_en_hilo_de_fondo(expediente_id: int):
     abonos = [abono for obligacion in obligaciones for abono in obligacion.abonos]
     for obligacion in obligaciones:
         list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
-    fecha_corte = expediente.fecha_corte_default
+        list(obligacion.descuentos_laborales)  # idem (Sprint 44, punto 3)
     area = expediente.area_derecho.value
     session.close()
 
@@ -78,8 +88,12 @@ class ExpedienteDetallePage(QWidget):
         self._expediente_id = None
         self._obligacion_ids_por_fila = []
 
-        self.tabla_obligaciones = QTableWidget(0, 3)
-        self.tabla_obligaciones.setHorizontalHeaderLabels(["Concepto", "Tipo", "Valor"])
+        # Columna "Editar" (Sprint 44, punto 2): mismo patron de boton por fila
+        # que ya usa ExpedientesListView (app/views/expedientes.py) para
+        # Expediente -- un QPushButton "secondary" por celda, conectado con un
+        # lambda que captura el id de esa fila.
+        self.tabla_obligaciones = QTableWidget(0, 4)
+        self.tabla_obligaciones.setHorizontalHeaderLabels(["Concepto", "Tipo", "Valor", "Editar"])
         self.boton_agregar_obligacion = QPushButton("Agregar obligacion")
         self.boton_agregar_obligacion.setProperty("class", "secondary")
         self.boton_agregar_obligacion.clicked.connect(self._abrir_dialogo_obligacion)
@@ -102,8 +116,13 @@ class ExpedienteDetallePage(QWidget):
         layout_abonos.addWidget(self.tabla_abonos)
         grupo_abonos.setLayout(layout_abonos)
 
-        self.tabla_eventos_laborales = QTableWidget(0, 3)
-        self.tabla_eventos_laborales.setHorizontalHeaderLabels(["Tipo", "Fecha inicio", "Fecha fin"])
+        # Columnas "Editar"/"Eliminar" (Sprint 44, punto 4): mismo patron que
+        # tabla_obligaciones de arriba, mas un boton "destructive" de
+        # eliminar (misma clase QSS que usa ExpedientesListView).
+        self.tabla_eventos_laborales = QTableWidget(0, 5)
+        self.tabla_eventos_laborales.setHorizontalHeaderLabels(
+            ["Tipo", "Fecha inicio", "Fecha fin", "Editar", "Eliminar"]
+        )
         self.boton_agregar_evento_laboral = QPushButton("Agregar evento")
         self.boton_agregar_evento_laboral.setProperty("class", "secondary")
         self.boton_agregar_evento_laboral.clicked.connect(self._abrir_dialogo_evento_laboral)
@@ -113,6 +132,36 @@ class ExpedienteDetallePage(QWidget):
         layout_eventos_laborales.addWidget(self.boton_agregar_evento_laboral)
         layout_eventos_laborales.addWidget(self.tabla_eventos_laborales)
         self.grupo_eventos_laborales.setLayout(layout_eventos_laborales)
+
+        # Descuentos del empleador (Sprint 44, punto 3): visible solo para area
+        # Laboral, mismo criterio que grupo_eventos_laborales de arriba.
+        self.tabla_descuentos_laborales = QTableWidget(0, 4)
+        self.tabla_descuentos_laborales.setHorizontalHeaderLabels(
+            ["Fecha", "Monto", "Tipo", "Motivo"]
+        )
+        self.boton_agregar_descuento_laboral = QPushButton("Agregar descuento")
+        self.boton_agregar_descuento_laboral.setProperty("class", "secondary")
+        self.boton_agregar_descuento_laboral.clicked.connect(self._abrir_dialogo_descuento_laboral)
+
+        self.grupo_descuentos_laborales = QGroupBox("Descuentos del empleador")
+        layout_descuentos_laborales = QVBoxLayout()
+        layout_descuentos_laborales.addWidget(self.boton_agregar_descuento_laboral)
+        layout_descuentos_laborales.addWidget(self.tabla_descuentos_laborales)
+        self.grupo_descuentos_laborales.setLayout(layout_descuentos_laborales)
+
+        # Fecha de corte de ESTA liquidacion (Sprint 44, punto 5): override
+        # puntual, precargado desde expediente.fecha_corte_default al abrir el
+        # expediente (cargar_expediente) pero editable aqui sin tocar ese
+        # valor guardado -- ver _liquidar().
+        self.campo_fecha_corte_liquidacion = QDateEdit(QDate.currentDate())
+        self.campo_fecha_corte_liquidacion.setCalendarPopup(True)
+        self.campo_fecha_corte_liquidacion.setToolTip(
+            "Fecha de corte para ESTA liquidacion puntual. No modifica la fecha de corte "
+            "guardada en el expediente -- para eso usa 'Editar expediente'."
+        )
+        layout_fecha_corte = QHBoxLayout()
+        layout_fecha_corte.addWidget(QLabel("Fecha de corte de esta liquidación"))
+        layout_fecha_corte.addWidget(self.campo_fecha_corte_liquidacion)
 
         self.boton_liquidar = QPushButton("Liquidar")
         self.boton_liquidar.setProperty("class", "primary")
@@ -135,9 +184,11 @@ class ExpedienteDetallePage(QWidget):
         columnas.addWidget(grupo_obligaciones)
         columnas.addWidget(grupo_abonos)
         columnas.addWidget(self.grupo_eventos_laborales)
+        columnas.addWidget(self.grupo_descuentos_laborales)
 
         layout_principal = QVBoxLayout()
         layout_principal.addLayout(columnas)
+        layout_principal.addLayout(layout_fecha_corte)
         layout_principal.addWidget(self.boton_liquidar)
         layout_principal.addWidget(grupo_historial)
         self.setLayout(layout_principal)
@@ -147,14 +198,24 @@ class ExpedienteDetallePage(QWidget):
         session = session_module.get_session()
         expediente = session.get(Expediente, expediente_id)
         es_laboral = expediente.area_derecho == AreaDerecho.LABORAL
+        fecha_corte_default = expediente.fecha_corte_default
         session.close()
 
+        # Precarga el override de fecha de corte (Sprint 44, punto 5) con el
+        # valor guardado en el expediente -- el usuario puede cambiarlo desde
+        # aqui para esta liquidacion puntual sin que eso toque ese valor
+        # guardado (ver _liquidar()).
+        self.campo_fecha_corte_liquidacion.setDate(
+            QDate(fecha_corte_default.year, fecha_corte_default.month, fecha_corte_default.day)
+        )
         self.grupo_eventos_laborales.setVisible(es_laboral)
+        self.grupo_descuentos_laborales.setVisible(es_laboral)
         self._refrescar_obligaciones()
         self._refrescar_abonos()
         self._refrescar_historial()
         if es_laboral:
             self._refrescar_eventos_laborales()
+            self._refrescar_descuentos_laborales()
 
     def _refrescar_obligaciones(self) -> None:
         session = session_module.get_session()
@@ -167,6 +228,14 @@ class ExpedienteDetallePage(QWidget):
             self.tabla_obligaciones.setItem(fila, 0, QTableWidgetItem(obligacion.concepto))
             self.tabla_obligaciones.setItem(fila, 1, QTableWidgetItem(obligacion.tipo.value))
             self.tabla_obligaciones.setItem(fila, 2, QTableWidgetItem(str(obligacion.valor)))
+
+            boton_editar = QPushButton("Editar")
+            boton_editar.setProperty("class", "secondary")
+            boton_editar.clicked.connect(
+                lambda _checked=False, id_=obligacion.id: self._editar_obligacion(id_)
+            )
+            self.tabla_obligaciones.setCellWidget(fila, 3, boton_editar)
+
             self._obligacion_ids_por_fila.append(obligacion.id)
         session.close()
 
@@ -194,6 +263,40 @@ class ExpedienteDetallePage(QWidget):
             self.tabla_eventos_laborales.setItem(fila, 0, QTableWidgetItem(evento.tipo.value))
             self.tabla_eventos_laborales.setItem(fila, 1, QTableWidgetItem(evento.fecha_inicio.isoformat()))
             self.tabla_eventos_laborales.setItem(fila, 2, QTableWidgetItem(evento.fecha_fin.isoformat()))
+
+            boton_editar = QPushButton("Editar")
+            boton_editar.setProperty("class", "secondary")
+            boton_editar.clicked.connect(
+                lambda _checked=False, id_=evento.id: self._editar_evento_laboral(id_)
+            )
+            self.tabla_eventos_laborales.setCellWidget(fila, 3, boton_editar)
+
+            boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.setIcon(icon("delete"))
+            boton_eliminar.setProperty("class", "destructive")
+            boton_eliminar.clicked.connect(
+                lambda _checked=False, id_=evento.id: self._eliminar_evento_laboral(id_)
+            )
+            self.tabla_eventos_laborales.setCellWidget(fila, 4, boton_eliminar)
+        session.close()
+
+    def _refrescar_descuentos_laborales(self) -> None:
+        session = session_module.get_session()
+        expediente = session.get(Expediente, self._expediente_id)
+        descuentos = [
+            descuento
+            for obligacion in expediente.obligaciones
+            for descuento in obligacion.descuentos_laborales
+        ]
+
+        self.tabla_descuentos_laborales.setRowCount(len(descuentos))
+        for fila, descuento in enumerate(descuentos):
+            self.tabla_descuentos_laborales.setItem(fila, 0, QTableWidgetItem(descuento.fecha.isoformat()))
+            self.tabla_descuentos_laborales.setItem(fila, 1, QTableWidgetItem(str(descuento.monto)))
+            self.tabla_descuentos_laborales.setItem(
+                fila, 2, QTableWidgetItem("Legal" if descuento.es_legal else "Ilegal")
+            )
+            self.tabla_descuentos_laborales.setItem(fila, 3, QTableWidgetItem(descuento.motivo or ""))
         session.close()
 
     def _refrescar_historial(self) -> None:
@@ -230,6 +333,18 @@ class ExpedienteDetallePage(QWidget):
         if dialogo.exec():
             self._refrescar_obligaciones()
 
+    def _editar_obligacion(self, obligacion_id: int) -> None:
+        session = session_module.get_session()
+        expediente = session.get(Expediente, self._expediente_id)
+        area = expediente.area_derecho.value
+        session.close()
+
+        dialogo = ObligacionFormDialog(
+            expediente_id=self._expediente_id, area=area, parent=self, obligacion_id=obligacion_id,
+        )
+        if dialogo.exec():
+            self._refrescar_obligaciones()
+
     def _abrir_dialogo_abono(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
@@ -255,6 +370,46 @@ class ExpedienteDetallePage(QWidget):
         if dialogo.exec():
             self._refrescar_eventos_laborales()
 
+    def _editar_evento_laboral(self, evento_id: int) -> None:
+        session = session_module.get_session()
+        evento = session.get(EventoLaboral, evento_id)
+        obligacion_id = evento.obligacion_id
+        session.close()
+
+        dialogo = EventoLaboralFormDialog(obligacion_id=obligacion_id, parent=self, evento_id=evento_id)
+        if dialogo.exec():
+            self._refrescar_eventos_laborales()
+
+    def _eliminar_evento_laboral(self, evento_id: int) -> None:
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar evento contractual",
+            "¿Eliminar este evento contractual? Esta accion no se puede deshacer.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+
+        session = session_module.get_session()
+        evento = session.get(EventoLaboral, evento_id)
+        session.delete(evento)
+        session.commit()
+        session.close()
+        self._refrescar_eventos_laborales()
+
+    def _abrir_dialogo_descuento_laboral(self) -> None:
+        fila_seleccionada = self.tabla_obligaciones.currentRow()
+        if fila_seleccionada < 0:
+            QMessageBox.warning(
+                self, "Seleccion requerida",
+                "Selecciona una obligacion antes de agregar un descuento.",
+            )
+            return
+
+        obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
+        dialogo = DescuentoLaboralFormDialog(obligacion_id=obligacion_id, parent=self)
+        if dialogo.exec():
+            self._refrescar_descuentos_laborales()
+
     def _liquidar(self) -> None:
         if not self.boton_liquidar.isEnabled():
             return  # ya hay una liquidacion en curso: evita doble liquidacion concurrente
@@ -266,7 +421,12 @@ class ExpedienteDetallePage(QWidget):
         self._dialogo_progreso_liquidar.setMinimumDuration(0)
         self._dialogo_progreso_liquidar.show()
 
-        self._tarea_liquidar = TareaEnHilo(_liquidar_en_hilo_de_fondo, self._expediente_id)
+        qdate_corte = self.campo_fecha_corte_liquidacion.date()
+        fecha_corte = date(qdate_corte.year(), qdate_corte.month(), qdate_corte.day())
+
+        self._tarea_liquidar = TareaEnHilo(
+            _liquidar_en_hilo_de_fondo, self._expediente_id, fecha_corte
+        )
         self._tarea_liquidar.senales.completada.connect(self._on_liquidar_completado)
         self._tarea_liquidar.senales.fallo.connect(self._on_liquidar_fallo)
         QThreadPool.globalInstance().start(self._tarea_liquidar)
