@@ -59,6 +59,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     )
     from scripts.migrate_moneda_trm import migrar as migrar_moneda_trm
     from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
+    from scripts.migrate_reajuste_anual_familia import migrar as migrar_reajuste_anual_familia
     from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
     from scripts.migrate_tributario import migrar as migrar_tributario
 
@@ -71,5 +72,6 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     migrar_anatocismo(ruta)
     migrar_costas(ruta)
     migrar_interes_capital_indexado(ruta)
+    migrar_reajuste_anual_familia(ruta)
     migrar_indices(ruta)
     migrar_parametros_legales()
