@@ -38,6 +38,53 @@ def test_muestra_una_fila_por_item_de_liquidacion(qtbot):
     assert view.tabla.item(0, 1).text() == "Corte final de liquidacion"
 
 
+def _resultado_con_obligacion_prescrita() -> LiquidationResult:
+    debt = PendingDebt(principal=Decimal("1000000.00"), interest=Decimal("0.00"), indexation=Decimal("0.00"))
+    balance = RunningBalance(date=date(2015, 1, 1), debt=debt, event_type="INSTALLMENT")
+    item = LiquidationItem(
+        date=date(2015, 1, 1),
+        concept="Capital antiguo",
+        capital_base=Decimal("1000000.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("0.00"),
+        balance=balance,
+        prescrita=True,
+    )
+    return LiquidationResult(items=[item])
+
+
+def test_marca_visualmente_las_filas_prescritas(qtbot):
+    # Sprint 42: decision del despacho -- la obligacion prescrita se sigue
+    # incluyendo en la tabla (el saldo no cambia), solo se marca con un
+    # indicador visual (aqui: texto + color rojo) para que el abogado la note.
+    from PySide6.QtGui import QColor
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+
+    view.mostrar(_resultado_con_obligacion_prescrita(), expediente_id=1)
+
+    celda_concepto = view.tabla.item(0, 1)
+    assert "capital antiguo" in celda_concepto.text().lower()
+    assert "prescrita" in celda_concepto.text().lower()
+    assert celda_concepto.foreground().color() == QColor("red")
+
+
+def test_no_marca_visualmente_las_filas_vigentes(qtbot):
+    from PySide6.QtGui import QColor
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    celda_concepto = view.tabla.item(0, 1)
+    assert celda_concepto.text() == "Corte final de liquidacion"
+    assert celda_concepto.foreground().color() != QColor("red")
+
+
 def test_muestra_columna_de_indexacion_sanciones(qtbot):
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
