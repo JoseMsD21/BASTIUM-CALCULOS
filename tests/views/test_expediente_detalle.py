@@ -912,3 +912,156 @@ def test_botones_agregar_tienen_clase_secundaria(qtbot):
     assert page.boton_agregar_obligacion.property("class") == "secondary"
     assert page.boton_agregar_abono.property("class") == "secondary"
     assert page.boton_agregar_evento_laboral.property("class") == "secondary"
+
+
+def _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch) -> tuple[int, int]:
+    """Sprint 41: expediente Civil/Familia con una obligacion RECURRENTE con
+    tipo_reajuste_anual=SMMLV, lista para 'Generar cuotas' en la UI. Retorna
+    (expediente_id, obligacion_id)."""
+    from database.models import TipoReajusteAnual
+
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+
+    session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=Decimal("1000000.00"), vigente_desde=date(2024, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=Decimal("1100000.00"), vigente_desde=date(2025, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    expediente = Expediente(
+        radicado="2026-080",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2025, 3, 5),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="CUOTA ALIMENTARIA",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2024, 11, 5),
+        fecha_inicio=date(2024, 11, 5),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
+    )
+    session.add(obligacion)
+    session.commit()
+    expediente_id = expediente.id
+    obligacion_id = obligacion.id
+    session.close()
+    return expediente_id, obligacion_id
+
+
+def test_boton_generar_cuotas_visible_solo_para_civil_familia(qtbot, monkeypatch):
+    expediente_id_civil, _ = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.show()
+    page.cargar_expediente(expediente_id_civil)
+    assert page.boton_generar_cuotas.isVisible() is True
+
+    expediente_id_comercial = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
+    page.cargar_expediente(expediente_id_comercial)
+    assert page.boton_generar_cuotas.isVisible() is False
+
+
+def test_generar_cuotas_sin_seleccion_muestra_advertencia(qtbot, monkeypatch):
+    expediente_id, _obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._generar_cuotas()
+
+    assert len(avisos) == 1
+    assert avisos[0][0] == "Seleccion requerida"
+
+
+def test_generar_cuotas_persiste_y_refresca_la_tabla_de_obligaciones(qtbot, monkeypatch):
+    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    assert page.tabla_obligaciones.rowCount() == 1  # solo la obligacion RECURRENTE padre
+
+    fila = page._obligacion_ids_por_fila.index(obligacion_id)
+    page.tabla_obligaciones.setCurrentCell(fila, 0)
+    page._generar_cuotas()
+
+    # Nov/Dic 2024 (2) + Ene..Mar 2025 (3) = 5 cuotas + la obligacion padre = 6 filas.
+    assert page.tabla_obligaciones.rowCount() == 6
+
+    session = session_module.get_session()
+    total_cuotas = (
+        session.query(Obligacion).filter(Obligacion.obligacion_padre_id == obligacion_id).count()
+    )
+    session.close()
+    assert total_cuotas == 5
+
+
+def test_generar_cuotas_dos_veces_no_duplica_filas(qtbot, monkeypatch):
+    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    fila = page._obligacion_ids_por_fila.index(obligacion_id)
+    page.tabla_obligaciones.setCurrentCell(fila, 0)
+    page._generar_cuotas()
+    primer_conteo = page.tabla_obligaciones.rowCount()
+
+    fila = page._obligacion_ids_por_fila.index(obligacion_id)
+    page.tabla_obligaciones.setCurrentCell(fila, 0)
+    page._generar_cuotas()
+
+    assert page.tabla_obligaciones.rowCount() == primer_conteo
+
+
+def test_generar_cuotas_sobre_obligacion_sin_reajuste_muestra_advertencia(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)  # PUNTUAL, sin reajuste
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page.tabla_obligaciones.setCurrentCell(0, 0)
+
+    page._generar_cuotas()
+
+    assert len(avisos) == 1
+    assert avisos[0][0] == "No se pudo generar cuotas"
+
+
+def test_boton_generar_cuotas_tiene_clase_secundaria(qtbot):
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+
+    assert page.boton_generar_cuotas.property("class") == "secondary"

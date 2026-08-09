@@ -28,11 +28,13 @@ from app.engine.audit.service import (
     registrar_liquidacion,
 )
 from app.engine.liquidation.registry import AreaRegistry
+from app.services.reajuste_anual import generar_cuotas_mensuales
 from app.views.abonos import AbonoFormDialog
 from app.views.concurrency import TareaEnHilo
 from app.views.eventos_laborales import EventoLaboralFormDialog
 from app.views.obligaciones import ObligacionFormDialog
-from database.models import AreaDerecho, Expediente
+from app.views.toast import mostrar_toast
+from database.models import AreaDerecho, Expediente, Obligacion
 
 
 def _liquidar_en_hilo_de_fondo(expediente_id: int):
@@ -84,9 +86,19 @@ class ExpedienteDetallePage(QWidget):
         self.boton_agregar_obligacion.setProperty("class", "secondary")
         self.boton_agregar_obligacion.clicked.connect(self._abrir_dialogo_obligacion)
 
+        # "Generar cuotas" (Sprint 41): solo relevante en Civil/Familia -- genera y
+        # persiste las cuotas mensuales reales de una obligacion RECURRENTE con
+        # reajuste anual activo (ver app/services/reajuste_anual.py). Visibilidad
+        # ajustada en cargar_expediente() segun el area del expediente, igual que
+        # grupo_eventos_laborales.
+        self.boton_generar_cuotas = QPushButton("Generar cuotas")
+        self.boton_generar_cuotas.setProperty("class", "secondary")
+        self.boton_generar_cuotas.clicked.connect(self._generar_cuotas)
+
         grupo_obligaciones = QGroupBox("Obligaciones")
         layout_obligaciones = QVBoxLayout()
         layout_obligaciones.addWidget(self.boton_agregar_obligacion)
+        layout_obligaciones.addWidget(self.boton_generar_cuotas)
         layout_obligaciones.addWidget(self.tabla_obligaciones)
         grupo_obligaciones.setLayout(layout_obligaciones)
 
@@ -147,9 +159,11 @@ class ExpedienteDetallePage(QWidget):
         session = session_module.get_session()
         expediente = session.get(Expediente, expediente_id)
         es_laboral = expediente.area_derecho == AreaDerecho.LABORAL
+        es_civil_familia = expediente.area_derecho == AreaDerecho.CIVIL_FAMILIA
         session.close()
 
         self.grupo_eventos_laborales.setVisible(es_laboral)
+        self.boton_generar_cuotas.setVisible(es_civil_familia)
         self._refrescar_obligaciones()
         self._refrescar_abonos()
         self._refrescar_historial()
@@ -240,6 +254,36 @@ class ExpedienteDetallePage(QWidget):
         dialogo = AbonoFormDialog(obligacion_id=obligacion_id, parent=self)
         if dialogo.exec():
             self._refrescar_abonos()
+
+    def _generar_cuotas(self) -> None:
+        """Sprint 41: genera y persiste las cuotas mensuales reales de la obligacion
+        RECURRENTE seleccionada en `tabla_obligaciones` (debe tener
+        tipo_reajuste_anual SMMLV/IPC activo -- ver ObligacionFormDialog). Llamarlo
+        de nuevo sobre la misma obligacion es seguro: generar_cuotas_mensuales es
+        idempotente (retorna las cuotas ya persistidas en vez de duplicarlas)."""
+        fila_seleccionada = self.tabla_obligaciones.currentRow()
+        if fila_seleccionada < 0:
+            QMessageBox.warning(
+                self, "Seleccion requerida",
+                "Selecciona una obligacion recurrente con reajuste antes de generar cuotas.",
+            )
+            return
+
+        obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
+        session = session_module.get_session()
+        obligacion = session.get(Obligacion, obligacion_id)
+        expediente = session.get(Expediente, self._expediente_id)
+        fecha_corte = expediente.fecha_corte_default
+        session.close()
+
+        try:
+            cuotas = generar_cuotas_mensuales(obligacion, fecha_corte=fecha_corte)
+        except ValueError as error:
+            QMessageBox.warning(self, "No se pudo generar cuotas", str(error))
+            return
+
+        self._refrescar_obligaciones()
+        mostrar_toast(self, f"{len(cuotas)} cuota(s) generada(s)/confirmada(s).")
 
     def _abrir_dialogo_evento_laboral(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
