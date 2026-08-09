@@ -16,7 +16,7 @@ class ReportSummaryBuilder:
         total_payments = result.total_payments_applied()
         total_interest_generated = result.total_interest_accrued()
 
-        return {
+        summary = {
             "total_abonos": self._format(total_payments),
             "total_intereses_generados": self._format(total_interest_generated),
             "saldo_final_capital": self._format(final_debt.principal),
@@ -24,6 +24,16 @@ class ReportSummaryBuilder:
             "saldo_final_indexacion": self._format(final_debt.indexation),
             "gran_total_adeudado": self._format(final_debt.total())
         }
+
+        # Sprint 46: el saldo a favor de un sobrepago (Sprint 23) se vuelve visible
+        # aqui solo cuando existe -- omitido por completo del diccionario cuando es
+        # cero (no como string "$0.00") para que cada consumidor sepa mostrar la
+        # linea con un simple `if "saldo_a_favor" in summary:`.
+        total_saldo_a_favor = result.total_saldo_a_favor()
+        if total_saldo_a_favor > Decimal("0.00"):
+            summary["saldo_a_favor"] = self._format(total_saldo_a_favor)
+
+        return summary
 
     def build_renta_liquida(self, result: LiquidationResult) -> dict | None:
         """Formatea LiquidationResult.renta_liquida para renderizar en un bloque separado del
