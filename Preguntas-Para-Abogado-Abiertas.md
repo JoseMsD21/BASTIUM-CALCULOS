@@ -38,6 +38,7 @@ Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archi
 - [Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard](#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard)
 - [Sprint 41 — Fórmula de reajuste anual de la cuota alimentaria](#sprint-41--fórmula-de-reajuste-anual-de-la-cuota-alimentaria)
 - [Sprint 43 — Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario](#sprint-43--indexación-ipc-en-comercial-laboral-honorarios-sancionatorio-y-tributario)
+- [Sprint 47 — Recalcular liquidaciones históricas con las correcciones del Sprint 30](#sprint-47--recalcular-liquidaciones-históricas-con-las-correcciones-del-sprint-30)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -240,6 +241,48 @@ a la que ya tiene el área hoy?
 Sancionatorio y Tributario en particular, si la respuesta es sí, aclarar si IPC reemplaza al mecanismo
 propio, se suma a él, o son mutuamente excluyentes (el abogado elige uno u otro por liquidación, nunca
 ambos).
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 47 — Recalcular liquidaciones históricas con las correcciones del Sprint 30
+
+**Contexto:** El Sprint 30 corrigió dos cómputos de fecha/conteo que el despacho había confirmado como
+incorrectos: la fecha de interrupción efectiva de la prescripción (ahora fecha-a-fecha real, en vez de un
+umbral de "365 días o menos"), y el conteo de días de prestaciones sociales en el área Laboral (ahora
+inclusivo, sobre base comercial de 360 días). Esas correcciones aplican automáticamente a cualquier
+liquidación calculada de ahora en adelante, pero **por diseño no tocaron ninguna liquidación que ya
+estuviera guardada** en el sistema antes del Sprint 30 — esas liquidaciones antiguas siguen mostrando el
+valor calculado con la lógica vieja (potencialmente incorrecta) si alguien las vuelve a abrir o
+reconstruir, en vez del valor corregido.
+
+Recalcular una liquidación ya entregada (a un cliente, o presentada ante un juzgado) no es solo actualizar
+un dato en el sistema — puede tener una implicación práctica real: dos valores distintos "correctos" para
+el mismo período, uno ya conocido por la contraparte y otro nuevo. Por eso esta decisión no se tomó
+técnicamente sin consultar antes.
+
+**Ya decidido por el desarrollo (2026-08-09), no hace falta confirmarlo — informativo:** si el despacho
+decide que sí hace falta recalcular alguna liquidación, el mecanismo técnico ya está definido: se guardaría
+como una liquidación **nueva vinculada a la anterior** (no se sobrescribe el registro original, para no
+perder el rastro de qué se calculó y entregó en su momento), y el sistema dejaría una **marca/flag visible**
+en el expediente para que el abogado decida manualmente si notifica a alguien.
+
+**Pregunta:** ¿Existe hoy alguna liquidación ya calculada con BASTIUM (antes del cierre del Sprint 30,
+2026-08-04) que ya se haya entregado formalmente a un cliente o presentado ante un juzgado, usando el
+cómputo de prescripción o de prestaciones sociales de Laboral? Si la respuesta es sí:
+- ¿Se debe recalcular esa liquidación específica (y cualquier otra en la misma situación), o se deja tal
+  como se entregó, asumiendo que las liquidaciones nuevas de ahora en adelante ya usan la lógica corregida?
+- Si se recalcula: ¿aplica solo a expedientes que el despacho sigue trabajando activamente, o a cualquier
+  expediente sin importar su estado actual?
+
+**Qué necesito exactamente:** Un sí/no sobre si existe alguna liquidación real ya entregada en esa
+situación, y si la respuesta es sí, cuál de las dos opciones de alcance de recálculo aplica. Si la
+respuesta es "no, todo el uso hasta ahora fue de prueba/desarrollo", esta pregunta se puede cerrar
+confirmando que no se recalcula ninguna liquidación histórica.
 
 **Respuesta del despacho:**
 
