@@ -1065,3 +1065,89 @@ def test_boton_generar_cuotas_tiene_clase_secundaria(qtbot):
     qtbot.addWidget(page)
 
     assert page.boton_generar_cuotas.property("class") == "secondary"
+
+
+def test_flujo_completo_crear_obligacion_recurrente_generar_cuotas_y_abonar_una_cuota(qtbot, monkeypatch):
+    """Flujo completo del Sprint 41 (Task 4): crear una obligacion RECURRENTE con
+    reajuste anual desde el formulario real (ObligacionFormDialog) -> generar
+    cuotas desde ExpedienteDetallePage -> verlas en la tabla de Obligaciones ->
+    agregar un abono a UNA cuota especifica (no a la obligacion padre),
+    reutilizando AbonoFormDialog tal cual, sin ningun campo nuevo en Abono."""
+    from app.views.abonos import AbonoFormDialog
+    from app.views.obligaciones import ObligacionFormDialog
+    from database.models import Abono
+
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+
+    session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=Decimal("1000000.00"), vigente_desde=date(2024, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=Decimal("1100000.00"), vigente_desde=date(2025, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    expediente = Expediente(
+        radicado="2026-090",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2025, 2, 5),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+
+    # 1. Crear la obligacion RECURRENTE con reajuste SMMLV desde el formulario real.
+    dialogo_obligacion = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialogo_obligacion)
+    dialogo_obligacion.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialogo_obligacion.campo_concepto.setText("CUOTA ALIMENTARIA")
+    dialogo_obligacion.campo_valor.setText("500000.00")
+    dialogo_obligacion.campo_tasa.setText("6.00")
+    dialogo_obligacion.campo_fecha_inicio.setDate(date(2024, 11, 5))
+    dialogo_obligacion.campo_dia_pago.setValue(5)
+    indice_smmlv = dialogo_obligacion.combo_tipo_reajuste_anual.findData("SMMLV")
+    dialogo_obligacion.combo_tipo_reajuste_anual.setCurrentIndex(indice_smmlv)
+    dialogo_obligacion.guardar()
+
+    # 2. Abrir el expediente y generar las cuotas desde la pagina real.
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_obligaciones.rowCount() == 1  # solo la obligacion padre, todavia
+
+    page.tabla_obligaciones.setCurrentCell(0, 0)
+    page._generar_cuotas()
+
+    # Nov/Dic 2024 (2) + Ene/Feb 2025 (2) = 4 cuotas + la obligacion padre = 5 filas.
+    assert page.tabla_obligaciones.rowCount() == 5
+    for fila in range(1, 5):
+        assert page.tabla_obligaciones.item(fila, 0).text().startswith("CUOTA ALIMENTARIA DE")
+
+    # 3. Agregar un abono a la PRIMERA cuota (fila 1, no la obligacion padre de la fila 0).
+    fila_primera_cuota = 1
+    cuota_id = page._obligacion_ids_por_fila[fila_primera_cuota]
+    obligacion_padre_id = page._obligacion_ids_por_fila[0]
+    assert cuota_id != obligacion_padre_id
+
+    page.tabla_obligaciones.setCurrentCell(fila_primera_cuota, 0)
+    dialogo_abono = AbonoFormDialog(obligacion_id=cuota_id)
+    qtbot.addWidget(dialogo_abono)
+    dialogo_abono.campo_monto.setText("50000.00")
+    dialogo_abono.campo_referencia.setText("Transferencia parcial")
+    dialogo_abono.guardar()
+
+    session = session_module.get_session()
+    abono_guardado = session.query(Abono).filter_by(obligacion_id=cuota_id).one()
+    assert abono_guardado.monto == Decimal("50000.00")
+    # El abono quedo atado a la cuota especifica, no a la obligacion RECURRENTE padre.
+    abonos_del_padre = session.query(Abono).filter_by(obligacion_id=obligacion_padre_id).count()
+    session.close()
+    assert abonos_del_padre == 0
