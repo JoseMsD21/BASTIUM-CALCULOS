@@ -149,7 +149,7 @@ class JudicialPDFGenerator:
             ])
 
         tabla_cronologia = Table(datos_cronologia, repeatRows=1)
-        tabla_cronologia.setStyle(TableStyle([
+        estilo_cronologia = [
             ('BACKGROUND', (0, 0), (-1, 0), self.c_black),
             ('TEXTCOLOR', (0, 0), (-1, 0), self.c_cream),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
@@ -158,7 +158,16 @@ class JudicialPDFGenerator:
             ('TEXTCOLOR', (0, 1), (-1, -1), self.c_black),
             ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
             ('GRID', (0, 0), (-1, -1), 0.5, self.c_burgundy),
-        ]))
+        ]
+        # Sprint 42: indicador visual (texto en rojo/negrita) para las filas cuya
+        # obligacion de origen ya vencio su plazo de prescripcion/caducidad
+        # (ReportTableBuilder.build_matrix ya expone "prescrita" por fila) -- no
+        # se excluyen de la tabla, solo se resaltan.
+        for indice_fila, fila in enumerate(table_data, start=1):
+            if fila.get("prescrita"):
+                estilo_cronologia.append(('TEXTCOLOR', (0, indice_fila), (-1, indice_fila), colors.red))
+                estilo_cronologia.append(('FONTNAME', (0, indice_fila), (-1, indice_fila), 'Helvetica-Bold'))
+        tabla_cronologia.setStyle(TableStyle(estilo_cronologia))
         elementos.append(tabla_cronologia)
 
         if renta_liquida is not None:
