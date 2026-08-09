@@ -386,3 +386,51 @@ def test_main_window_dashboard_ver_expedientes_navega_a_la_lista(qtbot):
     window.dashboard_page.boton_ver_expedientes.click()
 
     assert window.stacked_widget.currentWidget() is window.expedientes_page
+
+
+def test_ventana_usa_tamano_por_defecto_sin_geometria_guardada(qtbot):
+    # tests/conftest.py::_qsettings_aislado redirige QSettings a un directorio
+    # temporal vacio por test -- equivalente a un primer arranque sin QSettings
+    # previo (Sprint 37).
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.size().width() == 1000
+    assert window.size().height() == 700
+
+
+def test_ventana_restaura_tamano_guardado_entre_sesiones(qtbot):
+    # Tamaño deliberadamente distinto del default (1000x700) pero que sigue dentro de
+    # los limites de la pantalla offscreen 800x800 que usa la suite
+    # (QT_QPA_PLATFORM=offscreen) y por encima del minimumSizeHint del contenido de
+    # MainWindow (~768x433): restoreGeometry() recorta el tamaño restaurado tanto al
+    # espacio disponible en pantalla como al minimo del layout, asi que un tamaño fuera
+    # de ese rango daria un falso negativo aqui.
+    primera = MainWindow()
+    qtbot.addWidget(primera)
+    primera.show()
+    qtbot.waitExposed(primera)
+    primera.resize(780, 650)
+    qtbot.wait(50)
+    primera.close()  # dispara closeEvent -> guarda geometria en QSettings
+
+    segunda = MainWindow()
+    qtbot.addWidget(segunda)
+
+    assert segunda.size().width() == 780
+    assert segunda.size().height() == 650
+
+
+def test_ventana_restaura_estado_maximizado_entre_sesiones(qtbot):
+    primera = MainWindow()
+    qtbot.addWidget(primera)
+    primera.showMaximized()
+    qtbot.wait(50)
+    primera.close()
+
+    segunda = MainWindow()
+    qtbot.addWidget(segunda)
+    segunda.show()
+    qtbot.wait(50)
+
+    assert segunda.isMaximized() is True

@@ -197,6 +197,11 @@ class ObligacionFormDialog(QDialog):
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
         self.boton_guardar.setProperty("class", "primary")
+        # Enter/Return dispara Guardar (Sprint 37): Qt ya trata automaticamente al
+        # unico QPushButton de un QDialog como boton por defecto, pero se fija
+        # explicitamente para no depender de ese comportamiento implicito si en el
+        # futuro se agrega otro boton (ej. "Cancelar").
+        self.boton_guardar.setDefault(True)
         self.boton_guardar.clicked.connect(self._guardar_y_cerrar)
         # Ctrl+S = guardar (Sprint 32). Esc = cancelar ya viene gratis de
         # QDialog.keyPressEvent() (reject() por defecto) -- no requiere codigo aqui.
@@ -416,6 +421,62 @@ class ObligacionFormDialog(QDialog):
         self._actualizar_campos_visibles()
         self._actualizar_visibilidad_trm()
         self._actualizar_campos_tributario()
+        self._fijar_orden_de_tabulacion()
+
+    def _fijar_orden_de_tabulacion(self) -> None:
+        """Encadena el orden de tabulacion explicitamente (Sprint 37) siguiendo el
+        orden visual de arriba hacia abajo de cada seccion (mismo orden en que se
+        llamo addRow() mas arriba). Sin esto, Tab salta a los QGroupBox colapsables
+        (son checkable, por lo tanto focusable) en vez de entrar a "Tasas e intereses"
+        u "Honorarios y costas" -- QFormLayout encadena el tab order automaticamente
+        entre filas de un mismo layout, pero no hay encadenamiento automatico ENTRE
+        los 3 QFormLayout separados de las 3 secciones colapsables (Sprint 34). El
+        orden completo se fija una sola vez, incluyendo campos que solo aplican a
+        otras areas: al tabular de verdad, Qt salta los widgets ocultos y usa el
+        siguiente visible en esta misma secuencia, asi que sirve para cualquier area.
+        """
+        orden = [
+            self.combo_tipo,
+            self.combo_categoria,
+            self.campo_concepto,
+            self.campo_valor,
+            self.campo_fecha_origen,
+            self.campo_fecha_inicio,
+            self.campo_dia_pago,
+            self.campo_cantidad_smlmv_uvt,
+            self.campo_base_sancion,
+            self.campo_meses_extemporaneidad,
+            self.check_sancion_agravada,
+            self.campo_ingresos_brutos,
+            self.campo_devoluciones,
+            self.campo_costos,
+            self.campo_deducciones,
+            self.campo_rentas_exentas,
+            self.campo_fecha_fin,
+            self.check_pagada,
+            self.campo_fecha_pago_total,
+            self.check_incluir_seguridad_social,
+            self.combo_nivel_riesgo_arl,
+            self.campo_tasa,
+            self.campo_tasa_moratoria,
+            self.campo_fecha_vencimiento,
+            self.campo_ibc_vigente,
+            self.check_anatocismo_demanda_judicial,
+            self.check_anatocismo_acuerdo,
+            self.campo_anatocismo_fecha_acuerdo,
+            self.combo_moneda,
+            self.campo_trm_aplicable,
+            self.campo_trm_fecha_referencia,
+            self.check_aplica_indexacion_ipc,
+            self.check_interes_sobre_capital_indexado,
+            self.campo_honorarios_fijos,
+            self.campo_cuota_litis_pct,
+            self.campo_beneficio_obtenido,
+            self.campo_costas_pct,
+            self.boton_guardar,
+        ]
+        for anterior, siguiente in zip(orden, orden[1:]):
+            self.setTabOrder(anterior, siguiente)
 
     def _aplicar_visibilidad_filas(
         self, layout: QFormLayout, visibilidad_por_widget: dict[QWidget, bool]

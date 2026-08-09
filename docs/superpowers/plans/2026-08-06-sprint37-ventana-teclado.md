@@ -36,37 +36,34 @@ explícitamente donde falte. `Esc` cierra un `QDialog` sin guardar por comportam
 
 ### Task 1: Persistir geometría de ventana con QSettings
 
-- [ ] En `main.py` (o `MainWindow`, decidir según dónde viva mejor el ciclo de vida — `MainWindow` es más
-      testeable con `qtbot`), restaurar `QSettings` guardado al construir la ventana (con fallback a
-      1000x700 si no existe valor previo) y guardarlo en el cierre (`closeEvent` de `MainWindow`, no en
-      `main.py`, para poder testear con `qtbot` sin lanzar `sys.exit`).
-- [ ] Test que confirme: al guardar una geometría y restaurarla en una nueva instancia de `QSettings`
-      apuntando al mismo namespace, la ventana recupera tamaño/posición/estado maximizado.
-- [ ] Self-review: confirmar que el fallback al tamaño por defecto sigue funcionando en un `QSettings`
-      vacío (primer arranque / entorno de test limpio), y que los tests no dejan basura persistida en el
-      `QSettings` real del sistema (usar un namespace/organización de test aislado en los tests, o
-      `QSettings.setPath`/formato temporal).
+- [x] `MainWindow._restaurar_geometria()`/`closeEvent()` (`app/views/main_window.py`) persisten
+      tamaño/posición/maximizado vía `QSettings(IniFormat, UserScope, "BASTIUM", "BASTIUM")`, con fallback a
+      1000x700 si no hay valor guardado o `restoreGeometry()` lo rechaza. `main.py` ya no fija
+      `resize(1000, 700)` incondicionalmente.
+- [x] Test que guarda una geometría y confirma que una nueva instancia de `MainWindow` la restaura
+      (`tests/views/test_main_window.py`).
+- [x] Self-review: fallback verificado en `QSettings` vacío; `tests/conftest.py::_qsettings_aislado`
+      (autouse) redirige `QSettings.setPath()` a `tmp_path` para que ningún test toque el `.ini` real del
+      sistema.
 
 ### Task 2: Orden de tabulación explícito en ObligacionFormDialog y ExpedienteFormDialog
 
-- [ ] Revisar el orden visual actual de campos en ambos diálogos (leyendo el código tal como está hoy,
-      post-Sprint 34) y fijar `setTabOrder` encadenado para que coincida con el orden lógico/visual.
-- [ ] Test (`qtbot.keyClick` con `Qt.Key_Tab` recorriendo el formulario, o inspección directa de
-      `nextInFocusChain()`) que confirme el orden esperado en al menos un caso representativo de cada
-      diálogo.
+- [x] `ObligacionFormDialog._fijar_orden_de_tabulacion()` y el bloque equivalente en
+      `ExpedienteFormDialog.__init__` (`app/views/expedientes.py`) encadenan `setTabOrder` siguiendo el
+      orden visual actual (post-Sprint 34), incluyendo campos condicionales de todas las áreas.
+- [x] Tests en `tests/views/test_obligaciones.py` y `tests/views/test_expedientes.py`.
 
 ### Task 3: Enter dispara Guardar, Esc cancela — en todos los diálogos de formulario
 
-- [ ] Confirmar/asegurar `QPushButton.setDefault(True)` en el botón "Guardar" (o equivalente) de cada
-      `QDialog` de formulario del proyecto (no solo los dos mencionados en los Hallazgos — revisar todos
-      los `QDialog` con formulario, ej. `AbonoFormDialog`, diálogos de eventos laborales, etc., si existen).
-- [ ] Confirmar que `Esc` cierra cada uno de esos diálogos sin guardar (comportamiento nativo `reject()`,
-      salvo que algún diálogo lo intercepte incorrectamente — corregir si es el caso).
-- [ ] Tests (`qtbot.keyClick` con `Qt.Key_Return`/`Qt.Key_Escape`) que confirmen ambos comportamientos en
-      al menos `ObligacionFormDialog` y `ExpedienteFormDialog`.
+- [x] `setDefault(True)` explícito en el botón "Guardar" de los 5 `QDialog` de formulario del proyecto
+      (`ObligacionFormDialog`, `ExpedienteFormDialog`, `AbonoFormDialog`, `EventoLaboralFormDialog`,
+      `ParametroFormDialog`) — inventariados con `grep -rl "class.*QDialog" app/views/`, los 5 ya lo tienen.
+- [x] `Esc` confirmado como comportamiento nativo de `QDialog.reject()` sin interceptar en ninguno (test
+      preexistente `test_escape_cierra_el_dialogo_sin_guardar` + verificación de código).
+- [x] Tests `Qt.Key_Return`/`Qt.Key_Escape` en `ObligacionFormDialog` y `ExpedienteFormDialog`.
 
 ### Task 4: Verificación final
 
-- [ ] Suite completa de tests (`pytest`) en verde.
-- [ ] Verificación manual/documentada: un usuario puede completar y guardar un formulario usando solo
-      teclado (Tab + Enter) en orden lógico, y la ventana recuerda tamaño/posición entre sesiones.
+- [x] Suite completa de tests (`pytest`) en verde: 844 passed.
+- [x] Verificación cubierta por los tests de teclado (Tab + Enter en orden lógico) y de persistencia de
+      geometría de las Tasks 1-3.

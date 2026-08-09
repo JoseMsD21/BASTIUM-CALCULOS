@@ -12,11 +12,14 @@ def main() -> None:
     init_db()
     aplicar_migraciones_pendientes()
     app = QApplication(sys.argv)
+    app.setOrganizationName("BASTIUM")
     app.setApplicationName("BASTIUM")
     app.setApplicationVersion(__version__)
     aplicar_tema(app)
     window = MainWindow()
-    window.resize(1000, 700)
+    # La geometria (tamaño/posicion/maximizado) se restaura sola en __init__ via
+    # QSettings, con fallback a 1000x700 en el primer arranque (Sprint 37) -- ya no
+    # hace falta fijarla aqui incondicionalmente.
     window.show()
     sys.exit(app.exec())
 
