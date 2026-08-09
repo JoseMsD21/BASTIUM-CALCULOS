@@ -1991,6 +1991,119 @@ class TestLaboralStrategy:
         assert monto_mora_sin_costas > Decimal("0.00")  # sanity: la mora si se disparo
         assert monto_mora_con_costas == monto_mora_sin_costas
 
+    def test_es_smmlv_resuelve_el_valor_desde_el_smlmv_del_anio_del_contrato(self):
+        # Sprint 44, punto 1: con es_smmlv=True, LaboralStrategy debe ignorar
+        # el 'valor' capturado a mano (aqui deliberadamente distinto del SMLMV
+        # real, para que el test detecte si el override no se aplico) y
+        # resolver el salario base desde get_smlmv_for_year(fecha_origen.year)
+        # -- _SMLMV_POR_ANIO[2020] = 877803.00 (sembrado por la fixture
+        # autouse de este archivo).
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.es_smmlv = True
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert obligacion.valor == Decimal("877803.00")
+        # cesantias (salario) + intereses cesantias (12% del salario) +
+        # prima (salario, sumando junio+diciembre) + vacaciones (salario/2),
+        # sobre el SMLMV resuelto, no sobre 1.00 -- misma proporcion
+        # (multiplicador 2.62) que test_liquida_sin_mora_si_se_pago_el_mismo_dia_de_terminacion
+        # verifica para un salario de 3000000.00 (7860000.00 = 3000000.00 * 2.62).
+        assert resultado.final_balance().principal == Decimal("2299843.86")
+
+    def test_es_smmlv_false_conserva_el_valor_digitado(self):
+        obligacion = _obligacion_laboral(
+            salario=Decimal("3000000.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.es_smmlv = False
+
+        LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert obligacion.valor == Decimal("3000000.00")
+
+    def test_descuento_laboral_reduce_el_neto_adeudado(self):
+        from database.models import DescuentoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.descuentos_laborales = [DescuentoLaboral(
+            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("1000000.00"),
+            es_legal=True, motivo="Prestamo cooperativa",
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        assert resultado.total_payments_applied() == Decimal("1000000.00")
+        assert resultado.final_balance().total() == Decimal("7860000.00") - Decimal("1000000.00")
+
+    def test_descuento_laboral_aparece_en_el_reporte_con_etiqueta_propia(self):
+        from database.models import DescuentoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.descuentos_laborales = [DescuentoLaboral(
+            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("1000000.00"),
+            es_legal=True, motivo="Prestamo cooperativa",
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        conceptos = [item.concept for item in resultado.items]
+        coincidencias = [c for c in conceptos if "Descuento" in c]
+        assert len(coincidencias) == 1
+        assert "legal" in coincidencias[0].lower()
+        assert "Prestamo cooperativa" in coincidencias[0]
+
+    def test_descuento_laboral_ilegal_tambien_reduce_el_neto_y_se_marca_distinto(self):
+        # es_legal es metadata descriptiva para el reporte (para que el
+        # abogado distinga un descuento autorizado de uno que no lo fue) --
+        # no cambia el calculo: ambos reutilizan el mismo mecanismo de
+        # pagos/allocation ya existente (ver LaboralStrategy.liquidar).
+        from database.models import DescuentoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.descuentos_laborales = [DescuentoLaboral(
+            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("500000.00"),
+            es_legal=False, motivo=None,
+        )]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        assert resultado.total_payments_applied() == Decimal("500000.00")
+        conceptos = [item.concept for item in resultado.items]
+        coincidencias = [c for c in conceptos if "Descuento" in c]
+        assert len(coincidencias) == 1
+        assert "ilegal" in coincidencias[0].lower()
+
+    def test_varios_descuentos_laborales_se_suman(self):
+        from database.models import DescuentoLaboral
+
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.descuentos_laborales = [
+            DescuentoLaboral(
+                id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("500000.00"), es_legal=True,
+            ),
+            DescuentoLaboral(
+                id=2, obligacion_id=1, fecha=date(2021, 2, 1), monto=Decimal("300000.00"), es_legal=True,
+            ),
+        ]
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        assert resultado.total_payments_applied() == Decimal("800000.00")
+
 
 def _obligacion_tributaria(
     expediente_id=1,
