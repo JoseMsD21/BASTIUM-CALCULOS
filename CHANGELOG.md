@@ -11,10 +11,23 @@ Sprints 31-37: primer sistema de diseño visual de la GUI y mejoras de UX constr
 (navegación, pantalla de inicio, formularios, listados, feedback no bloqueante, jerarquía de botones,
 persistencia de ventana y accesibilidad de teclado). Sprints 39-40: dos bugs reales corregidos (etiquetas
 huérfanas en formularios, interés causado ausente en la tabla del PDF). Sprint 38: licencia Apache 2.0
-publicada. Ningún cambio de lógica de cálculo salvo el desglose de interés por fila del Sprint 40 (el
-saldo final ya era correcto).
+publicada. Sprints 41/42/44/45: cuotas alimentarias con reajuste anual en Familia, prescripción/caducidad
+conectada al flujo real de liquidación, varios gaps de UX/alcance en Laboral, y transparencia de unidad en
+Sancionatorio. Ningún cambio de saldo final ya calculado en ningún sprint — solo el desglose de interés por
+fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de total.
 
 ### Added
+- Familia: cuotas alimentarias con reajuste anual (Sprint 41): una obligación RECURRENTE de Civil/Familia
+  puede marcarse con reajuste `SMMLV` o `IPC`; el sistema genera y persiste las cuotas mensuales reales
+  (`app/services/reajuste_anual.py`), con capital constante dentro del año y reajustado cada 1° de enero,
+  concepto dinámico por mes/año, y abonos capturables por cuota individual.
+- Prescripción/caducidad conectada al flujo real de liquidación (Sprint 42): cualquier obligación cuyo
+  plazo ya venció se marca (no se excluye) con advertencia visual en pantalla, PDF y Word.
+- Laboral (Sprint 44): checkbox "salario = SMMLV" resuelve el valor automáticamente por año; edición de
+  obligaciones y eventos laborales ya guardados sin borrar y recrear; nueva entidad `DescuentoLaboral`
+  para descuentos del empleador; fecha de corte editable por liquidación puntual.
+- Sancionatorio (Sprint 45): indicador dinámico que muestra si un valor se aplicará como SMLMV o UVT según
+  la fecha de origen capturada.
 - Notificación no bloqueante tipo toast (Sprint 36): `app/views/toast.py::mostrar_toast()` sustituye la
   única confirmación de éxito de bajo riesgo que usaba `QMessageBox` modal (exportación completa);
   `QMessageBox` se mantiene para errores y confirmaciones destructivas. Nueva clase QSS `secondary`

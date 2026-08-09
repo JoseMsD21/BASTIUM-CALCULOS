@@ -162,11 +162,11 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` ✅ Completado](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license--completado)
 - [Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral) ✅ Completado](#sprint-39--bug-de-ui-etiquetas-huérfanas-en-qformlayout-sancionatorio-y-laboral--completado)
 - [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) ✅ Completado](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas--completado)
-- [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono 🔵 Bloqueado — pendiente de decisión](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono--bloqueado--pendiente-de-decisión)
-- [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación 🔵 Bloqueado — pendiente de decisión](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación--bloqueado--pendiente-de-decisión)
+- [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono ✅ Completado](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono--completado)
+- [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación ✅ Completado](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación--completado)
 - [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--bloqueado--pendiente-de-decisión)
-- [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte 📋 Pendiente](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte--pendiente)
-- [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente 📋 Pendiente](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente--pendiente)
+- [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte ✅ Completado](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte--completado)
+- [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente ✅ Completado](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente--completado)
 - [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado 📋 Pendiente](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--pendiente)
 - [Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión](#sprint-47--recalcular-liquidaciones-históricas-afectadas-por-las-correcciones-del-sprint-30--bloqueado--pendiente-de-decisión)
 - [Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI 📋 Pendiente](#sprint-48--limpiar-la-deuda-de-ruff-preexistente-y-agregar-el-chequeo-de-lint-al-pipeline-de-ci--pendiente)
@@ -3368,7 +3368,7 @@ este sprint individual, 863 tras el merge final).
 
 ---
 
-## Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono 🔵 Bloqueado — pendiente de decisión
+## Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono ✅ Completado
 
 **Prioridad sugerida:** Alta — reportado por un usuario real usando el módulo de Familia recién cerrado
 (Sprint 20/21, "Suma Única"/múltiples tasas, 2026-07-31 → 2026-08-01), describe una funcionalidad central
@@ -3477,9 +3477,33 @@ existentes — solo aplica hacia adelante salvo que el usuario pida explícitame
   año y mora calculada de forma independiente por cuota.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-09):** Completado. Ver
+`docs/superpowers/plans/2026-08-07-sprint41-familia-cuotas-reajuste-anual.md`. Decisión tomada con el
+usuario (2026-08-07, sin sesión de brainstorming adicional): usar el diseño propuesto directamente. Nuevo
+campo `Obligacion.tipo_reajuste_anual` (SMMLV/IPC/NINGUNO) y `obligacion_padre_id` (auto-referencial, sin
+`ForeignKey()` real — SQLite rechaza `DROP COLUMN` sobre una columna con FK de tabla, verificado
+empíricamente). Nuevo servicio `app/services/reajuste_anual.py::generar_cuotas_mensuales()` genera y
+persiste las cuotas mensuales como `Obligacion` PUNTUAL hijas, capital constante dentro del año, reajustado
+cada 1° de enero, concepto dinámico por mes/año; idempotente (no duplica si ya se generaron). Los abonos se
+capturan por cuota individual reutilizando `AbonoFormDialog` contra el `obligacion_id` de la cuota, sin
+campo nuevo en `Abono`, tal como proponía el diseño original. `CivilFamiliaStrategy` usa las cuotas hijas
+reales en vez de expandir con `RecurringScheduler` cuando ya existen, evitando doble conteo de capital.
+**Verificación matemática (Task 3, bloqueante para la UI):** se confirmó — no refutó — que el interés de
+mora consolidado que produce el motor sobre las cuotas reales coincide exactamente con la suma de calcular
+cada cuota de forma aislada (capital propio × sus propios días de mora); no hizo falta ningún motor de
+interés "autónomo por cuota" nuevo, la linealidad del interés simple ya lo garantiza (Civil/Familia no tiene
+wiring de anatocismo). No hay PDF real de la demanda de Daniela Aranda disponible todavía — el test de
+integración final usa datos sintéticos equivalentes, no las cifras exactas del caso. La fórmula de reajuste
+(`cuota_nueva = cuota_anterior + cuota_anterior × pct_variación_anual / 100`) queda pendiente de
+confirmación formal del despacho — pregunta agregada a `Preguntas-Para-Abogado-Abiertas.md`, sección "Sprint
+41". No se retro-generan cuotas para obligaciones recurrentes ya existentes; no se extiende a Laboral (ver
+Sprint 44, punto 6, explícitamente excluido). Botón "Generar cuotas" nuevo en `ExpedienteDetallePage`,
+visible solo para Civil/Familia. Suite completa en verde (953 tests tras el merge final, que tuvo conflictos
+reales con el Sprint 44 sobre los mismos archivos, resueltos a mano).
+
 ---
 
-## Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación 🔵 Bloqueado — pendiente de decisión
+## Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación ✅ Completado
 
 **Prioridad sugerida:** Alta — el motor matemático (Sprint 7) es correcto y está probado, pero aislado; hoy
 cualquier liquidación de cualquier área incluye obligaciones prescritas o caducadas sin advertirlo ni
@@ -3522,6 +3546,23 @@ cargar el dato.
 - El PDF refleja el mismo estado.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-09):** Completado. Ver
+`docs/superpowers/plans/2026-08-07-sprint42-prescripcion-caducidad-wiring.md`. Decisión tomada con el
+usuario (2026-08-07): opción (b) — marcar con advertencia visual, no excluir automáticamente. Nuevo campo
+`LiquidationItem.prescrita` (default `False`), poblado centralizadamente en
+`UniversalLiquidationService.liquidar()` (único punto por el que pasan las 6 `AreaStrategy` para invocar
+`LiquidationCore`, confirmado leyendo el código en vez de asumir el nombre) reutilizando
+`filtrar_cuotas_prescritas`/`calcular_prescripcion` ya existentes, con `TipoAccion.EJECUTIVA` como default
+(mismo default provisional que ya usa el Dashboard del Sprint 33 — pregunta abierta compartida, no
+duplicada). Falla abierto (sin marcar, sin tumbar la liquidación) si el plazo no está configurado en
+Parámetros, mismo criterio que el Dashboard. Filas marcadas se resaltan en rojo con el texto "⚠ ...
+Obligación prescrita, no exigible" en pantalla (`app/views/liquidaciones.py`), PDF (`app/reports/pdf.py`) y
+Word (`app/reports/word.py`). El total liquidado no cambia — confirmado con tests dedicados que comparan el
+saldo final con y sin la marca activa. Se encontró (y se dejó intacto, fuera de alcance) un archivo legado
+sin registrar (`app/services/motor_liquidacion.py`) que también instancia `LiquidationCore` directamente
+pero no forma parte de `AreaRegistry` ni de ninguna de las 6 `AreaStrategy`. Suite completa en verde (953
+tests tras el merge final).
+
 ---
 
 ## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión
@@ -3563,9 +3604,15 @@ Conviene revisar sprint por sprint antes de simplemente activar el flag en las 5
   validación explícita que lo impida o lo advierta.
 - Suite completa en verde.
 
+**Seguimiento (2026-08-07):** consultado el usuario sobre qué áreas activar, pidió explícitamente redactar
+las preguntas correspondientes en `Preguntas-Para-Abogado-Abiertas.md` en vez de decidir directamente — ver
+sección "Sprint 43" de ese documento (pregunta por las 5 áreas, con la advertencia de posible doble
+actualización monetaria en Sancionatorio y Tributario). Sigue bloqueado hasta que el despacho responda; no
+se tocó código de este sprint.
+
 ---
 
-## Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte 📋 Pendiente
+## Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte ✅ Completado
 
 **Prioridad sugerida:** Media-alta — agrupa varios gaps de UX/alcance reales reportados por el usuario
 probando el área Laboral; ninguno es un bug de cálculo del motor, todos son huecos de formulario/edición.
@@ -3629,9 +3676,25 @@ usuario decide no extenderlo a Laboral en la misma ronda, queda como sprint prop
 - Marcar "salario = SMMLV" resuelve automáticamente el valor correcto según el año.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-09):** Completado. Ver
+`docs/superpowers/plans/2026-08-07-sprint44-laboral-ux-edicion.md`. Punto 3 (descuentos) implementado según
+decisión del usuario (2026-08-07): entidad propia `DescuentoLaboral` (mismo patrón que `Abono`: `fecha`,
+`monto`, `es_legal`, `motivo`), inyectada como eventos `PAYMENT` adicionales que reutilizan el mecanismo de
+`AllocationEngine`/`LiquidationCore` ya existente, sin motor nuevo. Punto 1: checkbox `es_smmlv` resuelve el
+salario vía `get_smlmv_for_year(fecha_origen.year)` **en cada liquidación** (nunca persiste el valor
+resuelto — el flujo cierra la sesión de SQLAlchemy antes de mutar `obligacion.valor` en memoria, evitando
+que se filtre por accidente a la base de datos), así nunca queda desactualizado si el SMLMV se corrige
+después. Punto 2 y 4 (edición de `Obligacion`/`EventoLaboral`): nuevo helper compartido
+`app/views/form_utils.py::guardar_o_actualizar()` (extraído del patrón que ya usaba `ExpedienteFormDialog`)
+evita duplicar la lógica de "editar sin borrar y recrear" entre los dos diálogos. Punto 5: fecha de corte
+editable como override puntual en la pantalla de liquidación, sin tocar `expediente.fecha_corte_default`.
+**Punto 6 (reajuste anual extendido a Laboral) quedó explícitamente fuera de alcance**, confirmado sin
+tocar. Suite completa en verde (929 tests tras este sprint individual, 953 tras el merge final — tuvo un
+conflicto real con el Sprint 41 sobre `obligaciones.py`/`expediente_detalle.py`, resuelto a mano).
+
 ---
 
-## Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente 📋 Pendiente
+## Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente ✅ Completado
 
 **Prioridad sugerida:** Media — un punto es una mejora de UX confirmada (transparencia de unidad), el otro
 es una queja de usuario que **no se pudo reproducir** revisando el código; necesita más información antes
@@ -3674,6 +3737,16 @@ reales — evitar "arreglar" algo que no está roto en el código revisado.
   fecha capturada.
 - El punto 2 queda documentado como pendiente de reproducir, con la pregunta explícita al usuario, hasta
   tener un caso concreto.
+
+**Cierre de implementación (2026-08-09):** Completado (punto 1, único punto en alcance de código). Ver
+`docs/superpowers/plans/2026-08-07-sprint45-sancionatorio-transparencia-unidad.md`. `QLabel` dinámico junto
+a `campo_cantidad_smlmv_uvt` en `ObligacionFormDialog`, actualizado en vivo vía
+`campo_fecha_origen.dateChanged`, que muestra "Se aplicará como: SMLMV" o "Se aplicará como: UVT"
+reutilizando `FECHA_CORTE_SMLMV_A_UVT` de `app/engine/indexation/smlmv_to_uvt.py` sin duplicar la fecha de
+corte (2020-01-01) en la UI. No se tocó ningún archivo de `app/engine/`/`area_strategy.py`, tal como pedía
+el alcance. **Punto 2 (capital creciente) sigue sin reproducirse** — no es un bug confirmado, queda a la
+espera de que el usuario aporte el expediente o captura de pantalla exacta donde lo vio. Suite completa en
+verde (867 tests tras este sprint individual, 953 tras el merge final).
 
 ---
 
