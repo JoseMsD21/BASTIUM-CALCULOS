@@ -2374,3 +2374,135 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
     )
     assert resultado_legado.final_balance().interest == Decimal("43737103.72")
     assert fb.interest > resultado_legado.final_balance().interest
+
+
+# --- Sprint 42: wiring del motor de prescripcion/caducidad -----------------
+#
+# Centralizado en UniversalLiquidationService.liquidar() (ver
+# app/services/motor_universal.py), NO repetido en cada AreaStrategy -- estos
+# tests confirman que las 6 areas heredan el wiring automaticamente (via
+# liquidar()/_liquidar_por_obligacion, que siempre pasa por
+# UniversalLiquidationService) y que la marca es puramente informativa: el
+# saldo final liquidado es identico este configurado o no el plazo legal de
+# PRESCRIPCION_EJECUTIVA_MESES en Parametros.
+
+
+def _sembrar_prescripcion_ejecutiva(meses=60):
+    session = session_module.get_session()
+    session.add(ParametroLegal(
+        clave="PRESCRIPCION_EJECUTIVA_MESES", valor=_Decimal(meses), vigente_desde=date(1900, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
+    ))
+    session.commit()
+    session.close()
+
+
+def test_civil_familia_marca_obligacion_prescrita_sin_cambiar_el_total():
+    obligacion = _obligacion_puntual()
+    obligacion.fecha_origen = date(2015, 1, 1)
+    fecha_corte = date(2026, 1, 1)  # 11 años despues -> prescrita bajo EJECUTIVA (5 años)
+
+    referencia = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+    assert all(not item.prescrita for item in referencia.items)
+
+    _sembrar_prescripcion_ejecutiva()
+    marcado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+
+    assert any(item.prescrita for item in marcado.items)
+    assert marcado.final_balance() == referencia.final_balance()
+
+
+def test_comercial_marca_obligacion_prescrita_sin_cambiar_el_total():
+    obligacion = _obligacion_comercial(fecha_origen=date(2015, 1, 1), fecha_vencimiento=date(2015, 2, 1))
+    fecha_corte = date(2026, 1, 1)
+
+    referencia = ComercialStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+    assert all(not item.prescrita for item in referencia.items)
+
+    _sembrar_prescripcion_ejecutiva()
+    marcado = ComercialStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+
+    assert any(item.prescrita for item in marcado.items)
+    assert marcado.final_balance() == referencia.final_balance()
+
+
+def test_sancionatorio_marca_obligacion_prescrita_sin_cambiar_el_total():
+    obligacion = _obligacion_sancionatoria(fecha_origen=date(2015, 6, 1))
+    fecha_corte = date(2026, 6, 1)
+
+    referencia = SancionatorioStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+    assert all(not item.prescrita for item in referencia.items)
+
+    _sembrar_prescripcion_ejecutiva()
+    marcado = SancionatorioStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+
+    assert any(item.prescrita for item in marcado.items)
+    assert marcado.final_balance() == referencia.final_balance()
+
+
+def test_honorarios_marca_obligacion_prescrita_sin_cambiar_el_total():
+    obligacion = _obligacion_honorarios(fecha_origen=date(2015, 1, 1))
+    fecha_corte = date(2026, 1, 1)
+
+    referencia = HonorariosStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+    assert all(not item.prescrita for item in referencia.items)
+
+    _sembrar_prescripcion_ejecutiva()
+    marcado = HonorariosStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+
+    assert any(item.prescrita for item in marcado.items)
+    assert marcado.final_balance() == referencia.final_balance()
+
+
+def test_laboral_marca_obligacion_prescrita_sin_cambiar_el_total():
+    obligacion = _obligacion_laboral(fecha_inicio=date(2010, 1, 1), fecha_fin=date(2010, 12, 31))
+    fecha_corte = date(2026, 1, 1)
+
+    referencia = LaboralStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+    assert all(not item.prescrita for item in referencia.items)
+
+    _sembrar_prescripcion_ejecutiva()
+    marcado = LaboralStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+
+    assert any(item.prescrita for item in marcado.items)
+    assert marcado.final_balance() == referencia.final_balance()
+
+
+def test_tributario_marca_obligacion_prescrita_sin_cambiar_el_total():
+    obligacion = _obligacion_tributaria(
+        categoria="IMPUESTO_A_CARGO", valor=Decimal("10000000.00"), fecha_origen=date(2015, 1, 1)
+    )
+    fecha_corte = date(2026, 1, 1)
+
+    referencia = TributarioStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+    assert all(not item.prescrita for item in referencia.items)
+
+    _sembrar_prescripcion_ejecutiva()
+    marcado = TributarioStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+    )
+
+    assert any(item.prescrita for item in marcado.items)
+    assert marcado.final_balance() == referencia.final_balance()

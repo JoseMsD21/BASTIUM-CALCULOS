@@ -1,6 +1,7 @@
 import re
 
 from PySide6.QtCore import Qt, QThreadPool, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
@@ -144,14 +145,30 @@ class ResultadoLiquidacionView(QWidget):
 
         self.tabla.setRowCount(len(resultado.items))
         for fila, item in enumerate(resultado.items):
-            self.tabla.setItem(fila, 0, QTableWidgetItem(item.date.isoformat()))
-            self.tabla.setItem(fila, 1, QTableWidgetItem(item.concept))
-            self.tabla.setItem(fila, 2, QTableWidgetItem(str(item.capital_base)))
-            self.tabla.setItem(fila, 3, QTableWidgetItem(str(item.interest_rate)))
-            self.tabla.setItem(fila, 4, QTableWidgetItem(str(item.interest_amount)))
-            self.tabla.setItem(fila, 5, QTableWidgetItem(str(item.indexation_amount)))
-            self.tabla.setItem(fila, 6, QTableWidgetItem(str(item.payment_amount)))
-            self.tabla.setItem(fila, 7, QTableWidgetItem(str(item.balance.debt.total())))
+            concepto_texto = item.concept
+            if item.prescrita:
+                # Sprint 42: decision del despacho -- la obligacion prescrita se
+                # sigue incluyendo en el calculo (el saldo no cambia), solo se
+                # marca visualmente para que el abogado decida que hacer con esa
+                # informacion (ver ReportTableBuilder.build_matrix, mismo
+                # criterio para el PDF/Word).
+                concepto_texto = f"⚠ {concepto_texto} — Obligación prescrita, no exigible"
+
+            celdas_fila = [
+                QTableWidgetItem(item.date.isoformat()),
+                QTableWidgetItem(concepto_texto),
+                QTableWidgetItem(str(item.capital_base)),
+                QTableWidgetItem(str(item.interest_rate)),
+                QTableWidgetItem(str(item.interest_amount)),
+                QTableWidgetItem(str(item.indexation_amount)),
+                QTableWidgetItem(str(item.payment_amount)),
+                QTableWidgetItem(str(item.balance.debt.total())),
+            ]
+            if item.prescrita:
+                for celda in celdas_fila:
+                    celda.setForeground(QColor("red"))
+            for columna, celda in enumerate(celdas_fila):
+                self.tabla.setItem(fila, columna, celda)
 
         self.etiqueta_interes_total.setText(f"Interes acumulado: {resultado.total_interest_accrued()}")
         self.etiqueta_pagos_total.setText(f"Pagos aplicados: {resultado.total_payments_applied()}")

@@ -1,3 +1,6 @@
+from reportlab.lib import colors
+from reportlab.platypus import TableStyle
+
 from app.reports.header import build_encabezado
 from app.reports.pdf import JudicialPDFGenerator
 
@@ -76,3 +79,53 @@ def test_generate_sin_renta_liquida_no_falla(tmp_path):
     generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
 
     assert ruta.exists()
+
+
+def test_generate_resalta_en_rojo_las_filas_prescritas(tmp_path, monkeypatch):
+    # Sprint 42: ReportTableBuilder.build_matrix ya expone "prescrita" por fila
+    # (ver tests/reports/test_table_builder.py) -- generate() debe resaltarla en
+    # el PDF (indicador visual, aqui: texto en rojo) sin excluirla de la tabla ni
+    # tocar ningun monto.
+    estilo_real = TableStyle
+    llamadas_estilo = []
+
+    def _estilo_capturado(comandos):
+        llamadas_estilo.append(comandos)
+        return estilo_real(comandos)
+
+    monkeypatch.setattr("app.reports.pdf.TableStyle", _estilo_capturado)
+
+    ruta = tmp_path / "liquidacion_prescrita.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+    datos = _table_data()
+    datos[0]["prescrita"] = True
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), datos)
+
+    assert ruta.exists()
+    # llamadas_estilo[0] es la tabla de resumen ejecutivo, [1] es la cronologia
+    # detallada (unica que tiene filas de datos marcables por item).
+    comandos_cronologia = llamadas_estilo[1]
+    assert any(
+        comando[0] == "TEXTCOLOR" and comando[1] == (0, 1) and comando[3] == colors.red
+        for comando in comandos_cronologia
+    )
+
+
+def test_generate_no_resalta_filas_sin_marcar(tmp_path, monkeypatch):
+    estilo_real = TableStyle
+    llamadas_estilo = []
+
+    def _estilo_capturado(comandos):
+        llamadas_estilo.append(comandos)
+        return estilo_real(comandos)
+
+    monkeypatch.setattr("app.reports.pdf.TableStyle", _estilo_capturado)
+
+    ruta = tmp_path / "liquidacion_sin_marca.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+
+    comandos_cronologia = llamadas_estilo[1]
+    assert not any(comando[0] == "TEXTCOLOR" and comando[3] == colors.red for comando in comandos_cronologia)

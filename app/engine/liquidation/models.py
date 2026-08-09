@@ -68,3 +68,11 @@ class LiquidationItem:
     balance: RunningBalance
     rate_source: str = "N/A"
     saldo_a_favor: Decimal = Decimal("0.00")
+    # Sprint 42: True cuando la obligacion de origen de esta fila ya vencio su
+    # plazo de prescripcion/caducidad a la fecha de corte (ver
+    # app/engine/temporal/prescripcion.py y app/services/motor_universal.py,
+    # que es quien puebla este campo). Puramente informativo -- decision del
+    # despacho, ver docs/superpowers/plans/2026-08-07-sprint42-prescripcion-caducidad-wiring.md:
+    # NO excluye la fila del calculo ni cambia ningun total, solo la marca
+    # para que el abogado decida que hacer con esa informacion.
+    prescrita: bool = False
