@@ -29,7 +29,8 @@ from app.core.constants import (
     CATEGORIAS_SANCIONATORIO,
     CATEGORIAS_TRIBUTARIO,
 )
-from app.views.form_utils import set_row_visible
+from app.engine.indexation.historical_index import get_smlmv_for_year
+from app.views.form_utils import guardar_o_actualizar, set_row_visible
 from app.views.icons import icon
 from database.models import Expediente, Obligacion, TipoObligacion
 
@@ -55,11 +56,15 @@ class ObligacionFormDialog(QDialog):
         "anatocismo_fecha_acuerdo": None,
     }
 
-    def __init__(self, expediente_id: int, area: str = "CIVIL_FAMILIA", parent=None):
+    def __init__(
+        self, expediente_id: int, area: str = "CIVIL_FAMILIA", parent=None,
+        obligacion_id: int | None = None,
+    ):
         super().__init__(parent)
-        self.setWindowTitle("Agregar obligacion")
+        self.setWindowTitle("Editar obligacion" if obligacion_id else "Agregar obligacion")
         self._expediente_id = expediente_id
         self._area = area
+        self._obligacion_id = obligacion_id
         self._iconos_advertencia: dict[QLineEdit, QLabel] = {}
 
         self.combo_tipo = QComboBox()
@@ -182,6 +187,15 @@ class ObligacionFormDialog(QDialog):
 
         self.campo_fecha_fin = QDateEdit(QDate.currentDate())
         self.campo_fecha_fin.setCalendarPopup(True)
+        # es_smmlv (Sprint 44, punto 1): cuando esta marcado, el salario base se
+        # resuelve automaticamente desde el SMLMV vigente del año de inicio del
+        # contrato (LaboralStrategy.liquidar) -- "Valor" deja de ser editable a
+        # mano (ver _actualizar_campos_visibles).
+        self.check_es_smmlv = QCheckBox("Salario = SMMLV (resolver automaticamente por año)")
+        self.check_es_smmlv.setToolTip(
+            "Resuelve el salario base desde el Salario Minimo Legal Mensual Vigente del "
+            "año de inicio del contrato, en vez del valor digitado a mano."
+        )
         self.check_pagada = QCheckBox("Prestaciones pagadas")
         self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
         self.campo_fecha_pago_total.setCalendarPopup(True)
@@ -259,6 +273,7 @@ class ObligacionFormDialog(QDialog):
         self.layout_datos_basicos.addRow("Categoria", self.combo_categoria)
         self.layout_datos_basicos.addRow("Concepto", self._contenedor_campo_concepto)
         self.layout_datos_basicos.addRow("Valor", self._contenedor_campo_valor)
+        self.layout_datos_basicos.addRow(self.check_es_smmlv)
         self.layout_datos_basicos.addRow("Fecha de origen (Puntual)", self.campo_fecha_origen)
         self.label_fecha_origen = self.layout_datos_basicos.labelForField(self.campo_fecha_origen)
         self.layout_datos_basicos.addRow("Fecha de inicio (Recurrente)", self.campo_fecha_inicio)
@@ -379,6 +394,7 @@ class ObligacionFormDialog(QDialog):
         # directo (Sprint 39).
         self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
         self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
+        self.check_es_smmlv.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
         self.check_sancion_agravada.setVisible(False)
@@ -403,6 +419,7 @@ class ObligacionFormDialog(QDialog):
         # referencia (incluyendo los de Laboral: check_pagada, campo_fecha_pago_total)
         # ya existen antes de que la señal pueda dispararse.
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
+        self.check_es_smmlv.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_incluir_seguridad_social.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
@@ -422,6 +439,116 @@ class ObligacionFormDialog(QDialog):
         self._actualizar_visibilidad_trm()
         self._actualizar_campos_tributario()
         self._fijar_orden_de_tabulacion()
+
+        if obligacion_id is not None:
+            self._precargar_desde_obligacion(obligacion_id)
+
+    def _precargar_desde_obligacion(self, obligacion_id: int) -> None:
+        """Precarga todos los campos del formulario desde una `Obligacion` ya
+        guardada (Sprint 44, punto 2) -- espejo, campo por campo, de lo que
+        cada `guardar()`/`_guardar_laboral()`/`_guardar_tributario()` ya lee
+        del formulario para construir sus kwargs. Se llama una sola vez, al
+        final de `__init__`, despues de que la visibilidad de todos los
+        campos condicionales del area ya quedo resuelta."""
+        session = session_module.get_session()
+        try:
+            obligacion = session.get(Obligacion, obligacion_id)
+
+            indice_tipo = self.combo_tipo.findData(obligacion.tipo.value)
+            if indice_tipo >= 0:
+                self.combo_tipo.setCurrentIndex(indice_tipo)
+            indice_categoria = self.combo_categoria.findData(obligacion.categoria)
+            if indice_categoria >= 0:
+                self.combo_categoria.setCurrentIndex(indice_categoria)
+
+            self.campo_concepto.setText(obligacion.concepto)
+            self.campo_valor.setText(str(obligacion.valor))
+            self.campo_tasa.setText(str(obligacion.tasa_efectiva_anual))
+
+            def _qdate(valor):
+                return QDate(valor.year, valor.month, valor.day) if valor else QDate.currentDate()
+
+            if obligacion.tipo == TipoObligacion.RECURRENTE:
+                self.campo_fecha_inicio.setDate(_qdate(obligacion.fecha_inicio))
+                if obligacion.dia_pago:
+                    self.campo_dia_pago.setValue(obligacion.dia_pago)
+            else:
+                self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
+
+            self.check_aplica_indexacion_ipc.setChecked(obligacion.aplica_indexacion_ipc)
+            self.check_interes_sobre_capital_indexado.setChecked(obligacion.interes_sobre_capital_indexado)
+
+            if self._area == "COMERCIAL":
+                if obligacion.tasa_moratoria_anual is not None:
+                    self.campo_tasa_moratoria.setText(str(obligacion.tasa_moratoria_anual))
+                if obligacion.fecha_vencimiento is not None:
+                    self.campo_fecha_vencimiento.setDate(_qdate(obligacion.fecha_vencimiento))
+                if obligacion.ibc_vigente_anual is not None:
+                    self.campo_ibc_vigente.setText(str(obligacion.ibc_vigente_anual))
+                self.check_anatocismo_demanda_judicial.setChecked(obligacion.anatocismo_demanda_judicial)
+                if obligacion.anatocismo_fecha_acuerdo is not None:
+                    self.check_anatocismo_acuerdo.setChecked(True)
+                    self.campo_anatocismo_fecha_acuerdo.setDate(_qdate(obligacion.anatocismo_fecha_acuerdo))
+                indice_moneda = self.combo_moneda.findData(obligacion.moneda)
+                if indice_moneda >= 0:
+                    self.combo_moneda.setCurrentIndex(indice_moneda)
+                if obligacion.trm_aplicable is not None:
+                    self.campo_trm_aplicable.setText(str(obligacion.trm_aplicable))
+                if obligacion.trm_fecha_referencia is not None:
+                    self.campo_trm_fecha_referencia.setDate(_qdate(obligacion.trm_fecha_referencia))
+
+            elif self._area == "SANCIONATORIO":
+                if obligacion.cantidad_smlmv_uvt is not None:
+                    self.campo_cantidad_smlmv_uvt.setText(str(obligacion.cantidad_smlmv_uvt))
+
+            elif self._area == "HONORARIOS":
+                if obligacion.honorarios_fijos_pactados is not None:
+                    self.campo_honorarios_fijos.setText(str(obligacion.honorarios_fijos_pactados))
+                if obligacion.cuota_litis_pactada_pct is not None:
+                    self.campo_cuota_litis_pct.setText(str(obligacion.cuota_litis_pactada_pct))
+                if obligacion.beneficio_obtenido is not None:
+                    self.campo_beneficio_obtenido.setText(str(obligacion.beneficio_obtenido))
+                if obligacion.costas_pct_manual is not None:
+                    self.campo_costas_pct.setText(str(obligacion.costas_pct_manual))
+
+            elif self._area == "LABORAL":
+                if obligacion.fecha_fin is not None:
+                    self.campo_fecha_fin.setDate(_qdate(obligacion.fecha_fin))
+                self.check_es_smmlv.setChecked(obligacion.es_smmlv)
+                self.check_pagada.setChecked(obligacion.pagada)
+                if obligacion.fecha_pago_total is not None:
+                    self.campo_fecha_pago_total.setDate(_qdate(obligacion.fecha_pago_total))
+                self.check_incluir_seguridad_social.setChecked(obligacion.incluir_seguridad_social)
+                if obligacion.nivel_riesgo_arl:
+                    indice_nivel = self.combo_nivel_riesgo_arl.findData(obligacion.nivel_riesgo_arl)
+                    if indice_nivel >= 0:
+                        self.combo_nivel_riesgo_arl.setCurrentIndex(indice_nivel)
+
+            elif self._area == "TRIBUTARIO":
+                if obligacion.base_sancion_tributaria is not None:
+                    self.campo_base_sancion.setText(str(obligacion.base_sancion_tributaria))
+                if obligacion.meses_extemporaneidad is not None:
+                    self.campo_meses_extemporaneidad.setValue(obligacion.meses_extemporaneidad)
+                self.check_sancion_agravada.setChecked(obligacion.sancion_agravada)
+                if obligacion.ingresos_brutos is not None:
+                    self.campo_ingresos_brutos.setText(str(obligacion.ingresos_brutos))
+                if obligacion.devoluciones_rebajas_descuentos is not None:
+                    self.campo_devoluciones.setText(str(obligacion.devoluciones_rebajas_descuentos))
+                if obligacion.costos is not None:
+                    self.campo_costos.setText(str(obligacion.costos))
+                if obligacion.deducciones is not None:
+                    self.campo_deducciones.setText(str(obligacion.deducciones))
+                if obligacion.rentas_exentas is not None:
+                    self.campo_rentas_exentas.setText(str(obligacion.rentas_exentas))
+        finally:
+            session.close()
+
+        # Reaplica la visibilidad condicional (checkboxes/combo_categoria ya
+        # precargados) para que, por ejemplo, "Fecha de pago real" quede
+        # visible de entrada si la obligacion ya estaba marcada como pagada.
+        self._actualizar_campos_visibles()
+        self._actualizar_visibilidad_trm()
+        self._actualizar_campos_tributario()
 
     def _fijar_orden_de_tabulacion(self) -> None:
         """Encadena el orden de tabulacion explicitamente (Sprint 37) siguiendo el
@@ -538,6 +665,10 @@ class ObligacionFormDialog(QDialog):
                     self.campo_fecha_origen: True,
                     self.campo_fecha_inicio: False,
                     self.campo_dia_pago: False,
+                    # es_smmlv (Sprint 44, punto 1): con el checkbox marcado, "Valor"
+                    # se oculta -- el salario base se resuelve automaticamente al
+                    # liquidar, digitarlo a mano no serviria de nada.
+                    self._contenedor_campo_valor: not self.check_es_smmlv.isChecked(),
                     self.campo_fecha_pago_total: self.check_pagada.isChecked(),
                     self.combo_nivel_riesgo_arl: self.check_incluir_seguridad_social.isChecked(),
                 },
@@ -611,7 +742,8 @@ class ObligacionFormDialog(QDialog):
         self._validar_fecha_no_posterior_a_corte(fecha_relevante)
 
         session = session_module.get_session()
-        obligacion = Obligacion(
+        obligacion_id = guardar_o_actualizar(
+            session, Obligacion, self._obligacion_id,
             expediente_id=self._expediente_id,
             tipo=tipo,
             concepto=self.campo_concepto.text().strip(),
@@ -626,9 +758,6 @@ class ObligacionFormDialog(QDialog):
             fecha_fin=None,
             **campos_area,
         )
-        session.add(obligacion)
-        session.commit()
-        obligacion_id = obligacion.id
         session.close()
         return obligacion_id
 
@@ -843,16 +972,26 @@ class ObligacionFormDialog(QDialog):
         }
 
     def _guardar_laboral(self) -> int:
-        try:
-            valor = Decimal(self.campo_valor.text())
-        except InvalidOperation as error:
-            raise ValueError("El valor (salario base) debe ser un numero valido.") from error
-        if valor <= Decimal("0"):
-            raise ValueError("El valor de la obligacion debe ser mayor que cero.")
-        self._validar_concepto_no_vacio()
-
+        es_smmlv = self.check_es_smmlv.isChecked()
         qdate_inicio = self.campo_fecha_origen.date()
         fecha_inicio = date(qdate_inicio.year(), qdate_inicio.month(), qdate_inicio.day())
+
+        if es_smmlv:
+            # El salario se resuelve aqui mismo (no solo en LaboralStrategy)
+            # para que la columna `valor` de la tabla de obligaciones muestre
+            # de inmediato un numero con sentido -- LaboralStrategy lo vuelve a
+            # resolver en cada liquidacion desde parametros_legales, asi que
+            # esto es solo una foto inicial, no la fuente de verdad.
+            valor = get_smlmv_for_year(fecha_inicio.year)
+        else:
+            try:
+                valor = Decimal(self.campo_valor.text())
+            except InvalidOperation as error:
+                raise ValueError("El valor (salario base) debe ser un numero valido.") from error
+            if valor <= Decimal("0"):
+                raise ValueError("El valor de la obligacion debe ser mayor que cero.")
+        self._validar_concepto_no_vacio()
+
         self._validar_fecha_no_posterior_a_corte(fecha_inicio)
         qdate_fin = self.campo_fecha_fin.date()
         fecha_fin = date(qdate_fin.year(), qdate_fin.month(), qdate_fin.day())
@@ -868,7 +1007,8 @@ class ObligacionFormDialog(QDialog):
         nivel_riesgo_arl = self.combo_nivel_riesgo_arl.currentData() if incluir_seguridad_social else None
 
         session = session_module.get_session()
-        obligacion = Obligacion(
+        obligacion_id = guardar_o_actualizar(
+            session, Obligacion, self._obligacion_id,
             expediente_id=self._expediente_id,
             tipo=TipoObligacion.PUNTUAL,
             concepto=self.campo_concepto.text().strip(),
@@ -882,10 +1022,8 @@ class ObligacionFormDialog(QDialog):
             fecha_pago_total=fecha_pago_total,
             incluir_seguridad_social=incluir_seguridad_social,
             nivel_riesgo_arl=nivel_riesgo_arl,
+            es_smmlv=es_smmlv,
         )
-        session.add(obligacion)
-        session.commit()
-        obligacion_id = obligacion.id
         session.close()
         return obligacion_id
 
@@ -941,7 +1079,8 @@ class ObligacionFormDialog(QDialog):
                 ) from error
 
         session = session_module.get_session()
-        obligacion = Obligacion(
+        obligacion_id = guardar_o_actualizar(
+            session, Obligacion, self._obligacion_id,
             expediente_id=self._expediente_id,
             tipo=TipoObligacion.PUNTUAL,
             concepto=self.campo_concepto.text().strip(),
@@ -958,9 +1097,6 @@ class ObligacionFormDialog(QDialog):
             deducciones=deducciones,
             rentas_exentas=rentas_exentas,
         )
-        session.add(obligacion)
-        session.commit()
-        obligacion_id = obligacion.id
         session.close()
         return obligacion_id
 

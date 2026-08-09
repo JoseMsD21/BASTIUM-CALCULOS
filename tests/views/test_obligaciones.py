@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from PySide6.QtCore import Qt
@@ -1451,3 +1451,214 @@ def test_sin_labels_huerfanas_en_cada_area_y_categoria_tributaria(qtbot, monkeyp
 
         assert _filas_con_etiqueta_huerfana(dialog.layout_tasas_intereses) == [], f"area={area}"
         assert _filas_con_etiqueta_huerfana(dialog.layout_honorarios_costas) == [], f"area={area}"
+
+
+# --- Sprint 44, punto 1: salario = SMMLV automatico -------------------------
+
+
+def test_check_es_smmlv_visible_solo_para_area_laboral(qtbot, monkeypatch):
+    expediente_id_laboral = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    dialog_laboral = ObligacionFormDialog(expediente_id=expediente_id_laboral, area="LABORAL")
+    qtbot.addWidget(dialog_laboral)
+    dialog_laboral.show()
+    assert dialog_laboral.check_es_smmlv.isVisible() is True
+
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+    dialog_civil.show()
+    assert dialog_civil.check_es_smmlv.isVisible() is False
+
+
+def test_campo_valor_se_oculta_al_marcar_es_smmlv_en_laboral(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_valor.isVisible() is True
+    dialog.check_es_smmlv.setChecked(True)
+    assert dialog.campo_valor.isVisible() is False
+    dialog.check_es_smmlv.setChecked(False)
+    assert dialog.campo_valor.isVisible() is True
+
+
+def test_guarda_obligacion_laboral_con_es_smmlv_resuelve_el_valor(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    session = session_module.get_session()
+    from database.models import ParametroLegal
+    session.add(ParametroLegal(
+        clave="SMLMV", valor=Decimal("1300000.00"), vigente_desde=date(2024, 1, 1),
+        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
+    ))
+    session.commit()
+    session.close()
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_fecha_origen.setDate(date(2024, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2024, 12, 31))
+    dialog.check_es_smmlv.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.es_smmlv is True
+    assert guardada.valor == Decimal("1300000.00")
+    session.close()
+
+
+def test_guarda_obligacion_laboral_sin_es_smmlv_por_defecto(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.es_smmlv is False
+    session.close()
+
+
+# --- Sprint 44, punto 2: edicion de una obligacion ya guardada --------------
+
+
+def test_obligacion_id_titulo_del_dialogo_dice_editar(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("427900.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.windowTitle() == "Editar obligacion"
+
+
+def test_obligacion_id_precarga_los_campos_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("427900.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_concepto.text() == "Gastos medicos"
+    assert dialog.campo_valor.text() == "427900.00"
+    # tasa_efectiva_anual es Numeric(9, 4) -- vuelve de la BD con 4 decimales
+    # (6.0000), no los 2 originalmente digitados (6.00).
+    assert Decimal(dialog.campo_tasa.text()) == Decimal("6.00")
+    assert dialog.campo_fecha_origen.date().toPython() == date(2025, 11, 20)
+
+
+def test_obligacion_id_precarga_fecha_de_pago_real_en_laboral(qtbot, monkeypatch):
+    # Motivo original del hallazgo (Sprint 44): "fecha de pago real" quedaba
+    # inaccesible una vez guardada la obligacion porque no habia forma de
+    # editarla -- este test confirma que ahora se precarga correctamente.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL", fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"), tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+        pagada=True, fecha_pago_total=date(2021, 1, 15),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="LABORAL", obligacion_id=obligacion_id,
+    )
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.check_pagada.isChecked() is True
+    assert dialog.campo_fecha_pago_total.isVisible() is True
+    assert dialog.campo_fecha_pago_total.date().toPython() == date(2021, 1, 15)
+
+
+def test_guardar_con_obligacion_id_actualiza_en_vez_de_crear_una_nueva(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Original",
+        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("100000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Editado")
+    dialog.campo_valor.setText("200000.00")
+
+    id_devuelto = dialog.guardar()
+
+    assert id_devuelto == obligacion_id
+    session = session_module.get_session()
+    assert session.query(Obligacion).count() == 1  # no se creo una fila nueva
+    actualizada = session.get(Obligacion, obligacion_id)
+    assert actualizada.concepto == "Editado"
+    assert actualizada.valor == Decimal("200000.00")
+    session.close()
+
+
+def test_guardar_con_obligacion_id_laboral_actualiza_en_vez_de_crear_una_nueva(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL", fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"), tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="LABORAL", obligacion_id=obligacion_id,
+    )
+    qtbot.addWidget(dialog)
+    dialog.check_pagada.setChecked(True)
+    dialog.campo_fecha_pago_total.setDate(date(2021, 2, 1))
+
+    id_devuelto = dialog.guardar()
+
+    assert id_devuelto == obligacion_id
+    session = session_module.get_session()
+    assert session.query(Obligacion).count() == 1
+    actualizada = session.get(Obligacion, obligacion_id)
+    assert actualizada.pagada is True
+    assert actualizada.fecha_pago_total == date(2021, 2, 1)
+    session.close()

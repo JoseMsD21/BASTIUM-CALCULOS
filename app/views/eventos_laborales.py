@@ -5,16 +5,17 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QComboBox, QDateEdit, QDialog, QFormLayout, QMessageBox, QPushButton
 
 import database.session as session_module
-from app.views.form_utils import set_row_visible
+from app.views.form_utils import guardar_o_actualizar, set_row_visible
 from app.views.icons import icon
 from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
 
 
 class EventoLaboralFormDialog(QDialog):
-    def __init__(self, obligacion_id: int, parent=None):
+    def __init__(self, obligacion_id: int, parent=None, evento_id: int | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Agregar evento contractual")
         self._obligacion_id = obligacion_id
+        self._evento_id = evento_id
+        self.setWindowTitle("Editar evento contractual" if evento_id else "Agregar evento contractual")
 
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("Suspension", userData=TipoEventoLaboral.SUSPENSION)
@@ -59,6 +60,30 @@ class EventoLaboralFormDialog(QDialog):
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_visibilidad_motivo)
         self._actualizar_visibilidad_motivo()
 
+        if evento_id is not None:
+            self._precargar_desde_evento(evento_id)
+
+    def _precargar_desde_evento(self, evento_id: int) -> None:
+        session = session_module.get_session()
+        try:
+            evento = session.get(EventoLaboral, evento_id)
+            indice_tipo = self.combo_tipo.findData(evento.tipo)
+            if indice_tipo >= 0:
+                self.combo_tipo.setCurrentIndex(indice_tipo)
+            self.campo_fecha_inicio.setDate(
+                QDate(evento.fecha_inicio.year, evento.fecha_inicio.month, evento.fecha_inicio.day)
+            )
+            self.campo_fecha_fin.setDate(
+                QDate(evento.fecha_fin.year, evento.fecha_fin.month, evento.fecha_fin.day)
+            )
+            if evento.motivo_suspension is not None:
+                indice_motivo = self.combo_motivo.findData(evento.motivo_suspension)
+                if indice_motivo >= 0:
+                    self.combo_motivo.setCurrentIndex(indice_motivo)
+        finally:
+            session.close()
+        self._actualizar_visibilidad_motivo()
+
     def _actualizar_visibilidad_motivo(self) -> None:
         # set_row_visible (no combo_motivo.setVisible() suelto) para que la etiqueta
         # "Motivo de suspension" generada por addRow(str, widget) se oculte junto con
@@ -82,16 +107,14 @@ class EventoLaboralFormDialog(QDialog):
         motivo = self.combo_motivo.currentData() if tipo == TipoEventoLaboral.SUSPENSION else None
 
         session = session_module.get_session()
-        evento = EventoLaboral(
+        evento_id = guardar_o_actualizar(
+            session, EventoLaboral, self._evento_id,
             obligacion_id=self._obligacion_id,
             tipo=tipo,
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
             motivo_suspension=motivo,
         )
-        session.add(evento)
-        session.commit()
-        evento_id = evento.id
         session.close()
         return evento_id
 
