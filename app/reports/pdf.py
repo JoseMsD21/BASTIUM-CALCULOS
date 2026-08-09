@@ -110,6 +110,11 @@ class JudicialPDFGenerator:
             ("Saldo Final Indexación/Sanciones", summary["saldo_final_indexacion"]),
             ("GRAN TOTAL ADEUDADO", summary["gran_total_adeudado"]),
         ]
+        # Sprint 46: el saldo a favor de un sobrepago (Sprint 23) solo se muestra
+        # cuando ReportSummaryBuilder.build_summary lo agrego al diccionario (es
+        # decir, cuando efectivamente hubo un sobrepago).
+        if "saldo_a_favor" in summary:
+            filas_resumen.append(("Saldo a favor del deudor", summary["saldo_a_favor"]))
         datos_resumen = [["Rubro Financiero", "Monto Liquidado"]]
         datos_resumen.extend(list(fila) for fila in filas_resumen)
 
@@ -130,12 +135,21 @@ class JudicialPDFGenerator:
         # Tabla de cronología detallada
         elementos.append(Paragraph("<b>Cronología Detallada de Imputaciones y Saldos</b>", self.styles['BastiumTitle']))
 
-        datos_cronologia = [[
+        # Sprint 46: la columna "Saldo a favor" solo se agrega cuando el resumen
+        # ya indico que hubo un sobrepago (mismo criterio que la linea del
+        # resumen ejecutivo) -- asi el layout de las 6 areas no cambia para la
+        # inmensa mayoria de liquidaciones, que nunca tienen sobrepago.
+        mostrar_saldo_a_favor = "saldo_a_favor" in summary
+
+        encabezados_cronologia = [
             "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
             "Saldo Capital", "Saldo Interés", "Saldo Total",
-        ]]
+        ]
+        if mostrar_saldo_a_favor:
+            encabezados_cronologia.append("Saldo a favor")
+        datos_cronologia = [encabezados_cronologia]
         for fila in table_data:
-            datos_cronologia.append([
+            fila_cronologia = [
                 fila["fecha"],
                 fila["concepto"],
                 fila["base_capital"],
@@ -146,7 +160,10 @@ class JudicialPDFGenerator:
                 fila["saldo_capital"],
                 fila["saldo_interes"],
                 fila["saldo_total"],
-            ])
+            ]
+            if mostrar_saldo_a_favor:
+                fila_cronologia.append(fila.get("saldo_a_favor", "$0.00"))
+            datos_cronologia.append(fila_cronologia)
 
         tabla_cronologia = Table(datos_cronologia, repeatRows=1)
         estilo_cronologia = [

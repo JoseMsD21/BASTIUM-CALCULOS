@@ -149,3 +149,67 @@ def test_generate_incluye_columna_de_indexacion_sanciones(tmp_path):
     assert "Indexación/Sanciones" in encabezados
     fila_datos = [celda.text for celda in tabla_cronologia.rows[1].cells]
     assert "$0.00" in fila_datos
+
+
+def test_generate_muestra_saldo_a_favor_en_el_resumen_cuando_esta_presente(tmp_path):
+    # Sprint 46: cuando ReportSummaryBuilder.build_summary agrega la clave
+    # "saldo_a_favor" (solo si hay sobrepago), el Word debe mostrar una linea
+    # "Saldo a favor del deudor" en la tabla de resumen ejecutivo.
+    ruta = tmp_path / "liquidacion_saldo_a_favor.docx"
+    generador = WordReportGenerator(str(ruta))
+    summary = _summary()
+    summary["saldo_a_favor"] = "$3,000,000.00"
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", summary, _table_data())
+
+    documento = Document(str(ruta))
+    tabla_resumen = documento.tables[0]
+    filas = [(fila.cells[0].text, fila.cells[1].text) for fila in tabla_resumen.rows]
+    assert ("Saldo a favor del deudor", "$3,000,000.00") in filas
+
+
+def test_generate_no_muestra_saldo_a_favor_en_el_resumen_cuando_no_hay_sobrepago(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_saldo_a_favor.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+
+    documento = Document(str(ruta))
+    tabla_resumen = documento.tables[0]
+    etiquetas = [fila.cells[0].text for fila in tabla_resumen.rows]
+    assert "Saldo a favor del deudor" not in etiquetas
+
+
+def test_generate_muestra_columna_de_saldo_a_favor_en_la_cronologia_cuando_hay_sobrepago(tmp_path):
+    # ReportTableBuilder.build_matrix (Sprint 46) agrega "saldo_a_favor" a cada
+    # fila -- el Word agrega la columna solo cuando el resumen indica que hubo
+    # sobrepago, para no romper el layout de las liquidaciones normales.
+    ruta = tmp_path / "liquidacion_cronologia_saldo_a_favor.docx"
+    generador = WordReportGenerator(str(ruta))
+    summary = _summary()
+    summary["saldo_a_favor"] = "$3,000,000.00"
+    datos = _table_data()
+    datos[0]["saldo_a_favor"] = "$3,000,000.00"
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", summary, datos)
+
+    documento = Document(str(ruta))
+    tabla_cronologia = documento.tables[1]
+    encabezados = [celda.text for celda in tabla_cronologia.rows[0].cells]
+    assert "Saldo a favor" in encabezados
+    indice_columna = encabezados.index("Saldo a favor")
+    fila_datos = [celda.text for celda in tabla_cronologia.rows[1].cells]
+    assert fila_datos[indice_columna] == "$3,000,000.00"
+
+
+def test_generate_no_agrega_columna_de_saldo_a_favor_sin_sobrepago(tmp_path):
+    ruta = tmp_path / "liquidacion_cronologia_sin_saldo_a_favor.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+
+    documento = Document(str(ruta))
+    tabla_cronologia = documento.tables[1]
+    encabezados = [celda.text for celda in tabla_cronologia.rows[0].cells]
+    assert "Saldo a favor" not in encabezados
+    assert len(encabezados) == 10

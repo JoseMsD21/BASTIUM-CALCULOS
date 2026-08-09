@@ -40,6 +40,11 @@ class WordReportGenerator:
             ("Saldo Final Indexación/Sanciones", summary["saldo_final_indexacion"]),
             ("GRAN TOTAL ADEUDADO", summary["gran_total_adeudado"]),
         ]
+        # Sprint 46: el saldo a favor de un sobrepago (Sprint 23) solo se muestra
+        # cuando ReportSummaryBuilder.build_summary lo agrego al diccionario (es
+        # decir, cuando efectivamente hubo un sobrepago).
+        if "saldo_a_favor" in summary:
+            filas_resumen.append(("Saldo a favor del deudor", summary["saldo_a_favor"]))
         tabla_resumen = documento.add_table(rows=1, cols=2)
         tabla_resumen.style = "Table Grid"
         celdas_encabezado = tabla_resumen.rows[0].cells
@@ -56,10 +61,18 @@ class WordReportGenerator:
         run_subtitulo.bold = True
         run_subtitulo.font.color.rgb = self.c_burgundy
 
+        # Sprint 46: la columna "Saldo a favor" solo se agrega cuando el resumen
+        # ya indico que hubo un sobrepago (mismo criterio que la linea del
+        # resumen ejecutivo) -- asi el layout de las 6 areas no cambia para la
+        # inmensa mayoria de liquidaciones, que nunca tienen sobrepago.
+        mostrar_saldo_a_favor = "saldo_a_favor" in summary
+
         columnas_cronologia = [
             "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
             "Saldo Capital", "Saldo Interés", "Saldo Total",
         ]
+        if mostrar_saldo_a_favor:
+            columnas_cronologia.append("Saldo a favor")
         tabla_cronologia = documento.add_table(rows=1, cols=len(columnas_cronologia))
         tabla_cronologia.style = "Table Grid"
         for celda, texto in zip(tabla_cronologia.rows[0].cells, columnas_cronologia):
@@ -78,6 +91,8 @@ class WordReportGenerator:
                 fila_datos["saldo_interes"],
                 fila_datos["saldo_total"],
             ]
+            if mostrar_saldo_a_favor:
+                valores_fila.append(fila_datos.get("saldo_a_favor", "$0.00"))
             # Sprint 42: indicador visual (texto en rojo) para las filas cuya
             # obligacion de origen ya vencio su plazo de prescripcion/caducidad
             # (ReportTableBuilder.build_matrix ya expone "prescrita" por fila) --

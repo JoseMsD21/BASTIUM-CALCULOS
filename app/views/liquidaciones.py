@@ -101,6 +101,11 @@ class ResultadoLiquidacionView(QWidget):
         self.etiqueta_interes_total = QLabel("Interes acumulado: 0.00")
         self.etiqueta_pagos_total = QLabel("Pagos aplicados: 0.00")
         self.etiqueta_saldo_final = QLabel("Saldo final: 0.00")
+        # Sprint 46: el saldo a favor de un sobrepago (Sprint 23, ya calculado
+        # correctamente por LiquidationCore) se vuelve visible aqui -- oculto por
+        # completo (nada, ni una fila vacia) cuando no hay sobrepago.
+        self.etiqueta_saldo_a_favor = QLabel("Saldo a favor del deudor: 0.00")
+        self.etiqueta_saldo_a_favor.setVisible(False)
 
         self.grupo_renta_liquida = QGroupBox("Depuración de Renta Líquida Gravable")
         self.etiqueta_ingresos_netos = QLabel("Ingresos netos: -")
@@ -135,6 +140,7 @@ class ResultadoLiquidacionView(QWidget):
         layout.addWidget(self.etiqueta_interes_total)
         layout.addWidget(self.etiqueta_pagos_total)
         layout.addWidget(self.etiqueta_saldo_final)
+        layout.addWidget(self.etiqueta_saldo_a_favor)
         layout.addWidget(self.grupo_renta_liquida)
         layout.addLayout(layout_botones)
         self.setLayout(layout)
@@ -173,6 +179,13 @@ class ResultadoLiquidacionView(QWidget):
         self.etiqueta_interes_total.setText(f"Interes acumulado: {resultado.total_interest_accrued()}")
         self.etiqueta_pagos_total.setText(f"Pagos aplicados: {resultado.total_payments_applied()}")
         self.etiqueta_saldo_final.setText(f"Saldo final: {resultado.final_balance().total()}")
+
+        total_saldo_a_favor = resultado.total_saldo_a_favor()
+        if total_saldo_a_favor > 0:
+            self.etiqueta_saldo_a_favor.setText(f"Saldo a favor del deudor: {total_saldo_a_favor}")
+            self.etiqueta_saldo_a_favor.setVisible(True)
+        else:
+            self.etiqueta_saldo_a_favor.setVisible(False)
 
         if resultado.renta_liquida is not None:
             rl = resultado.renta_liquida

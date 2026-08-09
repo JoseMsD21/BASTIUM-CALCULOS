@@ -35,6 +35,10 @@ class ReportTableBuilder:
                 "saldo_interes": self._format_currency(item.balance.debt.interest),
                 "saldo_total": self._format_currency(item.balance.debt.total()),
                 "prescrita": item.prescrita,
+                # Sprint 46: mismo patron que "prescrita" (Sprint 42) -- siempre
+                # presente en la fila, formateada en "$0.00" cuando no aplica.
+                # Los consumidores (pdf.py/word.py) deciden si la muestran.
+                "saldo_a_favor": self._format_currency(item.saldo_a_favor),
             }
             matrix.append(row)
 

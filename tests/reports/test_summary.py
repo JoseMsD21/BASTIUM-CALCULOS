@@ -31,6 +31,51 @@ def test_summary_builder_aggregates_totals_correctly():
     assert summary["gran_total_adeudado"] == "$1,250,000.00"
 
 
+def test_summary_incluye_saldo_a_favor_cuando_hay_sobrepago():
+    # Sprint 46: el saldo a favor de un sobrepago (Sprint 23, LiquidationItem.saldo_a_favor)
+    # debe llegar al resumen ejecutivo -- antes de este sprint el dato se calculaba
+    # correctamente pero nunca se mostraba en ningun reporte.
+    debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
+    rb = RunningBalance(date(2026, 1, 10), debt, "PAYMENT")
+    item = LiquidationItem(
+        date=date(2026, 1, 10),
+        concept="Pago",
+        capital_base=Decimal("7000000.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("7000000.00"),
+        balance=rb,
+        saldo_a_favor=Decimal("3000000.00"),
+    )
+    result = LiquidationResult([item])
+    summary = ReportSummaryBuilder().build_summary(result)
+
+    assert summary["saldo_a_favor"] == "$3,000,000.00"
+
+
+def test_summary_omite_saldo_a_favor_cuando_no_hay_sobrepago():
+    # La clave debe estar completamente ausente del diccionario (no "$0.00") para
+    # que cada consumidor (pdf.py/word.py/liquidaciones.py) pueda decidir con un
+    # simple `if "saldo_a_favor" in summary:` en vez de comparar contra cero.
+    debt = PendingDebt(Decimal("1000000"), Decimal("250000"), Decimal("0"))
+    rb = RunningBalance(date(2026, 4, 15), debt, "PAYMENT")
+    item = LiquidationItem(
+        date=date(2026, 4, 15),
+        concept="Abono",
+        capital_base=Decimal("1000000"),
+        interest_rate=Decimal("1.5"),
+        interest_amount=Decimal("10000"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("500000"),
+        balance=rb,
+    )
+    result = LiquidationResult([item])
+    summary = ReportSummaryBuilder().build_summary(result)
+
+    assert "saldo_a_favor" not in summary
+
+
 def test_build_renta_liquida_retorna_none_sin_renta_liquida():
     debt = PendingDebt(Decimal("0"), Decimal("0"), Decimal("0"))
     rb = RunningBalance(date(2026, 1, 1), debt, "IMPUESTO_A_CARGO")

@@ -42,6 +42,7 @@ def test_table_builder_formats_currency_and_dates_correctly():
     assert row["saldo_interes"] == "$125,000.00"
     assert row["saldo_total"] == "$1,625,000.50"
     assert row["prescrita"] is False
+    assert row["saldo_a_favor"] == "$0.00"
 
 
 def test_table_builder_marca_fila_prescrita_en_el_concepto_y_expone_bandera():
@@ -89,3 +90,26 @@ def test_table_builder_fila_no_prescrita_no_modifica_el_texto_del_concepto():
 
     assert row["prescrita"] is False
     assert row["concepto"] == "Capital vigente"
+
+
+def test_table_builder_expone_saldo_a_favor_formateado_igual_que_pago():
+    # Sprint 46: mismo patron que "prescrita" (Sprint 42) -- la clave siempre
+    # esta presente en la fila, formateada en "$0.00" cuando no aplica, y
+    # los consumidores (pdf.py/word.py) deciden si la muestran.
+    debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
+    rb = RunningBalance(date(2026, 1, 10), debt, "PAYMENT")
+    item = LiquidationItem(
+        date=date(2026, 1, 10),
+        concept="Pago",
+        capital_base=Decimal("7000000.00"),
+        interest_rate=Decimal("0.00"),
+        interest_amount=Decimal("0.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("7000000.00"),
+        balance=rb,
+        saldo_a_favor=Decimal("3000000.00"),
+    )
+
+    row = ReportTableBuilder().build_matrix(LiquidationResult([item]))[0]
+
+    assert row["saldo_a_favor"] == "$3,000,000.00"
