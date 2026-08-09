@@ -301,6 +301,60 @@ def test_campos_sancionatorio_visibles_solo_para_esa_area(qtbot, monkeypatch):
     assert dialog.campo_honorarios_fijos.isVisible() is False
 
 
+def test_indicador_unidad_muestra_smlmv_antes_del_corte(qtbot, monkeypatch):
+    """Sprint 45: junto a `campo_cantidad_smlmv_uvt`, un indicador dinamico
+    debe mostrar la unidad (SMLMV o UVT) que se aplicara segun la fecha de
+    origen -- reutilizando el corte del 2020-01-01 ya resuelto en
+    `smlmv_to_uvt.py`, sin duplicarlo en la UI."""
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+    dialog.campo_fecha_origen.setDate(date(2019, 12, 31))
+
+    assert "SMLMV" in dialog.label_unidad_smlmv_uvt.text()
+    assert "UVT" not in dialog.label_unidad_smlmv_uvt.text()
+
+
+def test_indicador_unidad_muestra_uvt_desde_el_corte(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+
+    assert "UVT" in dialog.label_unidad_smlmv_uvt.text()
+    assert "SMLMV" not in dialog.label_unidad_smlmv_uvt.text()
+
+
+def test_indicador_unidad_se_actualiza_en_vivo_al_cambiar_fecha(qtbot, monkeypatch):
+    """El indicador debe reaccionar a `dateChanged` sin necesidad de guardar
+    el formulario -- cambia de SMLMV a UVT y de vuelta, en el mismo dialogo."""
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.SANCIONATORIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="SANCIONATORIO")
+    qtbot.addWidget(dialog)
+
+    dialog.campo_fecha_origen.setDate(date(2015, 3, 10))
+    assert "SMLMV" in dialog.label_unidad_smlmv_uvt.text()
+
+    dialog.campo_fecha_origen.setDate(date(2023, 5, 20))
+    assert "UVT" in dialog.label_unidad_smlmv_uvt.text()
+
+    dialog.campo_fecha_origen.setDate(date(2010, 8, 1))
+    assert "SMLMV" in dialog.label_unidad_smlmv_uvt.text()
+
+
+def test_indicador_unidad_oculto_para_areas_distintas_de_sancionatorio(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.label_unidad_smlmv_uvt.isVisible() is False
+
+
 def test_campos_honorarios_visibles_solo_para_esa_area(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
 

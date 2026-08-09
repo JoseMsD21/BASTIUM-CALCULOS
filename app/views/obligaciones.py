@@ -29,6 +29,7 @@ from app.core.constants import (
     CATEGORIAS_SANCIONATORIO,
     CATEGORIAS_TRIBUTARIO,
 )
+from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
 from app.views.form_utils import set_row_visible
 from app.views.icons import icon
 from database.models import Expediente, Obligacion, TipoObligacion
@@ -142,6 +143,18 @@ class ObligacionFormDialog(QDialog):
         self.campo_cantidad_smlmv_uvt.setToolTip(
             "Cantidad de Salarios Minimos Legales Mensuales Vigentes (SMLMV) o Unidades de "
             "Valor Tributario (UVT) sobre la que se calcula la multa."
+        )
+        # Indicador de transparencia (Sprint 45): la unidad (SMLMV o UVT) que se aplica
+        # depende de la fecha de origen del hecho sancionatorio (Ley 1955/2019 art. 49,
+        # corte 2020-01-01) -- ver `resolver_base_sancion` en
+        # app/engine/indexation/smlmv_to_uvt.py, que ya resuelve esa regla para el
+        # calculo. Aqui solo se muestra el resultado; se reutiliza la constante
+        # `FECHA_CORTE_SMLMV_A_UVT` de ese modulo para no duplicar la fecha de corte.
+        self.label_unidad_smlmv_uvt = QLabel()
+        self.label_unidad_smlmv_uvt.setToolTip(
+            "Segun la fecha de origen, la cantidad de arriba se interpreta como SMLMV "
+            "(antes del 2020-01-01) o como UVT (desde esa fecha), segun la Ley 1955 de "
+            "2019, art. 49."
         )
 
         self.campo_honorarios_fijos = QLineEdit()
@@ -267,6 +280,9 @@ class ObligacionFormDialog(QDialog):
             "Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt
         )
         self.layout_datos_basicos.addRow(
+            "Unidad que se aplicara (Sancionatorio)", self.label_unidad_smlmv_uvt
+        )
+        self.layout_datos_basicos.addRow(
             "Base de la sancion (impuesto a cargo o diferencia)", self.campo_base_sancion
         )
         self.layout_datos_basicos.addRow(
@@ -333,6 +349,7 @@ class ObligacionFormDialog(QDialog):
             self.layout_datos_basicos,
             {
                 self.campo_cantidad_smlmv_uvt: es_sancionatorio,
+                self.label_unidad_smlmv_uvt: es_sancionatorio,
                 # "Valor" no aplica a Sancionatorio/Honorarios/Tributario (salvo
                 # IMPUESTO_A_CARGO, ver _actualizar_campos_tributario): el monto se
                 # calcula a partir de otros campos. Se oculta el CONTENEDOR (campo +
@@ -408,6 +425,7 @@ class ObligacionFormDialog(QDialog):
         self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
+        self.campo_fecha_origen.dateChanged.connect(self._actualizar_indicador_unidad_smlmv_uvt)
 
         # Feedback de validacion en tiempo real (Sprint 34): reutiliza los mismos
         # helpers de validacion del Sprint 24 (_validar_concepto_no_vacio,
@@ -421,6 +439,7 @@ class ObligacionFormDialog(QDialog):
         self._actualizar_campos_visibles()
         self._actualizar_visibilidad_trm()
         self._actualizar_campos_tributario()
+        self._actualizar_indicador_unidad_smlmv_uvt()
         self._fijar_orden_de_tabulacion()
 
     def _fijar_orden_de_tabulacion(self) -> None:
@@ -500,6 +519,18 @@ class ObligacionFormDialog(QDialog):
                 self.campo_trm_fecha_referencia: es_comercial and es_usd,
             },
         )
+
+    def _actualizar_indicador_unidad_smlmv_uvt(self) -> None:
+        """Muestra junto a `campo_cantidad_smlmv_uvt` la unidad (SMLMV o UVT) que se va
+        a aplicar segun `campo_fecha_origen` (Sprint 45), reutilizando la misma
+        constante de corte (`FECHA_CORTE_SMLMV_A_UVT`) que ya usa
+        `resolver_base_sancion` para el calculo real -- evita duplicar la fecha del
+        2020-01-01 en la UI. Se conecta a `campo_fecha_origen.dateChanged` para
+        actualizarse en vivo sin necesidad de guardar el formulario."""
+        qdate_origen = self.campo_fecha_origen.date()
+        fecha_origen = date(qdate_origen.year(), qdate_origen.month(), qdate_origen.day())
+        unidad = "UVT" if fecha_origen >= FECHA_CORTE_SMLMV_A_UVT else "SMLMV"
+        self.label_unidad_smlmv_uvt.setText(f"Se aplicará como: {unidad}")
 
     def _actualizar_campos_tributario(self) -> None:
         if self._area != "TRIBUTARIO":
