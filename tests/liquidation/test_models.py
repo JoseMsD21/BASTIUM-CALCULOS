@@ -119,3 +119,39 @@ def test_liquidation_item_acepta_saldo_a_favor_explicito():
         saldo_a_favor=Decimal("3000000.00"),
     )
     assert item.saldo_a_favor == Decimal("3000000.00")
+
+
+def test_liquidation_item_prescrita_por_defecto_es_false():
+    # Sprint 42: campo nuevo para marcar (sin excluir) filas cuya obligacion de
+    # origen ya vencio su plazo de prescripcion/caducidad -- default False para
+    # no romper ninguna construccion existente de LiquidationItem.
+    debt = PendingDebt(Decimal("300000.00"), Decimal("3000.00"), Decimal("0.00"))
+    balance = RunningBalance(date=date(2022, 1, 1), debt=debt, event_type="INSTALLMENT")
+    item = LiquidationItem(
+        date=date(2022, 1, 1),
+        concept="Cuota enero",
+        capital_base=Decimal("300000.00"),
+        interest_rate=Decimal("1.00"),
+        interest_amount=Decimal("3000.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("0.00"),
+        balance=balance,
+    )
+    assert item.prescrita is False
+
+
+def test_liquidation_item_acepta_prescrita_explicito():
+    debt = PendingDebt(Decimal("300000.00"), Decimal("3000.00"), Decimal("0.00"))
+    balance = RunningBalance(date=date(2010, 1, 1), debt=debt, event_type="INSTALLMENT")
+    item = LiquidationItem(
+        date=date(2010, 1, 1),
+        concept="Cuota enero",
+        capital_base=Decimal("300000.00"),
+        interest_rate=Decimal("1.00"),
+        interest_amount=Decimal("3000.00"),
+        indexation_amount=Decimal("0.00"),
+        payment_amount=Decimal("0.00"),
+        balance=balance,
+        prescrita=True,
+    )
+    assert item.prescrita is True
