@@ -247,11 +247,25 @@ class CivilFamiliaStrategy(AreaStrategy):
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
+        # Sprint 41: ids de obligaciones RECURRENTE que ya tienen al menos una cuota
+        # hija persistida (generar_cuotas_mensuales, app/services/reajuste_anual.py --
+        # Obligacion PUNTUAL con obligacion_padre_id apuntando a ellas). `obligaciones`
+        # ya trae esas cuotas como filas independientes (el mismo expediente), asi que
+        # basta con leer obligacion_padre_id de cada una -- no requiere una consulta
+        # aparte.
+        ids_con_cuotas_generadas = {
+            obligacion.obligacion_padre_id
+            for obligacion in obligaciones
+            if obligacion.obligacion_padre_id is not None
+        }
+
         return _liquidar_por_obligacion(
             obligaciones=obligaciones,
             abonos=abonos,
             fecha_corte=fecha_corte,
-            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(
+                obligacion, fecha_corte, ids_con_cuotas_generadas
+            ),
             rate_provider_fn=self._construir_rate_provider_obligacion,
             usar_suma_unica_fn=self._resolver_suma_unica,
         )
@@ -269,7 +283,9 @@ class CivilFamiliaStrategy(AreaStrategy):
         version original de este metodo, escrita antes del Sprint 21)."""
         return bool(obligacion.aplica_indexacion_ipc) and bool(obligacion.interes_sobre_capital_indexado)
 
-    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
+    def _eventos_de_obligacion(
+        self, obligacion, fecha_corte: date, ids_con_cuotas_generadas: set[int] | None = None
+    ) -> list[Event]:
         if obligacion.tipo.value == "PUNTUAL":
             eventos = [
                 Event(
@@ -293,6 +309,35 @@ class CivilFamiliaStrategy(AreaStrategy):
             return eventos
 
         # RECURRENTE
+        # Sprint 41 -- reajuste anual (SMMLV/IPC): si esta obligacion ya tiene cuotas
+        # mensuales reales generadas y persistidas (Obligacion PUNTUAL hijas, ver
+        # app/services/reajuste_anual.py::generar_cuotas_mensuales), esas cuotas ya
+        # vienen incluidas en `obligaciones` como filas independientes -- cada una se
+        # procesa con su propio capital reajustado y su propia fecha, exactamente como
+        # cualquier obligacion PUNTUAL normal (branch de arriba). Esta obligacion
+        # RECURRENTE padre NO debe generar NINGUN evento de capital propio en ese caso:
+        # hacerlo duplicaria el capital (una vez via la expansion efimera de
+        # RecurringScheduler de abajo, otra vez via cada cuota hija real). Ver
+        # Architecture punto 5 del plan del Sprint 41 y la verificacion matematica de
+        # la Task 3 (tests/family/test_interes_autonomo_por_cuota.py), que confirma
+        # que dejar que el motor consolidado procese las cuotas como obligaciones
+        # independientes ya produce el interes de mora correcto por cuota. Si todavia
+        # no se han generado cuotas (obligacion.id no aparece en
+        # ids_con_cuotas_generadas), se preserva el comportamiento anterior a este
+        # sprint (expansion efimera, capital constante, sin reajuste) -- el reajuste
+        # solo aplica una vez que el usuario genera las cuotas explicitamente.
+        # tipo_reajuste_anual puede venir en None en un objeto Obligacion transitorio
+        # nunca pasado por session.commit() (el default de columna 'NINGUNO' solo lo
+        # aplica SQLAlchemy al hacer flush/insert) -- se trata igual que NINGUNO, mismo
+        # criterio tolerante que ya usa aplica_indexacion_ipc/interes_sobre_capital_indexado
+        # en este archivo (booleanos con default=False evaluados con truthy check).
+        reajuste_activo = (
+            obligacion.tipo_reajuste_anual is not None
+            and obligacion.tipo_reajuste_anual.value != "NINGUNO"
+        )
+        if reajuste_activo and obligacion.id in (ids_con_cuotas_generadas or set()):
+            return []
+
         scheduler = FamilyScheduler()
         scheduler.add_monthly_obligation(
             amount=obligacion.valor,
