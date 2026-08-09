@@ -7,6 +7,7 @@ class WordReportGenerator:
     def __init__(self, output_path: str):
         self.output_path = output_path
         self.c_burgundy = RGBColor(0xAE, 0x1C, 0x21)
+        self.c_prescrita = RGBColor(0xC0, 0x00, 0x00)
 
     def generate(
         self, title: str, summary: dict, table_data: list, encabezado: dict | None = None,
@@ -65,16 +66,30 @@ class WordReportGenerator:
             celda.text = texto
         for fila_datos in table_data:
             celdas_fila = tabla_cronologia.add_row().cells
-            celdas_fila[0].text = fila_datos["fecha"]
-            celdas_fila[1].text = fila_datos["concepto"]
-            celdas_fila[2].text = fila_datos["base_capital"]
-            celdas_fila[3].text = fila_datos["tasa"]
-            celdas_fila[4].text = fila_datos["interes"]
-            celdas_fila[5].text = fila_datos["indexacion"]
-            celdas_fila[6].text = fila_datos["pago"]
-            celdas_fila[7].text = fila_datos["saldo_capital"]
-            celdas_fila[8].text = fila_datos["saldo_interes"]
-            celdas_fila[9].text = fila_datos["saldo_total"]
+            valores_fila = [
+                fila_datos["fecha"],
+                fila_datos["concepto"],
+                fila_datos["base_capital"],
+                fila_datos["tasa"],
+                fila_datos["interes"],
+                fila_datos["indexacion"],
+                fila_datos["pago"],
+                fila_datos["saldo_capital"],
+                fila_datos["saldo_interes"],
+                fila_datos["saldo_total"],
+            ]
+            # Sprint 42: indicador visual (texto en rojo) para las filas cuya
+            # obligacion de origen ya vencio su plazo de prescripcion/caducidad
+            # (ReportTableBuilder.build_matrix ya expone "prescrita" por fila) --
+            # no se excluyen de la tabla, solo se resaltan. Se usa un run
+            # explicito (en vez de `celda.text = ...`) para poder colorear el
+            # texto: el setter `.text` de python-docx no expone color de fuente.
+            es_prescrita = bool(fila_datos.get("prescrita"))
+            for celda, texto in zip(celdas_fila, valores_fila):
+                run = celda.paragraphs[0].add_run(texto)
+                if es_prescrita:
+                    run.font.color.rgb = self.c_prescrita
+                    run.bold = True
 
         if renta_liquida is not None:
             documento.add_paragraph()

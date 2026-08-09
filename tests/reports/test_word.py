@@ -1,4 +1,5 @@
 from docx import Document
+from docx.shared import RGBColor
 
 from app.reports.header import build_encabezado
 from app.reports.word import WordReportGenerator
@@ -98,6 +99,42 @@ def test_generate_sin_renta_liquida_no_agrega_el_bloque(tmp_path):
 
     documento = Document(str(ruta))
     assert len(documento.tables) == 2
+
+
+def test_generate_resalta_en_rojo_las_filas_prescritas(tmp_path):
+    # Sprint 42: ReportTableBuilder.build_matrix ya expone "prescrita" por fila
+    # (ver tests/reports/test_table_builder.py) -- generate() debe resaltarla en
+    # el Word (indicador visual, aqui: texto en rojo) sin excluirla de la tabla
+    # ni tocar ningun monto.
+    ruta = tmp_path / "liquidacion_prescrita.docx"
+    generador = WordReportGenerator(str(ruta))
+    datos = _table_data()
+    datos[0]["prescrita"] = True
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), datos)
+
+    documento = Document(str(ruta))
+    tabla_cronologia = documento.tables[1]
+    fila_prescrita = tabla_cronologia.rows[1]
+
+    # El texto de cada celda se conserva intacto (nada se excluye ni se pierde).
+    assert fila_prescrita.cells[1].text == "Abono a capital"
+
+    run_concepto = fila_prescrita.cells[1].paragraphs[0].runs[0]
+    assert run_concepto.font.color.rgb == RGBColor(0xC0, 0x00, 0x00)
+
+
+def test_generate_no_resalta_filas_sin_marcar(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_marca.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+
+    documento = Document(str(ruta))
+    tabla_cronologia = documento.tables[1]
+    fila_normal = tabla_cronologia.rows[1]
+    run_concepto = fila_normal.cells[1].paragraphs[0].runs[0]
+    assert run_concepto.font.color.rgb is None
 
 
 def test_generate_incluye_columna_de_indexacion_sanciones(tmp_path):
