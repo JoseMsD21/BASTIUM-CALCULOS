@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.obligaciones import ObligacionFormDialog
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
+from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
 
 
 def _filas_con_etiqueta_huerfana(layout: QFormLayout) -> list[str]:
@@ -91,6 +91,92 @@ def test_guarda_obligacion_recurrente_con_dia_de_pago(qtbot, monkeypatch):
     assert guardada.tipo == TipoObligacion.RECURRENTE
     assert guardada.dia_pago == 5
     session.close()
+
+
+def test_guarda_obligacion_recurrente_civil_familia_con_reajuste_smmlv(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Cuota alimentaria")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    dialog.campo_dia_pago.setValue(5)
+    indice_smmlv = dialog.combo_tipo_reajuste_anual.findData("SMMLV")
+    dialog.combo_tipo_reajuste_anual.setCurrentIndex(indice_smmlv)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo_reajuste_anual == TipoReajusteAnual.SMMLV
+    session.close()
+
+
+def test_guarda_obligacion_recurrente_civil_familia_sin_tocar_reajuste_queda_ninguno(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Cuota alimentaria")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    dialog.campo_dia_pago.setValue(5)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo_reajuste_anual == TipoReajusteAnual.NINGUNO
+    session.close()
+
+
+def test_guarda_obligacion_puntual_civil_familia_queda_con_reajuste_ninguno(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("427900.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo_reajuste_anual == TipoReajusteAnual.NINGUNO
+    session.close()
+
+
+def test_combo_reajuste_anual_visible_solo_para_recurrente_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    assert dialog.combo_tipo_reajuste_anual.isVisible() is False
+
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    assert dialog.combo_tipo_reajuste_anual.isVisible() is True
+
+
+def test_combo_reajuste_anual_oculto_para_comercial_recurrente(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+
+    assert dialog.combo_tipo_reajuste_anual.isVisible() is False
 
 
 def test_valor_negativo_lanza_error_de_validacion(qtbot, monkeypatch):
