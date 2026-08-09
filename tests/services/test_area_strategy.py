@@ -155,7 +155,7 @@ def test_civil_familia_es_la_unica_area_operable():
 from datetime import date, timedelta
 from decimal import Decimal
 
-from database.models import Abono, Obligacion, TipoObligacion
+from database.models import Abono, Obligacion, TipoObligacion, TipoReajusteAnual
 
 
 def _obligacion_puntual(expediente_id=1, valor=Decimal("427900.00")):
@@ -227,6 +227,83 @@ def test_civil_familia_expande_obligacion_recurrente_en_cuotas_mensuales():
     )
 
     # 3 cuotas de 500000 causadas: enero, febrero, marzo
+    assert resultado.final_balance().principal == Decimal("1500000.00")
+
+
+def test_civil_familia_recurrente_con_reajuste_y_cuotas_generadas_no_duplica_capital():
+    """Sprint 41, Task 4: si la obligacion RECURRENTE tiene tipo_reajuste_anual
+    activo Y ya tiene cuotas hijas persistidas (obligacion_padre_id apuntando a
+    ella, generadas por app/services/reajuste_anual.py), liquidar() debe usar
+    SOLO esas cuotas hijas (como cualquier PUNTUAL normal) -- la obligacion
+    padre no debe volver a expandirse con RecurringScheduler, o el capital de
+    cada cuota contaria doble."""
+    strategy = CivilFamiliaStrategy()
+    padre = Obligacion(
+        id=10,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 3, 5),
+        tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
+    )
+    cuota_enero = Obligacion(
+        id=11, expediente_id=1, tipo=TipoObligacion.PUNTUAL,
+        concepto="Cuota alimentaria de enero 2026", categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 5), valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), obligacion_padre_id=10,
+    )
+    cuota_febrero = Obligacion(
+        id=12, expediente_id=1, tipo=TipoObligacion.PUNTUAL,
+        concepto="Cuota alimentaria de febrero 2026", categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 2, 5), valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"), obligacion_padre_id=10,
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[padre, cuota_enero, cuota_febrero], abonos=[], fecha_corte=date(2026, 3, 5)
+    )
+
+    # Solo las 2 cuotas hijas (500000 x 2 = 1000000) -- la obligacion padre no
+    # aporta capital propio, ni las 3 cuotas fantasma que RecurringScheduler
+    # habria generado por su cuenta (que habria dado 2500000: 1000000 de las
+    # cuotas reales + 1500000 fantasma).
+    assert resultado.final_balance().principal == Decimal("1000000.00")
+
+
+def test_civil_familia_recurrente_con_reajuste_pero_sin_cuotas_generadas_usa_expansion_efimera():
+    """Complemento del test anterior: si tipo_reajuste_anual esta activo pero
+    TODAVIA no se generaron cuotas hijas (el usuario no presiono "Generar
+    cuotas" en la UI), se preserva el comportamiento anterior a este sprint
+    (expansion efimera con RecurringScheduler, capital constante) -- liquidar
+    debe seguir funcionando, no producir un saldo en cero."""
+    strategy = CivilFamiliaStrategy()
+    padre = Obligacion(
+        id=20,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 3, 5),
+        tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[padre], abonos=[], fecha_corte=date(2026, 3, 5)
+    )
+
+    # 3 cuotas efimeras de 500000 (enero, febrero, marzo), igual que la obligacion
+    # sin reajuste -- mismo comportamiento previo a este sprint.
     assert resultado.final_balance().principal == Decimal("1500000.00")
 
 

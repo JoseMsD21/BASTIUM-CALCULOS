@@ -33,7 +33,7 @@ from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
 from app.views.form_utils import guardar_o_actualizar, set_row_visible
 from app.views.icons import icon
-from database.models import Expediente, Obligacion, TipoObligacion
+from database.models import Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
 
 
 class ObligacionFormDialog(QDialog):
@@ -55,6 +55,7 @@ class ObligacionFormDialog(QDialog):
         "trm_fecha_referencia": None,
         "anatocismo_demanda_judicial": False,
         "anatocismo_fecha_acuerdo": None,
+        "tipo_reajuste_anual": TipoReajusteAnual.NINGUNO,
     }
 
     def __init__(
@@ -110,6 +111,21 @@ class ObligacionFormDialog(QDialog):
         self.campo_dia_pago = QSpinBox()
         self.campo_dia_pago.setRange(1, 28)
         self.campo_dia_pago.setValue(5)
+
+        # Reajuste anual (Sprint 41): solo aplica a una obligacion RECURRENTE de
+        # Civil/Familia (cuota alimentaria) -- ver _actualizar_campos_visibles.
+        # "Ninguno" primero y preseleccionado: mismo comportamiento que antes de
+        # este sprint si el usuario no lo toca (default del modelo,
+        # TipoReajusteAnual.NINGUNO).
+        self.combo_tipo_reajuste_anual = QComboBox()
+        self.combo_tipo_reajuste_anual.addItem("Ninguno", userData="NINGUNO")
+        self.combo_tipo_reajuste_anual.addItem("SMMLV (Salario Minimo)", userData="SMMLV")
+        self.combo_tipo_reajuste_anual.addItem("IPC (Indice de Precios al Consumidor)", userData="IPC")
+        self.combo_tipo_reajuste_anual.setToolTip(
+            "Si se activa, el capital de cada cuota mensual se reajusta el 1 de enero de "
+            "cada año segun el indice elegido -- usar el boton 'Generar cuotas' del "
+            "expediente despues de guardar para crear las cuotas mensuales reales."
+        )
 
         self.campo_tasa_moratoria = QLineEdit("24.00")
         self.campo_tasa_moratoria.setToolTip(
@@ -291,6 +307,9 @@ class ObligacionFormDialog(QDialog):
         self.label_fecha_origen = self.layout_datos_basicos.labelForField(self.campo_fecha_origen)
         self.layout_datos_basicos.addRow("Fecha de inicio (Recurrente)", self.campo_fecha_inicio)
         self.layout_datos_basicos.addRow("Dia de pago (Recurrente)", self.campo_dia_pago)
+        self.layout_datos_basicos.addRow(
+            "Reajuste anual (Recurrente, Civil/Familia)", self.combo_tipo_reajuste_anual
+        )
         self.layout_datos_basicos.addRow(
             "Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt
         )
@@ -589,6 +608,7 @@ class ObligacionFormDialog(QDialog):
             self.campo_fecha_origen,
             self.campo_fecha_inicio,
             self.campo_dia_pago,
+            self.combo_tipo_reajuste_anual,
             self.campo_cantidad_smlmv_uvt,
             self.campo_base_sancion,
             self.campo_meses_extemporaneidad,
@@ -700,6 +720,7 @@ class ObligacionFormDialog(QDialog):
                     # se oculta -- el salario base se resuelve automaticamente al
                     # liquidar, digitarlo a mano no serviria de nada.
                     self._contenedor_campo_valor: not self.check_es_smmlv.isChecked(),
+                    self.combo_tipo_reajuste_anual: False,
                     self.campo_fecha_pago_total: self.check_pagada.isChecked(),
                     self.combo_nivel_riesgo_arl: self.check_incluir_seguridad_social.isChecked(),
                 },
@@ -717,6 +738,11 @@ class ObligacionFormDialog(QDialog):
                 self.campo_fecha_origen: not es_recurrente,
                 self.campo_fecha_inicio: es_recurrente,
                 self.campo_dia_pago: es_recurrente,
+                # Reajuste anual (Sprint 41): solo Civil/Familia -- Comercial tambien
+                # admite RECURRENTE pero el reajuste SMMLV/IPC es exclusivo de cuotas
+                # alimentarias (ver plan del Sprint 41, alcance excluido: Laboral queda
+                # para otro sprint, Comercial nunca lo pidio).
+                self.combo_tipo_reajuste_anual: es_recurrente and self._area == "CIVIL_FAMILIA",
             },
         )
 
@@ -931,7 +957,11 @@ class ObligacionFormDialog(QDialog):
             self._marcar_campo_valido(self.campo_tasa, tooltip_original)
 
     def _parse_campos_civil_familia(self) -> dict:
-        return {}
+        if self.combo_tipo.currentData() != "RECURRENTE":
+            return {}
+        return {
+            "tipo_reajuste_anual": TipoReajusteAnual(self.combo_tipo_reajuste_anual.currentData())
+        }
 
     def _parse_campos_sancionatorio(self) -> dict:
         (cantidad_smlmv_uvt,) = self._parse_decimales(

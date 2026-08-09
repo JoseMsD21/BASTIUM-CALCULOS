@@ -59,6 +59,19 @@ class TipoObligacion(enum.Enum):
     RECURRENTE = "RECURRENTE"
 
 
+class TipoReajusteAnual(enum.Enum):
+    """Indice de reajuste anual de una cuota alimentaria (obligacion RECURRENTE
+    de Civil/Familia, Sprint 41). NINGUNO (default) preserva el comportamiento
+    anterior a este sprint: la obligacion recurrente se expande en tiempo real
+    con RecurringScheduler dentro de CivilFamiliaStrategy.liquidar(), sin
+    persistir cuotas hijas. SMMLV/IPC activan
+    app.services.reajuste_anual.generar_cuotas_mensuales -- ver ese modulo y
+    CivilFamiliaStrategy._eventos_de_obligacion para el wiring completo."""
+    SMMLV = "SMMLV"
+    IPC = "IPC"
+    NINGUNO = "NINGUNO"
+
+
 class TipoEventoLaboral(enum.Enum):
     SUSPENSION = "SUSPENSION"
     INCAPACIDAD_COMUN = "INCAPACIDAD_COMUN"
@@ -139,6 +152,22 @@ class Obligacion(Base):
     # contrato nunca queda desactualizado si el SMLMV de ese año se corrige
     # despues via la tabla parametros_legales (ver historical_index.py).
     es_smmlv: Mapped[bool] = mapped_column(Boolean, default=False)
+    tipo_reajuste_anual: Mapped[TipoReajusteAnual] = mapped_column(
+        SAEnum(TipoReajusteAnual), default=TipoReajusteAnual.NINGUNO
+    )
+    # Auto-referencial (Sprint 41): una cuota PUNTUAL generada por
+    # generar_cuotas_mensuales() (app/services/reajuste_anual.py) apunta a su
+    # obligacion RECURRENTE padre via este campo. Deliberadamente SIN
+    # sqlalchemy.ForeignKey(): SQLite rechaza "ALTER TABLE ... DROP COLUMN" sobre
+    # una columna que participa en una FOREIGN KEY de tabla (restriccion que no
+    # se puede sortear con PRAGMA legacy_alter_table/foreign_keys, verificado
+    # empiricamente), lo que habria bloqueado cualquier migracion futura que
+    # necesite recrear esta columna. La app tampoco activa
+    # `PRAGMA foreign_keys=ON` en ningun punto (ver database/database.py), asi
+    # que una FK declarada aqui no aportaria integridad referencial real, solo
+    # el riesgo de migracion. La relacion logica (hija -> padre) se resuelve en
+    # Python filtrando por este entero, no via relationship() de SQLAlchemy.
+    obligacion_padre_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(

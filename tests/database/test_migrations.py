@@ -35,6 +35,8 @@ def _crear_bd_con_esquema_desactualizado(db_path: Path) -> None:
         "interes_sobre_capital_indexado",
         "anatocismo_demanda_judicial",
         "anatocismo_fecha_acuerdo",
+        "tipo_reajuste_anual",
+        "obligacion_padre_id",
     ):
         con.execute(f"ALTER TABLE obligaciones DROP COLUMN {columna}")
     con.commit()
@@ -65,6 +67,8 @@ def test_aplicar_migraciones_pendientes_agrega_las_columnas_faltantes_de_obligac
         "interes_sobre_capital_indexado",
         "anatocismo_demanda_judicial",
         "anatocismo_fecha_acuerdo",
+        "tipo_reajuste_anual",
+        "obligacion_padre_id",
     ):
         assert columna in columnas
 
@@ -91,6 +95,51 @@ def test_aplicar_migraciones_pendientes_agrega_es_smmlv(tmp_path):
     columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
     con.close()
     assert "es_smmlv" in columnas
+
+
+def test_migracion_reajuste_anual_agrega_columnas_con_default_ninguno_y_null(tmp_path):
+    """Task 1 del Sprint 41: una fila de obligaciones ya existente (creada bajo el
+    esquema viejo, sin tipo_reajuste_anual/obligacion_padre_id) debe quedar con
+    tipo_reajuste_anual='NINGUNO' (mismo default que el modelo SQLAlchemy,
+    TipoReajusteAnual.NINGUNO) y obligacion_padre_id=NULL despues de migrar --
+    nunca None/obligatorio en filas legadas."""
+    from scripts.migrate_reajuste_anual_familia import migrar
+
+    db_path = tmp_path / "reajuste_anual.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN tipo_reajuste_anual")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN obligacion_padre_id")
+    con.execute(
+        "INSERT INTO expedientes (radicado, demandante, demandado, area_derecho, "
+        "fecha_corte_default) VALUES ('X-1', 'A', 'B', 'CIVIL_FAMILIA', '2026-01-01')"
+    )
+    con.execute(
+        "INSERT INTO obligaciones (expediente_id, tipo, concepto, categoria, "
+        "fecha_origen, valor, tasa_efectiva_anual, pagada, aplica_indexacion_ipc, "
+        "interes_sobre_capital_indexado, moneda, anatocismo_demanda_judicial, "
+        "sancion_agravada, incluir_seguridad_social, es_smmlv) VALUES "
+        "(1, 'PUNTUAL', 'Cuota alimentaria', 'CHILD_SUPPORT', '2026-01-01', "
+        "'100000.00', '6.00', 0, 0, 0, 'COP', 0, 0, 0, 0)"
+    )
+    con.commit()
+    con.close()
+
+    aplico = migrar(db_path)
+    assert aplico is True
+
+    con = sqlite3.connect(db_path)
+    fila = con.execute(
+        "SELECT tipo_reajuste_anual, obligacion_padre_id FROM obligaciones"
+    ).fetchone()
+    con.close()
+    assert fila == ("NINGUNO", None)
+
+    # Idempotencia: correrla de nuevo no vuelve a alterar nada ni rompe.
+    assert migrar(db_path) is False
 
 
 def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path, monkeypatch):
