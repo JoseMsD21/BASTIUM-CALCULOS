@@ -33,6 +33,13 @@
  * QCalendarWidget ni QToolButton (los botones de navegacion de mes/anio del
  * popup de QDateEdit son QToolButton, no QPushButton) -- quedan con el
  * chrome nativo de Windows a proposito.
+ *
+ * Modo oscuro (Sprint 50): este archivo es el tema "claro" -- ver
+ * resources/theme_dark.qss para el equivalente oscuro. La referencia cruzada
+ * del Sprint 31 que apuntaba al Sprint 37 para "otras mejoras de
+ * personalizacion" (incluido un eventual modo oscuro) estaba rota -- el
+ * Sprint 37 nunca cubrio tema visual, solo geometria de ventana y teclado. El
+ * modo oscuro se implemento en el Sprint 50.
  */
 
 QWidget {

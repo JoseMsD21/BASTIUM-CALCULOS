@@ -10,6 +10,15 @@ archivo).
 PRIMARIO y SECUNDARIO ya se usaban en `app/reports/pdf.py` (`c_burgundy` /
 `c_cream`) para las tablas del PDF antes de este sprint; el resto de la
 paleta se deriva de esos dos colores de ancla.
+
+Modo oscuro (Sprint 50): este modulo es el tema "claro" -- ver
+`theme_colors_dark.py` para el equivalente con la luminancia invertida. El
+"Alcance explicitamente excluido" original de este sprint decia "ver Sprint 37
+para otras mejoras de personalizacion, si se decide agregar un modo oscuro en
+el futuro seria un sprint propio"; esa referencia cruzada estaba rota (el
+Sprint 37 nunca cubrio modo oscuro, solo persistencia de geometria de ventana
+y accesibilidad de teclado) -- el modo oscuro se implemento finalmente en el
+Sprint 50.
 """
 
 PRIMARIO = "#AE1C21"

@@ -1,8 +1,9 @@
-from PySide6.QtCore import QCoreApplication, QSettings, Qt
+from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QStackedWidget, QToolBar
 
 import database.session as session_module
+from app.core.settings import crear_settings
 from app.views.configuracion import ParametrosView
 from app.views.dashboard import DashboardView
 from app.views.expediente_detalle import ExpedienteDetallePage
@@ -11,11 +12,6 @@ from app.views.icons import icon, icono_aplicacion
 from app.views.liquidaciones import ResultadoLiquidacionView
 from database.models import Expediente
 
-# Namespace de QSettings usado si QCoreApplication.organizationName()/applicationName()
-# todavia no se fijaron (ej. tests que construyen MainWindow sin pasar por main.py) --
-# coincide con los valores que main.py fija en la app real (Sprint 37).
-_ORGANIZACION_POR_DEFECTO = "BASTIUM"
-_APLICACION_POR_DEFECTO = "BASTIUM"
 _CLAVE_GEOMETRIA = "ventana/geometria"
 # Tamaño que main.py fijaba incondicionalmente con window.resize(1000, 700) antes del
 # Sprint 37 -- ahora es solo el fallback para el primer arranque (sin QSettings previo).
@@ -70,10 +66,11 @@ class MainWindow(QMainWindow):
         """QSettings con formato Ini explicito (no el nativo por plataforma, ej. el
         Registro de Windows): asi `QSettings.setPath()` puede redirigir por completo
         donde se lee/escribe en los tests (ver tests/conftest.py::_qsettings_aislado),
-        cosa que no es posible con el Registro de Windows."""
-        organizacion = QCoreApplication.organizationName() or _ORGANIZACION_POR_DEFECTO
-        aplicacion = QCoreApplication.applicationName() or _APLICACION_POR_DEFECTO
-        return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, organizacion, aplicacion)
+        cosa que no es posible con el Registro de Windows. Delega en
+        `app.core.settings.crear_settings()` (Sprint 50), que extrae este mismo patron
+        para que la persistencia del modo oscuro/claro (`app/core/apariencia.py`) lo
+        reutilice en vez de duplicarlo."""
+        return crear_settings()
 
     def _restaurar_geometria(self) -> None:
         """Restaura tamaño/posicion/estado maximizado de la sesion anterior (Sprint 37).

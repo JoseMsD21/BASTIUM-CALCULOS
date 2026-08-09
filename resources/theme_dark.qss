@@ -1,0 +1,219 @@
+/*
+ * BASTIUM - Sistema de diseno visual, modo oscuro (Sprint 50)
+ *
+ * Mismo contenido estructural que resources/theme.qss (modo claro, Sprint 31),
+ * con los valores hex de app/core/theme_colors_dark.py -- misma paleta de marca
+ * burdeos con la luminancia invertida (fondo oscuro, texto claro). Debe
+ * mantenerse sincronizado a mano con ese modulo (Qt QSS no soporta variables ni
+ * importar constantes de Python):
+ *
+ *   Primario (burdeos claro): #D9484D  hover #C93338  pressed #AE1C21  disabled #5C3234
+ *   Secundario (superficie):  #332C29  hover #3D3532  pressed #463C38  borde #4A4039
+ *   Destructivo:               #E57373  hover #EF5350  pressed #D32F2F  disabled #5C3B3B
+ *   Fondo / superficie:        #1E1A18 / #2A2422  (superficie alterna #332C29)
+ *   Texto:                     primario #F5F1E9  secundario #C9BFB4
+ *                              sobre-primario #F5F1E9  deshabilitado #6B5F57
+ *
+ * Alcance excluido del Sprint 31 corregido en el Sprint 50: el comentario de ese
+ * sprint decia "ver Sprint 37 para otras mejoras de personalizacion" -- el
+ * Sprint 37 nunca cubrio modo oscuro (solo persistencia de geometria de ventana
+ * y accesibilidad de teclado). El modo oscuro se implemento en el Sprint 50
+ * (este archivo + app/core/theme_colors_dark.py), no en el 37.
+ *
+ * Misma convencion de clase para QPushButton que el modo claro (ver
+ * resources/theme.qss para el detalle completo, no se repite aqui).
+ */
+
+QWidget {
+    background-color: #1E1A18;
+    color: #F5F1E9;
+    font-family: "Ancizar Sans";
+    font-size: 10pt;
+}
+
+QMainWindow, QDialog {
+    background-color: #1E1A18;
+}
+
+QLabel {
+    color: #F5F1E9;
+    background: transparent;
+}
+
+QToolBar {
+    background-color: #2A2422;
+    border-bottom: 1px solid #4A4039;
+    padding: 4px;
+    spacing: 6px;
+}
+
+QGroupBox {
+    border: 1px solid #4A4039;
+    border-radius: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    font-weight: bold;
+    color: #D9484D;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 8px;
+    padding: 0 4px;
+}
+
+/* --- Botones --- */
+
+QPushButton {
+    background-color: #332C29;
+    color: #D9484D;
+    border: 1px solid #D9484D;
+    border-radius: 4px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #3D3532;
+}
+
+QPushButton:pressed {
+    background-color: #463C38;
+}
+
+QPushButton:disabled {
+    background-color: #332C29;
+    color: #6B5F57;
+    border-color: #4A4039;
+}
+
+/* Mismo aspecto que QPushButton sin clase -- ver comentario de convencion en theme.qss. */
+QPushButton[class="secondary"] {
+    background-color: #332C29;
+    color: #D9484D;
+    border: 1px solid #D9484D;
+    border-radius: 4px;
+    padding: 6px 14px;
+}
+
+QPushButton[class="secondary"]:hover {
+    background-color: #3D3532;
+}
+
+QPushButton[class="secondary"]:pressed {
+    background-color: #463C38;
+}
+
+QPushButton[class="secondary"]:disabled {
+    background-color: #332C29;
+    color: #6B5F57;
+    border-color: #4A4039;
+}
+
+QPushButton[class="primary"] {
+    background-color: #D9484D;
+    color: #F5F1E9;
+    border: 1px solid #D9484D;
+}
+
+QPushButton[class="primary"]:hover {
+    background-color: #C93338;
+}
+
+QPushButton[class="primary"]:pressed {
+    background-color: #AE1C21;
+}
+
+QPushButton[class="primary"]:disabled {
+    background-color: #5C3234;
+    color: #F5F1E9;
+    border-color: #5C3234;
+}
+
+QPushButton[class="destructive"] {
+    background-color: #E57373;
+    color: #1E1A18;
+    border: 1px solid #E57373;
+}
+
+QPushButton[class="destructive"]:hover {
+    background-color: #EF5350;
+}
+
+QPushButton[class="destructive"]:pressed {
+    background-color: #D32F2F;
+}
+
+QPushButton[class="destructive"]:disabled {
+    background-color: #5C3B3B;
+    color: #F5F1E9;
+    border-color: #5C3B3B;
+}
+
+/* --- Campos de entrada --- */
+
+QLineEdit, QComboBox, QDateEdit, QSpinBox {
+    background-color: #2A2422;
+    color: #F5F1E9;
+    border: 1px solid #4A4039;
+    border-radius: 3px;
+    padding: 4px 6px;
+    selection-background-color: #D9484D;
+    selection-color: #F5F1E9;
+}
+
+QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QSpinBox:focus {
+    border: 1px solid #D9484D;
+}
+
+QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled, QSpinBox:disabled {
+    background-color: #332C29;
+    color: #6B5F57;
+}
+
+/* --- Tablas (misma identidad de encabezado que el modo claro) --- */
+
+QTableWidget {
+    background-color: #2A2422;
+    alternate-background-color: #332C29;
+    gridline-color: #4A4039;
+    border: 1px solid #4A4039;
+}
+
+QTableWidget::item:selected {
+    background-color: #D9484D;
+    color: #F5F1E9;
+}
+
+QHeaderView::section {
+    background-color: #D9484D;
+    color: #F5F1E9;
+    padding: 6px;
+    border: none;
+    border-right: 1px solid #C93338;
+    font-weight: bold;
+}
+
+/* --- Dialogos de progreso/mensaje --- */
+
+QProgressDialog, QMessageBox {
+    background-color: #1E1A18;
+}
+
+/* --- Estado de validacion en tiempo real (Sprint 34) --- */
+
+QLineEdit[class="invalid"] {
+    border: 2px solid #E57373;
+    background-color: #4A2A2A;
+}
+
+QLineEdit[class="invalid"]:focus {
+    border: 2px solid #E57373;
+}
+
+/* --- Breadcrumb de navegacion (Sprint 32) --- */
+
+QLabel#etiqueta_breadcrumb {
+    color: #C9BFB4;
+    font-weight: bold;
+    padding-left: 10px;
+}

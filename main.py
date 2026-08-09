@@ -3,7 +3,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from app._version import __version__
-from app.core.apariencia import aplicar_tema
+from app.core.apariencia import aplicar_tema, cargar_modo_tema
 from app.views.main_window import MainWindow
 from database.database import aplicar_migraciones_pendientes, init_db
 
@@ -15,7 +15,10 @@ def main() -> None:
     app.setOrganizationName("BASTIUM")
     app.setApplicationName("BASTIUM")
     app.setApplicationVersion(__version__)
-    aplicar_tema(app)
+    # Restaura el modo oscuro/claro elegido en la sesion anterior (Sprint 50) --
+    # cargar_modo_tema() debe llamarse despues de fijar organizationName/
+    # applicationName arriba, porque QSettings los usa para ubicar el .ini.
+    aplicar_tema(app, cargar_modo_tema())
     window = MainWindow()
     # La geometria (tamaño/posicion/maximizado) se restaura sola en __init__ via
     # QSettings, con fallback a 1000x700 en el primer arranque (Sprint 37) -- ya no

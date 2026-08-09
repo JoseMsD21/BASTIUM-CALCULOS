@@ -5,6 +5,8 @@ from PySide6.QtCore import QDate
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
+    QCheckBox,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -19,6 +21,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.core.apariencia import (
+    MODO_CLARO,
+    MODO_OSCURO,
+    aplicar_tema,
+    cargar_modo_tema,
+    guardar_modo_tema,
+)
 from app.services.parametro_service import (
     CATALOGO_PARAMETROS,
     ModoResolucion,
@@ -175,8 +184,20 @@ class ParametrosView(QWidget):
         self.boton_agregar.setProperty("class", "primary")
         self.boton_agregar.clicked.connect(self._abrir_dialogo_agregar)
 
+        # Control de modo oscuro/claro (Sprint 50): vive en Parametros (no en la
+        # barra/sidebar de navegacion) para que el Sprint 50 no tenga que moverlo
+        # de nuevo si el sidebar de esa misma tarea reorganiza la navegacion.
+        # Arranca reflejando el modo persistido via QSettings (mismo patron de
+        # app.core.apariencia.cargar_modo_tema(), que reutiliza
+        # MainWindow._crear_settings() del Sprint 37).
+        self.casilla_modo_oscuro = QCheckBox("Modo oscuro")
+        self.casilla_modo_oscuro.setChecked(cargar_modo_tema() == MODO_OSCURO)
+        self.casilla_modo_oscuro.toggled.connect(self._alternar_modo_tema)
+
         botones = QHBoxLayout()
         botones.addWidget(self.boton_agregar)
+        botones.addStretch()
+        botones.addWidget(self.casilla_modo_oscuro)
 
         layout = QVBoxLayout()
         layout.addLayout(botones)
@@ -184,6 +205,14 @@ class ParametrosView(QWidget):
         self.setLayout(layout)
 
         self.refrescar()
+
+    def _alternar_modo_tema(self, marcado: bool) -> None:
+        """Aplica el tema en caliente (sin reiniciar la app) y persiste la
+        eleccion -- ver `app.core.apariencia.aplicar_tema()`/`guardar_modo_tema()`
+        (Sprint 50)."""
+        modo = MODO_OSCURO if marcado else MODO_CLARO
+        aplicar_tema(QApplication.instance(), modo)
+        guardar_modo_tema(modo)
 
     def refrescar(self) -> None:
         claves = list(CATALOGO_PARAMETROS.items())
