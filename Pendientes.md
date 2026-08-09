@@ -157,11 +157,11 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 33 — Pantalla de inicio real: dashboard con resumen y alertas ✅ Completado](#sprint-33--pantalla-de-inicio-real-dashboard-con-resumen-y-alertas--completado)
 - [Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real ✅ Completado](#sprint-34--ux-de-formularios-agrupación-ayuda-contextual-y-feedback-en-tiempo-real--completado)
 - [Sprint 35 — Búsqueda, filtros y estados vacíos en listados ✅ Completado](#sprint-35--búsqueda-filtros-y-estados-vacíos-en-listados--completado)
-- [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones 📋 Pendiente](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones--pendiente)
-- [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado 📋 Pendiente](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado--pendiente)
-- [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` 🔵 Bloqueado — pendiente de decisión](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license--bloqueado--pendiente-de-decisión)
-- [Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral) 📋 Pendiente](#sprint-39--bug-de-ui-etiquetas-huérfanas-en-qformlayout-sancionatorio-y-laboral--pendiente)
-- [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) 📋 Pendiente](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas--pendiente)
+- [Sprint 36 — Feedback no bloqueante y jerarquía visual de botones ✅ Completado](#sprint-36--feedback-no-bloqueante-y-jerarquía-visual-de-botones--completado)
+- [Sprint 37 — Comportamiento de ventana y accesibilidad de teclado ✅ Completado](#sprint-37--comportamiento-de-ventana-y-accesibilidad-de-teclado--completado)
+- [Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` ✅ Completado](#sprint-38--elegir-licencia-de-código-abierto-y-publicar-license--completado)
+- [Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral) ✅ Completado](#sprint-39--bug-de-ui-etiquetas-huérfanas-en-qformlayout-sancionatorio-y-laboral--completado)
+- [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) ✅ Completado](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas--completado)
 - [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono 🔵 Bloqueado — pendiente de decisión](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono--bloqueado--pendiente-de-decisión)
 - [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación 🔵 Bloqueado — pendiente de decisión](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación--bloqueado--pendiente-de-decisión)
 - [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--bloqueado--pendiente-de-decisión)
@@ -3050,7 +3050,7 @@ Implementado junto con el Sprint 34 en un mismo stream secuencial (35 antes de 3
 
 ---
 
-## Sprint 36 — Feedback no bloqueante y jerarquía visual de botones 📋 Pendiente
+## Sprint 36 — Feedback no bloqueante y jerarquía visual de botones ✅ Completado
 
 **Prioridad sugerida:** Media.
 
@@ -3082,9 +3082,23 @@ Implementado junto con el Sprint 34 en un mismo stream secuencial (35 antes de 3
   app.
 - Suite de tests de GUI en verde.
 
+**Cierre de implementación (2026-08-07):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint36-feedback-jerarquia-botones.md`. Nuevo widget
+`app/views/toast.py::mostrar_toast()` (`QLabel` hijo de la vista activa, auto-ocultado con
+`QTimer.singleShot`, sin robar foco ni bloquear interacción) sustituye el único
+`QMessageBox.information` de confirmación de bajo riesgo que existía en el código (exportación
+completa en `liquidaciones.py`) — el resto de `QMessageBox` ya eran `.warning`/`.critical`/`.question`
+(errores y confirmación destructiva de borrado de expediente) y se dejaron intactos. Clase QSS
+`class="secondary"` agregada en `resources/theme.qss` junto a `primary`/`destructive` (Sprint 31) y
+aplicada explícitamente a todo `QPushButton` que dependía del estilo implícito sin clase, en las 9
+vistas con botones. El hallazgo de que "guardar una obligación" ya no mostraba ningún diálogo de éxito
+(el flujo actual solo cierra el diálogo) se verificó leyendo el código antes de asumir cambios ahí.
+Suite completa en verde (842 tests tras este sprint individual, 863 tras el merge final con los
+Sprints 37/39/40).
+
 ---
 
-## Sprint 37 — Comportamiento de ventana y accesibilidad de teclado 📋 Pendiente
+## Sprint 37 — Comportamiento de ventana y accesibilidad de teclado ✅ Completado
 
 **Prioridad sugerida:** Baja-media.
 
@@ -3113,9 +3127,25 @@ Implementado junto con el Sprint 34 en un mismo stream secuencial (35 antes de 3
   lógico.
 - Suite de tests de GUI en verde.
 
+**Cierre de implementación (2026-08-07):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint37-ventana-teclado.md`. `MainWindow` persiste
+tamaño/posición/maximizado entre sesiones vía `QSettings(IniFormat, UserScope, "BASTIUM", "BASTIUM")`
+(`_restaurar_geometria()` en el arranque, `closeEvent()` al cerrar), con fallback a 1000x700 si no hay
+valor guardado o `restoreGeometry()` lo rechaza — `main.py` ya no fija el tamaño incondicionalmente.
+Nuevo fixture `autouse` `tests/conftest.py::_qsettings_aislado` redirige `QSettings.setPath()` a un
+directorio temporal por test para no tocar el `.ini` real del sistema. Orden de tabulación fijado
+explícitamente con `setTabOrder` encadenado en `ObligacionFormDialog` (post-reorganización del Sprint
+34) y `ExpedienteFormDialog`. Se confirmó `setDefault(True)` en el botón "Guardar" de los 5 `QDialog`
+de formulario del proyecto (no solo los 2 originalmente reportados: también `AbonoFormDialog`,
+`EventoLaboralFormDialog`, `ParametroFormDialog`) y que `Esc` cierra los 5 sin guardar vía el
+`reject()` nativo de Qt, sin interceptar en ninguno. Suite completa en verde (863 tests tras el merge
+final). Merge con el Sprint 39 tuvo un conflicto textual en `tests/views/test_obligaciones.py` (git
+alineó por coincidencia dos tests no relacionados de distinto sprint que compartían líneas idénticas)
+resuelto reconstruyendo ambos tests completos por separado.
+
 ---
 
-## Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` 🔵 Bloqueado — pendiente de decisión
+## Sprint 38 — Elegir licencia de código abierto y publicar `LICENSE` ✅ Completado
 
 **Prioridad sugerida:** Baja — no bloquea nada técnico; el usuario pidió explícitamente posponer esta
 decisión (2026-07-26) para pensarla con calma, separada del resto de la profesionalización del repo
@@ -3168,9 +3198,18 @@ aunque lo parezca por estar en GitHub.
 - El badge de licencia en `README.md` y la sección correspondiente de `CONTRIBUTING.md` coinciden con la
   licencia real elegida.
 
+**Cierre de implementación (2026-08-07):** Completado. Decisión del usuario (2026-08-06): **Apache
+License 2.0**. Ver `docs/superpowers/plans/2026-08-06-sprint38-licencia-apache.md`. Archivo `LICENSE`
+publicado en la raíz con el texto oficial completo, titular de copyright
+"Jose Miguel Silva Diaz (BASTIUM)" (inferido de `git config user.name` y del usuario de GitHub
+`JoseMsD21` referenciado en `README.md` — pendiente que el usuario lo confirme o ajuste si prefiere otro
+nombre legal/razón social). Badge de licencia en `README.md` y línea de licenciamiento de
+`CONTRIBUTING.md` actualizados para apuntar a Apache 2.0. Trabajo puramente documental, sin cambios de
+código.
+
 ---
 
-## Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral) 📋 Pendiente
+## Sprint 39 — Bug de UI: etiquetas huérfanas en QFormLayout (Sancionatorio y Laboral) ✅ Completado
 
 **Prioridad sugerida:** Alta — bug confirmado, de esfuerzo pequeño (una línea por caso), pero visible en
 cada liquidación de dos áreas completas; reportado directamente por un usuario real probando la app
@@ -3239,9 +3278,23 @@ ARL").
   costas" que no aplique a esa área/tipo deja su etiqueta visible sin el widget correspondiente.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-07):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint39-labels-huerfanas-qformlayout.md`. Corregido con
+`QFormLayout.setRowVisible()` (Qt 6.4+, disponible en el PySide6 6.11 del proyecto), centralizado en el
+nuevo helper `app/views/form_utils.py::set_row_visible()` (con fallback automático al patrón manual
+`labelForField()` si esa API no existiera). El alcance real resultó más amplio que los 3 casos
+originales y que el "Hallazgo adicional" del Sprint 34: además de prácticamente todos los campos
+condicionales de `ObligacionFormDialog` (centralizados con el nuevo `_aplicar_visibilidad_filas()`, que
+itera pares widget/condición por `QFormLayout` en vez de repetir `setVisible()` suelto) y el combo
+"Motivo de suspensión" de `EventoLaboralFormDialog`, se encontró y corrigió un caso no reportado:
+`campo_vigente_hasta` en `ParametroFormDialog` (`app/views/configuracion.py`). Los `addRow(widget)` de
+un solo argumento (checkboxes sin etiqueta separada) no generan `QLabel` y no sufren el bug — se
+dejaron con `setVisible()` directo. Suite completa en verde (845 tests tras este sprint individual, 863
+tras el merge final).
+
 ---
 
-## Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) 📋 Pendiente
+## Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) ✅ Completado
 
 **Prioridad sugerida:** Alta — bug real de cálculo/reporte, no de UI; afecta la credibilidad del documento
 que se entrega al juzgado en las 6 áreas operables (Civil/Familia, Comercial, Laboral, Sancionatorio,
@@ -3295,6 +3348,23 @@ pesos en intereses generados, pero aparece el saldo final de intereses" (con val
 - La suma de la columna "Interés" de la tabla de detalle coincide exactamente con el saldo final de
   intereses del resumen ejecutivo.
 - Suite completa en verde.
+
+**Cierre de implementación (2026-08-07):** Completado. Ver
+`docs/superpowers/plans/2026-08-06-sprint40-interes-causado-pdf.md`. Se descartó la opción (a) del
+plan (evento sintético "INTEREST") por su interacción innecesaria con el motor de auditoría; se
+implementó una variante correcta de la opción (b): `LiquidationCore.process()` captura el interés
+causado por `_accrue_time_passage` inmediatamente antes de cada evento (y antes del corte final) y lo
+atribuye al `interest_amount` de esa fila — no un delta crudo de `balance.debt.interest` (que iría
+negativo en filas de pago/capitalización), sino el interés efectivamente causado por paso del tiempo en
+ese tramo, siempre `>= 0`. El branch preexistente `event_type == "INTEREST"` (usado solo en tests) se
+mantiene y ahora suma en vez de sobrescribir, ya que ambos interés son conceptualmente aditivos. El
+saldo final de intereses no cambió (ya era correcto); solo se corrigió el desglose por fila que llega
+al PDF/Word. Confirmado por lectura (no solo por tests) que `reconstruir_liquidacion()` (Sprint 9)
+nunca vuelve a ejecutar `LiquidationCore.process()` — solo deserializa el snapshot JSON ya guardado —
+por lo que el cambio no puede alterar reconstrucciones históricas ya persistidas. `table_builder.py`,
+`pdf.py` y `summary.py` no requirieron cambios: ya imprimían `item.interest_amount`/
+`total_interest_accrued()` tal cual, sin lógica de fallback. Suite completa en verde (837 tests tras
+este sprint individual, 863 tras el merge final).
 
 ---
 

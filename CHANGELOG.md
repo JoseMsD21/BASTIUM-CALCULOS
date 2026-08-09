@@ -7,10 +7,25 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y 
 
 ## [Unreleased]
 
-Sprints 31-35: primer sistema de diseño visual de la GUI y mejoras de UX construidas sobre él
-(navegación, pantalla de inicio, formularios, listados). Ningún cambio de lógica de cálculo.
+Sprints 31-37: primer sistema de diseño visual de la GUI y mejoras de UX construidas sobre él
+(navegación, pantalla de inicio, formularios, listados, feedback no bloqueante, jerarquía de botones,
+persistencia de ventana y accesibilidad de teclado). Sprints 39-40: dos bugs reales corregidos (etiquetas
+huérfanas en formularios, interés causado ausente en la tabla del PDF). Sprint 38: licencia Apache 2.0
+publicada. Ningún cambio de lógica de cálculo salvo el desglose de interés por fila del Sprint 40 (el
+saldo final ya era correcto).
 
 ### Added
+- Notificación no bloqueante tipo toast (Sprint 36): `app/views/toast.py::mostrar_toast()` sustituye la
+  única confirmación de éxito de bajo riesgo que usaba `QMessageBox` modal (exportación completa);
+  `QMessageBox` se mantiene para errores y confirmaciones destructivas. Nueva clase QSS `secondary`
+  junto a `primary`/`destructive` (Sprint 31), aplicada explícitamente a todos los botones de las 9
+  vistas con botones.
+- Persistencia de ventana y accesibilidad de teclado (Sprint 37): `MainWindow` recuerda
+  tamaño/posición/maximizado entre sesiones vía `QSettings`; orden de tabulación explícito en
+  `ObligacionFormDialog` y `ExpedienteFormDialog`; confirmado `Enter`=Guardar y `Esc`=Cancelar en los 5
+  diálogos de formulario del proyecto.
+- Licencia Apache License 2.0 (Sprint 38): archivo `LICENSE` en la raíz, badge de `README.md` y línea de
+  `CONTRIBUTING.md` actualizados.
 - Sistema de diseño visual centralizado (Sprint 31): paleta de marca burdeos/crema
   (`app/core/theme_colors.py`), stylesheet `resources/theme.qss` y `QPalette` aplicados una sola vez
   vía `app/core/apariencia.py::aplicar_tema()`, tipografía `AncizarSans` cargada como fuente por
@@ -40,6 +55,15 @@ Sprints 31-35: primer sistema de diseño visual de la GUI y mejoras de UX constr
   `bastium.db` creada antes de los Sprints 18-20 (Sprint 51) — causa raíz: 3 scripts de migración de
   esquema nunca se habían corrido, y además la tabla `parametros_legales` estaba completamente vacía
   (el motor de cálculo entero dependía de ella). Ambos huecos se cierran automáticamente ahora.
+- Etiquetas huérfanas en `QFormLayout` (Sprint 39): campos condicionales de `ObligacionFormDialog`,
+  `EventoLaboralFormDialog` y `ParametroFormDialog` dejaban su etiqueta de texto visible sin el campo
+  editable al ocultarse (`widget.setVisible(False)` no sincroniza el `QLabel` que genera
+  `addRow(str, widget)`). Corregido de forma centralizada con
+  `app/views/form_utils.py::set_row_visible()`.
+- La tabla de detalle del PDF/Word mostraba $0 de interés causado en todas las filas de las 6 áreas,
+  aunque el saldo final de intereses ya era correcto (Sprint 40) — `LiquidationCore` nunca atribuía el
+  interés causado por paso del tiempo a la fila de su evento. No afecta ningún saldo final ya calculado
+  ni liquidaciones archivadas, solo el desglose de detalle por período.
 
 ## [0.1.0] - 2026-08-04
 
