@@ -24,7 +24,10 @@ def test_moneda_none_se_trata_igual_que_cop():
 def test_moneda_usd_convierte_multiplicando_por_la_trm():
     provider = ManualTRMProvider(Decimal("4150.2500"))
     resultado = convertir_a_pesos(
-        valor=Decimal("10000.00"), moneda="USD", provider=provider, fecha_referencia=date(2025, 1, 1)
+        valor=Decimal("10000.00"),
+        moneda="USD",
+        provider=provider,
+        fecha_referencia=date(2025, 1, 1),
     )
     assert resultado == Decimal("41502500.00")
 
@@ -32,5 +35,8 @@ def test_moneda_usd_convierte_multiplicando_por_la_trm():
 def test_moneda_usd_sin_provider_lanza_value_error():
     with pytest.raises(ValueError, match="requiere una TRM aplicable"):
         convertir_a_pesos(
-            valor=Decimal("10000.00"), moneda="USD", provider=None, fecha_referencia=date(2025, 1, 1)
+            valor=Decimal("10000.00"),
+            moneda="USD",
+            provider=None,
+            fecha_referencia=date(2025, 1, 1),
         )

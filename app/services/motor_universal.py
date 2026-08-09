@@ -42,11 +42,13 @@ class UniversalLiquidationService:
         eventos_pago = []
         for pago in pagos:
             if pago.date <= fecha_corte:
-                eventos_pago.append(Event(
-                    date=pago.date,
-                    payload={"amount": pago.amount, "reference": pago.reference},
-                    event_type="PAYMENT"
-                ))
+                eventos_pago.append(
+                    Event(
+                        date=pago.date,
+                        payload={"amount": pago.amount, "reference": pago.reference},
+                        event_type="PAYMENT",
+                    )
+                )
 
         # 3. Fusión del historial: Nacimiento de la deuda + Amortizaciones
         historia_completa = eventos_causacion + eventos_pago
@@ -55,13 +57,12 @@ class UniversalLiquidationService:
         motor_calculo = LiquidationCore(
             default_daily_rate=tasa_mora,
             rate_provider=rate_provider,
-            usar_suma_unica=usar_suma_unica
+            usar_suma_unica=usar_suma_unica,
         )
 
         # 5. Ejecución del procesamiento temporal implacable
         resultado = motor_calculo.process(
-            chronological_events=historia_completa,
-            cutoff_date=fecha_corte
+            chronological_events=historia_completa, cutoff_date=fecha_corte
         )
 
         # 6. Sprint 42: marcar (sin excluir) las filas cuya obligacion de origen ya
@@ -84,7 +85,9 @@ class UniversalLiquidationService:
         # aqui se reutiliza SOLO para detectar cuales estan prescritos -- ambos grupos
         # ya fueron procesados igual por LiquidationCore en el paso 5, sin excluir nada.
         try:
-            _vivas, prescritas = filtrar_cuotas_prescritas(eventos_causacion, fecha_corte, tipo_accion)
+            _vivas, prescritas = filtrar_cuotas_prescritas(
+                eventos_causacion, fecha_corte, tipo_accion
+            )
         except ParametroNoDisponibleError:
             # Sin el plazo de prescripcion configurado en Parametros no se puede
             # determinar el estado de ninguna fila -- se omite la marca en vez de
@@ -102,12 +105,13 @@ class UniversalLiquidationService:
         # nunca entran aqui porque filtrar_cuotas_prescritas solo recibe
         # eventos_causacion -- un pago nunca puede quedar marcado como prescrito.
         firmas_prescritas = {
-            (evento.date, evento.payload.get("label", evento.event_type))
-            for evento in prescritas
+            (evento.date, evento.payload.get("label", evento.event_type)) for evento in prescritas
         }
 
         items_marcados = [
-            replace(item, prescrita=True) if (item.date, item.concept) in firmas_prescritas else item
+            replace(item, prescrita=True)
+            if (item.date, item.concept) in firmas_prescritas
+            else item
             for item in resultado.items
         ]
         return replace(resultado, items=items_marcados)

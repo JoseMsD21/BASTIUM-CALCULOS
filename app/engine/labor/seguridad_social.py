@@ -56,7 +56,9 @@ class SeguridadSocialCalculator:
         # sin importar el valor cargado en parametros_legales -- si alguien sube un nivel de
         # riesgo por encima de eso desde la pantalla de Parametros, el motor sigue
         # respetando el tope legal, no el valor cargado.
-        arl_pct = min(get_parametro(f"SS_ARL_NIVEL_{nivel_riesgo_arl}_PCT", fecha_referencia), TOPE_ARL_PCT)
+        arl_pct = min(
+            get_parametro(f"SS_ARL_NIVEL_{nivel_riesgo_arl}_PCT", fecha_referencia), TOPE_ARL_PCT
+        )
         monto_arl = Rounding.money(ibc * arl_pct * dias_con_arl / Decimal("30"))
 
         monto_fsp = Decimal("0.00")
@@ -66,8 +68,12 @@ class SeguridadSocialCalculator:
 
         total = monto_pension + monto_salud + monto_arl + monto_fsp
         return CotizacionesResult(
-            ibc_mensual=ibc, monto_pension=monto_pension, monto_salud=monto_salud,
-            monto_arl=monto_arl, monto_fsp=monto_fsp, total=total,
+            ibc_mensual=ibc,
+            monto_pension=monto_pension,
+            monto_salud=monto_salud,
+            monto_arl=monto_arl,
+            monto_fsp=monto_fsp,
+            total=total,
         )
 
 
@@ -76,11 +82,11 @@ def _resolver_tramo_fsp(ibc: Decimal, smmlv: Decimal, fecha: date) -> Decimal:
     # multiplos de SMMLV del IBC (el PDF solo describe "escala progresiva
     # desde 1% hasta 2%", sin tramos exactos -- ver spec del Sprint 16).
     tramos = [
-        (Decimal("16"), "SS_FSP_TRAMO_1_PCT"),   # 4  - 16 SMMLV
-        (Decimal("17"), "SS_FSP_TRAMO_2_PCT"),   # 16 - 17 SMMLV
-        (Decimal("18"), "SS_FSP_TRAMO_3_PCT"),   # 17 - 18 SMMLV
-        (Decimal("19"), "SS_FSP_TRAMO_4_PCT"),   # 18 - 19 SMMLV
-        (Decimal("20"), "SS_FSP_TRAMO_5_PCT"),   # 19 - 20 SMMLV
+        (Decimal("16"), "SS_FSP_TRAMO_1_PCT"),  # 4  - 16 SMMLV
+        (Decimal("17"), "SS_FSP_TRAMO_2_PCT"),  # 16 - 17 SMMLV
+        (Decimal("18"), "SS_FSP_TRAMO_3_PCT"),  # 17 - 18 SMMLV
+        (Decimal("19"), "SS_FSP_TRAMO_4_PCT"),  # 18 - 19 SMMLV
+        (Decimal("20"), "SS_FSP_TRAMO_5_PCT"),  # 19 - 20 SMMLV
     ]
     for limite_superior, clave in tramos:
         if ibc < smmlv * limite_superior:

@@ -6,7 +6,9 @@ from database.models import TipoEventoLaboral
 
 def test_incapacidad_comun_un_dia_solo_empleador():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=1,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=1,
     )
 
     assert resultado.monto_a_cargo_empleador == Decimal("66670.00")
@@ -17,7 +19,9 @@ def test_incapacidad_comun_un_dia_solo_empleador():
 
 def test_incapacidad_comun_dos_dias_solo_empleador():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=2,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=2,
     )
 
     assert resultado.monto_a_cargo_empleador == Decimal("133340.00")
@@ -27,7 +31,9 @@ def test_incapacidad_comun_dos_dias_solo_empleador():
 
 def test_incapacidad_comun_tres_dias_cruza_a_eps():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=3,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=3,
     )
 
     assert resultado.monto_a_cargo_empleador == Decimal("133340.00")  # solo dias 1-2
@@ -39,7 +45,9 @@ def test_incapacidad_comun_tres_dias_cruza_a_eps():
 
 def test_incapacidad_comun_dia_90_ultimo_dia_del_tramo_eps_66pct():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=90,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=90,
     )
 
     assert resultado.monto_a_cargo_empleador == Decimal("133340.00")
@@ -50,7 +58,9 @@ def test_incapacidad_comun_dia_90_ultimo_dia_del_tramo_eps_66pct():
 
 def test_incapacidad_comun_dia_91_entra_tramo_eps_50pct():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=91,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=91,
     )
 
     assert resultado.monto_a_cargo_empleador == Decimal("133340.00")
@@ -63,7 +73,9 @@ def test_incapacidad_comun_dia_91_entra_tramo_eps_50pct():
 
 def test_incapacidad_comun_dia_180_ultimo_dia_modelado():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=180,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=180,
     )
 
     assert resultado.monto_a_cargo_empleador == Decimal("133340.00")
@@ -74,7 +86,9 @@ def test_incapacidad_comun_dia_180_ultimo_dia_modelado():
 
 def test_incapacidad_laboral_arl_paga_100pct_desde_dia_1_nada_a_cargo_empleador():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=10,
+        tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=10,
     )
 
     assert resultado.monto_a_cargo_empleador == Decimal("0.00")
@@ -86,7 +100,9 @@ def test_incapacidad_laboral_arl_paga_100pct_desde_dia_1_nada_a_cargo_empleador(
 
 def test_incapacidad_comun_cero_dias_no_genera_tramos():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=0,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=0,
     )
 
     assert resultado.tramos == []
@@ -95,7 +111,9 @@ def test_incapacidad_comun_cero_dias_no_genera_tramos():
 
 def test_incapacidad_laboral_cero_dias_no_genera_tramos():
     resultado = IncapacidadCalculator.calcular(
-        tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL, ibc_mensual=Decimal("3000000.00"), dias_incapacidad=0,
+        tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL,
+        ibc_mensual=Decimal("3000000.00"),
+        dias_incapacidad=0,
     )
 
     assert resultado.tramos == []

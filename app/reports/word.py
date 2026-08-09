@@ -10,7 +10,11 @@ class WordReportGenerator:
         self.c_prescrita = RGBColor(0xC0, 0x00, 0x00)
 
     def generate(
-        self, title: str, summary: dict, table_data: list, encabezado: dict | None = None,
+        self,
+        title: str,
+        summary: dict,
+        table_data: list,
+        encabezado: dict | None = None,
         renta_liquida: dict | None = None,
     ) -> None:
         documento = Document()
@@ -57,14 +61,20 @@ class WordReportGenerator:
         run_subtitulo.font.color.rgb = self.c_burgundy
 
         columnas_cronologia = [
-            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
-            "Saldo Capital", "Saldo Interés", "Saldo Total",
+            "Fecha",
+            "Concepto",
+            "Base Capital",
+            "Tasa",
+            "Interés",
+            "Indexación/Sanciones",
+            "Pago",
+            "Saldo Capital",
+            "Saldo Interés",
+            "Saldo Total",
         ]
         tabla_cronologia = documento.add_table(rows=1, cols=len(columnas_cronologia))
         tabla_cronologia.style = "Table Grid"
-        for celda, texto in zip(
-            tabla_cronologia.rows[0].cells, columnas_cronologia, strict=True
-        ):
+        for celda, texto in zip(tabla_cronologia.rows[0].cells, columnas_cronologia, strict=True):
             celda.text = texto
         for fila_datos in table_data:
             celdas_fila = tabla_cronologia.add_row().cells
@@ -96,7 +106,9 @@ class WordReportGenerator:
         if renta_liquida is not None:
             documento.add_paragraph()
             parrafo_renta_liquida = documento.add_paragraph()
-            run_renta_liquida = parrafo_renta_liquida.add_run("Depuración de Renta Líquida Gravable")
+            run_renta_liquida = parrafo_renta_liquida.add_run(
+                "Depuración de Renta Líquida Gravable"
+            )
             run_renta_liquida.bold = True
             run_renta_liquida.font.color.rgb = self.c_burgundy
 

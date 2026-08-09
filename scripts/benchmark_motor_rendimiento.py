@@ -29,11 +29,17 @@ def _preparar_db_en_memoria() -> None:
     session_module.SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
     session = session_module.get_session()
     for anio in range(1997, 2027):
-        session.add(ParametroLegal(
-            clave="IPC_INDICE_ACUMULADO", valor=Decimal("100") * Decimal("1.05") ** (anio - 1997),
-            vigente_desde=date(anio, 1, 1), vigente_hasta=None,
-            usuario="benchmark", motivo=None, creado_en=datetime.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="IPC_INDICE_ACUMULADO",
+                valor=Decimal("100") * Decimal("1.05") ** (anio - 1997),
+                vigente_desde=date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="benchmark",
+                motivo=None,
+                creado_en=datetime.now(),
+            )
+        )
     session.commit()
     session.close()
 
@@ -42,13 +48,19 @@ def _benchmark_mora_larga() -> float:
     """Hallazgo 1: MemoryRateProvider.get_rate escaneado dia a dia durante 29
     anios de mora (1997-01-01 a 2026-12-31, ~10950 llamadas)."""
     obligacion = Obligacion(
-        id=1, expediente_id=1, tipo=TipoObligacion.PUNTUAL,
-        concepto="Benchmark mora larga", categoria="DANO_EMERGENTE",
-        fecha_origen=date(1997, 1, 1), valor=Decimal("1000000.00"),
+        id=1,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Benchmark mora larga",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(1997, 1, 1),
+        valor=Decimal("1000000.00"),
         tasa_efectiva_anual=Decimal("6.00"),
     )
     inicio = time.perf_counter()
-    CivilFamiliaStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 12, 31))
+    CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 12, 31)
+    )
     return time.perf_counter() - inicio
 
 
@@ -56,15 +68,23 @@ def _benchmark_recurrente_con_indexacion() -> float:
     """Hallazgos 2/3: get_ipc_interpolado_for_date consultado una vez por
     cuota mensual (348 cuotas = 29 anios x 12 meses)."""
     obligacion = Obligacion(
-        id=2, expediente_id=1, tipo=TipoObligacion.RECURRENTE,
-        concepto="Benchmark cuotas con indexacion", categoria="CHILD_SUPPORT",
-        fecha_origen=date(1997, 1, 1), valor=Decimal("500000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), dia_pago=5,
-        fecha_inicio=date(1997, 1, 1), fecha_fin=date(2025, 12, 5),
+        id=2,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Benchmark cuotas con indexacion",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(1997, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(1997, 1, 1),
+        fecha_fin=date(2025, 12, 5),
         aplica_indexacion_ipc=True,
     )
     inicio = time.perf_counter()
-    CivilFamiliaStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 5))
+    CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 5)
+    )
     return time.perf_counter() - inicio
 
 

@@ -6,18 +6,20 @@ from app.reports.word import WordReportGenerator
 
 
 def _table_data():
-    return [{
-        "fecha": "15/04/2026",
-        "concepto": "Abono a capital",
-        "base_capital": "$1,500,000.50",
-        "tasa": "1.50%",
-        "interes": "$10,000.00",
-        "indexacion": "$0.00",
-        "pago": "$500,000.00",
-        "saldo_capital": "$1,500,000.50",
-        "saldo_interes": "$125,000.00",
-        "saldo_total": "$1,625,000.50",
-    }]
+    return [
+        {
+            "fecha": "15/04/2026",
+            "concepto": "Abono a capital",
+            "base_capital": "$1,500,000.50",
+            "tasa": "1.50%",
+            "interes": "$10,000.00",
+            "indexacion": "$0.00",
+            "pago": "$500,000.00",
+            "saldo_capital": "$1,500,000.50",
+            "saldo_interes": "$125,000.00",
+            "saldo_total": "$1,625,000.50",
+        }
+    ]
 
 
 def _summary():
@@ -52,8 +54,16 @@ def test_generate_incluye_titulo_encabezado_y_tabla_cronologica(tmp_path):
     tabla_cronologia = documento.tables[1]
     encabezados_columna = [celda.text for celda in tabla_cronologia.rows[0].cells]
     assert encabezados_columna == [
-        "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
-        "Saldo Capital", "Saldo Interés", "Saldo Total",
+        "Fecha",
+        "Concepto",
+        "Base Capital",
+        "Tasa",
+        "Interés",
+        "Indexación/Sanciones",
+        "Pago",
+        "Saldo Capital",
+        "Saldo Interés",
+        "Saldo Total",
     ]
     fila_datos = [celda.text for celda in tabla_cronologia.rows[1].cells]
     assert fila_datos[4] == "$10,000.00"
@@ -63,7 +73,9 @@ def test_generate_sin_encabezado_no_falla(tmp_path):
     ruta = tmp_path / "liquidacion_sin_encabezado.docx"
     generador = WordReportGenerator(str(ruta))
 
-    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
 
     assert ruta.exists()
     assert ruta.stat().st_size > 0
@@ -73,13 +85,17 @@ def test_generate_incluye_bloque_de_renta_liquida_cuando_se_provee(tmp_path):
     ruta = tmp_path / "liquidacion_renta.docx"
     generador = WordReportGenerator(str(ruta))
     renta_liquida = {
-        "ingresos_netos": "$100,000,000.00", "renta_bruta": "$60,000,000.00",
-        "renta_liquida": "$40,000,000.00", "hubo_perdida_liquida": "No",
+        "ingresos_netos": "$100,000,000.00",
+        "renta_bruta": "$60,000,000.00",
+        "renta_liquida": "$40,000,000.00",
+        "hubo_perdida_liquida": "No",
         "renta_liquida_gravable": "$35,000,000.00",
     }
 
     generador.generate(
-        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO", _summary(), _table_data(),
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO",
+        _summary(),
+        _table_data(),
         renta_liquida=renta_liquida,
     )
 
@@ -95,7 +111,9 @@ def test_generate_sin_renta_liquida_no_agrega_el_bloque(tmp_path):
     ruta = tmp_path / "liquidacion_sin_renta.docx"
     generador = WordReportGenerator(str(ruta))
 
-    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
 
     documento = Document(str(ruta))
     assert len(documento.tables) == 2
@@ -128,7 +146,9 @@ def test_generate_no_resalta_filas_sin_marcar(tmp_path):
     ruta = tmp_path / "liquidacion_sin_marca.docx"
     generador = WordReportGenerator(str(ruta))
 
-    generador.generate("LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data())
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
 
     documento = Document(str(ruta))
     tabla_cronologia = documento.tables[1]

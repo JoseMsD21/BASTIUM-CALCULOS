@@ -36,10 +36,17 @@ _PLAZOS_MESES = {
 def _parametros_prescripcion_en_memoria():
     session = session_module.get_session()
     for clave, meses in _PLAZOS_MESES.items():
-        session.add(ParametroLegal(
-            clave=clave, valor=Decimal(meses), vigente_desde=date(1900, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave=clave,
+                valor=Decimal(meses),
+                vigente_desde=date(1900, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     session.commit()
     session.close()
 
@@ -58,24 +65,32 @@ def test_calcular_prescripcion_ordinaria_10_anios():
 
 def test_calcular_prescripcion_honorarios_profesionales_3_anios():
     # 2023-02-10 + 36 meses -> 2026-02-10, martes hábil, sin corrimiento.
-    assert calcular_prescripcion(date(2023, 2, 10), TipoAccion.HONORARIOS_PROFESIONALES) == date(2026, 2, 10)
+    assert calcular_prescripcion(date(2023, 2, 10), TipoAccion.HONORARIOS_PROFESIONALES) == date(
+        2026, 2, 10
+    )
 
 
 def test_calcular_prescripcion_cambiaria_directa_3_anios():
     # Art. 789 C.Co. 2023-05-05 + 36 meses -> 2026-05-05, martes hábil.
-    assert calcular_prescripcion(date(2023, 5, 5), TipoAccion.CAMBIARIA_DIRECTA) == date(2026, 5, 5)
+    assert calcular_prescripcion(date(2023, 5, 5), TipoAccion.CAMBIARIA_DIRECTA) == date(
+        2026, 5, 5
+    )
 
 
 def test_calcular_prescripcion_cambiaria_regreso_tenedor_1_anio():
     # Art. 790 C.Co. 2025-03-01 + 12 meses -> raw 2026-03-01 (domingo, inhábil)
     # -> corre al siguiente hábil, 2026-03-02 (lunes).
-    assert calcular_prescripcion(date(2025, 3, 1), TipoAccion.CAMBIARIA_REGRESO_TENEDOR) == date(2026, 3, 2)
+    assert calcular_prescripcion(date(2025, 3, 1), TipoAccion.CAMBIARIA_REGRESO_TENEDOR) == date(
+        2026, 3, 2
+    )
 
 
 def test_calcular_prescripcion_cambiaria_regreso_entre_obligados_6_meses():
     # Art. 791 C.Co. 2025-09-01 + 6 meses -> 2026-03-01, domingo inhábil ->
     # corre al siguiente hábil, 2026-03-02 (lunes).
-    assert calcular_prescripcion(date(2025, 9, 1), TipoAccion.CAMBIARIA_REGRESO_ENTRE_OBLIGADOS) == date(2026, 3, 2)
+    assert calcular_prescripcion(
+        date(2025, 9, 1), TipoAccion.CAMBIARIA_REGRESO_ENTRE_OBLIGADOS
+    ) == date(2026, 3, 2)
 
 
 def test_calcular_prescripcion_desborde_fin_de_mes():
@@ -90,9 +105,9 @@ def test_calcular_prescripcion_desborde_fin_de_mes():
 def test_calcular_caducidad_tipo_conocido_impugnacion_societaria():
     # 2021-04-12 + 60 meses -> 2026-04-12, domingo inhábil -> corre al
     # siguiente hábil, 2026-04-13 (lunes).
-    assert calcular_caducidad(
-        date(2021, 4, 12), "IMPUGNACION_INEFICACIA_SOCIETARIA"
-    ) == date(2026, 4, 13)
+    assert calcular_caducidad(date(2021, 4, 12), "IMPUGNACION_INEFICACIA_SOCIETARIA") == date(
+        2026, 4, 13
+    )
 
 
 def test_calcular_caducidad_cheques_6_meses():
@@ -196,17 +211,13 @@ def test_fecha_interrupcion_efectiva_retrotrae_si_notifica_dentro_del_anio():
     # al siguiente hábil, 2025-03-03 (lunes, ver CalendarUtils.vencimiento_
     # calendario). Notificación 2024-10-01 cae muy dentro de ese plazo ->
     # retrotrae a la radicación.
-    assert fecha_interrupcion_efectiva(
-        date(2024, 3, 1), date(2024, 10, 1)
-    ) == date(2024, 3, 1)
+    assert fecha_interrupcion_efectiva(date(2024, 3, 1), date(2024, 10, 1)) == date(2024, 3, 1)
 
 
 def test_fecha_interrupcion_efectiva_no_retrotrae_si_notifica_fuera_del_anio():
     # Notificación muy posterior al vencimiento fecha-a-fecha (2025-03-03,
     # ver test anterior) -> no retrotrae.
-    assert fecha_interrupcion_efectiva(
-        date(2024, 3, 1), date(2025, 6, 1)
-    ) == date(2025, 6, 1)
+    assert fecha_interrupcion_efectiva(date(2024, 3, 1), date(2025, 6, 1)) == date(2025, 6, 1)
 
 
 def test_fecha_interrupcion_efectiva_notifica_el_dia_exacto_del_vencimiento_retrotrae():
@@ -216,17 +227,13 @@ def test_fecha_interrupcion_efectiva_notifica_el_dia_exacto_del_vencimiento_retr
     # escribir este plan, y cubierto de forma independiente en
     # tests/temporal/test_calendar.py. Notificar justo ese día límite
     # (inclusive) retrotrae.
-    assert fecha_interrupcion_efectiva(
-        date(2024, 3, 1), date(2025, 3, 3)
-    ) == date(2024, 3, 1)
+    assert fecha_interrupcion_efectiva(date(2024, 3, 1), date(2025, 3, 3)) == date(2024, 3, 1)
 
 
 def test_fecha_interrupcion_efectiva_notifica_un_dia_despues_del_vencimiento_no_retrotrae():
     # Un día calendario después del vencimiento (2025-03-03, ver test
     # anterior) -- ya no retrotrae.
-    assert fecha_interrupcion_efectiva(
-        date(2024, 3, 1), date(2025, 3, 4)
-    ) == date(2025, 3, 4)
+    assert fecha_interrupcion_efectiva(date(2024, 3, 1), date(2025, 3, 4)) == date(2025, 3, 4)
 
 
 def test_fecha_interrupcion_efectiva_bisiesto_366_dias_reales_pero_un_anio_calendario_retrotrae():
@@ -240,17 +247,13 @@ def test_fecha_interrupcion_efectiva_bisiesto_366_dias_reales_pero_un_anio_calen
     # (confirmación del despacho: "un año" es fecha a fecha, no 365 días
     # matemáticos). La regla corregida sí retrotrae, porque la notificación
     # llegó justo al año, ni un día tarde.
-    assert fecha_interrupcion_efectiva(
-        date(2024, 1, 15), date(2025, 1, 15)
-    ) == date(2024, 1, 15)
+    assert fecha_interrupcion_efectiva(date(2024, 1, 15), date(2025, 1, 15)) == date(2024, 1, 15)
 
 
 def test_fecha_interrupcion_efectiva_bisiesto_un_dia_despues_del_anio_no_retrotrae():
     # Un día calendario después del caso anterior -- ya pasó el año
     # fecha-a-fecha, no retrotrae.
-    assert fecha_interrupcion_efectiva(
-        date(2024, 1, 15), date(2025, 1, 16)
-    ) == date(2025, 1, 16)
+    assert fecha_interrupcion_efectiva(date(2024, 1, 15), date(2025, 1, 16)) == date(2025, 1, 16)
 
 
 def test_fecha_interrupcion_efectiva_rechaza_notificacion_anterior_a_radicacion():

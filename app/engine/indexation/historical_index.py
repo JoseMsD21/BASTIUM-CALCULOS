@@ -638,7 +638,9 @@ def get_tramos_ibc_usura_between(inicio: date, fin: date) -> list[TramoIBCUsura]
     tramos = []
     for fila in filas:
         ibc_anual, usura_anual = get_ibc_usura_for_date(fila.vigente_desde)
-        tramos.append(TramoIBCUsura(fila.vigente_desde, fila.vigente_hasta, ibc_anual, usura_anual))
+        tramos.append(
+            TramoIBCUsura(fila.vigente_desde, fila.vigente_hasta, ibc_anual, usura_anual)
+        )
     return tramos
 
 

@@ -43,7 +43,9 @@ from app.services.area_strategy import CivilFamiliaStrategy
 from database.models import AreaDerecho, Expediente, Obligacion, TipoObligacion
 
 
-def _interes_aislado_dia_a_dia(capital: Decimal, tasa_efectiva_anual: Decimal, fecha_origen: date, fecha_corte: date) -> Decimal:
+def _interes_aislado_dia_a_dia(
+    capital: Decimal, tasa_efectiva_anual: Decimal, fecha_origen: date, fecha_corte: date
+) -> Decimal:
     """Reproduce EXACTAMENTE el bucle de LiquidationCore._accrue_time_passage
     (engine.py) para una sola obligacion sin abonos: interes diario calculado
     y redondeado a centavos dia por dia (DailyInterest.calculate con days=1),
@@ -81,15 +83,17 @@ def _expediente_con_tres_cuotas(session) -> tuple[int, list[tuple[Decimal, date]
         (Decimal("115500.00"), date(2025, 1, 5)),
     ]
     for capital, fecha in datos:
-        session.add(Obligacion(
-            expediente_id=expediente.id,
-            tipo=TipoObligacion.PUNTUAL,
-            concepto=f"Cuota {fecha.isoformat()}",
-            categoria="CHILD_SUPPORT",
-            fecha_origen=fecha,
-            valor=capital,
-            tasa_efectiva_anual=Decimal("6.00"),
-        ))
+        session.add(
+            Obligacion(
+                expediente_id=expediente.id,
+                tipo=TipoObligacion.PUNTUAL,
+                concepto=f"Cuota {fecha.isoformat()}",
+                categoria="CHILD_SUPPORT",
+                fecha_origen=fecha,
+                valor=capital,
+                tasa_efectiva_anual=Decimal("6.00"),
+            )
+        )
     session.commit()
     return expediente.id, datos
 
@@ -107,7 +111,10 @@ def test_interes_consolidado_de_civilfamiliastrategy_coincide_con_suma_de_intere
     interes_consolidado = resultado.final_balance().interest
 
     interes_aislado_total = sum(
-        (_interes_aislado_dia_a_dia(capital, Decimal("6.00"), fecha, fecha_corte) for capital, fecha in datos),
+        (
+            _interes_aislado_dia_a_dia(capital, Decimal("6.00"), fecha, fecha_corte)
+            for capital, fecha in datos
+        ),
         Decimal("0.00"),
     )
 

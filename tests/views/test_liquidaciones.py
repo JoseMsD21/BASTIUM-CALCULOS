@@ -13,7 +13,9 @@ from database.models import AreaDerecho, Base, Expediente
 
 
 def _resultado_de_prueba() -> LiquidationResult:
-    debt = PendingDebt(principal=Decimal("427900.00"), interest=Decimal("1200.50"), indexation=Decimal("300.00"))
+    debt = PendingDebt(
+        principal=Decimal("427900.00"), interest=Decimal("1200.50"), indexation=Decimal("300.00")
+    )
     balance = RunningBalance(date=date(2026, 1, 1), debt=debt, event_type="LIQUIDATION_CUTOFF")
     item = LiquidationItem(
         date=date(2026, 1, 1),
@@ -39,7 +41,9 @@ def test_muestra_una_fila_por_item_de_liquidacion(qtbot):
 
 
 def _resultado_con_obligacion_prescrita() -> LiquidationResult:
-    debt = PendingDebt(principal=Decimal("1000000.00"), interest=Decimal("0.00"), indexation=Decimal("0.00"))
+    debt = PendingDebt(
+        principal=Decimal("1000000.00"), interest=Decimal("0.00"), indexation=Decimal("0.00")
+    )
     balance = RunningBalance(date=date(2015, 1, 1), debt=debt, event_type="INSTALLMENT")
     item = LiquidationItem(
         date=date(2015, 1, 1),
@@ -118,8 +122,10 @@ def test_muestra_bloque_de_renta_liquida_cuando_esta_presente(qtbot):
     from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
 
     renta = RentaLiquidaGravableResult(
-        ingresos_netos=Decimal("100000000.00"), renta_bruta=Decimal("60000000.00"),
-        renta_liquida=Decimal("40000000.00"), hubo_perdida_liquida=False,
+        ingresos_netos=Decimal("100000000.00"),
+        renta_bruta=Decimal("60000000.00"),
+        renta_liquida=Decimal("40000000.00"),
+        hubo_perdida_liquida=False,
         renta_liquida_gravable=Decimal("35000000.00"),
     )
     resultado = LiquidationResult(items=[], renta_liquida=renta)
@@ -147,7 +153,9 @@ def _expediente_para_exportar(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(

@@ -73,7 +73,9 @@ class MainWindow(QMainWindow):
         cosa que no es posible con el Registro de Windows."""
         organizacion = QCoreApplication.organizationName() or _ORGANIZACION_POR_DEFECTO
         aplicacion = QCoreApplication.applicationName() or _APLICACION_POR_DEFECTO
-        return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, organizacion, aplicacion)
+        return QSettings(
+            QSettings.Format.IniFormat, QSettings.Scope.UserScope, organizacion, aplicacion
+        )
 
     def _restaurar_geometria(self) -> None:
         """Restaura tamaño/posicion/estado maximizado de la sesion anterior (Sprint 37).

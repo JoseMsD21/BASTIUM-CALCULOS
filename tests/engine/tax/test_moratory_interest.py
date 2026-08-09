@@ -17,10 +17,17 @@ from database.models import ParametroLegal
 @pytest.fixture(autouse=True)
 def _parametro_et635_en_memoria():
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="ET635_PUNTOS_DESCUENTO", valor=Decimal("2"), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="ET635_PUNTOS_DESCUENTO",
+            valor=Decimal("2"),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
     # IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO (Tarea 13):
     # construir_rate_provider_moratorio_tributario llama a
     # get_tramos_ibc_usura_between, que ahora reconstruye tramos desde
@@ -29,14 +36,28 @@ def _parametro_et635_en_memoria():
     # scripts/migrate_parametros_legales.py (mismo criterio que la fixture
     # equivalente de tests/services/test_area_strategy.py).
     for tramo in _TRAMOS_IBC_USURA:
-        session.add(ParametroLegal(
-            clave="IBC_CONSUMO_ORDINARIO", valor=tramo.ibc_anual, vigente_desde=tramo.inicio,
-            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
-        session.add(ParametroLegal(
-            clave="USURA_CONSUMO_ORDINARIO", valor=tramo.usura_anual, vigente_desde=tramo.inicio,
-            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="IBC_CONSUMO_ORDINARIO",
+                valor=tramo.ibc_anual,
+                vigente_desde=tramo.inicio,
+                vigente_hasta=tramo.fin,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
+        session.add(
+            ParametroLegal(
+                clave="USURA_CONSUMO_ORDINARIO",
+                valor=tramo.usura_anual,
+                vigente_desde=tramo.inicio,
+                vigente_hasta=tramo.fin,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     session.commit()
     session.close()
 
@@ -85,21 +106,27 @@ def test_capital_cero_o_negativo_retorna_cero_sin_consultar_tramos():
 
 def test_fecha_corte_igual_a_exigibilidad_da_cero_dias_de_mora():
     assert calcular_interes_moratorio_tributario(
-        capital=Decimal("1000000.00"), fecha_exigibilidad=date(2026, 6, 15), fecha_corte=date(2026, 6, 15)
+        capital=Decimal("1000000.00"),
+        fecha_exigibilidad=date(2026, 6, 15),
+        fecha_corte=date(2026, 6, 15),
     ) == Decimal("0.00")
 
 
 def test_un_dia_de_mora_coincide_con_el_ejemplo_del_pdf_usura_28_79_ea():
     # PDF pag. 39: usura 28.79% EA -> interes moratorio tributario 26.79% EA
     total = calcular_interes_moratorio_tributario(
-        capital=Decimal("1000000.00"), fecha_exigibilidad=date(2026, 6, 1), fecha_corte=date(2026, 6, 2)
+        capital=Decimal("1000000.00"),
+        fecha_exigibilidad=date(2026, 6, 1),
+        fecha_corte=date(2026, 6, 2),
     )
     assert total == Decimal("650.52")
 
 
 def test_mora_que_cruza_dos_meses_suma_interes_de_cada_tramo():
     total = calcular_interes_moratorio_tributario(
-        capital=Decimal("1000000.00"), fecha_exigibilidad=date(2026, 4, 29), fecha_corte=date(2026, 5, 2)
+        capital=Decimal("1000000.00"),
+        fecha_exigibilidad=date(2026, 4, 29),
+        fecha_corte=date(2026, 5, 2),
     )
     # abril 30 (606.27) + mayo 1 (637.08) + mayo 2 (637.08)
     assert total == Decimal("1880.43")

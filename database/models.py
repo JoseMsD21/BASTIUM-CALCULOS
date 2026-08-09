@@ -67,6 +67,7 @@ class TipoReajusteAnual(enum.Enum):
     persistir cuotas hijas. SMMLV/IPC activan
     app.services.reajuste_anual.generar_cuotas_mensuales -- ver ese modulo y
     CivilFamiliaStrategy._eventos_de_obligacion para el wiring completo."""
+
     SMMLV = "SMMLV"
     IPC = "IPC"
     NINGUNO = "NINGUNO"
@@ -123,7 +124,9 @@ class Obligacion(Base):
     fecha_vencimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     ibc_vigente_anual: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
     cantidad_smlmv_uvt: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
-    honorarios_fijos_pactados: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    honorarios_fijos_pactados: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 2), nullable=True
+    )
     cuota_litis_pactada_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     beneficio_obtenido: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     costas_pct_manual: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
@@ -140,7 +143,9 @@ class Obligacion(Base):
     meses_extemporaneidad: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sancion_agravada: Mapped[bool] = mapped_column(Boolean, default=False)
     ingresos_brutos: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
-    devoluciones_rebajas_descuentos: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    devoluciones_rebajas_descuentos: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 2), nullable=True
+    )
     costos: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     deducciones: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     rentas_exentas: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
@@ -199,6 +204,7 @@ class EventoLaboral(Base):
     contrato puede tener varios eventos de cualquier tipo. `motivo_suspension`
     solo se llena cuando `tipo == SUSPENSION` (validado en
     LaboralStrategy, no aqui)."""
+
     __tablename__ = "eventos_laborales"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -222,6 +228,7 @@ class DescuentoLaboral(Base):
     fue) -- ambos reducen el neto adeudado de la misma forma, reutilizando el
     mecanismo de pagos/allocation ya existente (ver LaboralStrategy.liquidar,
     que los inyecta como eventos PAYMENT igual que los abonos)."""
+
     __tablename__ = "descuentos_laborales"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

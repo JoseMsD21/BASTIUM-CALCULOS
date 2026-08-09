@@ -95,7 +95,16 @@ class ResultadoLiquidacionView(QWidget):
 
         self.tabla = QTableWidget(0, 8)
         self.tabla.setHorizontalHeaderLabels(
-            ["Fecha", "Concepto", "Capital base", "Tasa %", "Interes", "Indexacion/Sanciones", "Pago", "Saldo"]
+            [
+                "Fecha",
+                "Concepto",
+                "Capital base",
+                "Tasa %",
+                "Interes",
+                "Indexacion/Sanciones",
+                "Pago",
+                "Saldo",
+            ]
         )
 
         self.etiqueta_interes_total = QLabel("Interes acumulado: 0.00")
@@ -170,7 +179,9 @@ class ResultadoLiquidacionView(QWidget):
             for columna, celda in enumerate(celdas_fila):
                 self.tabla.setItem(fila, columna, celda)
 
-        self.etiqueta_interes_total.setText(f"Interes acumulado: {resultado.total_interest_accrued()}")
+        self.etiqueta_interes_total.setText(
+            f"Interes acumulado: {resultado.total_interest_accrued()}"
+        )
         self.etiqueta_pagos_total.setText(f"Pagos aplicados: {resultado.total_payments_applied()}")
         self.etiqueta_saldo_final.setText(f"Saldo final: {resultado.final_balance().total()}")
 

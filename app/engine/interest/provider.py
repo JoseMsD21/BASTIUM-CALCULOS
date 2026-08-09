@@ -11,6 +11,7 @@ class RateProvider(ABC):
     Contrato estricto para cualquier repositorio de tasas de interés.
     Garantiza que el motor matemático pueda aislarse de la base de datos.
     """
+
     @abstractmethod
     def get_rate(self, target_date: date) -> Rate:
         pass
@@ -23,6 +24,7 @@ class RateProvider(ABC):
         """
         return "N/A"
 
+
 @dataclass(frozen=True)
 class RatePeriod:
     start_date: date
@@ -30,10 +32,12 @@ class RatePeriod:
     rate: Rate
     source: str = "N/A"
 
+
 class MemoryRateProvider(RateProvider):
     """
     Proveedor en memoria para inyección en pruebas unitarias y casos estáticos.
     """
+
     def __init__(self):
         self._periods: list[RatePeriod] = []
         self._start_dates: list[date] = []
@@ -66,11 +70,15 @@ class MemoryRateProvider(RateProvider):
     def get_rate(self, target_date: date) -> Rate:
         periodo = self._buscar_periodo(target_date)
         if periodo is None:
-            raise ValueError(f"No se encontró una tasa configurada para la fecha {target_date.strftime('%Y-%m-%d')}")
+            raise ValueError(
+                f"No se encontró una tasa configurada para la fecha {target_date.strftime('%Y-%m-%d')}"
+            )
         return periodo.rate
 
     def get_rate_source(self, target_date: date) -> str:
         periodo = self._buscar_periodo(target_date)
         if periodo is None:
-            raise ValueError(f"No se encontró una tasa configurada para la fecha {target_date.strftime('%Y-%m-%d')}")
+            raise ValueError(
+                f"No se encontró una tasa configurada para la fecha {target_date.strftime('%Y-%m-%d')}"
+            )
         return periodo.source

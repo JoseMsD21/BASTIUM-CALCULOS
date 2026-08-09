@@ -41,7 +41,9 @@ class DescuentoLaboralFormDialog(QDialog):
             "el reporte, no cambia como se resta del neto adeudado."
         )
         self.campo_motivo = QLineEdit()
-        self.campo_motivo.setToolTip("Motivo del descuento (opcional, ej. 'Prestamo cooperativa').")
+        self.campo_motivo.setToolTip(
+            "Motivo del descuento (opcional, ej. 'Prestamo cooperativa')."
+        )
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))

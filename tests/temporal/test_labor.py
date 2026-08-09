@@ -39,7 +39,9 @@ def test_labor_scheduler_liquidacion_final_contrato_de_un_anio_completo():
 def test_labor_scheduler_dias_proporcionales():
     # Escenario: trabajo parcial de 180 dias, contrato terminado el 2025-07-15.
     scheduler = LaborScheduler(
-        salario_base=Decimal("1000000.00"), dias_trabajados=180, fecha_liquidacion=date(2025, 7, 15)
+        salario_base=Decimal("1000000.00"),
+        dias_trabajados=180,
+        fecha_liquidacion=date(2025, 7, 15),
     )
     events = scheduler.generate()
 

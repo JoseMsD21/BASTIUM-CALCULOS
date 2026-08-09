@@ -11,67 +11,88 @@ class JudicialPDFGenerator:
         self.c_burgundy = colors.HexColor("#ae1c21")
         self.c_black = colors.HexColor("#000000")
         self.c_cream = colors.HexColor("#f5f1e9")
-        
-        self.styles.add(ParagraphStyle(
-            name='BastiumTitle',
-            fontSize=16,
-            textColor=self.c_burgundy,
-            spaceAfter=20,
-            alignment=1 # Centro
-        ))
+
+        self.styles.add(
+            ParagraphStyle(
+                name="BastiumTitle",
+                fontSize=16,
+                textColor=self.c_burgundy,
+                spaceAfter=20,
+                alignment=1,  # Centro
+            )
+        )
 
     def generar_documento(self, datos_rubros: list, ruta_grafica: str):
         # Crear documento con fondo crema (se simula mediante el canvas)
         doc = SimpleDocTemplate(self.output_path, pagesize=letter)
         elementos = []
-        
+
         # Título
-        elementos.append(Paragraph("<b>LIQUIDACIÓN PROVISIONAL DE ALIMENTOS</b>", self.styles['BastiumTitle']))
-        
+        elementos.append(
+            Paragraph("<b>LIQUIDACIÓN PROVISIONAL DE ALIMENTOS</b>", self.styles["BastiumTitle"])
+        )
+
         # Preparar datos para la tabla
         datos_tabla = [["CONCEPTO", "CAPITAL EXIGIBLE", "DÍAS MORA", "INTERESES", "TOTAL"]]
-        
+
         total_capital = 0
         total_intereses = 0
-        
+
         for rubro in datos_rubros:
-            datos_tabla.append([
-                rubro["concepto"],
-                f"${rubro['capital']:,.2f}",
-                str(rubro["dias_mora"]),
-                f"${rubro['intereses']:,.2f}",
-                f"${rubro['total_rubro']:,.2f}"
-            ])
-            total_capital += float(rubro['capital'])
-            total_intereses += float(rubro['intereses'])
-            
+            datos_tabla.append(
+                [
+                    rubro["concepto"],
+                    f"${rubro['capital']:,.2f}",
+                    str(rubro["dias_mora"]),
+                    f"${rubro['intereses']:,.2f}",
+                    f"${rubro['total_rubro']:,.2f}",
+                ]
+            )
+            total_capital += float(rubro["capital"])
+            total_intereses += float(rubro["intereses"])
+
         # Fila de totales
-        datos_tabla.append([
-            "TOTALES", 
-            f"${total_capital:,.2f}", 
-            "-", 
-            f"${total_intereses:,.2f}", 
-            f"${total_capital + total_intereses:,.2f}"
-        ])
-        
+        datos_tabla.append(
+            [
+                "TOTALES",
+                f"${total_capital:,.2f}",
+                "-",
+                f"${total_intereses:,.2f}",
+                f"${total_capital + total_intereses:,.2f}",
+            ]
+        )
+
         # Estilo estricto de la tabla
         tabla = Table(datos_tabla, colWidths=[150, 100, 70, 100, 100])
-        tabla.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), self.c_black),
-            ('TEXTCOLOR', (0, 0), (-1, 0), self.c_cream),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('BACKGROUND', (0, 1), (-1, -1), self.c_cream),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.c_black),
-            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 1, self.c_burgundy),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'), # Fila de totales en negrita
-        ]))
-        
+        tabla.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                    ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                    ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
+                    ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
+                    ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                    ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                    (
+                        "FONTNAME",
+                        (0, -1),
+                        (-1, -1),
+                        "Helvetica-Bold",
+                    ),  # Fila de totales en negrita
+                ]
+            )
+        )
+
         elementos.append(tabla)
         elementos.append(Spacer(1, 30))
 
         # Subtítulo de Gráfica
-        elementos.append(Paragraph("<b>DISTRIBUCIÓN ESTADÍSTICA DE CAPITAL ADEUDADO</b>", self.styles['BastiumTitle']))
+        elementos.append(
+            Paragraph(
+                "<b>DISTRIBUCIÓN ESTADÍSTICA DE CAPITAL ADEUDADO</b>", self.styles["BastiumTitle"]
+            )
+        )
 
         # Insertar Gráfica
         if ruta_grafica:
@@ -82,7 +103,11 @@ class JudicialPDFGenerator:
         doc.build(elementos)
 
     def generate(
-        self, title: str, summary: dict, table_data: list, encabezado: dict | None = None,
+        self,
+        title: str,
+        summary: dict,
+        table_data: list,
+        encabezado: dict | None = None,
         renta_liquida: dict | None = None,
     ):
         """Genera el dictamen a partir de la salida del motor LiquidationCore
@@ -90,15 +115,19 @@ class JudicialPDFGenerator:
         doc = SimpleDocTemplate(self.output_path, pagesize=letter)
         elementos = []
 
-        elementos.append(Paragraph(f"<b>{title}</b>", self.styles['BastiumTitle']))
+        elementos.append(Paragraph(f"<b>{title}</b>", self.styles["BastiumTitle"]))
 
         if encabezado:
             if encabezado.get("radicado"):
-                elementos.append(Paragraph(f"Radicado: {encabezado['radicado']}", self.styles['Normal']))
+                elementos.append(
+                    Paragraph(f"Radicado: {encabezado['radicado']}", self.styles["Normal"])
+                )
             if encabezado.get("partes"):
-                elementos.append(Paragraph(encabezado["partes"], self.styles['Normal']))
+                elementos.append(Paragraph(encabezado["partes"], self.styles["Normal"]))
             if encabezado.get("juzgado"):
-                elementos.append(Paragraph(f"Juzgado: {encabezado['juzgado']}", self.styles['Normal']))
+                elementos.append(
+                    Paragraph(f"Juzgado: {encabezado['juzgado']}", self.styles["Normal"])
+                )
             elementos.append(Spacer(1, 12))
 
         # Tabla de resumen ejecutivo
@@ -114,50 +143,70 @@ class JudicialPDFGenerator:
         datos_resumen.extend(list(fila) for fila in filas_resumen)
 
         tabla_resumen = Table(datos_resumen, colWidths=[250, 150])
-        tabla_resumen.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), self.c_black),
-            ('TEXTCOLOR', (0, 0), (-1, 0), self.c_cream),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('BACKGROUND', (0, 1), (-1, -1), self.c_cream),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.c_black),
-            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 1, self.c_burgundy),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ]))
+        tabla_resumen.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                    ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                    ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
+                    ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
+                    ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                    ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                    ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                ]
+            )
+        )
         elementos.append(tabla_resumen)
         elementos.append(Spacer(1, 30))
 
         # Tabla de cronología detallada
-        elementos.append(Paragraph("<b>Cronología Detallada de Imputaciones y Saldos</b>", self.styles['BastiumTitle']))
+        elementos.append(
+            Paragraph(
+                "<b>Cronología Detallada de Imputaciones y Saldos</b>", self.styles["BastiumTitle"]
+            )
+        )
 
-        datos_cronologia = [[
-            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
-            "Saldo Capital", "Saldo Interés", "Saldo Total",
-        ]]
+        datos_cronologia = [
+            [
+                "Fecha",
+                "Concepto",
+                "Base Capital",
+                "Tasa",
+                "Interés",
+                "Indexación/Sanciones",
+                "Pago",
+                "Saldo Capital",
+                "Saldo Interés",
+                "Saldo Total",
+            ]
+        ]
         for fila in table_data:
-            datos_cronologia.append([
-                fila["fecha"],
-                fila["concepto"],
-                fila["base_capital"],
-                fila["tasa"],
-                fila["interes"],
-                fila["indexacion"],
-                fila["pago"],
-                fila["saldo_capital"],
-                fila["saldo_interes"],
-                fila["saldo_total"],
-            ])
+            datos_cronologia.append(
+                [
+                    fila["fecha"],
+                    fila["concepto"],
+                    fila["base_capital"],
+                    fila["tasa"],
+                    fila["interes"],
+                    fila["indexacion"],
+                    fila["pago"],
+                    fila["saldo_capital"],
+                    fila["saldo_interes"],
+                    fila["saldo_total"],
+                ]
+            )
 
         tabla_cronologia = Table(datos_cronologia, repeatRows=1)
         estilo_cronologia = [
-            ('BACKGROUND', (0, 0), (-1, 0), self.c_black),
-            ('TEXTCOLOR', (0, 0), (-1, 0), self.c_cream),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), self.c_cream),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.c_black),
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 0.5, self.c_burgundy),
+            ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
+            ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
+            ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
+            ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+            ("GRID", (0, 0), (-1, -1), 0.5, self.c_burgundy),
         ]
         # Sprint 42: indicador visual (texto en rojo/negrita) para las filas cuya
         # obligacion de origen ya vencio su plazo de prescripcion/caducidad
@@ -165,14 +214,22 @@ class JudicialPDFGenerator:
         # se excluyen de la tabla, solo se resaltan.
         for indice_fila, fila in enumerate(table_data, start=1):
             if fila.get("prescrita"):
-                estilo_cronologia.append(('TEXTCOLOR', (0, indice_fila), (-1, indice_fila), colors.red))
-                estilo_cronologia.append(('FONTNAME', (0, indice_fila), (-1, indice_fila), 'Helvetica-Bold'))
+                estilo_cronologia.append(
+                    ("TEXTCOLOR", (0, indice_fila), (-1, indice_fila), colors.red)
+                )
+                estilo_cronologia.append(
+                    ("FONTNAME", (0, indice_fila), (-1, indice_fila), "Helvetica-Bold")
+                )
         tabla_cronologia.setStyle(TableStyle(estilo_cronologia))
         elementos.append(tabla_cronologia)
 
         if renta_liquida is not None:
             elementos.append(Spacer(1, 30))
-            elementos.append(Paragraph("<b>Depuración de Renta Líquida Gravable</b>", self.styles['BastiumTitle']))
+            elementos.append(
+                Paragraph(
+                    "<b>Depuración de Renta Líquida Gravable</b>", self.styles["BastiumTitle"]
+                )
+            )
             datos_renta_liquida = [
                 ["Rubro", "Monto"],
                 ["Ingresos Netos", renta_liquida["ingresos_netos"]],
@@ -182,16 +239,20 @@ class JudicialPDFGenerator:
                 ["RENTA LÍQUIDA GRAVABLE", renta_liquida["renta_liquida_gravable"]],
             ]
             tabla_renta_liquida = Table(datos_renta_liquida, colWidths=[250, 150])
-            tabla_renta_liquida.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), self.c_black),
-                ('TEXTCOLOR', (0, 0), (-1, 0), self.c_cream),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('BACKGROUND', (0, 1), (-1, -1), self.c_cream),
-                ('TEXTCOLOR', (0, 1), (-1, -1), self.c_black),
-                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
-                ('GRID', (0, 0), (-1, -1), 1, self.c_burgundy),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ]))
+            tabla_renta_liquida.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                        ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
+                        ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
+                        ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                        ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                    ]
+                )
+            )
             elementos.append(tabla_renta_liquida)
 
         doc.build(elementos)

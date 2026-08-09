@@ -269,14 +269,20 @@ class ExpedienteDetallePage(QWidget):
         session = session_module.get_session()
         expediente = session.get(Expediente, self._expediente_id)
         eventos = [
-            evento for obligacion in expediente.obligaciones for evento in obligacion.eventos_laborales
+            evento
+            for obligacion in expediente.obligaciones
+            for evento in obligacion.eventos_laborales
         ]
 
         self.tabla_eventos_laborales.setRowCount(len(eventos))
         for fila, evento in enumerate(eventos):
             self.tabla_eventos_laborales.setItem(fila, 0, QTableWidgetItem(evento.tipo.value))
-            self.tabla_eventos_laborales.setItem(fila, 1, QTableWidgetItem(evento.fecha_inicio.isoformat()))
-            self.tabla_eventos_laborales.setItem(fila, 2, QTableWidgetItem(evento.fecha_fin.isoformat()))
+            self.tabla_eventos_laborales.setItem(
+                fila, 1, QTableWidgetItem(evento.fecha_inicio.isoformat())
+            )
+            self.tabla_eventos_laborales.setItem(
+                fila, 2, QTableWidgetItem(evento.fecha_fin.isoformat())
+            )
 
             boton_editar = QPushButton("Editar")
             boton_editar.setProperty("class", "secondary")
@@ -305,12 +311,18 @@ class ExpedienteDetallePage(QWidget):
 
         self.tabla_descuentos_laborales.setRowCount(len(descuentos))
         for fila, descuento in enumerate(descuentos):
-            self.tabla_descuentos_laborales.setItem(fila, 0, QTableWidgetItem(descuento.fecha.isoformat()))
-            self.tabla_descuentos_laborales.setItem(fila, 1, QTableWidgetItem(str(descuento.monto)))
+            self.tabla_descuentos_laborales.setItem(
+                fila, 0, QTableWidgetItem(descuento.fecha.isoformat())
+            )
+            self.tabla_descuentos_laborales.setItem(
+                fila, 1, QTableWidgetItem(str(descuento.monto))
+            )
             self.tabla_descuentos_laborales.setItem(
                 fila, 2, QTableWidgetItem("Legal" if descuento.es_legal else "Ilegal")
             )
-            self.tabla_descuentos_laborales.setItem(fila, 3, QTableWidgetItem(descuento.motivo or ""))
+            self.tabla_descuentos_laborales.setItem(
+                fila, 3, QTableWidgetItem(descuento.motivo or "")
+            )
         session.close()
 
     def _refrescar_historial(self) -> None:
@@ -325,7 +337,9 @@ class ExpedienteDetallePage(QWidget):
             )
             self.tabla_historial.setItem(fila, 1, QTableWidgetItem(registro.usuario))
             self.tabla_historial.setItem(fila, 2, QTableWidgetItem(registro.area_derecho))
-            self.tabla_historial.setItem(fila, 3, QTableWidgetItem(registro.fecha_corte.isoformat()))
+            self.tabla_historial.setItem(
+                fila, 3, QTableWidgetItem(registro.fecha_corte.isoformat())
+            )
             self._audit_log_ids_por_fila.append(registro.id)
         session.close()
 
@@ -354,7 +368,10 @@ class ExpedienteDetallePage(QWidget):
         session.close()
 
         dialogo = ObligacionFormDialog(
-            expediente_id=self._expediente_id, area=area, parent=self, obligacion_id=obligacion_id,
+            expediente_id=self._expediente_id,
+            area=area,
+            parent=self,
+            obligacion_id=obligacion_id,
         )
         if dialogo.exec():
             self._refrescar_obligaciones()
@@ -362,7 +379,9 @@ class ExpedienteDetallePage(QWidget):
     def _abrir_dialogo_abono(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
-            QMessageBox.warning(self, "Seleccion requerida", "Selecciona una obligacion antes de agregar un abono.")
+            QMessageBox.warning(
+                self, "Seleccion requerida", "Selecciona una obligacion antes de agregar un abono."
+            )
             return
 
         obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
@@ -379,7 +398,8 @@ class ExpedienteDetallePage(QWidget):
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
             QMessageBox.warning(
-                self, "Seleccion requerida",
+                self,
+                "Seleccion requerida",
                 "Selecciona una obligacion recurrente con reajuste antes de generar cuotas.",
             )
             return
@@ -404,7 +424,8 @@ class ExpedienteDetallePage(QWidget):
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
             QMessageBox.warning(
-                self, "Seleccion requerida",
+                self,
+                "Seleccion requerida",
                 "Selecciona una obligacion antes de agregar un evento contractual.",
             )
             return
@@ -420,7 +441,9 @@ class ExpedienteDetallePage(QWidget):
         obligacion_id = evento.obligacion_id
         session.close()
 
-        dialogo = EventoLaboralFormDialog(obligacion_id=obligacion_id, parent=self, evento_id=evento_id)
+        dialogo = EventoLaboralFormDialog(
+            obligacion_id=obligacion_id, parent=self, evento_id=evento_id
+        )
         if dialogo.exec():
             self._refrescar_eventos_laborales()
 
@@ -444,7 +467,8 @@ class ExpedienteDetallePage(QWidget):
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
             QMessageBox.warning(
-                self, "Seleccion requerida",
+                self,
+                "Seleccion requerida",
                 "Selecciona una obligacion antes de agregar un descuento.",
             )
             return

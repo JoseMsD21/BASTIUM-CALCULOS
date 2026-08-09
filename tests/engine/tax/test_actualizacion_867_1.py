@@ -23,6 +23,7 @@ def _parametros_legales_reales_en_memoria():
     # session_module.SessionLocal ya los deja listos el conftest.py raiz
     # (Sprint 28) antes de que esta fixture arranque.
     from scripts.migrate_parametros_legales import migrar
+
     migrar()
 
 
@@ -56,7 +57,9 @@ def test_caso_de_ejemplo_del_despacho_indexacion_topada_al_limite_de_usura():
     assert interes_et635 < usura_plena
     assert interes_et635 + indexacion_sin_topar > usura_plena
 
-    indexacion_topada = calcular_indexacion_867_1_topada(capital, fecha_origen, fecha_corte, interes_et635)
+    indexacion_topada = calcular_indexacion_867_1_topada(
+        capital, fecha_origen, fecha_corte, interes_et635
+    )
 
     assert indexacion_topada < indexacion_sin_topar
     assert interes_et635 + indexacion_topada == usura_plena

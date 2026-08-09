@@ -30,10 +30,17 @@ def _expediente_civil(session) -> int:
 
 def _sembrar_smlmv(session, valores: dict[int, Decimal]) -> None:
     for anio, valor in valores.items():
-        session.add(ParametroLegal(
-            clave="SMLMV", valor=valor, vigente_desde=date(anio, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="SMLMV",
+                valor=valor,
+                vigente_desde=date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=datetime.now(),
+            )
+        )
 
 
 def _obligacion_recurrente_smmlv(session, expediente_id: int, *, fecha_fin=None) -> Obligacion:
@@ -62,11 +69,14 @@ def test_genera_cuotas_mensuales_con_capital_reajustado_por_smmlv_cada_enero(mon
     # verificar el capital exacto de cada año a mano: 2024 -> 2025 sube 10%,
     # 2025 -> 2026 sube 5% (dos tasas distintas para confirmar que la formula
     # no esta hardcodeada a un solo porcentaje).
-    _sembrar_smlmv(session, {
-        2024: Decimal("1000000.00"),
-        2025: Decimal("1100000.00"),
-        2026: Decimal("1155000.00"),
-    })
+    _sembrar_smlmv(
+        session,
+        {
+            2024: Decimal("1000000.00"),
+            2025: Decimal("1100000.00"),
+            2026: Decimal("1155000.00"),
+        },
+    )
     obligacion = _obligacion_recurrente_smmlv(session, expediente_id)
     obligacion_id = obligacion.id
     session.close()
@@ -111,10 +121,13 @@ def test_genera_cuotas_mensuales_con_capital_reajustado_por_smmlv_cada_enero(mon
 def test_generar_cuotas_mensuales_es_idempotente_no_duplica(monkeypatch):
     session = session_module.get_session()
     expediente_id = _expediente_civil(session)
-    _sembrar_smlmv(session, {
-        2024: Decimal("1000000.00"),
-        2025: Decimal("1100000.00"),
-    })
+    _sembrar_smlmv(
+        session,
+        {
+            2024: Decimal("1000000.00"),
+            2025: Decimal("1100000.00"),
+        },
+    )
     obligacion = _obligacion_recurrente_smmlv(session, expediente_id)
     obligacion_id = obligacion.id
     session.close()
@@ -134,9 +147,7 @@ def test_generar_cuotas_mensuales_es_idempotente_no_duplica(monkeypatch):
 
     session = session_module.get_session()
     total_en_bd = (
-        session.query(Obligacion)
-        .filter(Obligacion.obligacion_padre_id == obligacion_id)
-        .count()
+        session.query(Obligacion).filter(Obligacion.obligacion_padre_id == obligacion_id).count()
     )
     session.close()
     assert total_en_bd == len(primera_llamada)
@@ -164,14 +175,28 @@ def test_generar_cuotas_mensuales_con_reajuste_ipc_usa_ipcindexation(monkeypatch
 
     session = session_module.get_session()
     expediente_id = _expediente_civil(session)
-    session.add(ParametroLegal(
-        clave="IPC_INDICE_ACUMULADO", valor=Decimal("100.00"), vigente_desde=date(2024, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="IPC_INDICE_ACUMULADO", valor=Decimal("110.00"), vigente_desde=date(2025, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="IPC_INDICE_ACUMULADO",
+            valor=Decimal("100.00"),
+            vigente_desde=date(2024, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="IPC_INDICE_ACUMULADO",
+            valor=Decimal("110.00"),
+            vigente_desde=date(2025, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     obligacion = Obligacion(
         expediente_id=expediente_id,
         tipo=TipoObligacion.RECURRENTE,
@@ -196,7 +221,9 @@ def test_generar_cuotas_mensuales_con_reajuste_ipc_usa_ipcindexation(monkeypatch
 
     por_fecha = {c.fecha_origen: c.valor for c in cuotas}
     delta_esperado = IPCIndexation.calculate(
-        capital=Decimal("100000.00"), initial_index=Decimal("100.00"), final_index=Decimal("110.00")
+        capital=Decimal("100000.00"),
+        initial_index=Decimal("100.00"),
+        final_index=Decimal("110.00"),
     )
     assert por_fecha[date(2025, 1, 5)] == Decimal("100000.00") + delta_esperado
 

@@ -20,6 +20,7 @@ def _parametros_legales_en_memoria():
     # session_module.SessionLocal ya los deja listos el conftest.py raiz
     # (Sprint 28) antes de que esta fixture arranque.
     from scripts.migrate_parametros_legales import migrar
+
     migrar()
 
 
@@ -225,6 +226,7 @@ def _ipc_mensual_de_prueba(monkeypatch):
     # despacho aporte la fuente (ver Preguntas-Para-Abogado.md). Esta fixture
     # solo prueba que la matematica de interpolacion por dias es correcta.
     import app.engine.indexation.historical_index as historical_index_module
+
     monkeypatch.setattr(historical_index_module, "_IPC_MENSUAL", _IPC_MENSUAL_FIXTURE)
 
 
@@ -233,11 +235,15 @@ def test_ipc_mensual_no_disponible_lanza_error_explicito():
         get_ipc_mensual_for_month(2025, 12)
 
 
-def test_ipc_interpolado_mensual_en_cierre_de_mes_coincide_con_el_indice_del_mes(_ipc_mensual_de_prueba):
+def test_ipc_interpolado_mensual_en_cierre_de_mes_coincide_con_el_indice_del_mes(
+    _ipc_mensual_de_prueba,
+):
     assert get_ipc_interpolado_mensual_for_date(date(2025, 11, 30)) == Decimal("1183.20")
 
 
-def test_ipc_interpolado_mensual_a_mitad_de_mes_es_promedio_ponderado_por_dias(_ipc_mensual_de_prueba):
+def test_ipc_interpolado_mensual_a_mitad_de_mes_es_promedio_ponderado_por_dias(
+    _ipc_mensual_de_prueba,
+):
     # 15 de noviembre: entre el cierre de octubre (31-oct) y el cierre de
     # noviembre (30-nov). t1 = dias desde 31-oct hasta 15-nov = 15;
     # t2 = dias desde 15-nov hasta 30-nov = 15.

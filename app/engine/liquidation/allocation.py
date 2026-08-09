@@ -14,9 +14,11 @@ class AllocationEngine:
     """
 
     @staticmethod
-    def allocate(payment_amount: Decimal, current_debt: PendingDebt, payment_date: date) -> tuple[PaymentAllocation, PendingDebt, Decimal]:
+    def allocate(
+        payment_amount: Decimal, current_debt: PendingDebt, payment_date: date
+    ) -> tuple[PaymentAllocation, PendingDebt, Decimal]:
         remainder = payment_amount
-        
+
         # 1. Imputación a Indexación
         if remainder >= current_debt.indexation:
             to_indexation = current_debt.indexation
@@ -52,13 +54,11 @@ class AllocationEngine:
             total_payment=payment_amount - remainder,
             to_interest=to_interest,
             to_indexation=to_indexation,
-            to_principal=to_principal
+            to_principal=to_principal,
         )
 
         new_debt = PendingDebt(
-            principal=new_principal,
-            interest=new_interest,
-            indexation=new_indexation
+            principal=new_principal, interest=new_interest, indexation=new_indexation
         )
 
         return allocation, new_debt, remainder

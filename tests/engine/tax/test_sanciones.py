@@ -18,44 +18,85 @@ from database.models import ParametroLegal
 @pytest.fixture(autouse=True)
 def _parametros_sanciones_en_memoria():
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="EXTEMPORANEIDAD_PCT_MENSUAL", valor=Decimal("5"), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="INEXACTITUD_PCT", valor=Decimal("160"), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="INEXACTITUD_AGRAVADA_PCT", valor=Decimal("200"), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="ERROR_ARITMETICO_PCT", valor=Decimal("30"), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="EXTEMPORANEIDAD_PCT_MENSUAL",
+            valor=Decimal("5"),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="INEXACTITUD_PCT",
+            valor=Decimal("160"),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="INEXACTITUD_AGRAVADA_PCT",
+            valor=Decimal("200"),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="ERROR_ARITMETICO_PCT",
+            valor=Decimal("30"),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
     for anio, valor in _UVT_POR_ANIO.items():
-        session.add(ParametroLegal(
-            clave="UVT", valor=valor, vigente_desde=date(anio, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="UVT",
+                valor=valor,
+                vigente_desde=date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     session.commit()
     session.close()
 
 
 def test_piso_sancion_minima_no_afecta_montos_por_encima_de_10_uvt():
     # UVT 2024 = 47065.00 (ver historical_index.py) -> piso = 470650.00
-    assert aplicar_piso_sancion_minima(Decimal("1000000.00"), date(2024, 6, 1)) == Decimal("1000000.00")
+    assert aplicar_piso_sancion_minima(Decimal("1000000.00"), date(2024, 6, 1)) == Decimal(
+        "1000000.00"
+    )
 
 
 def test_piso_sancion_minima_eleva_montos_por_debajo_de_10_uvt():
-    assert aplicar_piso_sancion_minima(Decimal("100000.00"), date(2024, 6, 1)) == Decimal("470650.00")
+    assert aplicar_piso_sancion_minima(Decimal("100000.00"), date(2024, 6, 1)) == Decimal(
+        "470650.00"
+    )
 
 
 def test_extemporaneidad_5_pct_mensual_por_cada_mes():
     # Impuesto a cargo 10,000,000, 2 meses de atraso: 5% x 2 = 10% = 1,000,000 (por encima del piso).
     resultado = calcular_sancion_extemporaneidad(
-        impuesto_a_cargo=Decimal("10000000.00"), meses_o_fraccion=2, fecha_referencia=date(2024, 6, 1)
+        impuesto_a_cargo=Decimal("10000000.00"),
+        meses_o_fraccion=2,
+        fecha_referencia=date(2024, 6, 1),
     )
     assert resultado == Decimal("1000000.00")
 
@@ -63,14 +104,18 @@ def test_extemporaneidad_5_pct_mensual_por_cada_mes():
 def test_extemporaneidad_topada_en_100_pct_del_impuesto_a_cargo():
     # 5% x 30 meses = 150%, debe quedar topado en el 100% del impuesto a cargo.
     resultado = calcular_sancion_extemporaneidad(
-        impuesto_a_cargo=Decimal("10000000.00"), meses_o_fraccion=30, fecha_referencia=date(2024, 6, 1)
+        impuesto_a_cargo=Decimal("10000000.00"),
+        meses_o_fraccion=30,
+        fecha_referencia=date(2024, 6, 1),
     )
     assert resultado == Decimal("10000000.00")
 
 
 def test_extemporaneidad_por_debajo_del_piso_queda_en_10_uvt():
     resultado = calcular_sancion_extemporaneidad(
-        impuesto_a_cargo=Decimal("1000000.00"), meses_o_fraccion=1, fecha_referencia=date(2024, 6, 1)
+        impuesto_a_cargo=Decimal("1000000.00"),
+        meses_o_fraccion=1,
+        fecha_referencia=date(2024, 6, 1),
     )
     assert resultado == Decimal("470650.00")
 
@@ -84,7 +129,9 @@ def test_extemporaneidad_el_piso_de_10_uvt_puede_superar_el_tope_del_100_pct_par
     # impuestos pequeños) -- este test documenta explicitamente esta interaccion piso/tope, que no
     # tenia cobertura dedicada antes (encontrado en la revision final de rama completa del Sprint 15).
     resultado = calcular_sancion_extemporaneidad(
-        impuesto_a_cargo=Decimal("100000.00"), meses_o_fraccion=1, fecha_referencia=date(2024, 6, 1)
+        impuesto_a_cargo=Decimal("100000.00"),
+        meses_o_fraccion=1,
+        fecha_referencia=date(2024, 6, 1),
     )
     assert resultado == Decimal("470650.00")
 

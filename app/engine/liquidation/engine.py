@@ -15,9 +15,10 @@ class LiquidationCore:
     """
     Orquestador determinista de liquidaciones.
     Procesa eventos temporales secuenciales de cualquier dominio jurídico
-    (Familia, Laboral, Civil, Comercial) e inyecta automáticamente 
+    (Familia, Laboral, Civil, Comercial) e inyecta automáticamente
     causaciones de interés por el paso del tiempo.
     """
+
     def __init__(
         self,
         default_daily_rate: Rate = Rate(Decimal("0.0")),
@@ -33,18 +34,38 @@ class LiquidationCore:
 
         # Diccionario de rubros jurídicos reconocidos como Capital Base
         self._capital_concepts = {
-            "INSTALLMENT", "CHILD_SUPPORT", "CLOTHING", "MULTA",
-            "CESANTIAS", "INTERESES_CESANTIAS", "PRIMA_JUNIO", "PRIMA_DICIEMBRE", "SANCION_MORATORIA",
-            "DANO_EMERGENTE", "LUCRO_CESANTE_CONSOLIDADO", "DANOS_MORALES", "CAPITAL_PAGARE",
-            "CAPITAL_LETRA_CAMBIO", "CAPITAL_CHEQUE", "CAPITAL_FACTURA",
-            "MULTA_SANCIONATORIA", "HONORARIOS_PROFESIONALES", "COSTAS_PROCESALES", "VACACIONES",
+            "INSTALLMENT",
+            "CHILD_SUPPORT",
+            "CLOTHING",
+            "MULTA",
+            "CESANTIAS",
+            "INTERESES_CESANTIAS",
+            "PRIMA_JUNIO",
+            "PRIMA_DICIEMBRE",
+            "SANCION_MORATORIA",
+            "DANO_EMERGENTE",
+            "LUCRO_CESANTE_CONSOLIDADO",
+            "DANOS_MORALES",
+            "CAPITAL_PAGARE",
+            "CAPITAL_LETRA_CAMBIO",
+            "CAPITAL_CHEQUE",
+            "CAPITAL_FACTURA",
+            "MULTA_SANCIONATORIA",
+            "HONORARIOS_PROFESIONALES",
+            "COSTAS_PROCESALES",
+            "VACACIONES",
             "IMPUESTO_A_CARGO",
             # Preparacion para el wiring de seguridad social/incapacidades en LaboralStrategy
             # (Tasks 8/9 del Sprint 16) -- todavia sin productor propio en este task.
             # SUSPENSION_INFORMATIVA/INCAPACIDAD_INFORMATIVA siempre llevan amount=0.00,
             # mismo mecanismo que LIQUIDATION_CUTOFF (entradas de rastro/auditoria, no de capital).
-            "COTIZACION_PENSION", "COTIZACION_SALUD", "COTIZACION_ARL", "COTIZACION_FSP",
-            "INCAPACIDAD_EMPLEADOR", "SUSPENSION_INFORMATIVA", "INCAPACIDAD_INFORMATIVA",
+            "COTIZACION_PENSION",
+            "COTIZACION_SALUD",
+            "COTIZACION_ARL",
+            "COTIZACION_FSP",
+            "INCAPACIDAD_EMPLEADOR",
+            "SUSPENSION_INFORMATIVA",
+            "INCAPACIDAD_INFORMATIVA",
         }
 
     def process(self, chronological_events: list[Event], cutoff_date: date) -> LiquidationResult:
@@ -66,23 +87,21 @@ class LiquidationCore:
         interes_causado_cierre = self._current_debt.interest - interes_antes_cierre
 
         if self._last_event_date and self._last_event_date < cutoff_date:
-             closing_rb = RunningBalance(
-                 date=cutoff_date,
-                 debt=self._current_debt,
-                 event_type="LIQUIDATION_CUTOFF"
-             )
-             closing_item = LiquidationItem(
-                 date=cutoff_date,
-                 concept="Corte final de liquidación",
-                 capital_base=self._capital_base_actual(),
-                 interest_rate=self._get_rate_for_date(cutoff_date).percent(),
-                 interest_amount=interes_causado_cierre,
-                 indexation_amount=Decimal("0.00"),
-                 payment_amount=Decimal("0.00"),
-                 balance=closing_rb,
-                 rate_source=self._get_rate_source_for_date(cutoff_date),
-             )
-             self._history.append(closing_item)
+            closing_rb = RunningBalance(
+                date=cutoff_date, debt=self._current_debt, event_type="LIQUIDATION_CUTOFF"
+            )
+            closing_item = LiquidationItem(
+                date=cutoff_date,
+                concept="Corte final de liquidación",
+                capital_base=self._capital_base_actual(),
+                interest_rate=self._get_rate_for_date(cutoff_date).percent(),
+                interest_amount=interes_causado_cierre,
+                indexation_amount=Decimal("0.00"),
+                payment_amount=Decimal("0.00"),
+                balance=closing_rb,
+                rate_source=self._get_rate_source_for_date(cutoff_date),
+            )
+            self._history.append(closing_item)
 
         return LiquidationResult(self._history)
 
@@ -110,7 +129,7 @@ class LiquidationCore:
     def _accrue_time_passage(self, target_date: date):
         if not self._last_event_date or target_date <= self._last_event_date:
             return
-            
+
         capital_base = self._capital_base_actual()
         if capital_base <= Decimal("0.00"):
             return
@@ -121,17 +140,19 @@ class LiquidationCore:
         while current_day <= target_date:
             daily_rate = self._get_rate_for_date(current_day)
             daily_interest = DailyInterest.calculate(
-                capital=capital_base,
-                daily_rate=daily_rate,
-                days=1
+                capital=capital_base, daily_rate=daily_rate, days=1
             )
             total_interest_accumulated += daily_interest
             current_day += timedelta(days=1)
 
         if total_interest_accumulated > Decimal("0.00"):
-            self._current_debt = BalanceEngine.add_interest(self._current_debt, total_interest_accumulated)
+            self._current_debt = BalanceEngine.add_interest(
+                self._current_debt, total_interest_accumulated
+            )
 
-    def _process_event(self, event: Event, interes_causado_periodo: Decimal = Decimal("0.00")) -> LiquidationItem:
+    def _process_event(
+        self, event: Event, interes_causado_periodo: Decimal = Decimal("0.00")
+    ) -> LiquidationItem:
         concept = event.payload.get("label", event.event_type)
         payment_amount = Decimal("0.00")
         # Interés causado por el paso del tiempo (_accrue_time_passage) inmediatamente
@@ -158,7 +179,9 @@ class LiquidationCore:
 
         elif event.event_type == "PAYMENT":
             amount = Decimal(str(event.payload.get("amount", "0.00")))
-            allocation, new_debt, remainder = AllocationEngine.allocate(amount, self._current_debt, event.date)
+            allocation, new_debt, remainder = AllocationEngine.allocate(
+                amount, self._current_debt, event.date
+            )
             self._current_debt = new_debt
             payment_amount = allocation.total_payment
             saldo_a_favor = remainder

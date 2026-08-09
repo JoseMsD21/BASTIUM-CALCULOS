@@ -12,27 +12,44 @@ from database.models import ParametroLegal
 
 def _sembrar_parametro(clave: str, meses: int) -> None:
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave=clave, valor=Decimal(meses), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave=clave,
+            valor=Decimal(meses),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
     session.commit()
     session.close()
 
 
 def test_liquidar_reenvia_usar_suma_unica_al_motor_core():
     eventos = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
 
     resultado_legado = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=date(2026, 1, 11),
-        tasa_estatica=Decimal("1.00"), usar_suma_unica=False,
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=date(2026, 1, 11),
+        tasa_estatica=Decimal("1.00"),
+        usar_suma_unica=False,
     )
     resultado_suma_unica = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=date(2026, 1, 11),
-        tasa_estatica=Decimal("1.00"), usar_suma_unica=True,
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=date(2026, 1, 11),
+        tasa_estatica=Decimal("1.00"),
+        usar_suma_unica=True,
     )
 
     assert resultado_legado.final_balance().interest == Decimal("100.00")
@@ -41,12 +58,18 @@ def test_liquidar_reenvia_usar_suma_unica_al_motor_core():
 
 def test_liquidar_usar_suma_unica_default_es_false():
     eventos = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
 
     resultado = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=date(2026, 1, 11),
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=date(2026, 1, 11),
         tasa_estatica=Decimal("1.00"),
     )
 
@@ -76,10 +99,14 @@ def test_liquidar_marca_evento_prescrito_sin_excluirlo_del_calculo():
     fecha_corte = date(2026, 1, 1)  # mas de 5 años despues de 2015-01-01 -> prescrita
 
     resultado = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=fecha_corte,
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=fecha_corte,
     )
 
-    fila_capital = next(item for item in resultado.items if item.balance.event_type == "INSTALLMENT")
+    fila_capital = next(
+        item for item in resultado.items if item.balance.event_type == "INSTALLMENT"
+    )
     assert fila_capital.prescrita is True
 
     # El total NO cambia por la marca: la obligacion prescrita sigue
@@ -104,7 +131,9 @@ def test_liquidar_evento_no_vencido_no_se_marca_prescrito():
     fecha_corte = date(2026, 1, 1)  # menos de 5 años -> aun vigente
 
     resultado = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=fecha_corte,
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=fecha_corte,
     )
 
     assert resultado.items[0].prescrita is False
@@ -126,7 +155,9 @@ def test_liquidar_sin_parametro_prescripcion_configurado_no_marca_ni_falla():
     fecha_corte = date(2026, 1, 1)
 
     resultado = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=fecha_corte,
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=fecha_corte,
     )
 
     assert resultado.items[0].prescrita is False
@@ -148,7 +179,9 @@ def test_liquidar_solo_marca_eventos_de_causacion_nunca_pagos():
     fecha_corte = date(2026, 1, 1)
 
     resultado = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=pagos, fecha_corte=fecha_corte,
+        eventos_causacion=eventos,
+        pagos=pagos,
+        fecha_corte=fecha_corte,
     )
 
     filas_por_tipo = {item.balance.event_type: item for item in resultado.items}
@@ -173,10 +206,14 @@ def test_liquidar_acepta_tipo_accion_explicito_para_calcular_prescripcion():
     fecha_corte = date(2026, 1, 1)  # 8 años: prescrita bajo EJECUTIVA, vigente bajo ORDINARIA
 
     resultado_default = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=fecha_corte,
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=fecha_corte,
     )
     resultado_ordinaria = UniversalLiquidationService().liquidar(
-        eventos_causacion=eventos, pagos=[], fecha_corte=fecha_corte,
+        eventos_causacion=eventos,
+        pagos=[],
+        fecha_corte=fecha_corte,
         tipo_accion=TipoAccion.ORDINARIA,
     )
 

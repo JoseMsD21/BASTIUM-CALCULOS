@@ -15,7 +15,9 @@ from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoOblig
 def _sesion_en_memoria(monkeypatch):
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
 
 def test_lista_muestra_expedientes_existentes(qtbot, monkeypatch):
