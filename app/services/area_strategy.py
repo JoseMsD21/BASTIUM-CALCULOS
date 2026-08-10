@@ -428,7 +428,8 @@ class ComercialStrategy(AreaStrategy):
     Split real de tasa remuneratoria (antes del vencimiento) / moratoria (despues)
     solo aplica a obligaciones PUNTUAL. RECURRENTE usa una sola tasa moratoria para
     todo el periodo, igual que CivilFamiliaStrategy, porque el vencimiento de cada
-    cuota individual no esta modelado (ver docs/superpowers/specs/2026-07-15-area-comercial-design.md).
+    cuota individual no esta modelado
+    (ver docs/superpowers/specs/2026-07-15-area-comercial-design.md).
 
     No es compatible con indexacion IPC (soporta_indexacion_ipc = False).
 
@@ -556,7 +557,8 @@ class ComercialStrategy(AreaStrategy):
                 LiquidationItem(
                     date=fecha_corte,
                     concept=(
-                        f"Sanción por usura (Art. 72 Ley 45/1990) — {ajuste['obligacion'].concepto}: "
+                        f"Sanción por usura (Art. 72 Ley 45/1990) — "
+                        f"{ajuste['obligacion'].concepto}: "
                         f"exceso cobrado {ajuste['exceso']} x 2, devuelto doblado al deudor"
                     ),
                     capital_base=saldo.principal,
@@ -589,7 +591,8 @@ class ComercialStrategy(AreaStrategy):
         if obligacion.fecha_vencimiento < obligacion.fecha_origen:
             raise ValueError(
                 f"La obligacion comercial '{obligacion.concepto}' tiene fecha_vencimiento "
-                f"({obligacion.fecha_vencimiento}) anterior a fecha_origen ({obligacion.fecha_origen})."
+                f"({obligacion.fecha_vencimiento}) anterior a fecha_origen "
+                f"({obligacion.fecha_origen})."
             )
 
         # Una tasa pactada por encima del tope de usura ya NO se rechaza aqui (ver
@@ -633,9 +636,11 @@ class ComercialStrategy(AreaStrategy):
             fecha_minima_acuerdo = obligacion.fecha_vencimiento + timedelta(days=365)
             if obligacion.anatocismo_fecha_acuerdo < fecha_minima_acuerdo:
                 raise ValueError(
-                    f"La obligacion comercial '{obligacion.concepto}' tiene 'anatocismo_fecha_acuerdo' "
-                    f"({obligacion.anatocismo_fecha_acuerdo}) que no cumple el año de anterioridad "
-                    f"exigido por el Art. 886 C.Co. (debe ser >= {fecha_minima_acuerdo})."
+                    f"La obligacion comercial '{obligacion.concepto}' tiene "
+                    f"'anatocismo_fecha_acuerdo' "
+                    f"({obligacion.anatocismo_fecha_acuerdo}) que no cumple el año de "
+                    f"anterioridad exigido por el Art. 886 C.Co. "
+                    f"(debe ser >= {fecha_minima_acuerdo})."
                 )
 
     def _resolver_trm_provider(self, obligacion) -> TRMProvider:
@@ -686,7 +691,10 @@ class ComercialStrategy(AreaStrategy):
                 Event(
                     date=fecha_evento,
                     payload={
-                        "label": "Capitalización de intereses (Art. 886 C.Co. — anatocismo comercial)"
+                        "label": (
+                            "Capitalización de intereses "
+                            "(Art. 886 C.Co. — anatocismo comercial)"
+                        )
                     },
                     event_type="CAPITALIZACION_INTERESES_ANATOCISMO",
                 )
@@ -917,7 +925,8 @@ class LaboralStrategy(AreaStrategy):
                                     "amount": tramo.monto if es_empleador else Decimal("0.00"),
                                     "label": (
                                         f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
-                                        f"{tramo.pagador} ({tramo.porcentaje:.2%}): ${tramo.monto:,.2f}"
+                                        f"{tramo.pagador} ({tramo.porcentaje:.2%}): "
+                                        f"${tramo.monto:,.2f}"
                                     ),
                                 },
                                 event_type="INCAPACIDAD_EMPLEADOR"

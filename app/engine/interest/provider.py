@@ -71,7 +71,8 @@ class MemoryRateProvider(RateProvider):
         periodo = self._buscar_periodo(target_date)
         if periodo is None:
             raise ValueError(
-                f"No se encontró una tasa configurada para la fecha {target_date.strftime('%Y-%m-%d')}"
+                "No se encontró una tasa configurada para la fecha "
+                f"{target_date.strftime('%Y-%m-%d')}"
             )
         return periodo.rate
 
@@ -79,6 +80,7 @@ class MemoryRateProvider(RateProvider):
         periodo = self._buscar_periodo(target_date)
         if periodo is None:
             raise ValueError(
-                f"No se encontró una tasa configurada para la fecha {target_date.strftime('%Y-%m-%d')}"
+                "No se encontró una tasa configurada para la fecha "
+                f"{target_date.strftime('%Y-%m-%d')}"
             )
         return periodo.source
