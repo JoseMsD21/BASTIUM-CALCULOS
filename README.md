@@ -18,7 +18,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-07-31)
+## Estado actual (2026-08-09)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -26,7 +26,9 @@ abonos, indexación IPC opcional por obligación (Art. corrección monetaria; el
 aplica, con interpolación entre índices de cierre de año para fechas intermedias), con la opción de aplicar
 el algoritmo "Suma Única" (Art. corrección monetaria + interés civil, PDF pág. 21-22: interés sobre el
 capital ya indexado en vez de sobre el capital histórico, también válido para intereses de la Ley 80 de
-1993 en contratos estatales)), **Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
+1993 en contratos estatales); las obligaciones recurrentes de cuota alimentaria admiten reajuste anual del
+capital según SMMLV o IPC cada 1 de enero, con cuotas mensuales generadas y abonables por separado),
+**Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
 split real antes/después del vencimiento, sanción del doble por exceso sobre el tope de usura 1.5×IBC
 (Ley 45/1990 art. 72, sin rechazar ni truncar la liquidación), obligaciones en USD
 convertidas a pesos con la TRM certificada por la Superintendencia Financiera en vivo, consultada por la
@@ -39,22 +41,31 @@ según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tab
 2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios
 profesionales y cuota litis, validando el tope único del 50% acumulado del beneficio obtenido para la
 suma de honorarios fijos + cuota litis (alerta "Honorarios Desproporcionados - Art. 35 Num. 4 Ley
-1123/2007" si se excede); las costas judiciales
-se ingresan como porcentaje manual, el que fijó el juez; el cálculo automático por tabla ya existe pero
-aún no tiene campos propios en pantalla — ver [Guía de Usuario](docs/GUIA_USUARIO.md#8-funciones-pendientes-o-en-desarrollo)),
+1123/2007" si se excede); las costas judiciales se ingresan como porcentaje manual, el que fijó el juez —
+ver nota de "en desarrollo" más abajo),
 **Laboral** (liquidación final —finiquito— de un contrato:
 cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, indemnización moratoria
 bifásica del Art. 65 CST si hubo retardo en el pago y, opcionalmente, cotizaciones de seguridad social
-—pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales) y **Tributario** (impuesto a
+—pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales, con checkbox de salario =
+SMMLV automático por año, descuentos del empleador propios, y edición de obligaciones/eventos ya
+guardados sin borrar y recrear) y **Tributario** (impuesto a
 cargo; sanciones por extemporaneidad, inexactitud y error aritmético, todas con un piso legal de 10 UVT
 sin importar el cálculo porcentual; imputación de pagos propia del área —sanciones → intereses →
 impuesto, distinta del orden civil de intereses → capital—; interés automático del E.T. art. 635 —usura
 vigente menos dos puntos—, que nunca se pacta manualmente; y depuración de Renta Líquida Gravable
-informativa, que se muestra aparte y no se suma al saldo de la deuda). El resultado de cualquier
+informativa, que se muestra aparte y no se suma al saldo de la deuda). Sancionatorio muestra en pantalla,
+de forma transparente, si la multa se aplicará como SMLMV o UVT según la fecha del hecho. Cualquier
+obligación cuyo plazo de prescripción/caducidad ya venció se marca (sin excluirla del cálculo) con
+advertencia visual en pantalla, PDF y Word. El resultado de cualquier
 liquidación se puede
-exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación. Cada liquidación ejecutada
+exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación, incluido el saldo a favor
+del deudor cuando un pago superó la deuda. Cada liquidación ejecutada
 queda registrada en un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de
 corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
+
+La interfaz tiene navegación por panel lateral fijo, modo oscuro/claro alternable desde "⚙ Parámetros"
+(persistido entre sesiones), notificaciones no bloqueantes tipo toast para confirmaciones de bajo riesgo,
+y una gráfica de expedientes por área en el Dashboard de inicio.
 
 ℹ️ **Nota sobre auditorías históricas:** las liquidaciones auditadas antes de que el campo
 `rate_source` se agregara al motor (posterior al Sprint 9) se reconstruyen con `rate_source="N/A"`
@@ -70,17 +81,21 @@ IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo ag
 ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
 queda siempre disponible con doble clic.
 
-🚧 **En desarrollo:** varios módulos más también están pendientes. El motor de prescripción y caducidad
-(`app/engine/temporal/prescripcion.py`) ya existe y está probado — calcula fechas límite por tipo de
-acción (ejecutiva, ordinaria, honorarios profesionales, cambiaria directa/de regreso), soporta
-prescripción parcial cuota a cuota en obligaciones de tracto sucesivo e interrupción por demanda — pero
-todavía no está conectado a ninguna pantalla ni al motor de liquidación (`Pendientes.md`, Sprint 7). Las
+🚧 **En desarrollo:** varios módulos más también están pendientes. La indexación IPC solo está disponible
+en Civil/Familia — falta decidir con el despacho, área por área, si tiene sentido ofrecerla también en
+Comercial/Laboral/Honorarios/Sancionatorio/Tributario sin duplicar el mecanismo propio que ya tienen
+Sancionatorio (SMLMV/UVT) y Tributario (Art. 867-1 E.T.). Las costas judiciales se ingresan como
+porcentaje manual (el que fijó el juez); el cálculo automático por tabla ya existe en el motor pero aún no
+tiene campos propios en pantalla — ver [Guía de Usuario](docs/GUIA_USUARIO.md#8-funciones-pendientes-o-en-desarrollo).
+El recálculo de liquidaciones históricas anteriores a las correcciones
+del Sprint 30 queda pendiente de que el despacho confirme si aplica. Las
 series históricas de SMLMV, IPC, IBC/Tasa de Usura y UVT (1984-2026, 1967-2025, 1997-2026 y 2006-2026
 respectivamente) ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en
 Comercial y en la fase 2 de la indemnización moratoria laboral, IPC ya está conectado a la indexación de
-Civil/Familia (Sprint 8), y UVT ya está conectada a la conversión SMLMV→UVT del área Sancionatorio
-(Sprint 14) y al piso legal de 10 UVT de las sanciones tributarias (Sprint 15); SMLMV sigue sin un
-consumidor propio. El plan completo, sprint por sprint, está en
+Civil/Familia (Sprint 8) y al reajuste anual de cuota alimentaria en Familia (Sprint 41), y UVT ya está
+conectada a la conversión SMLMV→UVT del área Sancionatorio (Sprint 14) y al piso legal de 10 UVT de las
+sanciones tributarias (Sprint 15); SMLMV ya se usa en el reajuste anual de Familia y en el checkbox
+"salario = SMMLV" de Laboral (Sprint 44). El plan completo, sprint por sprint, está en
 **[Pendientes.md](Pendientes.md)**.
 
 ## Instalación rápida
@@ -152,7 +167,8 @@ python -m ruff check .
 
 Configurado en `pyproject.toml` (línea máxima 99, reglas en `[tool.ruff.lint]`). VS Code lo aplica
 automáticamente al guardar si abres la carpeta del proyecto (ver `.vscode/settings.json`) y tienes
-instalada la extensión `charliermarsh.ruff`.
+instalada la extensión `charliermarsh.ruff`. El pipeline de CI corre `ruff check .` antes de la suite de
+pruebas y falla si hay alguna violación.
 
 ## Mantenimiento de esta documentación
 
