@@ -291,3 +291,70 @@ def test_dashboard_actividad_reciente_ordena_recientes_primero_y_recorta_a_10(
     assert view.tabla_actividad.rowCount() == 10
     assert view.tabla_actividad.item(0, 0).text() == "2026-01-12 10:00"
     assert view.tabla_actividad.item(9, 0).text() == "2026-01-03 10:00"
+
+
+# --- Sprint 50 (Tarea 3): grafica de expedientes por area ------------------
+
+
+def test_dashboard_grafica_se_puebla_con_expedientes_por_area(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _crear_expediente(session, "2026-030", AreaDerecho.CIVIL_FAMILIA)
+    _crear_expediente(session, "2026-031", AreaDerecho.CIVIL_FAMILIA)
+    _crear_expediente(session, "2026-032", AreaDerecho.COMERCIAL)
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    etiquetas_esperadas = [etiqueta for _codigo, etiqueta, _habilitada in AREAS_DERECHO]
+    conteos_esperados = [2 if etiqueta == "Civil / Familia" else 1 if etiqueta == "Comercial" else 0
+                          for etiqueta in etiquetas_esperadas]
+
+    ejes = view.figura_por_area.axes[0]
+    barras = ejes.containers[0]
+    assert [etiqueta.get_text() for etiqueta in ejes.get_xticklabels()] == etiquetas_esperadas
+    assert [barra.get_height() for barra in barras] == conteos_esperados
+
+
+def test_dashboard_grafica_se_actualiza_al_refrescar_con_datos_nuevos(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _crear_expediente(session, "2026-033", AreaDerecho.LABORAL)
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    ejes = view.figura_por_area.axes[0]
+    barras_antes = [barra.get_height() for barra in ejes.containers[0]]
+    assert sum(barras_antes) == 1
+
+    session = session_module.get_session()
+    _crear_expediente(session, "2026-034", AreaDerecho.LABORAL)
+    session.close()
+    view.refrescar()
+
+    ejes = view.figura_por_area.axes[0]
+    barras_despues = [barra.get_height() for barra in ejes.containers[0]]
+    assert sum(barras_despues) == 2
+
+
+def test_dashboard_grafica_usa_colores_de_la_paleta_de_marca(qtbot, monkeypatch):
+    from app.core import theme_colors
+
+    _sesion_en_memoria(monkeypatch)
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    ejes = view.figura_por_area.axes[0]
+    barras = ejes.containers[0]
+    color_barra = barras[0].get_facecolor()
+    color_esperado = _hex_a_rgba_matplotlib(theme_colors.PRIMARIO)
+    assert color_barra == color_esperado
+
+
+def _hex_a_rgba_matplotlib(hex_color: str) -> tuple:
+    from matplotlib.colors import to_rgba
+
+    return to_rgba(hex_color)
