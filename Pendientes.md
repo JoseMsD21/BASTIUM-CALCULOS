@@ -119,6 +119,19 @@ breadcrumb y atajos), Sprint 33 (dashboard real de inicio), Sprint 34 (UX de for
 Sprint 37 (persistencia de ventana y accesibilidad de teclado). Ninguno depende del PDF de requisitos — son
 mejoras de experiencia de usuario sobre una app ya funcional.
 
+**Sprints 52-54 (nuevos, 2026-08-10): auditoría técnica transversal completa del repositorio** (barrido
+automático de `ruff`/`pytest`/`pip-audit`, 2 agentes en paralelo sobre patrones de código riesgosos y
+coherencia de documentación, y verificación manual de cada hallazgo releyendo el código real — mismo
+método que los Sprints 23-30 y 47-48). `ruff check .` y la suite completa (984 tests) están en verde, sin
+vulnerabilidades conocidas en `requirements.txt` (`pip-audit`). Los 3 hallazgos que sí ameritan sprint
+propio: Sprint 52 (bug real y reproducido: `aplicar_migraciones_pendientes(db_path)` — la función que el
+Sprint 51 construyó para blindar la app contra un esquema desactualizado — ignora `db_path` al sembrar
+`parametros_legales`, y como efecto colateral la suite de tests toca la `bastium.db` real en cada corrida),
+Sprint 53 (patrón N+1 de consultas, mismo tipo de problema que el Sprint 25 ya corrigió en
+`AreaStrategy`, reintroducido sin protección en el Dashboard del Sprint 33) y Sprint 54 (`docs/GUIA_USUARIO.md`
+y 2 `docs/specifications/*.md` describen comportamiento anterior a los Sprints 41/42/50, incluida una
+afirmación incorrecta sobre prescripción/caducidad que sí le llega al usuario final).
+
 ---
 
 ## Índice de sprints
@@ -173,6 +186,9 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana ✅ Completado](#sprint-49--bug-de-ui-los-botones-volverinicio-reaparecen-visibles-tras-el-primer-render-de-la-ventana--completado)
 - [Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) ✅ Completado](#sprint-50--mejoras-de-personalización-y-presentación-diferidas-de-los-sprints-31-33-modo-oscuro-sidebar-gráficas-del-dashboard--completado)
 - [Sprint 51 — Migración automática de esquema y datos al arrancar la app ✅ Completado](#sprint-51--migración-automática-de-esquema-y-datos-al-arrancar-la-app--completado)
+- [Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` 🔴 Bug confirmado sin corregir](#sprint-52--bug-de-integridad-aplicar_migraciones_pendientes-ignora-db_path-al-sembrar-parametros_legales--bug-confirmado-sin-corregir)
+- [Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard 📋 Pendiente](#sprint-53--rendimiento-patrón-n1-de-consultas-en-el-dashboard--pendiente)
+- [Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 📋 Pendiente](#sprint-54--corrección-de-documentación-desactualizada-tras-los-sprints-41-42-50-y-51--pendiente)
 
 ---
 
@@ -4136,6 +4152,198 @@ base confirmando que ya no crashea.
 
 ---
 
+## Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` 🔴 Bug confirmado sin corregir
+
+**Prioridad sugerida:** Alta — es un bug en la propia infraestructura de migraciones que el Sprint 51
+construyó para evitar exactamente este tipo de inconsistencia de datos. Hoy no afecta al usuario final
+(`main.py` siempre llama a `aplicar_migraciones_pendientes()` sin argumentos, así que en producción todo
+apunta a la misma `bastium.db`), pero contamina la suite de tests como efecto colateral y es una trampa
+para cualquier uso futuro del parámetro `db_path` (backups, pruebas de integración con otra base, etc.).
+
+**Depende de:** Sprint 51 (ya completado) — bug encontrado en su propia implementación durante esta
+auditoría técnica transversal (barrido automático + agentes en paralelo + verificación manual).
+
+**Hallazgos (auditoría 2026-08-10, reproducido de forma aislada, sin modificar la `bastium.db` real):**
+1. `database/database.py::aplicar_migraciones_pendientes(db_path=None)` (línea 79) llama a
+   `migrar_parametros_legales()` sin ningún argumento, mientras que las otras 10 llamadas de la misma
+   función (líneas 69-78) sí reciben `ruta` explícitamente.
+2. `scripts/migrate_parametros_legales.py::migrar()` es el único de los 11 scripts de migración que no
+   acepta un parámetro de ruta: usa `init_db()` y `session_module.get_session()`, ambos atados al `engine`
+   global de `database/database.py`, construido una sola vez al importar el módulo a partir de
+   `_resolve_db_path()` (variable de entorno `BASTIUM_DB_PATH` o, por defecto, la `bastium.db` real en la
+   raíz del repo) — nunca a la ruta que reciba `aplicar_migraciones_pendientes`.
+3. **Reproducción confirmada:** se creó una base de datos temporal nueva con el esquema completo
+   (`Base.metadata.create_all`) y se llamó a `aplicar_migraciones_pendientes(db_tmp)` directamente, sin
+   parchear el engine global. Resultado: la tabla `parametros_legales` de `db_tmp` quedó con **0 filas**
+   tras la migración (debería tener 39 claves, como confirma
+   `test_aplicar_migraciones_pendientes_siembra_parametros_legales`), mientras que la `bastium.db` real del
+   proyecto no cambió su conteo de filas (683 antes y después) porque ya estaba sembrada — confirmando que
+   la siembra se ejecuta contra el engine global, no contra `db_tmp`.
+4. **Efecto colateral ya presente en la suite de tests:** de los 6 tests de `tests/database/test_migrations.py`
+   que llaman a `aplicar_migraciones_pendientes(db_path)`, 3 lo hacen **sin** parchear el engine global
+   (`test_aplicar_migraciones_pendientes_agrega_las_columnas_faltantes_de_obligaciones`,
+   `test_aplicar_migraciones_pendientes_agrega_es_smmlv`,
+   `test_aplicar_migraciones_pendientes_agrega_los_indices_de_rendimiento`), a diferencia de los otros 2
+   (`test_aplicar_migraciones_pendientes_siembra_parametros_legales`,
+   `test_aplicar_migraciones_pendientes_es_idempotente`), que sí lo hacen vía el helper
+   `_apuntar_session_module_a(engine, monkeypatch)` — precisamente para poder verificar la siembra, lo que
+   confirma que este comportamiento ya era conocido implícitamente al escribir esos 2 tests, pero no se
+   generalizó al resto ni se corrigió en el código de producción. Como consecuencia, cada corrida de
+   `pytest` ejecuta `migrar_parametros_legales()` contra la `bastium.db` real del proyecto como efecto
+   secundario no buscado en esos 3 tests. Hoy es inofensivo porque la siembra es idempotente y la base real
+   ya tiene las 39 claves (verificado: 683 filas antes y después de correr la suite completa), pero un test
+   que usa `tmp_path` no debería, bajo ninguna circunstancia, escribir en un archivo fuera de `tmp_path`.
+5. **Impacto potencial futuro:** cualquier funcionalidad que dependa de que `db_path` aísle completamente
+   la operación (p. ej. un comando de administración "restaurar backup y migrar", o una prueba de
+   integración contra una base distinta a la real) dejaría la base destino con `parametros_legales` vacía,
+   reproduciendo exactamente el bug original que motivó el Sprint 51 (`ParametroNoDisponibleError` en
+   cualquier liquidación real) — solo que ahora silenciosamente, porque `aplicar_migraciones_pendientes`
+   no lanza ningún error ni avisa que la siembra fue a otro lado.
+
+**Código nuevo a crear:**
+- `scripts/migrate_parametros_legales.py::migrar(db_path: Path | None = None)`: aceptar el mismo parámetro
+  que los otros 10 scripts; cuando se reciba una ruta, operar contra esa ruta en vez de contra
+  `init_db()`/`get_session()` globales (un engine/sesión SQLAlchemy ad hoc apuntando a `db_path`, o
+  `sqlite3` crudo si se prefiere seguir el patrón de los scripts de esquema — a decidir según cuánto del
+  código ORM existente de `migrar()` conviene conservar).
+- `database/database.py` línea 79: pasar `ruta` a `migrar_parametros_legales(ruta)`.
+- Actualizar los 3 tests de `test_migrations.py` listados en el hallazgo 4 para que parcheen el engine
+  global igual que los otros 2 (o, mejor, para que ya no necesiten hacerlo porque `migrar()` respeta
+  `db_path` directamente).
+- Test de regresión nuevo: llamar `aplicar_migraciones_pendientes(db_tmp)` **sin** monkeypatch del engine
+  global y verificar que `db_tmp` queda con las 39 claves de `parametros_legales` — hoy este test no existe
+  y por eso el bug pasó inadvertido en el propio Sprint 51.
+
+**Alcance explícitamente excluido:**
+- No se propone migrar a Alembic ni cambiar el patrón general de scripts idempotentes (decisión ya tomada
+  en el Sprint 51) — es un fix puntual de un script que rompe el contrato de `db_path` que los otros 10 sí
+  cumplen.
+
+**Definición de Hecho:**
+- `aplicar_migraciones_pendientes(db_path)` deja sembrada `parametros_legales` en `db_path`, no en el
+  engine global, verificado con un test que NO parchea `database.database.engine`.
+- Los 3 tests de `test_migrations.py` que hoy tocan la `bastium.db` real como efecto secundario dejan de
+  hacerlo.
+- Suite completa en verde.
+
+---
+
+## Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard 📋 Pendiente
+
+**Prioridad sugerida:** Media — no es un bug de resultado (el Dashboard sigue mostrando los datos
+correctos), pero repite exactamente el patrón que el Sprint 25 ya identificó y corrigió para
+`HonorariosStrategy`, y se dispara en la primera pantalla que ve el usuario en cada arranque de la app
+(Sprint 51: el Dashboard es la primera pantalla que carga todas las obligaciones de todos los expedientes).
+
+**Depende de:** Sprint 25 (ya completado) — introduce `cache_de_liquidacion()`, el mecanismo que este
+sprint debe reutilizar. Sprint 33 (Dashboard, ya completado) — es donde se introdujo el patrón sin esa
+protección.
+
+**Hallazgos (auditoría técnica 2026-08-10, confirmados leyendo el código real):**
+1. `app/views/dashboard.py::_refrescar_alertas_vencimiento` (líneas 168-197) recorre cada obligación no
+   pagada de cada expediente y llama a `calcular_prescripcion(obligacion.fecha_origen, TipoAccion.EJECUTIVA)`
+   (`app/engine/temporal/prescripcion.py:51`), que internamente llama a `get_parametro(...)`
+   (`app/services/parametro_service.py:348`). Sin un bloque `cache_de_liquidacion()` activo, `get_parametro`
+   cae en `_resolver_fila` (línea 299), que abre y cierra una sesión SQLAlchemy nueva por cada llamada. Con
+   N obligaciones no pagadas, esto son N sesiones/consultas idénticas a `parametros_legales` en cada
+   refresco del Dashboard — el mismo patrón que el Sprint 25 (hallazgo 2) corrigió para `HonorariosStrategy`
+   introduciendo `cache_de_liquidacion()` en `app/services/area_strategy.py`, pero el Dashboard (construido
+   después, en el Sprint 33) no lo usa.
+2. `app/views/dashboard.py::_refrescar_actividad_reciente` (líneas 210-219) llama a
+   `historial_de_expediente(session, expediente.id)` (`app/engine/audit/service.py`) una vez por expediente
+   para armar el top-10 de actividad reciente, en vez de una sola consulta con
+   `AuditLog.expediente_id.in_([...])`. Reutiliza la sesión ya abierta (a diferencia del punto 1, no abre
+   una sesión nueva por llamada), pero sigue siendo un round-trip a SQLite por expediente.
+3. No hay ningún test de regresión de rendimiento que hubiera atrapado esto: `tests/performance/` solo
+   contiene `__init__.py` (vacía), y `scripts/benchmark_motor_rendimiento.py` (único benchmark del repo,
+   ejecutado en esta auditoría: 0.038s / 0.288s en sus dos escenarios) no cubre pantallas de la GUI, solo el
+   motor de liquidación puro.
+
+**Código nuevo a crear:**
+- Envolver el cuerpo de `_refrescar_alertas_vencimiento` en `with cache_de_liquidacion():` (mismo patrón
+  que ya usan las 6 `AreaStrategy` en `app/services/area_strategy.py`).
+- Reemplazar el bucle de `_refrescar_actividad_reciente` por una sola consulta que traiga los `AuditLog` de
+  todos los `expediente.id` de una vez (`.filter(AuditLog.expediente_id.in_(...))`), ordenando y recortando
+  a `MAX_LIQUIDACIONES_RECIENTES` en Python igual que hoy.
+- Test nuevo (en el archivo de tests de `DashboardView` existente) que cree varios expedientes con
+  obligaciones no pagadas y verifique, contando invocaciones a `session_module.get_session` (o con
+  `sqlalchemy.event.listen` sobre `before_cursor_execute`), que `refrescar()` no abre una sesión adicional
+  por cada obligación.
+
+**Alcance explícitamente excluido:**
+- No se propone paginar ni limitar el número de expedientes que carga el Dashboard (el conteo por área ya
+  es agregado, no por fila, y el top-10 de actividad ya usa `MAX_LIQUIDACIONES_RECIENTES`) — es un fix
+  puntual de las dos consultas en bucle, no un rediseño del Dashboard.
+
+**Definición de Hecho:**
+- Un test confirma que `DashboardView.refrescar()` no abre una sesión SQLAlchemy nueva por cada obligación
+  no pagada.
+- Suite completa en verde.
+
+---
+
+## Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 📋 Pendiente
+
+**Prioridad sugerida:** Media-alta — dos de los hallazgos (prescripción/caducidad y navegación) le dicen al
+usuario final algo que ya no es cierto sobre una función jurídicamente relevante y sobre cómo usar la app;
+el resto es housekeeping de mantenibilidad/documentación. Mismo patrón que el Sprint 29.
+
+**Depende de:** Nada — es documentación pura. Los sprints referenciados (41, 42, 50, 51) ya están
+completados; esto solo actualiza los documentos que quedaron atrás.
+
+**Hallazgos (auditoría de documentación 2026-08-10, con 2 agentes en paralelo + verificación manual de
+cada uno releyendo el archivo real, mismo método que los Sprints 23-30):**
+
+1. **`docs/GUIA_USUARIO.md` describe una navegación que ya no existe.** Las secciones ~186-206 describen
+   una "barra de navegación" superior con tres botones — cierto hasta el Sprint 32, pero el Sprint 50
+   reemplazó ese `QToolBar` por un sidebar lateral fijo (`app/views/main_window.py`, líneas 115-159,
+   `QSplitter`). `README.md` y `docs/local/GUIA_PRESENTACION.md` ya reflejan el cambio; `docs/GUIA_USUARIO.md`
+   no.
+2. **`docs/GUIA_USUARIO.md` no menciona el modo oscuro ni la gráfica del Dashboard** (ambos del Sprint 50)
+   en ninguna sección — el checkbox "Modo oscuro" de `ParametrosView` y la gráfica de expedientes por área
+   no tienen ninguna instrucción de uso en la guía del usuario final.
+3. **`docs/GUIA_USUARIO.md` afirma, en la sección de prescripción/caducidad, que el motor "todavía no está
+   conectado a ninguna pantalla ni bloquea la liquidación de un expediente"**, citando el Sprint 7 — pero
+   el Sprint 42 ya lo conectó a `UniversalLiquidationService.liquidar()`, marcando obligaciones prescritas
+   con advertencia visual en pantalla, PDF y Word (esto ya lo documenta correctamente el propio
+   `README.md`). A diferencia de otros sprints (que sí registran "README.md y docs/GUIA_USUARIO.md
+   actualizados" al cerrar), el cierre del Sprint 42 no lo hizo — es la sección más urgente de corregir de
+   las 3, porque hoy le dice al usuario algo jurídicamente incorrecto sobre el propio software.
+4. **`docs/specifications/07_motor_juridico_familia.md` describe `CivilFamiliaStrategy` sin el reajuste
+   anual del Sprint 41.** La sección "Componentes" (líneas 14-17) solo describe obligaciones Puntuales (un
+   `Event` de capital) y Recurrentes expandidas mensualmente con tasa fija — no menciona el reajuste anual
+   SMMLV/IPC ni las cuotas individuales seleccionables para abono que el Sprint 41 (calificado en este
+   mismo documento como "gap grande de alcance") agregó vía `app/services/reajuste_anual.py`.
+5. **`docs/specifications/03_motor_indexacion.md` afirma que la UVT "sigue sin cargar"**, contradiciendo
+   dos sprints ya completados (Sprint 5 y Sprint 14) y el propio README, que documenta su uso en producción
+   (`app/engine/indexation/historical_index.py::_UVT_POR_ANIO`, datos 2006-2026). Solo la afirmación sobre
+   UVR sigue siendo cierta — mezclarla con la de UVT en la misma frase hace que la afirmación completa
+   induzca a error.
+6. **`CONTRIBUTING.md` documenta una convención de commits incompleta.** Solo lista
+   `feat:`/`fix:`/`docs:`/`test:`/`chore:`; el historial real del repo usa además `merge:` (31 commits),
+   `refactor:` (10), `perf:` (5), `style:` (1) y `build:` (1) — `merge:` en particular es el prefijo de
+   cierre de casi todos los sprints recientes (ej. `d157a04 merge: Sprint 50...`) y no aparece documentado.
+7. **`CHANGELOG.md`, sección `## [Unreleased]`, párrafo resumen**: enumera los Sprints 31-50 pero omite el
+   Sprint 51 (migración automática) — sí aparece correctamente más abajo, en el detalle `### Added`/
+   `### Fixed`, pero no en el resumen inicial.
+
+**Código nuevo a crear:** ninguno — son ediciones de texto en los 5 documentos listados arriba (ningún
+archivo `.py` involucrado).
+
+**Alcance explícitamente excluido:**
+- No se reescribe `docs/GUIA_USUARIO.md` completa, solo las 3 secciones desactualizadas identificadas.
+- No se re-audita el resto de `docs/superpowers/plans/`/`specs/` (son actas históricas de planeación de
+  cada sprint, no documentación viva) más allá de lo ya encontrado aquí.
+
+**Definición de Hecho:**
+- Las 3 secciones de `docs/GUIA_USUARIO.md` reflejan el sidebar, el modo oscuro/gráfica y la conexión real
+  de prescripción/caducidad.
+- `docs/specifications/07_motor_juridico_familia.md` y `03_motor_indexacion.md` corregidos.
+- `CONTRIBUTING.md` lista los prefijos de commit realmente usados en el repo.
+- `CHANGELOG.md` menciona el Sprint 51 en el párrafo resumen de `[Unreleased]`.
+
+---
+
 ## Notas de entorno (sin sprint asignado)
 
 - ~~Validar/enable Windows "Long Paths" en la máquina de desarrollo~~ — **resuelto** (2026-07-15): se
@@ -4143,3 +4351,14 @@ base confirmando que ya no crashea.
   profunda de OneDrive, con confirmación previa del usuario.
 - Confirmar si conviene excluir `.venv/` de la sincronización de OneDrive (hoy está en `.gitignore` pero
   OneDrive igual intenta sincronizar carpetas no versionadas dentro de la carpeta del proyecto).
+- `requirements.txt` no fija versiones exactas (`sqlalchemy`, `PySide6`, etc. sin `==x.y.z`) — hoy
+  `pip-audit -r requirements.txt` no reporta vulnerabilidades conocidas y la suite pasa completa, pero un
+  build de CI futuro podría romperse sin aviso si una dependencia publica una versión nueva incompatible
+  entre una corrida y otra (nadie decidiría deliberadamente el bump). No es un bug hoy — es una decisión de
+  reproducibilidad sin tomar todavía; considerar `pip freeze`/`constraints.txt` si esto llega a morder en
+  la práctica.
+- El `.venv` local de esta máquina tiene instalados `fastapi`, `uvicorn`, `pandas`, `numpy`, `pymupdf`,
+  `pypdf`, `alembic`, `pydantic` y otros paquetes que **ya no están** en `requirements.txt` desde que el
+  Sprint 27 los identificó como no usados y los quitó — son residuo de antes de esa limpieza, nunca se
+  desinstalaron del entorno local. No afecta a CI (que instala `requirements.txt` desde cero), pero vale
+  la pena recrear el `.venv` local en algún momento para que coincida exactamente con lo declarado.
