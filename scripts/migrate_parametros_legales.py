@@ -118,7 +118,7 @@ def migrar(db_path: Path | None = None) -> int:
     Si se recibe db_path, ahora se usa siempre un engine SQLAlchemy ad hoc
     apuntando exactamente a esa ruta -- nunca al engine global -- para que la
     siembra quede aislada en la base destino, mismo patron que los otros 10
-    scripts scripts/migrate_*.py.
+    scripts/migrate_*.py.
 
     La rama sin db_path (init_db()/get_session(), atada al engine global) NO
     es codigo muerto: es un camino real usado por la suite de tests (ver
