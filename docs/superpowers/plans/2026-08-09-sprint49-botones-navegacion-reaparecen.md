@@ -44,23 +44,31 @@ pytest + pytest-qt (`qtbot`).
 
 ### Task 1: Reproducir el bug con un test que ejerce el bucle de eventos real
 
-- [ ] Actualizar `test_botones_navegacion_ocultos_en_pagina_inicial`
-      (`tests/views/test_main_window.py`) para ceder el control al bucle de eventos después de `show()`
-      (`qtbot.wait(0)` o `app.processEvents()`), de forma que ejerza el mismo camino que la app real.
-      Confirmar que el test FALLA con el código actual (reproduce el bug) antes de corregir nada — esto es
-      TDD: rojo primero.
+- [x] `test_botones_navegacion_ocultos_en_pagina_inicial` actualizado con `qtbot.wait(1)` tras `show()`
+      (`qtbot.wait(0)` resultó ser un no-op en esta versión de pytest-qt — salta `qt_api.exec(self._loop)`
+      cuando `timeout==0` — así que no servía para reproducir el bug). Confirmado rojo antes de corregir.
+      Nota de verificación adicional (2026-08-09): reproducido también de forma independiente con un
+      script standalone (`app.exec()` real, sin pytest-qt) contra el código pre-fix.
 
 ### Task 2: Corregir la causa raíz
 
-- [ ] Implementar la solución elegida (Task de Architecture arriba) para que
-      `boton_volver`/`boton_inicio` permanezcan ocultos después del ciclo adicional del bucle de eventos.
-- [ ] El test de la Task 1 pasa (verde) con la corrección.
-- [ ] Si se opta por la migración a `QAction` (opción 2): confirmar con un test que el estado visual
-      `primary`/`secondary` de `boton_parametros` (Sprint 32/36) sigue funcionando igual.
+- [x] Opción 2 elegida (migración a `QAction`): `boton_volver`/`boton_inicio`/`boton_parametros` pasan de
+      `QPushButton` + `barra.addWidget()` a `QAction` + `barra.addAction()`. `self.boton_*` sigue apuntando
+      al `QToolButton` que `QToolBar` autogenera (`barra.widgetForAction(...)`), así que el resto del código
+      y los tests existentes que ya usaban `.isVisible()`/`.setProperty()`/`.style()` no necesitaron cambios.
+      La visibilidad se controla ahora sobre la `QAction` (`self._accion_*`), que `QToolBarLayout` sí
+      respeta de forma consistente a través de layouts repetidos. `showEvent()` (el fix anterior, que solo
+      cubría el instante síncrono) ya no hace falta y se eliminó — la causa raíz queda resuelta, no
+      parchada.
+- [x] Test de la Task 1 pasa en verde con la corrección (confirmado estable en 15+ corridas).
+- [x] Confirmado con tests dedicados (`tests/views/test_main_window.py -k "parametros or clase o
+      estado_activo"`) que el estilo `primary`/`secondary` de `boton_parametros` sigue funcionando —
+      `resources/theme.qss` gana selectores `QToolButton[class="..."]` acotados por el atributo `class`
+      (ningún `QToolButton` nativo de Qt, como los del popup de `QDateEdit`, tiene esa propiedad, así que
+      no los afecta — documentado en el comentario de riesgo ya existente al inicio del archivo).
 
 ### Task 3: Verificación final
 
-- [ ] Script standalone que reproduce el arranque real de la app (`show()` + `processEvents()`, sin
-      `pytest-qt`) confirma que los botones permanecen ocultos en la pantalla inicial — documentar cómo se
-      corrió (no hace falta dejarlo como archivo permanente en el repo si no sigue la convención de tests).
-- [ ] Suite completa de tests (`pytest`) en verde.
+- [x] Script standalone (`app.exec()` real vía `QTimer.singleShot` + 20 ciclos de `processEvents()`, sin
+      `pytest-qt`) confirma que los botones permanecen ocultos en la pantalla inicial tras la corrección.
+- [x] Suite completa de tests (`pytest`) en verde: 953 passed.
