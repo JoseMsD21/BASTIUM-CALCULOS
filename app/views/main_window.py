@@ -1,8 +1,17 @@
-from PySide6.QtCore import QCoreApplication, QSettings, Qt
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
-from PySide6.QtWidgets import QLabel, QMainWindow, QStackedWidget, QToolBar
+from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtWidgets import (
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSplitter,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 import database.session as session_module
+from app.core.settings import crear_settings
 from app.views.configuracion import ParametrosView
 from app.views.dashboard import DashboardView
 from app.views.expediente_detalle import ExpedienteDetallePage
@@ -11,11 +20,6 @@ from app.views.icons import icon, icono_aplicacion
 from app.views.liquidaciones import ResultadoLiquidacionView
 from database.models import Expediente
 
-# Namespace de QSettings usado si QCoreApplication.organizationName()/applicationName()
-# todavia no se fijaron (ej. tests que construyen MainWindow sin pasar por main.py) --
-# coincide con los valores que main.py fija en la app real (Sprint 37).
-_ORGANIZACION_POR_DEFECTO = "BASTIUM"
-_APLICACION_POR_DEFECTO = "BASTIUM"
 _CLAVE_GEOMETRIA = "ventana/geometria"
 # Tamaño que main.py fijaba incondicionalmente con window.resize(1000, 700) antes del
 # Sprint 37 -- ahora es solo el fallback para el primer arranque (sin QSettings previo).
@@ -32,7 +36,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(icono_aplicacion())
 
         self.stacked_widget = QStackedWidget()
-        self.setCentralWidget(self.stacked_widget)
 
         self.dashboard_page = DashboardView(
             on_expediente_abierto=self._abrir_detalle,
@@ -70,10 +73,11 @@ class MainWindow(QMainWindow):
         """QSettings con formato Ini explicito (no el nativo por plataforma, ej. el
         Registro de Windows): asi `QSettings.setPath()` puede redirigir por completo
         donde se lee/escribe en los tests (ver tests/conftest.py::_qsettings_aislado),
-        cosa que no es posible con el Registro de Windows."""
-        organizacion = QCoreApplication.organizationName() or _ORGANIZACION_POR_DEFECTO
-        aplicacion = QCoreApplication.applicationName() or _APLICACION_POR_DEFECTO
-        return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, organizacion, aplicacion)
+        cosa que no es posible con el Registro de Windows. Delega en
+        `app.core.settings.crear_settings()` (Sprint 50), que extrae este mismo patron
+        para que la persistencia del modo oscuro/claro (`app/core/apariencia.py`) lo
+        reutilice en vez de duplicarlo."""
+        return crear_settings()
 
     def _restaurar_geometria(self) -> None:
         """Restaura tamaño/posicion/estado maximizado de la sesion anterior (Sprint 37).
@@ -108,54 +112,59 @@ class MainWindow(QMainWindow):
         self.atajo_inicio.activated.connect(self._ir_inicio)
 
     def _crear_barra_navegacion(self) -> None:
-        # Sprint 49: los 3 botones se agregan como QAction (via addAction()), no como
-        # QPushButton crudo (via addWidget()) como antes del Sprint 49. QToolBar
-        # resetea a True la visibilidad de los widgets agregados via addWidget() cada
-        # vez que su layout interno se invalida (ej. el primer LayoutRequest que
-        # procesa el bucle de eventos real tras show(), pero tambien cualquier
-        # invalidacion de layout posterior durante la vida de la ventana) --
-        # QToolBarLayout.performLayout() fuerza ese reset sin mirar si el widget fue
-        # ocultado a proposito. Un QAction no sufre ese reset: QToolBarLayout respeta
-        # accion.isVisible() como la fuente de verdad, incluso a traves de layouts
-        # repetidos (confirmado con un script standalone que llama
-        # app.processEvents() 10+ veces tras show(), ver Sprint 49). Guardamos la
-        # QAction en un atributo "_accion_*" para poder controlar su visibilidad
-        # (fuente de verdad), y self.boton_* apunta al QToolButton que QToolBar crea
-        # automaticamente para esa accion (barra.widgetForAction()) -- ese
-        # QToolButton expone la misma API que el QPushButton anterior (click(),
-        # isVisible(), setProperty(), icon()...) que el resto del codigo y los tests
-        # ya usaban, asi que no hizo falta tocar esos otros usos.
-        barra = QToolBar("Navegacion")
-        barra.setMovable(False)
-
-        self._accion_volver = QAction(" Volver", self)
-        self._accion_volver.setIcon(icon("back"))
-        self._accion_volver.triggered.connect(self._volver)
-        barra.addAction(self._accion_volver)
-        self.boton_volver = barra.widgetForAction(self._accion_volver)
-        self.boton_volver.setProperty("class", "secondary")
-
-        self._accion_inicio = QAction(" Inicio", self)
-        self._accion_inicio.setIcon(icon("home"))
-        self._accion_inicio.triggered.connect(self._ir_inicio)
-        barra.addAction(self._accion_inicio)
-        self.boton_inicio = barra.widgetForAction(self._accion_inicio)
+        """Sidebar de navegacion (Sprint 50): reemplaza el QToolBar superior del
+        Sprint 32 (y su variante QAction del Sprint 49, ver `showEvent()` abajo)
+        por un panel lateral dentro de un QSplitter horizontal junto al
+        QStackedWidget de paginas -- mismos 3 botones + breadcrumb, mismos nombres
+        de atributo (`boton_volver`, `boton_inicio`, `boton_parametros`,
+        `etiqueta_breadcrumb`) para no romper los tests existentes de
+        tests/views/test_main_window.py. `_actualizar_botones_navegacion()`/
+        `_actualizar_breadcrumb()`/`_actualizar_estado_activo_navegacion()` no
+        cambian: son independientes de si estos widgets viven en un QToolBar o
+        en un sidebar.
+        """
+        self.boton_inicio = QPushButton(" Inicio")
+        self.boton_inicio.setIcon(icon("home"))
         self.boton_inicio.setProperty("class", "secondary")
+        self.boton_inicio.clicked.connect(self._ir_inicio)
 
-        self._accion_parametros = QAction(" Parametros", self)
-        self._accion_parametros.setIcon(icon("settings"))
-        self._accion_parametros.triggered.connect(self._ir_a_parametros)
-        barra.addAction(self._accion_parametros)
-        self.boton_parametros = barra.widgetForAction(self._accion_parametros)
+        self.boton_volver = QPushButton(" Volver")
+        self.boton_volver.setIcon(icon("back"))
+        self.boton_volver.setProperty("class", "secondary")
+        self.boton_volver.clicked.connect(self._volver)
+
+        self.boton_parametros = QPushButton(" Parametros")
+        self.boton_parametros.setIcon(icon("settings"))
         self.boton_parametros.setProperty("class", "secondary")
+        self.boton_parametros.clicked.connect(self._ir_a_parametros)
 
-        barra.addSeparator()
+        sidebar = QWidget()
+        sidebar.setObjectName("sidebar_navegacion")
+        layout_sidebar = QVBoxLayout(sidebar)
+        layout_sidebar.addWidget(self.boton_inicio)
+        layout_sidebar.addWidget(self.boton_volver)
+        layout_sidebar.addWidget(self.boton_parametros)
+        layout_sidebar.addStretch()
 
         self.etiqueta_breadcrumb = QLabel()
         self.etiqueta_breadcrumb.setObjectName("etiqueta_breadcrumb")
-        barra.addWidget(self.etiqueta_breadcrumb)
 
-        self.addToolBar(barra)
+        contenedor_contenido = QWidget()
+        layout_contenido = QVBoxLayout(contenedor_contenido)
+        layout_contenido.setContentsMargins(0, 0, 0, 0)
+        layout_contenido.addWidget(self.etiqueta_breadcrumb)
+        layout_contenido.addWidget(self.stacked_widget)
+
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._splitter.addWidget(sidebar)
+        self._splitter.addWidget(contenedor_contenido)
+        # El sidebar mantiene un ancho fijo compacto; el contenido se lleva todo
+        # el espacio que sobra al redimensionar la ventana.
+        self._splitter.setStretchFactor(0, 0)
+        self._splitter.setStretchFactor(1, 1)
+        self._splitter.setSizes([180, ANCHO_POR_DEFECTO - 180])
+        self.setCentralWidget(self._splitter)
+
         self._actualizar_botones_navegacion()
 
     def show_page(self, name: str, add_to_history: bool = True) -> None:
@@ -170,12 +179,8 @@ class MainWindow(QMainWindow):
         self._actualizar_estado_activo_navegacion()
 
     def _actualizar_botones_navegacion(self) -> None:
-        # Se controla la visibilidad a traves de la QAction (self._accion_*), no del
-        # QToolButton (self.boton_*) -- ver el comentario en _crear_barra_navegacion():
-        # es la QAction la que QToolBarLayout respeta de forma consistente a traves de
-        # los layouts repetidos que dispara el bucle de eventos real.
-        self._accion_volver.setVisible(bool(self._history))
-        self._accion_inicio.setVisible(self._current_page_name != "dashboard")
+        self.boton_volver.setVisible(bool(self._history))
+        self.boton_inicio.setVisible(self._current_page_name != "dashboard")
 
     def _actualizar_breadcrumb(self) -> None:
         self.etiqueta_breadcrumb.setText(self._texto_breadcrumb())
@@ -209,6 +214,19 @@ class MainWindow(QMainWindow):
         )
         self.boton_parametros.style().unpolish(self.boton_parametros)
         self.boton_parametros.style().polish(self.boton_parametros)
+
+    def showEvent(self, event) -> None:
+        # Historicamente (Sprint 32-49, mientras la navegacion vivia en un
+        # QToolBar): QToolBar reseteaba a True la visibilidad de los widgets
+        # agregados via addWidget() la primera vez que el toolbar mismo se hacia
+        # visible, pisando cualquier setVisible(False) aplicado con la ventana
+        # todavia no mostrada. El sidebar del Sprint 50 (QWidget/QSplitter, sin
+        # QToolBar) no deberia sufrir ese reset por construccion, pero se deja
+        # este resync defensivo -- es barato y los tests que cubren el bug
+        # original (test_botones_navegacion_ocultos_en_pagina_inicial) siguen en
+        # verde con el.
+        super().showEvent(event)
+        self._actualizar_botones_navegacion()
 
     def _volver(self) -> None:
         if not self._history:

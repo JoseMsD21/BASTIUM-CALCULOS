@@ -30,16 +30,21 @@
  * Riesgo conocido (Pendientes.md Sprint 31): selectores demasiado genericos
  * pueden romper widgets nativos que dependen del estilo del SO, como el
  * calendario emergente de QDateEdit. Por eso este archivo NO estiliza
- * QCalendarWidget ni QToolButton en general (los botones de navegacion de
- * mes/anio del popup de QDateEdit son QToolButton, no QPushButton) -- quedan
- * con el chrome nativo de Windows a proposito. La unica excepcion son los
- * selectores QToolButton[class="..."] de abajo (Sprint 49): estan acotados
- * por el atributo "class", que solo tienen los botones de navegacion de
- * MainWindow (volver/inicio/parametros, migrados de QPushButton+addWidget()
- * a QAction+addAction() para corregir un bug de visibilidad -- ver
- * app/views/main_window.py::_crear_barra_navegacion) -- ningun QToolButton
- * nativo de Qt (como los del popup de QDateEdit) tiene esa propiedad, asi
- * que no los afecta.
+ * QCalendarWidget ni QToolButton (los botones de navegacion de mes/anio del
+ * popup de QDateEdit son QToolButton, no QPushButton) -- quedan con el
+ * chrome nativo de Windows a proposito. (Nota historica: entre los Sprints 49
+ * y 50, los botones de navegacion de MainWindow pasaron brevemente por
+ * QToolBar+QAction, lo que requirio selectores QToolButton[class="..."]
+ * acotados aqui -- el sidebar del Sprint 50 los reemplazo por QPushButton
+ * normales dentro de un QWidget, asi que esos selectores ya no hacen falta y
+ * se quitaron.)
+ *
+ * Modo oscuro (Sprint 50): este archivo es el tema "claro" -- ver
+ * resources/theme_dark.qss para el equivalente oscuro. La referencia cruzada
+ * del Sprint 31 que apuntaba al Sprint 37 para "otras mejoras de
+ * personalizacion" (incluido un eventual modo oscuro) estaba rota -- el
+ * Sprint 37 nunca cubrio tema visual, solo geometria de ventana y teclado. El
+ * modo oscuro se implemento en el Sprint 50.
  */
 
 QWidget {
@@ -63,6 +68,13 @@ QToolBar {
     border-bottom: 1px solid #D8CDBB;
     padding: 4px;
     spacing: 6px;
+}
+
+/* --- Sidebar de navegacion (Sprint 50, reemplaza el QToolBar de arriba) --- */
+
+QWidget#sidebar_navegacion {
+    background-color: #F5F1E9;
+    border-right: 1px solid #D8CDBB;
 }
 
 QGroupBox {
@@ -165,55 +177,6 @@ QPushButton[class="destructive"]:disabled {
     background-color: #E8B4B0;
     color: #F5F1E9;
     border-color: #E8B4B0;
-}
-
-/* Sprint 49: mismas reglas que QPushButton[class="..."] arriba, pero para los
- * QToolButton que QToolBar crea automaticamente para las QAction de
- * boton_volver/boton_inicio/boton_parametros en MainWindow (ver el comentario
- * de riesgo acotado al inicio de este archivo). Solo se replican "secondary"
- * y "primary" -- son las unicas clases que usa la barra de navegacion hoy. */
-QToolButton[class="secondary"] {
-    background-color: #F5F1E9;
-    color: #AE1C21;
-    border: 1px solid #AE1C21;
-    border-radius: 4px;
-    padding: 6px 14px;
-}
-
-QToolButton[class="secondary"]:hover {
-    background-color: #ECE4D4;
-}
-
-QToolButton[class="secondary"]:pressed {
-    background-color: #E0D5BD;
-}
-
-QToolButton[class="secondary"]:disabled {
-    background-color: #F5F1E9;
-    color: #A69C92;
-    border-color: #D8CDBB;
-}
-
-QToolButton[class="primary"] {
-    background-color: #AE1C21;
-    color: #F5F1E9;
-    border: 1px solid #AE1C21;
-    border-radius: 4px;
-    padding: 6px 14px;
-}
-
-QToolButton[class="primary"]:hover {
-    background-color: #931116;
-}
-
-QToolButton[class="primary"]:pressed {
-    background-color: #7A0D12;
-}
-
-QToolButton[class="primary"]:disabled {
-    background-color: #D9A8AA;
-    color: #F5F1E9;
-    border-color: #D9A8AA;
 }
 
 /* --- Campos de entrada --- */

@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -12,6 +14,9 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
+from app.core import apariencia
+from app.core import theme_colors
+from app.core import theme_colors_dark
 from app.core.constants import AREAS_DERECHO
 from app.core.exceptions import ParametroNoDisponibleError
 from app.engine.audit.service import historial_de_expediente
@@ -50,10 +55,24 @@ class DashboardView(QWidget):
         self.tabla_por_area = QTableWidget(len(AREAS_DERECHO), 2)
         self.tabla_por_area.setHorizontalHeaderLabels(["Área", "Expedientes"])
 
+        # Grafica de expedientes por area (Sprint 50, Tarea 3): complementa la tabla
+        # tabular de arriba, no la reemplaza -- matplotlib estaba en requirements.txt
+        # sin uso real en el codigo (Sprint 27) hasta este sprint. Se usa el backend
+        # oficial de matplotlib para Qt6/PySide6 (backend_qtagg, no el backend_qt5agg
+        # mas viejo). Los colores se resuelven en _refrescar_grafica_por_area() segun
+        # el modo de tema persistido (claro/oscuro, Sprint 50), no fijos aqui.
+        self.figura_por_area = Figure(figsize=(4, 2.5))
+        self.canvas_por_area = FigureCanvasQTAgg(self.figura_por_area)
+        self._ejes_por_area = self.figura_por_area.add_subplot(111)
+
+        layout_resumen_contenido = QHBoxLayout()
+        layout_resumen_contenido.addWidget(self.tabla_por_area)
+        layout_resumen_contenido.addWidget(self.canvas_por_area)
+
         grupo_resumen = QGroupBox("Expedientes por área")
         layout_resumen = QVBoxLayout()
         layout_resumen.addWidget(self.etiqueta_total_expedientes)
-        layout_resumen.addWidget(self.tabla_por_area)
+        layout_resumen.addLayout(layout_resumen_contenido)
         grupo_resumen.setLayout(layout_resumen)
 
         self.tabla_alertas = QTableWidget(0, 4)
@@ -103,6 +122,7 @@ class DashboardView(QWidget):
         expedientes = session.query(Expediente).all()
 
         self._refrescar_conteo_por_area(expedientes)
+        self._refrescar_grafica_por_area(expedientes)
         self._refrescar_alertas_vencimiento(expedientes, hoy)
         self._refrescar_actividad_reciente(session, expedientes)
 
@@ -120,6 +140,32 @@ class DashboardView(QWidget):
             self.tabla_por_area.setItem(
                 fila, 1, QTableWidgetItem(str(conteo_por_area[codigo]))
             )
+
+    def _refrescar_grafica_por_area(self, expedientes: list[Expediente]) -> None:
+        """Puebla `figura_por_area` con un grafico de barras de expedientes por
+        area (Sprint 50) -- mismos datos que `_refrescar_conteo_por_area`, sin
+        volver a consultar la sesion. Los colores se resuelven segun el modo de
+        tema persistido (`apariencia.cargar_modo_tema()`) para que la grafica
+        combine con el tema claro u oscuro activo."""
+        modo = apariencia.cargar_modo_tema()
+        colores = theme_colors_dark if modo == apariencia.MODO_OSCURO else theme_colors
+
+        conteo_por_area = dict.fromkeys((codigo for codigo, _et, _hab in AREAS_DERECHO), 0)
+        for expediente in expedientes:
+            conteo_por_area[expediente.area_derecho.value] += 1
+
+        etiquetas = [etiqueta for _codigo, etiqueta, _habilitada in AREAS_DERECHO]
+        conteos = [conteo_por_area[codigo] for codigo, _et, _hab in AREAS_DERECHO]
+
+        self._ejes_por_area.clear()
+        self._ejes_por_area.bar(etiquetas, conteos, color=colores.PRIMARIO)
+        self._ejes_por_area.set_facecolor(colores.SUPERFICIE)
+        self.figura_por_area.set_facecolor(colores.FONDO)
+        self._ejes_por_area.tick_params(colors=colores.TEXTO_PRIMARIO, labelsize=7)
+        for spine in self._ejes_por_area.spines.values():
+            spine.set_color(colores.SECUNDARIO_BORDE)
+        self.figura_por_area.tight_layout()
+        self.canvas_por_area.draw_idle()
 
     def _refrescar_alertas_vencimiento(
         self, expedientes: list[Expediente], hoy: date

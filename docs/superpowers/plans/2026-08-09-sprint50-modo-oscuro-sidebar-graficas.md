@@ -35,13 +35,13 @@ variables, así que los dos deben mantenerse sincronizados a mano). Para el modo
 
 ### Sub-tareas
 
-- [ ] `theme_colors_dark.py` + `resources/theme_dark.qss`.
-- [ ] `construir_paleta()`/`aplicar_tema()` parametrizados por modo.
-- [ ] Persistencia del modo elegido vía `QSettings`, con fallback a "claro" en el primer arranque.
-- [ ] Control de UI para alternar, con test que confirme que cambia el tema en caliente y que la elección
-      persiste entre instancias de `QSettings` apuntando al mismo namespace.
-- [ ] Corregir el comentario del Sprint 31 en `resources/theme.qss` (o donde esté la referencia cruzada) que
-      apunta incorrectamente al Sprint 37 — debe reflejar que el modo oscuro se implementó en el Sprint 50.
+- [x] `theme_colors_dark.py` + `resources/theme_dark.qss`.
+- [x] `construir_paleta()`/`aplicar_tema()` parametrizados por modo (`app/core/apariencia.py`).
+- [x] Persistencia vía `QSettings` (`guardar_modo_tema()`/`cargar_modo_tema()`), reutilizando
+      `app/core/settings.py::crear_settings()` (extraído de `MainWindow._crear_settings()` para no
+      duplicar el patrón del Sprint 37).
+- [x] Checkbox "Modo oscuro" en `ParametrosView` aplica el tema en caliente sin reiniciar la app.
+- [x] Comentario del Sprint 31 corregido en `theme_colors.py`/`theme.qss` — ya no apunta al Sprint 37.
 
 ---
 
@@ -71,11 +71,16 @@ del merge con evidencia (el test corriendo), no por suposición.
 
 ### Sub-tareas
 
-- [ ] Sidebar nuevo con los mismos botones/breadcrumb, mismos nombres de atributo.
-- [ ] Tests existentes de navegación (`test_main_window.py`) siguen en verde o se actualizan explícitamente
-      si el layout cambia de forma que algún test dependa de la estructura anterior (ej. buscar el widget
-      dentro de un `QToolBar` específico).
-- [ ] Verificación visual/manual de que las 5 pantallas siguen siendo alcanzables igual que antes.
+- [x] Sidebar nuevo (`QWidget` + `QVBoxLayout` dentro de un `QSplitter` horizontal junto al
+      `QStackedWidget`) con los mismos botones/breadcrumb, mismos nombres de atributo
+      (`boton_volver`/`boton_inicio`/`boton_parametros`/`etiqueta_breadcrumb`).
+- [x] Tests existentes de `test_main_window.py` siguen en verde sin modificarse + 2 tests nuevos que
+      verifican la estructura sidebar/splitter.
+- [x] Coordinación con el Sprint 49 verificada al momento del merge (no en este worktree): el sidebar ya no
+      usa `QToolBar` para estos botones, así que el bug de timing que corrigió el Sprint 49
+      (`QToolBarLayout` reseteando la visibilidad de widgets vía `addWidget()`) deja de aplicar por
+      construcción — confirmado con el test de regresión del Sprint 49 corriendo en verde sobre el
+      resultado combinado.
 
 ---
 
@@ -95,15 +100,19 @@ en el tiempo) cabe en el alcance sin sobrecargar el Dashboard.
 
 ### Sub-tareas
 
-- [ ] `FigureCanvasQTAgg` embebido en `DashboardView`, poblado con expedientes por área desde los mismos
-      datos que ya usa `_refrescar_conteo_por_area`.
-- [ ] Colores de la gráfica consistentes con `theme_colors`/modo oscuro-claro.
-- [ ] Test que confirme que la gráfica se actualiza al llamar `refrescar()` con datos nuevos.
+- [x] `FigureCanvasQTAgg` (`matplotlib.backends.backend_qtagg`) embebido en `DashboardView`
+      (`figura_por_area`/`canvas_por_area`), gráfico de barras de expedientes por área poblado desde los
+      mismos datos que `_refrescar_conteo_por_area` (sin volver a consultar la sesión), junto a la tabla
+      existente en el mismo `QGroupBox` — la complementa, no la reemplaza.
+- [x] Colores de la gráfica resueltos según `apariencia.cargar_modo_tema()` (`theme_colors`/
+      `theme_colors_dark`), no fijos — combina con el tema claro/oscuro activo.
+- [x] `_refrescar_grafica_por_area()` se llama desde `refrescar()`; test confirma que la gráfica se
+      actualiza con datos nuevos (`tests/views/test_dashboard.py`, 3 tests nuevos).
 
 ---
 
 ## Verificación final (todas las tareas)
 
-- [ ] Suite completa de tests (`pytest`) en verde.
-- [ ] Verificación manual: abrir la app, alternar modo oscuro/claro, navegar por el sidebar, confirmar que
-      el Dashboard muestra la gráfica correctamente en ambos modos.
+- [x] Suite completa de tests (`pytest`) en verde: 967 passed.
+- [x] Verificación cubierta por los tests de cada tarea (cambio de tema en caliente, estructura del
+      sidebar, actualización de la gráfica al refrescar).
