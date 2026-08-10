@@ -167,11 +167,11 @@ mejoras de experiencia de usuario sobre una app ya funcional.
 - [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--bloqueado--pendiente-de-decisión)
 - [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte ✅ Completado](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte--completado)
 - [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente ✅ Completado](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente--completado)
-- [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado 📋 Pendiente](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--pendiente)
+- [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado ✅ Completado](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--completado)
 - [Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión](#sprint-47--recalcular-liquidaciones-históricas-afectadas-por-las-correcciones-del-sprint-30--bloqueado--pendiente-de-decisión)
-- [Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI 📋 Pendiente](#sprint-48--limpiar-la-deuda-de-ruff-preexistente-y-agregar-el-chequeo-de-lint-al-pipeline-de-ci--pendiente)
-- [Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana 📋 Pendiente](#sprint-49--bug-de-ui-los-botones-volverinicio-reaparecen-visibles-tras-el-primer-render-de-la-ventana--pendiente)
-- [Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) 📋 Pendiente](#sprint-50--mejoras-de-personalización-y-presentación-diferidas-de-los-sprints-31-33-modo-oscuro-sidebar-gráficas-del-dashboard--pendiente)
+- [Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI ✅ Completado](#sprint-48--limpiar-la-deuda-de-ruff-preexistente-y-agregar-el-chequeo-de-lint-al-pipeline-de-ci--completado)
+- [Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana ✅ Completado](#sprint-49--bug-de-ui-los-botones-volverinicio-reaparecen-visibles-tras-el-primer-render-de-la-ventana--completado)
+- [Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) ✅ Completado](#sprint-50--mejoras-de-personalización-y-presentación-diferidas-de-los-sprints-31-33-modo-oscuro-sidebar-gráficas-del-dashboard--completado)
 - [Sprint 51 — Migración automática de esquema y datos al arrancar la app ✅ Completado](#sprint-51--migración-automática-de-esquema-y-datos-al-arrancar-la-app--completado)
 
 ---
@@ -3750,7 +3750,7 @@ verde (867 tests tras este sprint individual, 953 tras el merge final).
 
 ---
 
-## Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado 📋 Pendiente
+## Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado ✅ Completado
 
 **Prioridad sugerida:** Media-alta — sigue de cerca al Sprint 23: el dato ya no desaparece del modelo de
 datos, pero sigue siendo invisible en todo documento que un abogado o un juez realmente lee. Detectado por
@@ -3803,6 +3803,17 @@ ese campo nunca llegó a ningún lugar donde un humano lo vea.
 - Test de GUI que confirme que `ResultadoLiquidacionView` muestra el saldo a favor cuando `total_saldo_a_favor() > 0`, y no muestra nada (ni una fila vacía) cuando es cero.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-09):** Completado. Ver
+`docs/superpowers/plans/2026-08-09-sprint46-saldo-a-favor-visible.md`. `ReportSummaryBuilder.build_summary()`
+agrega la clave `"saldo_a_favor"` al resumen solo cuando `total_saldo_a_favor() > 0` (ausente por completo
+del diccionario cuando es cero); `ReportTableBuilder.build_matrix()` expone `saldo_a_favor` por fila.
+`pdf.py`/`word.py` muestran la línea del resumen y la columna de cronología condicionadas a la presencia de
+la clave, sin romper el layout de las 6 áreas cuando no hay sobrepago. `ResultadoLiquidacionView` muestra el
+mismo dato, oculto por completo (ni una fila vacía) cuando es cero. Confirmado que la reconstrucción desde
+`AuditLog` (Sprint 9) no requirió backfill: `serialization.py` ya deserializaba `saldo_a_favor` desde el
+Sprint 23. Puramente de reportes/presentación, no se tocó `LiquidationCore`/`AllocationEngine`; ningún total
+ya existente cambió de valor. Suite completa en verde (970 tests tras este sprint).
+
 ---
 
 ## Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión
@@ -3852,9 +3863,16 @@ patrón que exigieron los Sprints 13/16/20/41):**
   se identifica y recalcula correctamente, preservando el rastro de auditoría original.
 - Suite completa en verde.
 
+**Seguimiento (2026-08-09):** el usuario pidió posponer la decisión de alcance por ahora. La pregunta
+central para el despacho (¿hay alguna liquidación ya entregada con la lógica vieja de prescripción/
+prestaciones sociales? y si la hay, ¿se recalcula toda o solo expedientes activos?) ya quedó redactada en
+`Preguntas-Para-Abogado-Abiertas.md`, sección "Sprint 47", junto con el mecanismo técnico ya decidido para
+cuando se retome (liquidación nueva vinculada a la anterior, no sobrescribir; flag de notificación manual
+visible en el expediente). Este sprint sigue bloqueado hasta esa respuesta.
+
 ---
 
-## Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI 📋 Pendiente
+## Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI ✅ Completado
 
 **Prioridad sugerida:** Baja-media — housekeeping, no afecta comportamiento, pero cierra un hueco real de
 la red de seguridad de CI que el Sprint 28 dejó documentado a propósito.
@@ -3895,9 +3913,24 @@ culpa de ningún cambio nuevo.
   violación.
 - Suite completa en verde (la limpieza de lint no debe cambiar comportamiento).
 
+**Cierre de implementación (2026-08-09):** Completado. Ver
+`docs/superpowers/plans/2026-08-09-sprint48-ruff-cleanup-ci.md`. Conteo real al arrancar: 447 errores (no
+~400, el número subió por los Sprints 36-45 recientes), desglosados en `E501` (411, la gran mayoría),
+`E402` (13), `B905`/`B011`/`UP042` (14, resueltos por `--unsafe-fixes` revisado caso por caso), `I001` (3),
+`B904`/`E741` (4) y `B008` (1). Limpieza por categoría sin cambiar comportamiento: `ruff format .` resolvió
+la mayoría de `E501`, las f-strings/literales que el formatter no reenvuelve se dividieron a mano; los 13
+`E402` eran imports agregados a mitad de archivos de test grandes sin razón intencional, movidos al tope;
+`B904` con `raise ... from err` para preservar el traceback al traducir excepciones internas a excepciones
+de dominio; `B008` resuelto con un singleton de módulo (`Rate` es `frozen dataclass`, no cambia
+comportamiento); `E741` renombrando la variable ambigua `l`. `ruff check .` agregado como paso obligatorio
+en `.github/workflows/ci.yml`, antes de `pytest`. Al mezclar a `main` aparecieron 13 errores adicionales de
+código de los Sprints 46/50 (creado después de que este branch arrancara, nunca antes limpiado) — corregidos
+en el mismo commit del merge. `ruff check .` → **0 errores** en todo el repo. Suite completa en verde (984
+tests tras el merge final), mismo conteo que antes de la limpieza.
+
 ---
 
-## Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana 📋 Pendiente
+## Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana ✅ Completado
 
 **Prioridad sugerida:** Media — bug real y reproducible en cada arranque de la app, pero de bajo impacto
 funcional (los botones funcionan igual, solo aparecen visibles cuando no deberían).
@@ -3955,9 +3988,22 @@ comentario ya existente en ese método, que describe el mismo problema).
   ejecución y sigue en verde.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-09):** Completado. Ver
+`docs/superpowers/plans/2026-08-09-sprint49-botones-navegacion-reaparecen.md`. Causa raíz confirmada:
+`QToolBar` resetea a `True` la visibilidad de widgets agregados vía `addWidget()` en un evento de layout
+adicional que el bucle de eventos real dispara después de `show()` (`QToolBarLayout.performLayout()`) — el
+fix anterior vía `showEvent()` solo cubría el instante síncrono. Solución elegida: migrar
+`boton_volver`/`boton_inicio`/`boton_parametros` de `QPushButton`+`addWidget()` a `QAction`+`addAction()`,
+que `QToolBarLayout` sí respeta de forma consistente. Reproducción independiente confirmada con `qtbot.wait(1)`
+(no `qtbot.wait(0)`, que resultó ser un no-op en la versión de pytest-qt instalada) y con un script
+standalone (`app.exec()` real). **Superado por el Sprint 50** (mezclado después): el sidebar de navegación
+reemplaza `QToolBar` por completo para estos botones, así que el bug deja de aplicar por construcción —
+verificado con el test de regresión de este sprint corriendo en verde de forma estable (8/8) sobre la
+estructura final combinada, no por suposición. Suite completa en verde tras el merge final.
+
 ---
 
-## Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) 📋 Pendiente
+## Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) ✅ Completado
 
 **Prioridad sugerida:** Baja — ninguno de los 3 puntos es un bug ni un gap funcional; son mejoras
 explícitamente diferidas por decisión de diseño al cerrar los Sprints 31, 32 y 33, agrupadas aquí para que
@@ -3994,6 +4040,27 @@ igual que se hizo con decisiones de diseño anteriores (Sprints 13/16/20/41).
 
 **Definición de Hecho:** no aplica todavía — este sprint se cierra dividiéndose en sprints concretos (uno
 por punto que el usuario decida priorizar) el día que se retome, no completando los 3 de una vez.
+
+**Cierre de implementación (2026-08-09):** Completado. Ver
+`docs/superpowers/plans/2026-08-09-sprint50-modo-oscuro-sidebar-graficas.md`. El usuario, consultado
+directamente, decidió implementar los 3 puntos en esta misma ronda (en orden: modo oscuro → sidebar →
+gráficas), en vez de priorizar uno solo o posponer — decisión distinta a la prevista originalmente en este
+placeholder, documentada aquí para que quede el rastro de por qué se completaron los 3 de una vez.
+1. **Modo oscuro/claro:** `app/core/theme_colors_dark.py` + `resources/theme_dark.qss` (misma paleta de
+   marca burdeos, luminancia invertida). `construir_paleta()`/`aplicar_tema()` (`app/core/apariencia.py`)
+   parametrizados por modo; persistencia vía `QSettings` (`app/core/settings.py::crear_settings()`,
+   extraído del patrón del Sprint 37 para no duplicarlo). Checkbox "Modo oscuro" en `ParametrosView`
+   alterna el tema en caliente sin reiniciar la app. Referencia cruzada rota del Sprint 31 (apuntaba al
+   Sprint 37) corregida.
+2. **Sidebar de navegación:** reemplaza el `QToolBar` superior del Sprint 32 por un panel lateral
+   (`QWidget`/`QSplitter`), mismos nombres de atributo, sin romper tests existentes. Como efecto
+   secundario deseable, elimina por construcción el bug de visibilidad que corregía el Sprint 49
+   (`QToolBar.addWidget()`) — verificado con evidencia (el test de regresión del Sprint 49 en verde), no
+   por suposición.
+3. **Gráficas del Dashboard:** `FigureCanvasQTAgg` (matplotlib, ya en `requirements.txt` sin uso real
+   desde el Sprint 27) embebido junto a la tabla de conteo por área existente — la complementa, no la
+   reemplaza. Colores resueltos según el modo de tema activo.
+Suite completa en verde (984 tests tras el merge final combinado con el Sprint 49).
 
 ---
 

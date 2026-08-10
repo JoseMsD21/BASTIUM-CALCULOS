@@ -13,10 +13,22 @@ persistencia de ventana y accesibilidad de teclado). Sprints 39-40: dos bugs rea
 huérfanas en formularios, interés causado ausente en la tabla del PDF). Sprint 38: licencia Apache 2.0
 publicada. Sprints 41/42/44/45: cuotas alimentarias con reajuste anual en Familia, prescripción/caducidad
 conectada al flujo real de liquidación, varios gaps de UX/alcance en Laboral, y transparencia de unidad en
-Sancionatorio. Ningún cambio de saldo final ya calculado en ningún sprint — solo el desglose de interés por
-fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de total.
+Sancionatorio. Sprint 46: saldo a favor de un sobrepago visible en PDF/Word/pantalla. Sprint 49: bug de
+timing de visibilidad en los botones de navegación corregido (y superado estructuralmente por el sidebar
+del Sprint 50). Sprint 50: modo oscuro/claro, sidebar de navegación y gráfica del Dashboard. Sprint 48:
+deuda de `ruff` limpiada (447 → 0 errores) y lint agregado al pipeline de CI. Ningún cambio de saldo final
+ya calculado en ningún sprint — solo el desglose de interés por fila del Sprint 40 y el desglose por cuota
+del Sprint 41 cambian de forma, no de total.
 
 ### Added
+- Modo oscuro/claro, sidebar de navegación y gráfica del Dashboard (Sprint 50): tema oscuro completo
+  (`app/core/theme_colors_dark.py`, `resources/theme_dark.qss`) alternable en caliente desde Parámetros y
+  persistido vía `QSettings`; `QToolBar` superior reemplazado por un sidebar lateral (mismos nombres de
+  atributo, sin romper tests); gráfica de expedientes por área (`matplotlib`/`FigureCanvasQTAgg`) junto a
+  la tabla existente en el Dashboard.
+- Saldo a favor de un sobrepago visible en reportes (Sprint 46): el resumen ejecutivo, la tabla de
+  detalle del PDF/Word y la pantalla de resultado muestran el saldo a favor calculado desde el Sprint 23,
+  antes invisible para el usuario final.
 - Familia: cuotas alimentarias con reajuste anual (Sprint 41): una obligación RECURRENTE de Civil/Familia
   puede marcarse con reajuste `SMMLV` o `IPC`; el sistema genera y persiste las cuotas mensuales reales
   (`app/services/reajuste_anual.py`), con capital constante dentro del año y reajustado cada 1° de enero,
@@ -77,6 +89,16 @@ fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de
   aunque el saldo final de intereses ya era correcto (Sprint 40) — `LiquidationCore` nunca atribuía el
   interés causado por paso del tiempo a la fila de su evento. No afecta ningún saldo final ya calculado
   ni liquidaciones archivadas, solo el desglose de detalle por período.
+- Los botones "Volver"/"Inicio" de `MainWindow` reaparecían visibles tras el primer render real de la
+  ventana pese a estar en la pantalla inicial (Sprint 49) — `QToolBar` reseteaba su visibilidad en un
+  evento de layout que el bucle de eventos real dispara después de `show()`. Corregido migrando esos
+  botones a `QAction`; superado además por construcción al reemplazar el `QToolBar` por el sidebar del
+  Sprint 50.
+
+### Changed
+- Deuda técnica de `ruff` eliminada por completo (Sprint 48): 447 errores preexistentes (mayoritariamente
+  líneas demasiado largas) limpiados sin cambiar comportamiento; `ruff check .` agregado como paso
+  obligatorio del pipeline de CI (`.github/workflows/ci.yml`), antes de la suite de tests.
 
 ## [0.1.0] - 2026-08-04
 
