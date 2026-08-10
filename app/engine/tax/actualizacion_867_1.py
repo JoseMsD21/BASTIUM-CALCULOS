@@ -50,7 +50,9 @@ def calcular_indexacion_867_1(capital: Decimal, fecha_origen: date, fecha_corte:
     )
 
 
-def calcular_interes_usura_plena(capital: Decimal, fecha_origen: date, fecha_corte: date) -> Decimal:
+def calcular_interes_usura_plena(
+    capital: Decimal, fecha_origen: date, fecha_corte: date
+) -> Decimal:
     """Interes que produciria la tasa de usura PLENA (sin el descuento de 2
     puntos del E.T. art. 635) sobre `capital`, dia a dia, desde el dia
     siguiente a `fecha_origen` hasta `fecha_corte` -- mismo patron que

@@ -32,7 +32,9 @@ def calcular_sancion_extemporaneidad(
     return Rounding.money(monto)
 
 
-def calcular_sancion_inexactitud(diferencia: Decimal, agravada: bool, fecha_referencia: date) -> Decimal:
+def calcular_sancion_inexactitud(
+    diferencia: Decimal, agravada: bool, fecha_referencia: date
+) -> Decimal:
     """160% (o 200% si agravada -- omision de activos o inclusion de pasivos inexistentes) de la
     diferencia entre el saldo determinado y el declarado."""
     clave = "INEXACTITUD_AGRAVADA_PCT" if agravada else "INEXACTITUD_PCT"

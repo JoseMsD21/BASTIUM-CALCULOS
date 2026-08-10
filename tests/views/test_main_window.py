@@ -43,7 +43,9 @@ def test_main_window_pasa_expediente_id_a_la_pagina_de_resultado(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    debt = PendingDebt(principal=Decimal("100.00"), interest=Decimal("0.00"), indexation=Decimal("0.00"))
+    debt = PendingDebt(
+        principal=Decimal("100.00"), interest=Decimal("0.00"), indexation=Decimal("0.00")
+    )
     balance = RunningBalance(date=date(2026, 1, 1), debt=debt, event_type="LIQUIDATION_CUTOFF")
     item = LiquidationItem(
         date=date(2026, 1, 1),

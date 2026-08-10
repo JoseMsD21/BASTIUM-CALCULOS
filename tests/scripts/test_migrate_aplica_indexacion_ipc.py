@@ -30,7 +30,9 @@ def test_migrar_preserva_las_filas_existentes(db_sin_columna):
     migrar(db_sin_columna)
 
     con = sqlite3.connect(db_sin_columna)
-    fila = con.execute("SELECT concepto, aplica_indexacion_ipc FROM obligaciones WHERE id = 1").fetchone()
+    fila = con.execute(
+        "SELECT concepto, aplica_indexacion_ipc FROM obligaciones WHERE id = 1"
+    ).fetchone()
     con.close()
     assert fila == ("Gastos medicos", 0)
 

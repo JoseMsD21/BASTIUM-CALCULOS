@@ -2,27 +2,30 @@ from datetime import date
 from decimal import Decimal
 
 from app.engine.financial.rate import Rate
+from app.engine.interest.provider import MemoryRateProvider
 from app.engine.liquidation.engine import LiquidationCore
 from app.engine.temporal.schedulers.base import Event
 
 
 def test_engine_processes_chronological_events():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
         Event(date=date(2026, 1, 15), payload={"amount": Decimal("50.00")}, event_type="INTEREST"),
         Event(date=date(2026, 1, 31), payload={"amount": Decimal("500.00")}, event_type="PAYMENT"),
     ]
-    
+
     # 1. Instanciamos el motor con una tasa de control (0%) para probar puramente la imputación
     control_rate = Rate.from_percent(Decimal("0.0"))
     engine = LiquidationCore(default_daily_rate=control_rate)
-    
+
     # 2. Definimos la fecha de corte exacta del último evento
     cutoff = date(2026, 1, 31)
-    
+
     # 3. Procesamos inyectando el límite temporal
     result = engine.process(events, cutoff_date=cutoff)
-    
+
     # Validaciones estables
     assert len(result.items) == 3
     final_debt = result.final_balance()
@@ -31,16 +34,18 @@ def test_engine_processes_chronological_events():
     assert result.total_payments_applied() == Decimal("500.00")
 
 
-from app.engine.interest.provider import MemoryRateProvider
-
-
 def test_engine_popula_rate_source_desde_el_rate_provider():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
     ]
     provider = MemoryRateProvider()
     provider.add_rate_period(
-        date(2025, 12, 31), date(2026, 1, 31), Rate.from_percent(Decimal("1.0")), source="Tasa de prueba"
+        date(2025, 12, 31),
+        date(2026, 1, 31),
+        Rate.from_percent(Decimal("1.0")),
+        source="Tasa de prueba",
     )
     engine = LiquidationCore(rate_provider=provider)
 
@@ -51,7 +56,9 @@ def test_engine_popula_rate_source_desde_el_rate_provider():
 
 def test_engine_rate_source_es_na_sin_rate_provider():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
     ]
     engine = LiquidationCore(default_daily_rate=Rate.from_percent(Decimal("0.0")))
 
@@ -62,8 +69,12 @@ def test_engine_rate_source_es_na_sin_rate_provider():
 
 def test_capitalizacion_intereses_anatocismo_traslada_interes_devengado_al_capital():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 31), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 31), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"
+        ),
     ]
     # 1% diario sobre 1000.00 durante 30 dias (2026-01-02 a 2026-01-31) = 300.00 exacto
     engine = LiquidationCore(default_daily_rate=Rate.from_percent(Decimal("1.0")))
@@ -77,9 +88,17 @@ def test_capitalizacion_intereses_anatocismo_traslada_interes_devengado_al_capit
 
 def test_capitalizacion_intereses_anatocismo_con_interes_ya_pagado_no_capitaliza_nada():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00"), "reference": ""}, event_type="PAYMENT"),
-        Event(date=date(2026, 1, 31), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1),
+            payload={"amount": Decimal("1000.00"), "reference": ""},
+            event_type="PAYMENT",
+        ),
+        Event(
+            date=date(2026, 1, 31), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"
+        ),
     ]
     engine = LiquidationCore(default_daily_rate=Rate.from_percent(Decimal("1.0")))
 
@@ -92,8 +111,12 @@ def test_capitalizacion_intereses_anatocismo_con_interes_ya_pagado_no_capitaliza
 
 def test_engine_usar_suma_unica_false_interes_solo_sobre_principal():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))  # 1% diario plano, tasa de control
     engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=False)
@@ -109,8 +132,12 @@ def test_engine_usar_suma_unica_false_interes_solo_sobre_principal():
 
 def test_engine_usar_suma_unica_true_interes_sobre_principal_mas_indexation():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=True)
@@ -126,8 +153,12 @@ def test_engine_usar_suma_unica_true_interes_sobre_principal_mas_indexation():
 
 def test_engine_usar_suma_unica_default_es_false():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate)  # sin pasar usar_suma_unica
@@ -143,7 +174,9 @@ def test_engine_usar_suma_unica_true_accrues_interest_when_only_indexation_prese
     # ese saldo aunque principal sea 0 -- el guard de _accrue_time_passage debe
     # evaluar capital_base, no solo principal.
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=True)
@@ -162,7 +195,9 @@ def test_engine_usar_suma_unica_false_no_accrual_when_only_indexation_present():
     # el guard debe seguir bloqueando la acumulacion (sin cambio de comportamiento
     # respecto a antes de este sprint).
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=False)
@@ -179,8 +214,12 @@ def test_engine_usar_suma_unica_true_capital_base_en_liquidation_item_incluye_in
     # solo principal, o el rubro auditado quedaria inconsistente con el interes
     # reportado en la misma fila/corte.
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=True)
@@ -194,10 +233,14 @@ def test_engine_usar_suma_unica_true_capital_base_en_liquidation_item_incluye_in
     assert item_cierre.capital_base == Decimal("1500.00")
 
 
-def test_engine_usar_suma_unica_false_capital_base_en_liquidation_item_sigue_siendo_solo_principal():
+def test_engine_usar_suma_unica_false_capital_base_sigue_siendo_solo_principal():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("500.00")}, event_type="INDEXATION"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate, usar_suma_unica=False)
@@ -217,8 +260,16 @@ def test_engine_sobrepago_expone_remanente_como_saldo_a_favor():
     # monto nominal completo ($10.000.000) y el excedente de $3.000.000 desaparecia
     # sin dejar rastro en el LiquidationResult.
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("7000000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 10), payload={"amount": Decimal("10000000.00")}, event_type="PAYMENT"),
+        Event(
+            date=date(2026, 1, 1),
+            payload={"amount": Decimal("7000000.00")},
+            event_type="INSTALLMENT",
+        ),
+        Event(
+            date=date(2026, 1, 10),
+            payload={"amount": Decimal("10000000.00")},
+            event_type="PAYMENT",
+        ),
     ]
     control_rate = Rate.from_percent(Decimal("0.0"))
     engine = LiquidationCore(default_daily_rate=control_rate)
@@ -234,8 +285,14 @@ def test_engine_sobrepago_expone_remanente_como_saldo_a_favor():
 
 def test_engine_pago_exacto_no_genera_saldo_a_favor():
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("500000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 10), payload={"amount": Decimal("500000.00")}, event_type="PAYMENT"),
+        Event(
+            date=date(2026, 1, 1),
+            payload={"amount": Decimal("500000.00")},
+            event_type="INSTALLMENT",
+        ),
+        Event(
+            date=date(2026, 1, 10), payload={"amount": Decimal("500000.00")}, event_type="PAYMENT"
+        ),
     ]
     control_rate = Rate.from_percent(Decimal("0.0"))
     engine = LiquidationCore(default_daily_rate=control_rate)
@@ -253,11 +310,17 @@ def test_engine_atribuye_interes_causado_por_paso_del_tiempo_a_cada_item():
     # _accrue_time_passage (el saldo final de intereses ya era correcto). Cada fila
     # debe reflejar cuanto interes se causo desde el evento anterior hasta este.
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
         # 10 dias de mora (2026-01-02 a 2026-01-11) sobre 1000.00 al 1% diario = 100.00
-        Event(date=date(2026, 1, 11), payload={"amount": Decimal("500.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2026, 1, 11), payload={"amount": Decimal("500.00")}, event_type="INSTALLMENT"
+        ),
         # 10 dias mas (2026-01-12 a 2026-01-21) sobre 1500.00 al 1% diario = 150.00
-        Event(date=date(2026, 1, 21), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"),
+        Event(
+            date=date(2026, 1, 21), payload={}, event_type="CAPITALIZACION_INTERESES_ANATOCISMO"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate)
@@ -279,8 +342,12 @@ def test_engine_suma_de_columna_interes_coincide_con_interes_final_sin_pagos():
     # capitalizacion, la suma de interest_amount de todas las filas (incluida la fila
     # de cierre final) debe coincidir exactamente con final_debt.interest.
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 11), payload={"amount": Decimal("500.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
+        Event(
+            date=date(2026, 1, 11), payload={"amount": Decimal("500.00")}, event_type="INSTALLMENT"
+        ),
     ]
     rate = Rate.from_percent(Decimal("1.00"))
     engine = LiquidationCore(default_daily_rate=rate)
@@ -306,7 +373,9 @@ def test_engine_evento_interest_explicito_se_suma_al_interes_causado_por_tiempo(
     # tests que lo usan explicitamente. Debe SUMARSE al interes causado por el paso
     # del tiempo en ese mismo tramo, no reemplazarlo.
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"
+        ),
         # 10 dias de mora sobre 1000.00 al 1% diario = 100.00 causados por tiempo,
         # mas 50.00 inyectados explicitamente por el evento INTEREST = 150.00 en la fila
         Event(date=date(2026, 1, 11), payload={"amount": Decimal("50.00")}, event_type="INTEREST"),

@@ -235,7 +235,9 @@ def test_borrar_expediente_borra_en_cascada_obligaciones_y_abonos(session):
     )
     session.add(obligacion)
     session.flush()
-    session.add(Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 15), monto=Decimal("100000.00")))
+    session.add(
+        Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 15), monto=Decimal("100000.00"))
+    )
     session.commit()
 
     session.delete(expediente)
@@ -543,7 +545,9 @@ def test_columnas_de_filtrado_frecuente_tienen_indice(session):
         columna for idx in inspector.get_indexes("abonos") for columna in idx["column_names"]
     }
     indices_parametros = {
-        columna for idx in inspector.get_indexes("parametros_legales") for columna in idx["column_names"]
+        columna
+        for idx in inspector.get_indexes("parametros_legales")
+        for columna in idx["column_names"]
     }
 
     assert "expediente_id" in indices_obligaciones

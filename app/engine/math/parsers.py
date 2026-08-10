@@ -28,8 +28,8 @@ class FinancialParser:
             # Si escribió '0.0164' pero era un porcentaje, la lógica de negocio debe saberlo.
             # Aquí garantizamos que el número es un Decimal exacto.
             return value
-        except InvalidOperation:
-            raise ValueError(f"Formato numérico inválido: {value_str}")
+        except InvalidOperation as err:
+            raise ValueError(f"Formato numérico inválido: {value_str}") from err
 
     @staticmethod
     def parse_money(text: str) -> Decimal:

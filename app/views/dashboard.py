@@ -14,9 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
-from app.core import apariencia
-from app.core import theme_colors
-from app.core import theme_colors_dark
+from app.core import apariencia, theme_colors, theme_colors_dark
 from app.core.constants import AREAS_DERECHO
 from app.core.exceptions import ParametroNoDisponibleError
 from app.engine.audit.service import historial_de_expediente

@@ -22,5 +22,7 @@ def convertir_a_pesos(
     if moneda is None or moneda == "COP":
         return valor
     if provider is None:
-        raise ValueError(f"Una obligacion en {moneda} requiere una TRM aplicable para convertir a pesos.")
+        raise ValueError(
+            f"Una obligacion en {moneda} requiere una TRM aplicable para convertir a pesos."
+        )
     return Rounding.money(valor * provider.get_trm(fecha_referencia))

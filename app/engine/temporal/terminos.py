@@ -28,7 +28,8 @@ class EstadoTermino:
 def _rechazar_retroceso(fecha: date, checkpoint: date) -> None:
     if fecha < checkpoint:
         raise ValueError(
-            f"fecha ({fecha}) no puede ser anterior al checkpoint vigente del término ({checkpoint})"
+            f"fecha ({fecha}) no puede ser anterior al checkpoint vigente del "
+            f"término ({checkpoint})"
         )
 
 

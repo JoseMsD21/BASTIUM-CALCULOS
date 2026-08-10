@@ -10,7 +10,11 @@ class WordReportGenerator:
         self.c_prescrita = RGBColor(0xC0, 0x00, 0x00)
 
     def generate(
-        self, title: str, summary: dict, table_data: list, encabezado: dict | None = None,
+        self,
+        title: str,
+        summary: dict,
+        table_data: list,
+        encabezado: dict | None = None,
         renta_liquida: dict | None = None,
     ) -> None:
         documento = Document()
@@ -68,14 +72,22 @@ class WordReportGenerator:
         mostrar_saldo_a_favor = "saldo_a_favor" in summary
 
         columnas_cronologia = [
-            "Fecha", "Concepto", "Base Capital", "Tasa", "Interés", "Indexación/Sanciones", "Pago",
-            "Saldo Capital", "Saldo Interés", "Saldo Total",
+            "Fecha",
+            "Concepto",
+            "Base Capital",
+            "Tasa",
+            "Interés",
+            "Indexación/Sanciones",
+            "Pago",
+            "Saldo Capital",
+            "Saldo Interés",
+            "Saldo Total",
         ]
         if mostrar_saldo_a_favor:
             columnas_cronologia.append("Saldo a favor")
         tabla_cronologia = documento.add_table(rows=1, cols=len(columnas_cronologia))
         tabla_cronologia.style = "Table Grid"
-        for celda, texto in zip(tabla_cronologia.rows[0].cells, columnas_cronologia):
+        for celda, texto in zip(tabla_cronologia.rows[0].cells, columnas_cronologia, strict=True):
             celda.text = texto
         for fila_datos in table_data:
             celdas_fila = tabla_cronologia.add_row().cells
@@ -100,7 +112,7 @@ class WordReportGenerator:
             # explicito (en vez de `celda.text = ...`) para poder colorear el
             # texto: el setter `.text` de python-docx no expone color de fuente.
             es_prescrita = bool(fila_datos.get("prescrita"))
-            for celda, texto in zip(celdas_fila, valores_fila):
+            for celda, texto in zip(celdas_fila, valores_fila, strict=True):
                 run = celda.paragraphs[0].add_run(texto)
                 if es_prescrita:
                     run.font.color.rgb = self.c_prescrita
@@ -109,7 +121,9 @@ class WordReportGenerator:
         if renta_liquida is not None:
             documento.add_paragraph()
             parrafo_renta_liquida = documento.add_paragraph()
-            run_renta_liquida = parrafo_renta_liquida.add_run("Depuración de Renta Líquida Gravable")
+            run_renta_liquida = parrafo_renta_liquida.add_run(
+                "Depuración de Renta Líquida Gravable"
+            )
             run_renta_liquida.bold = True
             run_renta_liquida.font.color.rgb = self.c_burgundy
 

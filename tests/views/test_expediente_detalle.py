@@ -8,7 +8,9 @@ from sqlalchemy.pool import StaticPool
 
 import database.database as database_module
 import database.session as session_module
+from app.engine.audit.service import registrar_liquidacion
 from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO
+from app.engine.liquidation.registry import AreaRegistry
 from app.views.expediente_detalle import ExpedienteDetallePage
 from database.models import (
     AreaDerecho,
@@ -25,7 +27,9 @@ def _expediente_con_obligacion(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -91,13 +95,22 @@ def _expediente_comercial_con_obligacion_usuraria(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="USURA_MULTIPLICADOR", valor=Decimal("1.5"), vigente_desde=date(1997, 7, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="USURA_MULTIPLICADOR",
+            valor=Decimal("1.5"),
+            vigente_desde=date(1997, 7, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     expediente = Expediente(
         radicado="2026-040",
         demandante="Comercial SAS",
@@ -132,7 +145,9 @@ def _expediente_civil_con_obligacion_indexada(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     # Tarea 12: CivilFamiliaStrategy ahora resuelve el indice IPC via
@@ -141,10 +156,17 @@ def _expediente_civil_con_obligacion_indexada(monkeypatch) -> int:
     # completo desde el mismo diccionario congelado que usa
     # scripts/migrate_parametros_legales.py, para no re-transcribir a mano.
     for anio, valor in _IPC_INDICE_ACUMULADO.items():
-        session.add(ParametroLegal(
-            clave="IPC_INDICE_ACUMULADO", valor=valor, vigente_desde=date(anio, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="IPC_INDICE_ACUMULADO",
+                valor=valor,
+                vigente_desde=date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=datetime.now(),
+            )
+        )
     expediente = Expediente(
         radicado="2026-070",
         demandante="Ana",
@@ -196,7 +218,9 @@ def test_liquidar_area_civil_con_indexacion_ipc_incluye_evento_de_indexacion(qtb
     assert resultado.final_balance().indexation == Decimal("77633.53")
 
 
-def test_liquidar_area_comercial_con_tasa_usuraria_no_muestra_advertencia_y_aplica_sancion(qtbot, monkeypatch):
+def test_liquidar_area_comercial_con_tasa_usuraria_no_muestra_advertencia_y_aplica_sancion(
+    qtbot, monkeypatch
+):
     # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): una tasa por encima
     # de la usura ya no rechaza la liquidacion -- se liquida igual y se aplica la sancion
     # legal (perdida doblada del exceso) como un rubro mas del resultado.
@@ -231,13 +255,22 @@ def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="HONORARIOS_TOTAL_PCT", valor=Decimal("50"), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="HONORARIOS_TOTAL_PCT",
+            valor=Decimal("50"),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     expediente = Expediente(
         radicado="2026-050",
         demandante="Abogado",
@@ -257,7 +290,9 @@ def _expediente_honorarios_con_cuota_litis_excesiva(monkeypatch) -> int:
             valor=Decimal("0.00"),
             tasa_efectiva_anual=Decimal("0.00"),
             honorarios_fijos_pactados=Decimal("1000000.00"),
-            cuota_litis_pactada_pct=Decimal("45.00"),  # total (1M + 4.5M = 5.5M) excede el 50% (5M)
+            cuota_litis_pactada_pct=Decimal(
+                "45.00"
+            ),  # total (1M + 4.5M = 5.5M) excede el 50% (5M)
             beneficio_obtenido=Decimal("10000000.00"),
             costas_pct_manual=Decimal("5.00"),
         )
@@ -280,8 +315,11 @@ def _expediente_sancionatorio_con_hecho_posterior_a_2026(monkeypatch) -> int:
     )
     Base.metadata.create_all(engine)
     monkeypatch.setattr(database_module, "engine", engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
     from scripts.migrate_parametros_legales import migrar
+
     migrar()
 
     session = session_module.get_session()
@@ -300,7 +338,9 @@ def _expediente_sancionatorio_con_hecho_posterior_a_2026(monkeypatch) -> int:
             tipo=TipoObligacion.PUNTUAL,
             concepto="Multa SIC",
             categoria="MULTA_SANCIONATORIA",
-            fecha_origen=date(2027, 1, 1),  # posterior a 2026: fuera del rango de la tabla historica UVT (2006-2026), aun no publicada por la DIAN
+            # posterior a 2026: fuera del rango de la tabla historica UVT (2006-2026),
+            # aun no publicada por la DIAN
+            fecha_origen=date(2027, 1, 1),
             valor=Decimal("0.00"),
             tasa_efectiva_anual=Decimal("0.00"),
             cantidad_smlmv_uvt=Decimal("2"),
@@ -312,7 +352,9 @@ def _expediente_sancionatorio_con_hecho_posterior_a_2026(monkeypatch) -> int:
     return expediente_id
 
 
-def test_liquidar_area_honorarios_con_cuota_litis_excesiva_muestra_advertencia_sin_crash(qtbot, monkeypatch):
+def test_liquidar_area_honorarios_con_cuota_litis_excesiva_muestra_advertencia_sin_crash(
+    qtbot, monkeypatch
+):
     """
     Regresion: CuotaLitisExcedeTopeError (agregada en Sprint 4) no estaba en la lista de
     except de _liquidar(), asi que se propagaba como traceback no controlado en vez de
@@ -392,7 +434,9 @@ def _expediente_tributario_sin_parametros_de_sancion(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -423,7 +467,9 @@ def _expediente_tributario_sin_parametros_de_sancion(monkeypatch) -> int:
     return expediente_id
 
 
-def test_liquidar_area_tributaria_sin_parametros_de_sancion_muestra_advertencia_sin_crash(qtbot, monkeypatch):
+def test_liquidar_area_tributaria_sin_parametros_de_sancion_muestra_advertencia_sin_crash(
+    qtbot, monkeypatch
+):
     """
     Regresion: ParametroNoDisponibleError no estaba en la lista de except de _liquidar(),
     asi que un parametro ABIERTO no sembrado (ej. EXTEMPORANEIDAD_PCT_MENSUAL, si alguna
@@ -498,7 +544,9 @@ def _expediente_laboral_con_mora_fase1(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -537,7 +585,9 @@ def _expediente_laboral_pagado_a_tiempo(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -654,7 +704,9 @@ def _expediente_laboral_con_seguridad_social(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -683,26 +735,42 @@ def _expediente_laboral_con_seguridad_social(monkeypatch) -> int:
             nivel_riesgo_arl="I",
         )
     )
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("877803.00"), vigente_desde=date(2020, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("877803.00"),
+            vigente_desde=date(2020, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     for clave, valor in {
         "SS_PENSION_PCT": Decimal("0.16"),
         "SS_SALUD_PCT": Decimal("0.125"),
         "SS_ARL_NIVEL_I_PCT": Decimal("0.00522"),
     }.items():
-        session.add(ParametroLegal(
-            clave=clave, valor=valor, vigente_desde=date(1900, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave=clave,
+                valor=valor,
+                vigente_desde=date(1900, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=datetime.now(),
+            )
+        )
     session.commit()
     expediente_id = expediente.id
     session.close()
     return expediente_id
 
 
-def test_liquidar_area_laboral_con_seguridad_social_no_lanza_detached_instance_error(qtbot, monkeypatch):
+def test_liquidar_area_laboral_con_seguridad_social_no_lanza_detached_instance_error(
+    qtbot, monkeypatch
+):
     # Regresion: obligacion.eventos_laborales se accede por primera vez dentro
     # de LaboralStrategy.liquidar() (para calcular dias_suspension) cuando
     # incluir_seguridad_social=True. _liquidar() debe forzar ese lazy-load
@@ -736,10 +804,6 @@ def test_liquidar_area_laboral_con_seguridad_social_no_lanza_detached_instance_e
 
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "COTIZACION_PENSION" in tipos_evento
-
-
-from app.engine.audit.service import registrar_liquidacion
-from app.engine.liquidation.registry import AreaRegistry
 
 
 def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monkeypatch):
@@ -800,20 +864,30 @@ def _expediente_laboral_sin_mora(monkeypatch) -> int:
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
-        radicado="2026-070", demandante="Trabajador", demandado="Empleador SAS",
-        area_derecho=AreaDerecho.LABORAL, fecha_corte_default=date(2026, 6, 1),
+        radicado="2026-070",
+        demandante="Trabajador",
+        demandado="Empleador SAS",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 6, 1),
     )
     session.add(expediente)
     session.flush()
     obligacion = Obligacion(
-        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL,
-        concepto="Liquidacion de contrato", categoria="LIQUIDACION_CONTRATO_LABORAL",
-        fecha_origen=date(2020, 1, 1), valor=Decimal("3000000.00"),
-        tasa_efectiva_anual=Decimal("0.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
     )
     session.add(obligacion)
     session.commit()
@@ -834,7 +908,9 @@ def test_grupo_eventos_contractuales_visible_solo_para_area_laboral(qtbot, monke
 
 
 def test_grupo_eventos_contractuales_oculto_para_area_civil_familia(qtbot, monkeypatch):
-    expediente_id = _expediente_con_obligacion(monkeypatch)  # CIVIL_FAMILIA, ya existe en este archivo
+    expediente_id = _expediente_con_obligacion(
+        monkeypatch
+    )  # CIVIL_FAMILIA, ya existe en este archivo
 
     pagina = ExpedienteDetallePage()
     qtbot.addWidget(pagina)
@@ -844,16 +920,22 @@ def test_grupo_eventos_contractuales_oculto_para_area_civil_familia(qtbot, monke
     assert pagina.grupo_eventos_laborales.isVisible() is False
 
 
-def test_refrescar_eventos_laborales_lista_los_eventos_de_todas_las_obligaciones(qtbot, monkeypatch):
+def test_refrescar_eventos_laborales_lista_los_eventos_de_todas_las_obligaciones(
+    qtbot, monkeypatch
+):
     from database.models import EventoLaboral, TipoEventoLaboral
 
     expediente_id = _expediente_laboral_sin_mora(monkeypatch)
     session = session_module.get_session()
     obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
-    session.add(EventoLaboral(
-        obligacion_id=obligacion.id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
-    ))
+    session.add(
+        EventoLaboral(
+            obligacion_id=obligacion.id,
+            tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2020, 5, 1),
+            fecha_fin=date(2020, 5, 4),
+        )
+    )
     session.commit()
     session.close()
 
@@ -929,7 +1011,9 @@ def test_fecha_corte_liquidacion_se_precarga_con_la_del_expediente(qtbot, monkey
     assert page.campo_fecha_corte_liquidacion.date().toPython() == date(2026, 6, 1)
 
 
-def test_override_de_fecha_de_corte_afecta_la_liquidacion_pero_no_el_expediente(qtbot, monkeypatch):
+def test_override_de_fecha_de_corte_afecta_la_liquidacion_pero_no_el_expediente(
+    qtbot, monkeypatch
+):
     # _expediente_laboral_con_mora_fase1 tiene fecha_corte_default = 2021-06-01, que
     # produce mora (contrato termina 2020-12-31). Si se cambia el override a la misma
     # fecha de terminacion del contrato (sin mora) y se liquida, el resultado no debe
@@ -988,10 +1072,15 @@ def test_refrescar_descuentos_laborales_lista_los_descuentos(qtbot, monkeypatch)
     expediente_id = _expediente_laboral_sin_mora(monkeypatch)
     session = session_module.get_session()
     obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
-    session.add(DescuentoLaboral(
-        obligacion_id=obligacion.id, fecha=date(2021, 1, 15), monto=Decimal("500000.00"),
-        es_legal=True, motivo="Prestamo",
-    ))
+    session.add(
+        DescuentoLaboral(
+            obligacion_id=obligacion.id,
+            fecha=date(2021, 1, 15),
+            monto=Decimal("500000.00"),
+            es_legal=True,
+            motivo="Prestamo",
+        )
+    )
     session.commit()
     session.close()
 
@@ -1035,7 +1124,8 @@ def test_editar_obligacion_actualiza_la_fila_en_vez_de_agregar_una_nueva(qtbot, 
         return True
 
     monkeypatch.setattr(
-        "app.views.expediente_detalle.ObligacionFormDialog.exec", _simular_edicion_y_guardado,
+        "app.views.expediente_detalle.ObligacionFormDialog.exec",
+        _simular_edicion_y_guardado,
     )
 
     page._editar_obligacion(obligacion_id)
@@ -1053,10 +1143,14 @@ def test_eliminar_evento_laboral_lo_quita_de_la_tabla(qtbot, monkeypatch):
     expediente_id = _expediente_laboral_sin_mora(monkeypatch)
     session = session_module.get_session()
     obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
-    session.add(EventoLaboral(
-        obligacion_id=obligacion.id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
-    ))
+    session.add(
+        EventoLaboral(
+            obligacion_id=obligacion.id,
+            tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2020, 5, 1),
+            fecha_fin=date(2020, 5, 4),
+        )
+    )
     session.commit()
     session.close()
 
@@ -1088,10 +1182,14 @@ def test_eliminar_evento_laboral_cancelado_no_lo_elimina(qtbot, monkeypatch):
     expediente_id = _expediente_laboral_sin_mora(monkeypatch)
     session = session_module.get_session()
     obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
-    session.add(EventoLaboral(
-        obligacion_id=obligacion.id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
-    ))
+    session.add(
+        EventoLaboral(
+            obligacion_id=obligacion.id,
+            tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+            fecha_inicio=date(2020, 5, 1),
+            fecha_fin=date(2020, 5, 4),
+        )
+    )
     session.commit()
     session.close()
 
@@ -1128,17 +1226,33 @@ def _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch) -> tup
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("1000000.00"), vigente_desde=date(2024, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("1100000.00"), vigente_desde=date(2025, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("1000000.00"),
+            vigente_desde=date(2024, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("1100000.00"),
+            vigente_desde=date(2025, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     expediente = Expediente(
         radicado="2026-080",
         demandante="Ana",
@@ -1183,7 +1297,9 @@ def test_boton_generar_cuotas_visible_solo_para_civil_familia(qtbot, monkeypatch
 
 
 def test_generar_cuotas_sin_seleccion_muestra_advertencia(qtbot, monkeypatch):
-    expediente_id, _obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
+    expediente_id, _obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(
+        monkeypatch
+    )
 
     avisos = []
     monkeypatch.setattr(
@@ -1202,7 +1318,9 @@ def test_generar_cuotas_sin_seleccion_muestra_advertencia(qtbot, monkeypatch):
 
 
 def test_generar_cuotas_persiste_y_refresca_la_tabla_de_obligaciones(qtbot, monkeypatch):
-    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
+    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(
+        monkeypatch
+    )
 
     page = ExpedienteDetallePage()
     qtbot.addWidget(page)
@@ -1226,7 +1344,9 @@ def test_generar_cuotas_persiste_y_refresca_la_tabla_de_obligaciones(qtbot, monk
 
 
 def test_generar_cuotas_dos_veces_no_duplica_filas(qtbot, monkeypatch):
-    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
+    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(
+        monkeypatch
+    )
 
     page = ExpedienteDetallePage()
     qtbot.addWidget(page)
@@ -1271,7 +1391,9 @@ def test_boton_generar_cuotas_tiene_clase_secundaria(qtbot):
     assert page.boton_generar_cuotas.property("class") == "secondary"
 
 
-def test_flujo_completo_crear_obligacion_recurrente_generar_cuotas_y_abonar_una_cuota(qtbot, monkeypatch):
+def test_flujo_completo_crear_obligacion_recurrente_generar_cuotas_y_abonar_una_cuota(
+    qtbot, monkeypatch
+):
     """Flujo completo del Sprint 41 (Task 4): crear una obligacion RECURRENTE con
     reajuste anual desde el formulario real (ObligacionFormDialog) -> generar
     cuotas desde ExpedienteDetallePage -> verlas en la tabla de Obligaciones ->
@@ -1285,17 +1407,33 @@ def test_flujo_completo_crear_obligacion_recurrente_generar_cuotas_y_abonar_una_
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("1000000.00"), vigente_desde=date(2024, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("1100000.00"), vigente_desde=date(2025, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("1000000.00"),
+            vigente_desde=date(2024, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("1100000.00"),
+            vigente_desde=date(2025, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     expediente = Expediente(
         radicado="2026-090",
         demandante="Ana",

@@ -20,8 +20,16 @@ def _liquidar_expediente_con_sobrepago():
     # un pago de $10.000.000 contra una deuda de $7.000.000 -- el excedente de
     # $3.000.000 debe quedar registrado como saldo a favor, no desaparecer.
     events = [
-        Event(date=date(2026, 1, 1), payload={"amount": Decimal("7000000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2026, 1, 10), payload={"amount": Decimal("10000000.00")}, event_type="PAYMENT"),
+        Event(
+            date=date(2026, 1, 1),
+            payload={"amount": Decimal("7000000.00")},
+            event_type="INSTALLMENT",
+        ),
+        Event(
+            date=date(2026, 1, 10),
+            payload={"amount": Decimal("10000000.00")},
+            event_type="PAYMENT",
+        ),
     ]
     control_rate = Rate.from_percent(Decimal("0.0"))
     engine = LiquidationCore(default_daily_rate=control_rate)

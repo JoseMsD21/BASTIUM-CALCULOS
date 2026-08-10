@@ -62,7 +62,7 @@ def test_parametro_form_dialog_valor_invalido_lanza_value_error(qtbot):
     dialogo.campo_usuario.setText("abogado1")
     try:
         dialogo.guardar()
-        assert False, "se esperaba ValueError"
+        raise AssertionError("se esperaba ValueError")
     except ValueError:
         pass
 
@@ -76,7 +76,7 @@ def test_parametro_form_dialog_usuario_vacio_lanza_value_error(qtbot):
     dialogo.campo_valor.setText("1.5")
     try:
         dialogo.guardar()
-        assert False, "se esperaba ValueError"
+        raise AssertionError("se esperaba ValueError")
     except ValueError:
         pass
 
@@ -122,7 +122,7 @@ def test_parametro_form_dialog_valor_no_finito_lanza_value_error(qtbot):
     dialogo.campo_usuario.setText("abogado1")
     try:
         dialogo.guardar()
-        assert False, "se esperaba ValueError"
+        raise AssertionError("se esperaba ValueError")
     except ValueError:
         pass
 
@@ -172,7 +172,7 @@ def test_parametro_form_dialog_vigente_hasta_anterior_a_desde_lanza_value_error(
     dialogo.campo_vigente_hasta.setDate(QDate(2026, 1, 1))
     try:
         dialogo.guardar()
-        assert False, "se esperaba ValueError"
+        raise AssertionError("se esperaba ValueError")
     except ValueError:
         pass
 

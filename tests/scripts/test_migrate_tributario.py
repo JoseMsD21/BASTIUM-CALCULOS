@@ -5,8 +5,14 @@ import pytest
 from scripts.migrate_tributario import migrar
 
 _COLUMNAS_NUEVAS = {
-    "base_sancion_tributaria", "meses_extemporaneidad", "sancion_agravada",
-    "ingresos_brutos", "devoluciones_rebajas_descuentos", "costos", "deducciones", "rentas_exentas",
+    "base_sancion_tributaria",
+    "meses_extemporaneidad",
+    "sancion_agravada",
+    "ingresos_brutos",
+    "devoluciones_rebajas_descuentos",
+    "costos",
+    "deducciones",
+    "rentas_exentas",
 }
 
 
@@ -31,11 +37,15 @@ def test_migrar_agrega_las_ocho_columnas_y_retorna_true(db_sin_columnas):
     assert _COLUMNAS_NUEVAS <= columnas
 
 
-def test_migrar_preserva_las_filas_existentes_con_sancion_agravada_falso_por_defecto(db_sin_columnas):
+def test_migrar_preserva_las_filas_existentes_con_sancion_agravada_falso_por_defecto(
+    db_sin_columnas,
+):
     migrar(db_sin_columnas)
 
     con = sqlite3.connect(db_sin_columnas)
-    fila = con.execute("SELECT concepto, sancion_agravada FROM obligaciones WHERE id = 1").fetchone()
+    fila = con.execute(
+        "SELECT concepto, sancion_agravada FROM obligaciones WHERE id = 1"
+    ).fetchone()
     con.close()
     assert fila == ("Impuesto de renta 2024", 0)
 

@@ -59,7 +59,10 @@ class ObligacionFormDialog(QDialog):
     }
 
     def __init__(
-        self, expediente_id: int, area: str = "CIVIL_FAMILIA", parent=None,
+        self,
+        expediente_id: int,
+        area: str = "CIVIL_FAMILIA",
+        parent=None,
         obligacion_id: int | None = None,
     ):
         super().__init__(parent)
@@ -120,7 +123,9 @@ class ObligacionFormDialog(QDialog):
         self.combo_tipo_reajuste_anual = QComboBox()
         self.combo_tipo_reajuste_anual.addItem("Ninguno", userData="NINGUNO")
         self.combo_tipo_reajuste_anual.addItem("SMMLV (Salario Minimo)", userData="SMMLV")
-        self.combo_tipo_reajuste_anual.addItem("IPC (Indice de Precios al Consumidor)", userData="IPC")
+        self.combo_tipo_reajuste_anual.addItem(
+            "IPC (Indice de Precios al Consumidor)", userData="IPC"
+        )
         self.combo_tipo_reajuste_anual.setToolTip(
             "Si se activa, el capital de cada cuota mensual se reajusta el 1 de enero de "
             "cada año segun el indice elegido -- usar el boton 'Generar cuotas' del "
@@ -190,7 +195,9 @@ class ObligacionFormDialog(QDialog):
             "Porcentaje adicional por costas judiciales a cargo de la parte vencida, si se "
             "pacto o decreto."
         )
-        self.check_aplica_indexacion_ipc = QCheckBox("Aplica indexación IPC (corrección monetaria)")
+        self.check_aplica_indexacion_ipc = QCheckBox(
+            "Aplica indexación IPC (corrección monetaria)"
+        )
         self.check_aplica_indexacion_ipc.setToolTip(
             "Corrige el valor historico de la obligacion con el Indice de Precios al "
             "Consumidor (IPC) antes de calcular intereses."
@@ -207,7 +214,9 @@ class ObligacionFormDialog(QDialog):
         self.campo_meses_extemporaneidad = QSpinBox()
         self.campo_meses_extemporaneidad.setRange(1, 120)
         self.campo_meses_extemporaneidad.setValue(1)
-        self.check_sancion_agravada = QCheckBox("Agravada (omision de activos o pasivos inexistentes)")
+        self.check_sancion_agravada = QCheckBox(
+            "Agravada (omision de activos o pasivos inexistentes)"
+        )
         self.campo_ingresos_brutos = QLineEdit()
         self.campo_devoluciones = QLineEdit()
         self.campo_costos = QLineEdit()
@@ -228,7 +237,9 @@ class ObligacionFormDialog(QDialog):
         self.check_pagada = QCheckBox("Prestaciones pagadas")
         self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
         self.campo_fecha_pago_total.setCalendarPopup(True)
-        self.check_incluir_seguridad_social = QCheckBox("Incluir cotizaciones de seguridad social no pagadas")
+        self.check_incluir_seguridad_social = QCheckBox(
+            "Incluir cotizaciones de seguridad social no pagadas"
+        )
         self.combo_nivel_riesgo_arl = QComboBox()
         for nivel in ("I", "II", "III", "IV", "V"):
             self.combo_nivel_riesgo_arl.addItem(f"Nivel {nivel}", userData=nivel)
@@ -323,13 +334,17 @@ class ObligacionFormDialog(QDialog):
             "Meses o fraccion de atraso (extemporaneidad)", self.campo_meses_extemporaneidad
         )
         self.layout_datos_basicos.addRow(self.check_sancion_agravada)
-        self.layout_datos_basicos.addRow("Ingresos brutos (Renta liquida)", self.campo_ingresos_brutos)
+        self.layout_datos_basicos.addRow(
+            "Ingresos brutos (Renta liquida)", self.campo_ingresos_brutos
+        )
         self.layout_datos_basicos.addRow(
             "Devoluciones/rebajas/descuentos (Renta liquida)", self.campo_devoluciones
         )
         self.layout_datos_basicos.addRow("Costos (Renta liquida)", self.campo_costos)
         self.layout_datos_basicos.addRow("Deducciones (Renta liquida)", self.campo_deducciones)
-        self.layout_datos_basicos.addRow("Rentas exentas (Renta liquida)", self.campo_rentas_exentas)
+        self.layout_datos_basicos.addRow(
+            "Rentas exentas (Renta liquida)", self.campo_rentas_exentas
+        )
         self.layout_datos_basicos.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
         self.layout_datos_basicos.addRow(self.check_pagada)
         self.layout_datos_basicos.addRow("Fecha de pago real", self.campo_fecha_pago_total)
@@ -514,7 +529,9 @@ class ObligacionFormDialog(QDialog):
                 self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
 
             self.check_aplica_indexacion_ipc.setChecked(obligacion.aplica_indexacion_ipc)
-            self.check_interes_sobre_capital_indexado.setChecked(obligacion.interes_sobre_capital_indexado)
+            self.check_interes_sobre_capital_indexado.setChecked(
+                obligacion.interes_sobre_capital_indexado
+            )
 
             if self._area == "COMERCIAL":
                 if obligacion.tasa_moratoria_anual is not None:
@@ -523,17 +540,23 @@ class ObligacionFormDialog(QDialog):
                     self.campo_fecha_vencimiento.setDate(_qdate(obligacion.fecha_vencimiento))
                 if obligacion.ibc_vigente_anual is not None:
                     self.campo_ibc_vigente.setText(str(obligacion.ibc_vigente_anual))
-                self.check_anatocismo_demanda_judicial.setChecked(obligacion.anatocismo_demanda_judicial)
+                self.check_anatocismo_demanda_judicial.setChecked(
+                    obligacion.anatocismo_demanda_judicial
+                )
                 if obligacion.anatocismo_fecha_acuerdo is not None:
                     self.check_anatocismo_acuerdo.setChecked(True)
-                    self.campo_anatocismo_fecha_acuerdo.setDate(_qdate(obligacion.anatocismo_fecha_acuerdo))
+                    self.campo_anatocismo_fecha_acuerdo.setDate(
+                        _qdate(obligacion.anatocismo_fecha_acuerdo)
+                    )
                 indice_moneda = self.combo_moneda.findData(obligacion.moneda)
                 if indice_moneda >= 0:
                     self.combo_moneda.setCurrentIndex(indice_moneda)
                 if obligacion.trm_aplicable is not None:
                     self.campo_trm_aplicable.setText(str(obligacion.trm_aplicable))
                 if obligacion.trm_fecha_referencia is not None:
-                    self.campo_trm_fecha_referencia.setDate(_qdate(obligacion.trm_fecha_referencia))
+                    self.campo_trm_fecha_referencia.setDate(
+                        _qdate(obligacion.trm_fecha_referencia)
+                    )
 
             elif self._area == "SANCIONATORIO":
                 if obligacion.cantidad_smlmv_uvt is not None:
@@ -558,7 +581,9 @@ class ObligacionFormDialog(QDialog):
                     self.campo_fecha_pago_total.setDate(_qdate(obligacion.fecha_pago_total))
                 self.check_incluir_seguridad_social.setChecked(obligacion.incluir_seguridad_social)
                 if obligacion.nivel_riesgo_arl:
-                    indice_nivel = self.combo_nivel_riesgo_arl.findData(obligacion.nivel_riesgo_arl)
+                    indice_nivel = self.combo_nivel_riesgo_arl.findData(
+                        obligacion.nivel_riesgo_arl
+                    )
                     if indice_nivel >= 0:
                         self.combo_nivel_riesgo_arl.setCurrentIndex(indice_nivel)
 
@@ -571,7 +596,9 @@ class ObligacionFormDialog(QDialog):
                 if obligacion.ingresos_brutos is not None:
                     self.campo_ingresos_brutos.setText(str(obligacion.ingresos_brutos))
                 if obligacion.devoluciones_rebajas_descuentos is not None:
-                    self.campo_devoluciones.setText(str(obligacion.devoluciones_rebajas_descuentos))
+                    self.campo_devoluciones.setText(
+                        str(obligacion.devoluciones_rebajas_descuentos)
+                    )
                 if obligacion.costos is not None:
                     self.campo_costos.setText(str(obligacion.costos))
                 if obligacion.deducciones is not None:
@@ -641,7 +668,7 @@ class ObligacionFormDialog(QDialog):
             self.campo_costas_pct,
             self.boton_guardar,
         ]
-        for anterior, siguiente in zip(orden, orden[1:]):
+        for anterior, siguiente in zip(orden, orden[1:], strict=False):
             self.setTabOrder(anterior, siguiente)
 
     def _aplicar_visibilidad_filas(
@@ -727,7 +754,9 @@ class ObligacionFormDialog(QDialog):
             )
             self.check_anatocismo_demanda_judicial.setVisible(False)
             self.check_anatocismo_acuerdo.setVisible(False)
-            set_row_visible(self.layout_tasas_intereses, self.campo_anatocismo_fecha_acuerdo, False)
+            set_row_visible(
+                self.layout_tasas_intereses, self.campo_anatocismo_fecha_acuerdo, False
+            )
             return
 
         es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
@@ -800,7 +829,9 @@ class ObligacionFormDialog(QDialog):
 
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
-            session, Obligacion, self._obligacion_id,
+            session,
+            Obligacion,
+            self._obligacion_id,
             expediente_id=self._expediente_id,
             tipo=tipo,
             concepto=self.campo_concepto.text().strip(),
@@ -827,7 +858,9 @@ class ObligacionFormDialog(QDialog):
         except InvalidOperation as error:
             raise ValueError(mensaje_error) from error
 
-    def _validar_rango(self, valor: Decimal, minimo: Decimal, maximo: Decimal, nombre_campo: str) -> None:
+    def _validar_rango(
+        self, valor: Decimal, minimo: Decimal, maximo: Decimal, nombre_campo: str
+    ) -> None:
         """Rechaza valores fuera de un rango de sentido comun (Sprint 24) -- no es la
         validacion de usura (esa sigue viviendo en usury_validator.py y corre solo al
         liquidar), es solo para atajar errores de tecleo al guardar (ej. una tasa
@@ -973,17 +1006,25 @@ class ObligacionFormDialog(QDialog):
 
     def _parse_campos_honorarios(self) -> dict:
         honorarios_fijos, cuota_litis_pct, beneficio_obtenido = self._parse_decimales(
-            [self.campo_honorarios_fijos, self.campo_cuota_litis_pct, self.campo_beneficio_obtenido],
+            [
+                self.campo_honorarios_fijos,
+                self.campo_cuota_litis_pct,
+                self.campo_beneficio_obtenido,
+            ],
             "Honorarios fijos, % cuota litis y beneficio obtenido deben ser numeros validos.",
         )
-        self._validar_rango(cuota_litis_pct, Decimal("0"), Decimal("100"), "El % de cuota litis pactada")
+        self._validar_rango(
+            cuota_litis_pct, Decimal("0"), Decimal("100"), "El % de cuota litis pactada"
+        )
         costas_pct = None
         texto_costas = self.campo_costas_pct.text().strip()
         if texto_costas:
             (costas_pct,) = self._parse_decimales(
                 [self.campo_costas_pct], "% Costas judiciales debe ser un numero valido."
             )
-            self._validar_rango(costas_pct, Decimal("0"), Decimal("100"), "El % de costas judiciales")
+            self._validar_rango(
+                costas_pct, Decimal("0"), Decimal("100"), "El % de costas judiciales"
+            )
         return {
             "honorarios_fijos_pactados": honorarios_fijos,
             "cuota_litis_pactada_pct": cuota_litis_pct,
@@ -996,7 +1037,9 @@ class ObligacionFormDialog(QDialog):
             [self.campo_tasa_moratoria, self.campo_ibc_vigente],
             "Tasa moratoria e IBC vigente deben ser numeros validos.",
         )
-        self._validar_rango(tasa_moratoria, Decimal("0"), Decimal("1000"), "La tasa moratoria anual")
+        self._validar_rango(
+            tasa_moratoria, Decimal("0"), Decimal("1000"), "La tasa moratoria anual"
+        )
         self._validar_rango(ibc_vigente, Decimal("0"), Decimal("1000"), "El IBC vigente anual")
         qdate_vencimiento = self.campo_fecha_vencimiento.date()
         fecha_vencimiento = date(
@@ -1065,11 +1108,15 @@ class ObligacionFormDialog(QDialog):
             pagada = True
 
         incluir_seguridad_social = self.check_incluir_seguridad_social.isChecked()
-        nivel_riesgo_arl = self.combo_nivel_riesgo_arl.currentData() if incluir_seguridad_social else None
+        nivel_riesgo_arl = (
+            self.combo_nivel_riesgo_arl.currentData() if incluir_seguridad_social else None
+        )
 
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
-            session, Obligacion, self._obligacion_id,
+            session,
+            Obligacion,
+            self._obligacion_id,
             expediente_id=self._expediente_id,
             tipo=TipoObligacion.PUNTUAL,
             concepto=self.campo_concepto.text().strip(),
@@ -1110,7 +1157,9 @@ class ObligacionFormDialog(QDialog):
             try:
                 valor = Decimal(self.campo_valor.text())
             except InvalidOperation as error:
-                raise ValueError("El valor del impuesto a cargo debe ser un numero valido.") from error
+                raise ValueError(
+                    "El valor del impuesto a cargo debe ser un numero valido."
+                ) from error
 
         elif categoria == "SANCION_EXTEMPORANEIDAD":
             try:
@@ -1141,7 +1190,9 @@ class ObligacionFormDialog(QDialog):
 
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
-            session, Obligacion, self._obligacion_id,
+            session,
+            Obligacion,
+            self._obligacion_id,
             expediente_id=self._expediente_id,
             tipo=TipoObligacion.PUNTUAL,
             concepto=self.campo_concepto.text().strip(),

@@ -26,48 +26,60 @@ class LaborScheduler(Scheduler):
 
         # 1. Cesantias: 30 dias de salario por año laborado o proporcional.
         monto_cesantias = Rounding.money((self.salario * self.dias) / self.base_anual)
-        events.append(Event(
-            date=self.fecha_liquidacion,
-            payload={"amount": monto_cesantias},
-            event_type="CESANTIAS"
-        ))
+        events.append(
+            Event(
+                date=self.fecha_liquidacion,
+                payload={"amount": monto_cesantias},
+                event_type="CESANTIAS",
+            )
+        )
 
         # 2. Intereses a las cesantias: 12% anual sobre el saldo de cesantias,
         # prorrateado por los dias trabajados (formula verificada contra
         # REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf, pag. 51:
         # (Cesantias x 0.12 x dias) / 360 -- no habia bug aqui, Pendientes.md
         # sospechaba uno pero la propia cita del PDF ya coincidia con esto).
-        monto_intereses = Rounding.money((monto_cesantias * self.dias * Decimal("0.12")) / self.base_anual)
-        events.append(Event(
-            date=self.fecha_liquidacion,
-            payload={"amount": monto_intereses},
-            event_type="INTERESES_CESANTIAS"
-        ))
+        monto_intereses = Rounding.money(
+            (monto_cesantias * self.dias * Decimal("0.12")) / self.base_anual
+        )
+        events.append(
+            Event(
+                date=self.fecha_liquidacion,
+                payload={"amount": monto_intereses},
+                event_type="INTERESES_CESANTIAS",
+            )
+        )
 
         # 3. Prima de servicios: 15 dias por semestre (junio y diciembre).
         dias_semestre = self.dias / Decimal("2")
         monto_prima_semestral = Rounding.money((self.salario * dias_semestre) / self.base_anual)
 
         if self.dias > Decimal("0.00"):
-            events.append(Event(
-                date=self.fecha_liquidacion,
-                payload={"amount": monto_prima_semestral},
-                event_type="PRIMA_JUNIO"
-            ))
-            events.append(Event(
-                date=self.fecha_liquidacion,
-                payload={"amount": monto_prima_semestral},
-                event_type="PRIMA_DICIEMBRE"
-            ))
+            events.append(
+                Event(
+                    date=self.fecha_liquidacion,
+                    payload={"amount": monto_prima_semestral},
+                    event_type="PRIMA_JUNIO",
+                )
+            )
+            events.append(
+                Event(
+                    date=self.fecha_liquidacion,
+                    payload={"amount": monto_prima_semestral},
+                    event_type="PRIMA_DICIEMBRE",
+                )
+            )
 
         # 4. Vacaciones: descanso remunerado, NO es tecnicamente una
         # prestacion social, por eso su divisor es 720 (el doble del año
         # comercial de 360).
         monto_vacaciones = Rounding.money((self.salario * self.dias) / Decimal("720"))
-        events.append(Event(
-            date=self.fecha_liquidacion,
-            payload={"amount": monto_vacaciones},
-            event_type="VACACIONES"
-        ))
+        events.append(
+            Event(
+                date=self.fecha_liquidacion,
+                payload={"amount": monto_vacaciones},
+                event_type="VACACIONES",
+            )
+        )
 
         return sorted(events, key=lambda e: e.date)

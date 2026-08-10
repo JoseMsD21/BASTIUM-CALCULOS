@@ -57,6 +57,9 @@ def migrar(db_path: Path = DB_PATH) -> bool:
 
 if __name__ == "__main__":
     if migrar():
-        print("Indices de rendimiento agregados (obligaciones, audit_logs, abonos, parametros_legales).")
+        print(
+            "Indices de rendimiento agregados (obligaciones, audit_logs, abonos, "
+            "parametros_legales)."
+        )
     else:
         print("Los 4 indices ya existian, no se hizo nada.")

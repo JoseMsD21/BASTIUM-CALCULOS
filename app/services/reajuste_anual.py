@@ -25,8 +25,18 @@ from app.engine.time.calendar import CalendarUtils
 from database.models import Obligacion, TipoObligacion, TipoReajusteAnual
 
 _MESES_ES = {
-    1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO",
-    7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE",
+    1: "ENERO",
+    2: "FEBRERO",
+    3: "MARZO",
+    4: "ABRIL",
+    5: "MAYO",
+    6: "JUNIO",
+    7: "JULIO",
+    8: "AGOSTO",
+    9: "SEPTIEMBRE",
+    10: "OCTUBRE",
+    11: "NOVIEMBRE",
+    12: "DICIEMBRE",
 }
 
 
@@ -64,12 +74,12 @@ def _reajustar_capital(capital: Decimal, anio: int, tipo: TipoReajusteAnual) -> 
             final_index=get_ipc_for_date(date(anio, 12, 31)),
         )
         return capital + delta
-    raise ValueError(
-        f"tipo_reajuste_anual '{tipo}' no soporta reajuste automatico de cuotas."
-    )
+    raise ValueError(f"tipo_reajuste_anual '{tipo}' no soporta reajuste automatico de cuotas.")
 
 
-def generar_cuotas_mensuales(obligacion_recurrente: Obligacion, fecha_corte: date) -> list[Obligacion]:
+def generar_cuotas_mensuales(
+    obligacion_recurrente: Obligacion, fecha_corte: date
+) -> list[Obligacion]:
     """Genera y persiste una Obligacion PUNTUAL por cada mes entre
     `obligacion_recurrente.fecha_origen` (que para una obligacion RECURRENTE
     equivale a su fecha_inicio, ver ObligacionFormDialog.guardar()) y la fecha

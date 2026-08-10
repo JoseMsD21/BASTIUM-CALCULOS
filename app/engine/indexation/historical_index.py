@@ -262,12 +262,12 @@ def get_ipc_mensual_for_month(anio: int, mes: int) -> Decimal:
     IPCMensualNoDisponibleError si ese mes no esta cargado en _IPC_MENSUAL."""
     try:
         return _IPC_MENSUAL[(anio, mes)]
-    except KeyError:
+    except KeyError as err:
         raise IPCMensualNoDisponibleError(
             f"No hay indice IPC mensual cargado para {anio}-{mes:02d}. La tabla mensual "
             "del DANE todavia no se ha cargado (Sprint 8, pendiente de que el despacho "
             "aporte la fuente -- ver Preguntas-Para-Abogado.md)."
-        )
+        ) from err
 
 
 def get_ipc_interpolado_mensual_for_date(fecha: date) -> Decimal:
@@ -638,7 +638,9 @@ def get_tramos_ibc_usura_between(inicio: date, fin: date) -> list[TramoIBCUsura]
     tramos = []
     for fila in filas:
         ibc_anual, usura_anual = get_ibc_usura_for_date(fila.vigente_desde)
-        tramos.append(TramoIBCUsura(fila.vigente_desde, fila.vigente_hasta, ibc_anual, usura_anual))
+        tramos.append(
+            TramoIBCUsura(fila.vigente_desde, fila.vigente_hasta, ibc_anual, usura_anual)
+        )
     return tramos
 
 

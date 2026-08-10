@@ -19,7 +19,9 @@ def _encode(value):
 def serializar_resultado(resultado: LiquidationResult) -> str:
     """Snapshot JSON exacto de un LiquidationResult, para reconstrucción sin recalcular."""
     items = [asdict(item) for item in resultado.items]
-    renta_liquida = asdict(resultado.renta_liquida) if resultado.renta_liquida is not None else None
+    renta_liquida = (
+        asdict(resultado.renta_liquida) if resultado.renta_liquida is not None else None
+    )
     return json.dumps(
         {"items": items, "renta_liquida": renta_liquida}, default=_encode, ensure_ascii=False
     )

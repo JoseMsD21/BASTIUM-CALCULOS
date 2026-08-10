@@ -14,5 +14,7 @@ class EffectiveRateConverter:
     @staticmethod
     def annual_to_daily(annual_percent: Decimal) -> Rate:
         annual_fraction = Decimal(str(annual_percent)) / Decimal("100")
-        daily_fraction = (Decimal("1") + annual_fraction) ** (Decimal("1") / Decimal("365")) - Decimal("1")
+        daily_fraction = (Decimal("1") + annual_fraction) ** (
+            Decimal("1") / Decimal("365")
+        ) - Decimal("1")
         return Rate(daily_fraction)

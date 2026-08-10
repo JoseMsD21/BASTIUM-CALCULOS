@@ -33,7 +33,9 @@ def test_es_dia_habil_vacancia_judicial_fin_de_anio():
     assert CalendarUtils.es_dia_habil(date(2025, 12, 19)) is True  # víspera, aún hábil
     assert CalendarUtils.es_dia_habil(date(2025, 12, 20)) is False  # primer día de vacancia
     assert CalendarUtils.es_dia_habil(date(2026, 1, 11)) is False  # último día de vacancia
-    assert CalendarUtils.es_dia_habil(date(2026, 1, 13)) is True  # ya fuera de vacancia y sin festivo
+    assert (
+        CalendarUtils.es_dia_habil(date(2026, 1, 13)) is True
+    )  # ya fuera de vacancia y sin festivo
 
 
 def test_es_dia_habil_12_de_enero_habil_salvo_que_caiga_festivo_o_fin_de_semana():
@@ -56,7 +58,9 @@ def test_es_dia_habil_semana_santa_extendida():
     assert CalendarUtils.es_dia_habil(date(2026, 4, 1)) is False  # Miércoles Santo
     assert CalendarUtils.es_dia_habil(date(2026, 4, 2)) is False  # Jueves Santo (ya festivo)
     assert CalendarUtils.es_dia_habil(date(2026, 4, 3)) is False  # Viernes Santo (ya festivo)
-    assert CalendarUtils.es_dia_habil(date(2026, 3, 16)) is True  # lunes anterior, fuera de semana santa
+    assert (
+        CalendarUtils.es_dia_habil(date(2026, 3, 16)) is True
+    )  # lunes anterior, fuera de semana santa
 
 
 def test_sumar_dias_habiles_no_cuenta_fecha_inicio():

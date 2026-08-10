@@ -1,5 +1,7 @@
+from datetime import date, timedelta
 from datetime import date as _date
 from datetime import datetime as _dt
+from decimal import Decimal
 from decimal import Decimal as _Decimal
 
 import pytest
@@ -7,12 +9,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
+from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.engine.indexation.historical_index import (
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
     _UVT_POR_ANIO,
 )
+from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+from app.engine.liquidation.engine import LiquidationCore
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.area_strategy import (
     CivilFamiliaStrategy,
@@ -21,15 +26,23 @@ from app.services.area_strategy import (
     LaboralStrategy,
     SancionatorioStrategy,
     TributarioStrategy,
+    _evento_costas_procesales,
 )
-from database.models import Base, ParametroLegal
+from database.models import (
+    Abono,
+    Base,
+    Obligacion,
+    ParametroLegal,
+    TipoObligacion,
+    TipoReajusteAnual,
+)
 
 
 @pytest.fixture(autouse=True)
 def _parametros_legales_en_memoria(monkeypatch):
     # Fixture autouse global para todo el archivo: TestComercialStrategy ya
-    # depende de calcular_tope_usura (Tarea 7, corregido Sprint 2), que ahora lee USURA_MULTIPLICADOR
-    # via parametro_service en cada liquidar() -- si esta fixture solo sembrara
+    # depende de calcular_tope_usura (Tarea 7, corregido Sprint 2), que ahora lee
+    # USURA_MULTIPLICADOR via parametro_service en cada liquidar() -- si esta fixture solo sembrara
     # las claves de Honorarios, todos los tests de Comercial de este archivo
     # fallarian con ParametroNoDisponibleError. Se siembran aqui las claves
     # que cualquier test de este archivo puede necesitar. Valores/fechas de
@@ -58,26 +71,56 @@ def _parametros_legales_en_memoria(monkeypatch):
     # congelado _UVT_POR_ANIO que consume scripts/migrate_parametros_legales.py.
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="USURA_MULTIPLICADOR", valor=_Decimal("1.5"), vigente_desde=_date(1997, 7, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="HONORARIOS_TOTAL_PCT", valor=_Decimal("50"), vigente_desde=_date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="USURA_MULTIPLICADOR",
+            valor=_Decimal("1.5"),
+            vigente_desde=_date(1997, 7, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="HONORARIOS_TOTAL_PCT",
+            valor=_Decimal("50"),
+            vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
     for anio, valor in _SMLMV_POR_ANIO.items():
-        session.add(ParametroLegal(
-            clave="SMLMV", valor=valor, vigente_desde=_date(anio, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="SMLMV",
+                valor=valor,
+                vigente_desde=_date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     for anio, valor in _UVT_POR_ANIO.items():
-        session.add(ParametroLegal(
-            clave="UVT", valor=valor, vigente_desde=_date(anio, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="UVT",
+                valor=valor,
+                vigente_desde=_date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     for clave, valor in {
         "EXTEMPORANEIDAD_PCT_MENSUAL": Decimal("5"),
         "INEXACTITUD_PCT": Decimal("160"),
@@ -89,48 +132,114 @@ def _parametros_legales_en_memoria(monkeypatch):
         # nunca llegaba a leer esta clave. Los tests nuevos de mora > 3 anios si la necesitan.
         "ET635_PUNTOS_DESCUENTO": Decimal("2"),
     }.items():
-        session.add(ParametroLegal(
-            clave=clave, valor=valor, vigente_desde=_date(1900, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave=clave,
+                valor=valor,
+                vigente_desde=_date(1900, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     for anio, valor in _IPC_INDICE_ACUMULADO.items():
-        session.add(ParametroLegal(
-            clave="IPC_INDICE_ACUMULADO", valor=valor, vigente_desde=_date(anio, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="IPC_INDICE_ACUMULADO",
+                valor=valor,
+                vigente_desde=_date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     for tramo in _TRAMOS_IBC_USURA:
-        session.add(ParametroLegal(
-            clave="IBC_CONSUMO_ORDINARIO", valor=tramo.ibc_anual, vigente_desde=tramo.inicio,
-            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
-        session.add(ParametroLegal(
-            clave="USURA_CONSUMO_ORDINARIO", valor=tramo.usura_anual, vigente_desde=tramo.inicio,
-            vigente_hasta=tramo.fin, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
-    session.add(ParametroLegal(
-        clave="SS_PENSION_PCT", valor=_Decimal("0.16"), vigente_desde=_date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="SS_SALUD_PCT", valor=_Decimal("0.125"), vigente_desde=_date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
+        session.add(
+            ParametroLegal(
+                clave="IBC_CONSUMO_ORDINARIO",
+                valor=tramo.ibc_anual,
+                vigente_desde=tramo.inicio,
+                vigente_hasta=tramo.fin,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
+        session.add(
+            ParametroLegal(
+                clave="USURA_CONSUMO_ORDINARIO",
+                valor=tramo.usura_anual,
+                vigente_desde=tramo.inicio,
+                vigente_hasta=tramo.fin,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
+    session.add(
+        ParametroLegal(
+            clave="SS_PENSION_PCT",
+            valor=_Decimal("0.16"),
+            vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="SS_SALUD_PCT",
+            valor=_Decimal("0.125"),
+            vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
     for nivel, valor in {
-        "I": _Decimal("0.00522"), "II": _Decimal("0.01044"), "III": _Decimal("0.02436"),
-        "IV": _Decimal("0.04350"), "V": _Decimal("0.06960"),
+        "I": _Decimal("0.00522"),
+        "II": _Decimal("0.01044"),
+        "III": _Decimal("0.02436"),
+        "IV": _Decimal("0.04350"),
+        "V": _Decimal("0.06960"),
     }.items():
-        session.add(ParametroLegal(
-            clave=f"SS_ARL_NIVEL_{nivel}_PCT", valor=valor, vigente_desde=_date(1900, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave=f"SS_ARL_NIVEL_{nivel}_PCT",
+                valor=valor,
+                vigente_desde=_date(1900, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     for i, valor in enumerate(
-        [_Decimal("0.01"), _Decimal("0.012"), _Decimal("0.014"), _Decimal("0.016"),
-         _Decimal("0.018"), _Decimal("0.02")], start=1
+        [
+            _Decimal("0.01"),
+            _Decimal("0.012"),
+            _Decimal("0.014"),
+            _Decimal("0.016"),
+            _Decimal("0.018"),
+            _Decimal("0.02"),
+        ],
+        start=1,
     ):
-        session.add(ParametroLegal(
-            clave=f"SS_FSP_TRAMO_{i}_PCT", valor=valor, vigente_desde=_date(1900, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave=f"SS_FSP_TRAMO_{i}_PCT",
+                valor=valor,
+                vigente_desde=_date(1900, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     session.commit()
     session.close()
 
@@ -150,12 +259,6 @@ def test_registry_expone_las_6_areas():
 def test_civil_familia_es_la_unica_area_operable():
     strategy = AreaRegistry.get_strategy("CIVIL_FAMILIA")
     assert isinstance(strategy, CivilFamiliaStrategy)
-
-
-from datetime import date, timedelta
-from decimal import Decimal
-
-from database.models import Abono, Obligacion, TipoObligacion, TipoReajusteAnual
 
 
 def _obligacion_puntual(expediente_id=1, valor=Decimal("427900.00")):
@@ -195,7 +298,11 @@ def test_civil_familia_aplica_un_abono_reduciendo_el_saldo():
     strategy = CivilFamiliaStrategy()
     obligacion = _obligacion_puntual()
     abono = Abono(
-        id=1, obligacion_id=1, fecha=date(2025, 12, 1), monto=Decimal("100000.00"), referencia="ref-1"
+        id=1,
+        obligacion_id=1,
+        fecha=date(2025, 12, 1),
+        monto=Decimal("100000.00"),
+        referencia="ref-1",
     )
 
     resultado = strategy.liquidar(
@@ -253,16 +360,26 @@ def test_civil_familia_recurrente_con_reajuste_y_cuotas_generadas_no_duplica_cap
         tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
     )
     cuota_enero = Obligacion(
-        id=11, expediente_id=1, tipo=TipoObligacion.PUNTUAL,
-        concepto="Cuota alimentaria de enero 2026", categoria="CHILD_SUPPORT",
-        fecha_origen=date(2026, 1, 5), valor=Decimal("500000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), obligacion_padre_id=10,
+        id=11,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Cuota alimentaria de enero 2026",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 5),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        obligacion_padre_id=10,
     )
     cuota_febrero = Obligacion(
-        id=12, expediente_id=1, tipo=TipoObligacion.PUNTUAL,
-        concepto="Cuota alimentaria de febrero 2026", categoria="CHILD_SUPPORT",
-        fecha_origen=date(2026, 2, 5), valor=Decimal("500000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), obligacion_padre_id=10,
+        id=12,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Cuota alimentaria de febrero 2026",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 2, 5),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        obligacion_padre_id=10,
     )
 
     resultado = strategy.liquidar(
@@ -298,9 +415,7 @@ def test_civil_familia_recurrente_con_reajuste_pero_sin_cuotas_generadas_usa_exp
         tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
     )
 
-    resultado = strategy.liquidar(
-        obligaciones=[padre], abonos=[], fecha_corte=date(2026, 3, 5)
-    )
+    resultado = strategy.liquidar(obligaciones=[padre], abonos=[], fecha_corte=date(2026, 3, 5))
 
     # 3 cuotas efimeras de 500000 (enero, febrero, marzo), igual que la obligacion
     # sin reajuste -- mismo comportamiento previo a este sprint.
@@ -336,7 +451,9 @@ def test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto
         obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
     )
 
-    eventos_indexacion = [item for item in resultado.items if item.balance.event_type == "INDEXATION"]
+    eventos_indexacion = [
+        item for item in resultado.items if item.balance.event_type == "INDEXATION"
+    ]
     assert len(eventos_indexacion) == 1
     # Calculado manualmente con get_ipc_interpolado_for_date(2024-07-01) y
     # get_ipc_interpolado_for_date(2025-12-31) via IPCIndexation.calculate --
@@ -382,7 +499,9 @@ def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_prop
     assert eventos_indexacion[0].indexation_amount != eventos_indexacion[1].indexation_amount
 
 
-def test_civil_familia_recurrente_con_indexacion_reutiliza_ipc_entre_cuotas_del_mismo_anio(monkeypatch):
+def test_civil_familia_recurrente_con_indexacion_reutiliza_ipc_entre_cuotas_del_mismo_anio(
+    monkeypatch,
+):
     from app.services import parametro_service
 
     llamadas = []
@@ -395,17 +514,25 @@ def test_civil_familia_recurrente_con_indexacion_reutiliza_ipc_entre_cuotas_del_
     monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
 
     obligacion = Obligacion(
-        id=99, expediente_id=1, tipo=TipoObligacion.RECURRENTE,
-        concepto="Cuota alimentaria", categoria="CHILD_SUPPORT",
-        fecha_origen=date(2025, 1, 1), valor=Decimal("500000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), dia_pago=5,
-        fecha_inicio=date(2025, 1, 1), fecha_fin=date(2025, 12, 5),
+        id=99,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2025, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2025, 1, 1),
+        fecha_fin=date(2025, 12, 5),
         aplica_indexacion_ipc=True,
     )
 
-    CivilFamiliaStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 5))
+    CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 5)
+    )
 
-    llamadas_ipc = [l for l in llamadas if l[0] == "IPC_INDICE_ACUMULADO"]
+    llamadas_ipc = [llamada for llamada in llamadas if llamada[0] == "IPC_INDICE_ACUMULADO"]
     # 12 cuotas (una por mes de 2025) todas resuelven IPC_INDICE_ACUMULADO
     # contra date(2025,1,1) (fecha_causacion, mismo año) y date(2025,1,1)
     # (fecha_corte 2025-12-05, tambien 2025) -- con la cache activa, ambas
@@ -425,24 +552,38 @@ def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
     obligacion.costas_instancia = "primera"
 
     resultado = CivilFamiliaStrategy().liquidar(
-        [obligacion], [], fecha_corte=obligacion.fecha_origen,
+        [obligacion],
+        [],
+        fecha_corte=obligacion.fecha_origen,
     )
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "COSTAS_PROCESALES" in tipos_evento
-    assert resultado.final_balance().principal == _Decimal("132145000.00")  # 123.500.000 + 8.645.000
+    assert resultado.final_balance().principal == _Decimal(
+        "132145000.00"
+    )  # 123.500.000 + 8.645.000
 
 
-def test_civil_familia_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa():
+def test_civil_familia_obligaciones_tasas_distintas_fechas_solapadas_usan_tasa_propia():
     fecha_corte = date(2026, 1, 11)
     obligacion_a = Obligacion(
-        id=101, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion A",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
-        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+        id=101,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Obligacion A",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("12.00"),
     )
     obligacion_b = Obligacion(
-        id=102, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion B",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
-        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("24.00"),
+        id=102,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Obligacion B",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("24.00"),
     )
 
     resultado_combinado = CivilFamiliaStrategy().liquidar(
@@ -459,29 +600,48 @@ def test_civil_familia_dos_obligaciones_tasas_distintas_fechas_solapadas_liquida
     # El interes combinado debe ser exactamente la suma de cada obligacion liquidada con
     # su propia tasa por separado -- no depende de interacciones entre obligaciones porque
     # no hay abonos en este caso.
-    interes_esperado = resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+    interes_esperado = (
+        resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+    )
     assert resultado_combinado.final_balance().interest == interes_esperado
     # Si el bug de "toma la tasa de la primera obligacion para todo el expediente" siguiera
     # presente, el interes combinado seria 2 * interes_solo_a (ambas al 12%) en vez de la
     # suma de cada una a su propia tasa -- como B esta al doble de tasa que A, estos dos
     # valores son observablemente distintos, asi que esta asercion por si sola detecta el bug.
-    assert resultado_combinado.final_balance().interest != Decimal("2") * resultado_solo_a.final_balance().interest
+    assert (
+        resultado_combinado.final_balance().interest
+        != Decimal("2") * resultado_solo_a.final_balance().interest
+    )
 
 
 def test_civil_familia_abono_de_una_obligacion_no_afecta_el_saldo_de_otra():
     fecha_corte = date(2026, 1, 11)
     obligacion_a = Obligacion(
-        id=103, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion A",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
-        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+        id=103,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Obligacion A",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("12.00"),
     )
     obligacion_b = Obligacion(
-        id=104, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion B",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
-        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+        id=104,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Obligacion B",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("12.00"),
     )
     abono_a = Abono(
-        id=201, obligacion_id=103, fecha=date(2026, 1, 5), monto=Decimal("300000.00"), referencia="pago-a"
+        id=201,
+        obligacion_id=103,
+        fecha=date(2026, 1, 5),
+        monto=Decimal("300000.00"),
+        referencia="pago-a",
     )
 
     resultado = CivilFamiliaStrategy().liquidar(
@@ -499,7 +659,8 @@ def test_civil_familia_abono_de_una_obligacion_no_afecta_el_saldo_de_otra():
     # combinado debe ser exactamente A-con-abono + B-sin-abono, no una mezcla donde el abono
     # de A tambien reduce lo que B acumula.
     interes_esperado = (
-        resultado_solo_a_con_abono.final_balance().interest + resultado_solo_b_sin_abono.final_balance().interest
+        resultado_solo_a_con_abono.final_balance().interest
+        + resultado_solo_b_sin_abono.final_balance().interest
     )
     assert resultado.final_balance().interest == interes_esperado
 
@@ -507,7 +668,11 @@ def test_civil_familia_abono_de_una_obligacion_no_afecta_el_saldo_de_otra():
 def test_civil_familia_abono_con_obligacion_id_ajeno_al_expediente_lanza_value_error():
     obligacion = _obligacion_puntual()
     abono_huerfano = Abono(
-        id=202, obligacion_id=999, fecha=date(2025, 12, 1), monto=Decimal("1000.00"), referencia="huerfano"
+        id=202,
+        obligacion_id=999,
+        fecha=date(2025, 12, 1),
+        monto=Decimal("1000.00"),
+        referencia="huerfano",
     )
 
     with pytest.raises(ValueError):
@@ -519,26 +684,35 @@ def test_civil_familia_abono_con_obligacion_id_ajeno_al_expediente_lanza_value_e
 def test_civil_familia_dos_obligaciones_producen_una_sola_fila_de_cierre_consolidada():
     fecha_corte = date(2026, 1, 11)
     obligacion_a = Obligacion(
-        id=105, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion A",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
-        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("12.00"),
+        id=105,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Obligacion A",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("12.00"),
     )
     obligacion_b = Obligacion(
-        id=106, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Obligacion B",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2026, 1, 1),
-        valor=Decimal("1000000.00"), tasa_efectiva_anual=Decimal("24.00"),
+        id=106,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Obligacion B",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("24.00"),
     )
 
     resultado = CivilFamiliaStrategy().liquidar(
         obligaciones=[obligacion_a, obligacion_b], abonos=[], fecha_corte=fecha_corte
     )
 
-    filas_de_cierre = [item for item in resultado.items if item.balance.event_type == "LIQUIDATION_CUTOFF"]
+    filas_de_cierre = [
+        item for item in resultado.items if item.balance.event_type == "LIQUIDATION_CUTOFF"
+    ]
     assert len(filas_de_cierre) == 1
     assert resultado.final_balance().principal == Decimal("2000000.00")
-
-
-from app.engine.liquidation.engine import LiquidationCore
 
 
 def test_capital_concepts_incluye_los_codigos_comerciales_nuevos():
@@ -628,7 +802,11 @@ class TestComercialStrategy:
         strategy = ComercialStrategy()
         obligacion = _obligacion_comercial()
         abono = Abono(
-            id=1, obligacion_id=1, fecha=date(2025, 2, 15), monto=Decimal("200000.00"), referencia="ref-1"
+            id=1,
+            obligacion_id=1,
+            fecha=date(2025, 2, 15),
+            monto=Decimal("200000.00"),
+            referencia="ref-1",
         )
 
         resultado = strategy.liquidar(
@@ -638,7 +816,9 @@ class TestComercialStrategy:
         assert resultado.total_payments_applied() == Decimal("200000.00")
         assert resultado.final_balance().total() < obligacion.valor
 
-    def test_usa_tasa_moratoria_tras_el_vencimiento_acumula_mas_interes_que_solo_remuneratoria(self):
+    def test_usa_tasa_moratoria_tras_el_vencimiento_acumula_mas_interes_que_solo_remuneratoria(
+        self,
+    ):
         fecha_corte = date(2025, 3, 1)
         obligacion_comercial = _obligacion_comercial()
         resultado_comercial = ComercialStrategy().liquidar(
@@ -656,7 +836,10 @@ class TestComercialStrategy:
         # remuneratoria (6%), asi que el interes acumulado en Comercial (que aplica la
         # moratoria desde el vencimiento) debe ser mayor que si se hubiera usado la
         # remuneratoria durante todo el periodo.
-        assert resultado_comercial.final_balance().interest > resultado_solo_remuneratoria.final_balance().interest
+        assert (
+            resultado_comercial.final_balance().interest
+            > resultado_solo_remuneratoria.final_balance().interest
+        )
 
     def test_sin_mora_usa_solo_tasa_remuneratoria(self):
         fecha_corte = date(2025, 1, 20)  # antes del vencimiento (2025-02-01)
@@ -671,7 +854,10 @@ class TestComercialStrategy:
             obligaciones=[obligacion_civil], abonos=[], fecha_corte=fecha_corte
         )
 
-        assert resultado_comercial.final_balance().interest == resultado_civil.final_balance().interest
+        assert (
+            resultado_comercial.final_balance().interest
+            == resultado_civil.final_balance().interest
+        )
 
     def test_tasa_moratoria_excede_tope_de_usura_no_lanza_error_y_aplica_sancion_doblada(self):
         # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): no se rechaza ni se
@@ -688,21 +874,46 @@ class TestComercialStrategy:
         fecha_corte = date(2025, 3, 1)
         fecha_origen = date(2025, 1, 1)
         obligacion_pactada = _obligacion_comercial(
-            tasa_remuneratoria=Decimal("35.00"), tasa_moratoria=Decimal("35.00"), ibc=Decimal("20.00"),
-            fecha_origen=fecha_origen, fecha_vencimiento=fecha_origen,
+            tasa_remuneratoria=Decimal("35.00"),
+            tasa_moratoria=Decimal("35.00"),
+            ibc=Decimal("20.00"),
+            fecha_origen=fecha_origen,
+            fecha_vencimiento=fecha_origen,
         )
 
         # Tope legal = 1.5 x 20 = 30%.
-        intereses_cobrados = CivilFamiliaStrategy().liquidar(
-            obligaciones=[_obligacion_comercial(
-                tasa_remuneratoria=Decimal("35.00"), fecha_origen=fecha_origen, fecha_vencimiento=fecha_origen,
-            )], abonos=[], fecha_corte=fecha_corte,
-        ).final_balance().interest
-        intereses_con_tasa_usura = CivilFamiliaStrategy().liquidar(
-            obligaciones=[_obligacion_comercial(
-                tasa_remuneratoria=Decimal("30.00"), fecha_origen=fecha_origen, fecha_vencimiento=fecha_origen,
-            )], abonos=[], fecha_corte=fecha_corte,
-        ).final_balance().interest
+        intereses_cobrados = (
+            CivilFamiliaStrategy()
+            .liquidar(
+                obligaciones=[
+                    _obligacion_comercial(
+                        tasa_remuneratoria=Decimal("35.00"),
+                        fecha_origen=fecha_origen,
+                        fecha_vencimiento=fecha_origen,
+                    )
+                ],
+                abonos=[],
+                fecha_corte=fecha_corte,
+            )
+            .final_balance()
+            .interest
+        )
+        intereses_con_tasa_usura = (
+            CivilFamiliaStrategy()
+            .liquidar(
+                obligaciones=[
+                    _obligacion_comercial(
+                        tasa_remuneratoria=Decimal("30.00"),
+                        fecha_origen=fecha_origen,
+                        fecha_vencimiento=fecha_origen,
+                    )
+                ],
+                abonos=[],
+                fecha_corte=fecha_corte,
+            )
+            .final_balance()
+            .interest
+        )
 
         exceso_esperado = intereses_cobrados - intereses_con_tasa_usura
         sancion_esperada = exceso_esperado * 2
@@ -719,21 +930,35 @@ class TestComercialStrategy:
     def test_tasa_remuneratoria_excede_tope_de_usura_no_lanza_error_y_aplica_sancion_doblada(self):
         fecha_corte = date(2025, 1, 20)  # antes del vencimiento: solo corre la remuneratoria
         obligacion_pactada = _obligacion_comercial(
-            tasa_remuneratoria=Decimal("35.00"), tasa_moratoria=Decimal("6.00"), ibc=Decimal("20.00")
+            tasa_remuneratoria=Decimal("35.00"),
+            tasa_moratoria=Decimal("6.00"),
+            ibc=Decimal("20.00"),
         )
 
         # Tope legal = 1.5 x 20 = 30%. Antes del vencimiento, Comercial usa solo la tasa
         # remuneratoria -- exactamente lo mismo que CivilFamiliaStrategy con esa tasa (ver
         # test_sin_mora_usa_solo_tasa_remuneratoria arriba), asi que sirve de referencia
         # independiente para "Intereses_Cobrados"/"Intereses_Cobrados_Con_Tasa_Usura".
-        intereses_cobrados = CivilFamiliaStrategy().liquidar(
-            obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("35.00"))],
-            abonos=[], fecha_corte=fecha_corte,
-        ).final_balance().interest
-        intereses_con_tasa_usura = CivilFamiliaStrategy().liquidar(
-            obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("30.00"))],
-            abonos=[], fecha_corte=fecha_corte,
-        ).final_balance().interest
+        intereses_cobrados = (
+            CivilFamiliaStrategy()
+            .liquidar(
+                obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("35.00"))],
+                abonos=[],
+                fecha_corte=fecha_corte,
+            )
+            .final_balance()
+            .interest
+        )
+        intereses_con_tasa_usura = (
+            CivilFamiliaStrategy()
+            .liquidar(
+                obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("30.00"))],
+                abonos=[],
+                fecha_corte=fecha_corte,
+            )
+            .final_balance()
+            .interest
+        )
 
         exceso_esperado = intereses_cobrados - intereses_con_tasa_usura
         sancion_esperada = exceso_esperado * 2
@@ -755,7 +980,9 @@ class TestComercialStrategy:
             valor=Decimal("10000.00"), tasa_moratoria=Decimal("1000.00"), ibc=Decimal("20.00")
         )
 
-        resultado = ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte)
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
 
         assert resultado.final_balance().total() < Decimal("0.00")
 
@@ -774,17 +1001,22 @@ class TestComercialStrategy:
         )
 
         with pytest.raises(ValueError):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+            )
 
     @pytest.mark.parametrize(
-        "campo", ["tasa_moratoria_anual", "fecha_vencimiento", "ibc_vigente_anual", "tasa_efectiva_anual"]
+        "campo",
+        ["tasa_moratoria_anual", "fecha_vencimiento", "ibc_vigente_anual", "tasa_efectiva_anual"],
     )
     def test_falta_un_campo_comercial_obligatorio_lanza_value_error(self, campo):
         obligacion = _obligacion_comercial()
         setattr(obligacion, campo, None)
 
         with pytest.raises(ValueError):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+            )
 
     def test_recurrente_no_hace_split_usa_tasa_moratoria_unica(self):
         obligacion = Obligacion(
@@ -817,12 +1049,14 @@ class TestComercialStrategy:
     def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
         fecha_corte = date(2025, 1, 11)  # antes del vencimiento (2025-06-01) de ambas
         obligacion_a = _obligacion_comercial(
-            fecha_origen=date(2025, 1, 1), fecha_vencimiento=date(2025, 6, 1),
+            fecha_origen=date(2025, 1, 1),
+            fecha_vencimiento=date(2025, 6, 1),
             tasa_remuneratoria=Decimal("6.00"),
         )
         obligacion_a.id = 111
         obligacion_b = _obligacion_comercial(
-            fecha_origen=date(2025, 1, 1), fecha_vencimiento=date(2025, 6, 1),
+            fecha_origen=date(2025, 1, 1),
+            fecha_vencimiento=date(2025, 6, 1),
             tasa_remuneratoria=Decimal("18.00"),
         )
         obligacion_b.id = 112
@@ -838,9 +1072,14 @@ class TestComercialStrategy:
         )
 
         assert resultado_combinado.final_balance().principal == Decimal("2000000.00")
-        interes_esperado = resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        interes_esperado = (
+            resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        )
         assert resultado_combinado.final_balance().interest == interes_esperado
-        assert resultado_combinado.final_balance().interest != Decimal("2") * resultado_solo_a.final_balance().interest
+        assert (
+            resultado_combinado.final_balance().interest
+            != Decimal("2") * resultado_solo_a.final_balance().interest
+        )
 
     def test_items_tienen_rate_source_por_tramo(self):
         obligacion = _obligacion_comercial()
@@ -871,7 +1110,9 @@ class TestComercialStrategy:
         assert resultado_usd.final_balance().principal == Decimal("40000000.00")
         assert resultado_usd.final_balance().interest == resultado_cop.final_balance().interest
 
-    def test_obligacion_usd_sin_trm_aplicable_usa_el_proveedor_dinamico_en_la_fecha_de_origen(self):
+    def test_obligacion_usd_sin_trm_aplicable_usa_el_proveedor_dinamico_en_la_fecha_de_origen(
+        self,
+    ):
         # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 12): "eliminar
         # la logica de TRM congelada al inicio" -- trm_aplicable ya NO es
         # obligatorio. Sin el, se usa el TRMProvider inyectado (en produccion,
@@ -893,12 +1134,18 @@ class TestComercialStrategy:
         # aqui usa una TRM distinta, 4000, para dejar clara la diferencia).
         obligacion = _obligacion_comercial(valor=Decimal("10000.00"))
         obligacion.moneda = "USD"
-        proveedor = _TRMProviderDeCalendario({
-            date(2025, 1, 1): Decimal("4000.0000"),
-            date(2025, 2, 1): Decimal("4200.0000"),
-        })
+        proveedor = _TRMProviderDeCalendario(
+            {
+                date(2025, 1, 1): Decimal("4000.0000"),
+                date(2025, 2, 1): Decimal("4200.0000"),
+            }
+        )
         abono = Abono(
-            id=1, obligacion_id=1, fecha=date(2025, 2, 1), monto=Decimal("1000.00"), referencia="ref-1"
+            id=1,
+            obligacion_id=1,
+            fecha=date(2025, 2, 1),
+            monto=Decimal("1000.00"),
+            referencia="ref-1",
         )
 
         resultado = ComercialStrategy(trm_provider=proveedor).liquidar(
@@ -917,9 +1164,15 @@ class TestComercialStrategy:
         obligacion = _obligacion_comercial(valor=Decimal("10000.00"))
         obligacion.moneda = "USD"
         obligacion.trm_aplicable = Decimal("4000.0000")
-        proveedor_que_no_deberia_usarse = _TRMProviderDeCalendario({})  # lanzaria KeyError si se consulta
+        proveedor_que_no_deberia_usarse = _TRMProviderDeCalendario(
+            {}
+        )  # lanzaria KeyError si se consulta
         abono = Abono(
-            id=1, obligacion_id=1, fecha=date(2025, 2, 1), monto=Decimal("1000.00"), referencia="ref-1"
+            id=1,
+            obligacion_id=1,
+            fecha=date(2025, 2, 1),
+            monto=Decimal("1000.00"),
+            referencia="ref-1",
         )
 
         resultado = ComercialStrategy(trm_provider=proveedor_que_no_deberia_usarse).liquidar(
@@ -936,7 +1189,9 @@ class TestComercialStrategy:
         obligacion.trm_fecha_referencia = date(2025, 1, 1)
 
         with pytest.raises(ValueError, match="trm_aplicable"):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1))
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+            )
 
     def test_obligacion_sin_moneda_seteada_se_trata_como_cop(self):
         obligacion = _obligacion_comercial()
@@ -955,7 +1210,9 @@ class TestComercialStrategy:
         )
 
         with pytest.raises(ValueError):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1))
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1)
+            )
 
     def test_recurrente_con_anatocismo_activo_lanza_value_error(self):
         obligacion = Obligacion(
@@ -977,14 +1234,19 @@ class TestComercialStrategy:
         )
 
         with pytest.raises(ValueError):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 5))
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 5)
+            )
 
     def test_acuerdo_posterior_que_no_cumple_un_anio_lanza_value_error(self):
-        # vencimiento 2025-02-01 + 365 dias = 2026-02-01; un acuerdo antes de esa fecha es invalido.
+        # vencimiento 2025-02-01 + 365 dias = 2026-02-01; un acuerdo antes de esa fecha es
+        # invalido.
         obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 1, 15))
 
         with pytest.raises(ValueError):
-            ComercialStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1))
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 1)
+            )
 
     def test_acuerdo_posterior_que_cumple_exactamente_un_anio_no_lanza_error(self):
         obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 2, 1))
@@ -1008,7 +1270,9 @@ class TestComercialStrategy:
         )
 
         assert resultado_anatocismo.final_balance().principal > obligacion_anatocismo.valor
-        assert resultado_anatocismo.final_balance().total() > resultado_simple.final_balance().total()
+        assert (
+            resultado_anatocismo.final_balance().total() > resultado_simple.final_balance().total()
+        )
 
     def test_anatocismo_se_activa_con_acuerdo_posterior_valido(self):
         fecha_corte = date(2026, 3, 1)
@@ -1031,7 +1295,9 @@ class TestComercialStrategy:
         assert resultado.final_balance().principal == obligacion.valor
 
     def test_anatocismo_no_se_activa_si_fecha_corte_es_anterior_a_capitalizacion(self):
-        fecha_corte = date(2025, 6, 1)  # vencimiento (2025-02-01) + 365 dias = 2026-02-01, aun no llega
+        fecha_corte = date(
+            2025, 6, 1
+        )  # vencimiento (2025-02-01) + 365 dias = 2026-02-01, aun no llega
         obligacion = _obligacion_comercial(anatocismo_demanda_judicial=True)
 
         resultado = ComercialStrategy().liquidar(
@@ -1041,7 +1307,7 @@ class TestComercialStrategy:
         assert resultado.final_balance().principal == obligacion.valor
 
     def test_timing_del_abono_relativo_a_la_capitalizacion_determina_cuanto_se_capitaliza(self):
-        fecha_capitalizacion = date(2026, 2, 1)  # vencimiento (2025-02-01) + 365 dias
+        # Capitalizacion: 2026-02-01 (vencimiento 2025-02-01 + 365 dias).
         monto_abono = Decimal("50.00")  # deliberadamente pequeno: nunca llega a tocar el
         # capital, solo el bucket de interes -- eso es lo que hace la comparacion exacta.
 
@@ -1050,7 +1316,9 @@ class TestComercialStrategy:
             id=1, obligacion_id=1, fecha=date(2026, 1, 31), monto=monto_abono, referencia="ref-1"
         )
         resultado_antes = ComercialStrategy().liquidar(
-            obligaciones=[obligacion_abono_antes], abonos=[abono_antes], fecha_corte=date(2026, 3, 1)
+            obligaciones=[obligacion_abono_antes],
+            abonos=[abono_antes],
+            fecha_corte=date(2026, 3, 1),
         )
 
         obligacion_abono_despues = _obligacion_comercial(anatocismo_demanda_judicial=True)
@@ -1058,7 +1326,9 @@ class TestComercialStrategy:
             id=1, obligacion_id=1, fecha=date(2026, 2, 2), monto=monto_abono, referencia="ref-1"
         )
         resultado_despues = ComercialStrategy().liquidar(
-            obligaciones=[obligacion_abono_despues], abonos=[abono_despues], fecha_corte=date(2026, 3, 1)
+            obligaciones=[obligacion_abono_despues],
+            abonos=[abono_despues],
+            fecha_corte=date(2026, 3, 1),
         )
 
         # Un abono un dia ANTES de la capitalizacion (2026-02-01) reduce el interes que
@@ -1069,7 +1339,9 @@ class TestComercialStrategy:
         # orden cronologico abono/capitalizacion se respeta de verdad, no solo que "un
         # abono reduce el total" (eso ya lo garantiza AllocationEngine sin necesidad de
         # anatocismo).
-        diferencia = resultado_despues.final_balance().principal - resultado_antes.final_balance().principal
+        diferencia = (
+            resultado_despues.final_balance().principal - resultado_antes.final_balance().principal
+        )
         assert diferencia == monto_abono
 
     def test_anatocismo_capitaliza_periodicamente_en_cada_aniversario(self):
@@ -1122,7 +1394,9 @@ def test_comercial_genera_evento_de_costas_si_esta_configurado():
     resultado = ComercialStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "COSTAS_PROCESALES" in tipos_evento
-    assert resultado.final_balance().principal == Decimal("132145000.00")  # 123.500.000 + 8.645.000
+    assert resultado.final_balance().principal == Decimal(
+        "132145000.00"
+    )  # 123.500.000 + 8.645.000
 
 
 def test_comercial_usd_calcula_costas_sobre_el_valor_convertido_a_pesos_no_sobre_el_valor_en_usd():
@@ -1247,10 +1521,14 @@ class TestSancionatorioStrategy:
         obligacion.costas_tipo_proceso = "declarativo_general"
         obligacion.costas_instancia = "primera"
 
-        resultado = SancionatorioStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
+        resultado = SancionatorioStrategy().liquidar(
+            [obligacion], [], fecha_corte=obligacion.fecha_origen
+        )
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "COSTAS_PROCESALES" in tipos_evento
-        assert resultado.final_balance().principal == _Decimal("844678320.00")  # 828.116.000 + 16.562.320
+        assert resultado.final_balance().principal == _Decimal(
+            "844678320.00"
+        )  # 828.116.000 + 16.562.320
 
     def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
         fecha_corte = date(2019, 6, 11)
@@ -1269,12 +1547,14 @@ class TestSancionatorioStrategy:
             obligaciones=[obligacion_b], abonos=[], fecha_corte=fecha_corte
         )
 
-        interes_esperado = resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        interes_esperado = (
+            resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        )
         assert resultado_combinado.final_balance().interest == interes_esperado
-        assert resultado_combinado.final_balance().interest != Decimal("2") * resultado_solo_a.final_balance().interest
-
-
-from app.core.exceptions import CuotaLitisExcedeTopeError
+        assert (
+            resultado_combinado.final_balance().interest
+            != Decimal("2") * resultado_solo_a.final_balance().interest
+        )
 
 
 def _obligacion_honorarios(
@@ -1302,7 +1582,9 @@ def _obligacion_honorarios(
     )
 
 
-def test_honorarios_liquidar_reutiliza_honorarios_total_pct_entre_obligaciones_con_la_misma_fecha(monkeypatch):
+def test_honorarios_liquidar_reutiliza_honorarios_total_pct_entre_obligaciones_con_la_misma_fecha(
+    monkeypatch,
+):
     from app.services import parametro_service
 
     llamadas = []
@@ -1322,18 +1604,21 @@ def test_honorarios_liquidar_reutiliza_honorarios_total_pct_entre_obligaciones_c
     for indice, obligacion in enumerate(obligaciones, start=1):
         obligacion.id = indice
 
-    HonorariosStrategy().liquidar(obligaciones=obligaciones, abonos=[], fecha_corte=date(2026, 1, 1))
+    HonorariosStrategy().liquidar(
+        obligaciones=obligaciones, abonos=[], fecha_corte=date(2026, 1, 1)
+    )
 
-    llamadas_honorarios = [l for l in llamadas if l[0] == "HONORARIOS_TOTAL_PCT"]
+    llamadas_honorarios = [
+        llamada for llamada in llamadas if llamada[0] == "HONORARIOS_TOTAL_PCT"
+    ]
     assert len(llamadas_honorarios) == 1
-
-
-from app.services.area_strategy import _evento_costas_procesales
 
 
 def test_evento_costas_procesales_usa_costas_pct_manual_si_esta_presente():
     obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("5.00"))
-    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("10000000.00"))
+    evento = _evento_costas_procesales(
+        obligacion, pretensiones_reconocidas=_Decimal("10000000.00")
+    )
     assert evento is not None
     assert evento.payload["amount"] == _Decimal("500000.00")
     assert evento.event_type == "COSTAS_PROCESALES"
@@ -1350,7 +1635,9 @@ def test_evento_costas_procesales_usa_calculo_automatico_si_hay_tipo_e_instancia
     obligacion.fecha_origen = _date(2024, 6, 1)
     obligacion.costas_tipo_proceso = "declarativo_general"
     obligacion.costas_instancia = "primera"
-    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
+    evento = _evento_costas_procesales(
+        obligacion, pretensiones_reconocidas=_Decimal("123500000.00")
+    )
     assert evento is not None
     assert evento.payload["amount"] == _Decimal("8645000.00")
 
@@ -1362,7 +1649,9 @@ def test_evento_costas_procesales_manual_gana_sobre_automatico():
     obligacion.fecha_origen = _date(2024, 6, 1)
     obligacion.costas_tipo_proceso = "declarativo_general"
     obligacion.costas_instancia = "primera"
-    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
+    evento = _evento_costas_procesales(
+        obligacion, pretensiones_reconocidas=_Decimal("123500000.00")
+    )
     assert evento.payload["amount"] == _Decimal("6175000.00")  # 5% manual, no el 7% automatico
 
 
@@ -1373,16 +1662,22 @@ def test_evento_costas_procesales_manual_fuera_de_rango_lanza_error():
     # un 8% de agencias en derecho" en un proceso de Mayor Cuantia).
     from app.core.exceptions import CostasFueraDeRangoError
 
-    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("8.00"), fecha_origen=_date(2026, 1, 1))
+    obligacion = _obligacion_honorarios(
+        costas_pct_manual=_Decimal("8.00"), fecha_origen=_date(2026, 1, 1)
+    )
     # SMLMV 2026 = 1.750.905 -> 300.000.000 / 1.750.905 = ~171 SMMLV -> Mayor Cuantia.
     with pytest.raises(CostasFueraDeRangoError):
         _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("300000000.00"))
 
 
 def test_evento_costas_procesales_manual_dentro_de_rango_no_lanza_error():
-    obligacion = _obligacion_honorarios(costas_pct_manual=_Decimal("3.00"), fecha_origen=_date(2026, 1, 1))
+    obligacion = _obligacion_honorarios(
+        costas_pct_manual=_Decimal("3.00"), fecha_origen=_date(2026, 1, 1)
+    )
 
-    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("300000000.00"))
+    evento = _evento_costas_procesales(
+        obligacion, pretensiones_reconocidas=_Decimal("300000000.00")
+    )
 
     assert evento is not None
     assert evento.payload["amount"] == _Decimal("9000000.00")
@@ -1390,7 +1685,9 @@ def test_evento_costas_procesales_manual_dentro_de_rango_no_lanza_error():
 
 def test_evento_costas_procesales_sin_ninguno_de_los_dos_retorna_none():
     obligacion = _obligacion_honorarios()
-    evento = _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("10000000.00"))
+    evento = _evento_costas_procesales(
+        obligacion, pretensiones_reconocidas=_Decimal("10000000.00")
+    )
     assert evento is None
 
 
@@ -1405,11 +1702,14 @@ class TestHonorariosStrategy:
 
         assert resultado.final_balance().principal == Decimal("3000000.00")
 
-    def test_cuota_litis_sola_por_encima_de_30_por_ciento_no_lanza_error_si_el_total_no_excede_50(self):
-        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 4): no se aplican dos topes en
-        # cascada -- el unico tope legal es el 50% acumulado. cuota litis = 10M * 35% = 3.5M (35%
-        # individual, por encima de lo que antes era un tope propio de 30%), pero honorarios_fijos=0
-        # asi que el total (3.5M) sigue por debajo del 50% (5M) -> ya no debe fallar.
+    def test_cuota_litis_sola_por_encima_de_30_por_ciento_no_lanza_error_si_el_total_no_excede_50(
+        self,
+    ):
+        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 4): no se aplican dos
+        # topes en cascada -- el unico tope legal es el 50% acumulado. cuota litis =
+        # 10M * 35% = 3.5M (35% individual, por encima de lo que antes era un tope
+        # propio de 30%), pero honorarios_fijos=0 asi que el total (3.5M) sigue por
+        # debajo del 50% (5M) -> ya no debe fallar.
         obligacion = _obligacion_honorarios(
             honorarios_fijos_pactados=Decimal("0.00"), cuota_litis_pactada_pct=Decimal("35.00")
         )
@@ -1423,11 +1723,14 @@ class TestHonorariosStrategy:
     def test_suma_total_excede_50_por_ciento_lanza_error_citando_ley_1123_de_2007(self):
         # cuota litis = 10M * 45% = 4.5M. total = 1M + 4.5M = 5.5M > 5M (50% de 10M).
         obligacion = _obligacion_honorarios(
-            honorarios_fijos_pactados=Decimal("1000000.00"), cuota_litis_pactada_pct=Decimal("45.00")
+            honorarios_fijos_pactados=Decimal("1000000.00"),
+            cuota_litis_pactada_pct=Decimal("45.00"),
         )
 
         with pytest.raises(CuotaLitisExcedeTopeError, match="Ley 1123/2007"):
-            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
+            HonorariosStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+            )
 
     def test_genera_evento_de_costas_si_costas_pct_manual_esta_seteado(self):
         # honorarios = 1M + (10M*10%=1M) = 2M. costas = 10M * 5% = 500000.
@@ -1459,14 +1762,18 @@ class TestHonorariosStrategy:
         setattr(obligacion, campo, None)
 
         with pytest.raises(ValueError):
-            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
+            HonorariosStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+            )
 
     def test_obligacion_recurrente_lanza_value_error(self):
         obligacion = _obligacion_honorarios()
         obligacion.tipo = TipoObligacion.RECURRENTE
 
         with pytest.raises(ValueError):
-            HonorariosStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1))
+            HonorariosStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+            )
 
     def test_soporta_indexacion_ipc_es_false(self):
         assert HonorariosStrategy().soporta_indexacion_ipc is False
@@ -1492,12 +1799,14 @@ class TestHonorariosStrategy:
             obligaciones=[obligacion_b], abonos=[], fecha_corte=fecha_corte
         )
 
-        interes_esperado = resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        interes_esperado = (
+            resultado_solo_a.final_balance().interest + resultado_solo_b.final_balance().interest
+        )
         assert resultado_combinado.final_balance().interest == interes_esperado
-        assert resultado_combinado.final_balance().interest != Decimal("2") * resultado_solo_a.final_balance().interest
-
-
-from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+        assert (
+            resultado_combinado.final_balance().interest
+            != Decimal("2") * resultado_solo_a.final_balance().interest
+        )
 
 
 def _obligacion_laboral(
@@ -1552,7 +1861,9 @@ class TestLaboralStrategy:
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "SANCION_MORATORIA" in tipos_evento
         # salario_diario = 3M/30 = 100000; 30 dias de retardo = 3000000.00
-        assert resultado.final_balance().principal == Decimal("10860000.00")  # 7860000.00 + 3000000.00
+        assert resultado.final_balance().principal == Decimal(
+            "10860000.00"
+        )  # 7860000.00 + 3000000.00
 
     def test_liquida_con_mora_cruzando_a_fase2(self):
         # Sin pagar: fecha_corte muy posterior a la terminacion del contrato,
@@ -1577,7 +1888,11 @@ class TestLaboralStrategy:
     def test_aplica_un_abono_reduciendo_el_saldo(self):
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         abono = Abono(
-            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("1000000.00"), referencia="ref-1"
+            id=1,
+            obligacion_id=1,
+            fecha=date(2021, 1, 15),
+            monto=Decimal("1000000.00"),
+            referencia="ref-1",
         )
 
         resultado = LaboralStrategy().liquidar(
@@ -1600,13 +1915,19 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(tipo=TipoObligacion.RECURRENTE)
 
         with pytest.raises(ValueError):
-            LaboralStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1))
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
 
     def test_fecha_fin_anterior_a_fecha_inicio_lanza_value_error(self):
-        obligacion = _obligacion_laboral(fecha_inicio=date(2020, 12, 31), fecha_fin=date(2020, 1, 1))
+        obligacion = _obligacion_laboral(
+            fecha_inicio=date(2020, 12, 31), fecha_fin=date(2020, 1, 1)
+        )
 
         with pytest.raises(ValueError):
-            LaboralStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1))
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
 
     def test_pagada_true_sin_fecha_pago_total_lanza_value_error(self):
         # pagada=True sin fecha_pago_total es un estado inconsistente: si se
@@ -1615,7 +1936,9 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(pagada=True, fecha_pago_total=None)
 
         with pytest.raises(ValueError):
-            LaboralStrategy().liquidar(obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1))
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
 
     def test_fecha_pago_total_posterior_a_fecha_corte_se_recorta_al_corte(self):
         # "Foto historica": si el pago real ocurrio despues del corte elegido
@@ -1692,10 +2015,14 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         obligacion.incluir_seguridad_social = True
         obligacion.nivel_riesgo_arl = "I"
-        obligacion.eventos_laborales = [EventoLaboral(
-            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),  # 3 dias
-        )]
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1),
+                fecha_fin=date(2020, 5, 4),  # 3 dias
+            )
+        ]
 
         resultado = LaboralStrategy().liquidar(
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
@@ -1717,10 +2044,14 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         obligacion.incluir_seguridad_social = True
         obligacion.nivel_riesgo_arl = "I"
-        obligacion.eventos_laborales = [EventoLaboral(
-            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL,
-            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 11),  # 10 dias
-        )]
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_LABORAL,
+                fecha_inicio=date(2020, 5, 1),
+                fecha_fin=date(2020, 5, 11),  # 10 dias
+            )
+        ]
 
         resultado = LaboralStrategy().liquidar(
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
@@ -1736,11 +2067,15 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         obligacion.incluir_seguridad_social = True
         obligacion.nivel_riesgo_arl = "I"
-        obligacion.eventos_laborales = [EventoLaboral(
-            obligacion_id=1, tipo=TipoEventoLaboral.SUSPENSION,
-            fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 31),  # 30 dias
-            motivo_suspension=MotivoSuspension.HUELGA,
-        )]
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.SUSPENSION,
+                fecha_inicio=date(2020, 3, 1),
+                fecha_fin=date(2020, 3, 31),  # 30 dias
+                motivo_suspension=MotivoSuspension.HUELGA,
+            )
+        ]
 
         resultado = LaboralStrategy().liquidar(
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
@@ -1749,7 +2084,9 @@ class TestLaboralStrategy:
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "SUSPENSION_INFORMATIVA" in tipos_evento
         assert "COTIZACION_ARL" in tipos_evento
-        eventos_arl = [item for item in resultado.items if item.balance.event_type == "COTIZACION_ARL"]
+        eventos_arl = [
+            item for item in resultado.items if item.balance.event_type == "COTIZACION_ARL"
+        ]
         # dias_trabajados=365, dias_suspension=30: arl = 3000000*0.00522*(365-30)/30
         assert eventos_arl[0].capital_base > Decimal("0.00")
 
@@ -1761,13 +2098,17 @@ class TestLaboralStrategy:
         obligacion.nivel_riesgo_arl = "I"
         obligacion.eventos_laborales = [
             EventoLaboral(
-                obligacion_id=1, tipo=TipoEventoLaboral.SUSPENSION,
-                fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 31),
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.SUSPENSION,
+                fecha_inicio=date(2020, 3, 1),
+                fecha_fin=date(2020, 3, 31),
                 motivo_suspension=MotivoSuspension.HUELGA,
             ),
             EventoLaboral(
-                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1),
+                fecha_fin=date(2020, 5, 4),
             ),
         ]
 
@@ -1850,10 +2191,14 @@ class TestLaboralStrategy:
 
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         # incluir_seguridad_social queda en su default (False) a proposito.
-        obligacion.eventos_laborales = [EventoLaboral(
-            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-            fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
-        )]
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1),
+                fecha_fin=date(2020, 5, 4),
+            )
+        ]
 
         with pytest.raises(ValueError):
             LaboralStrategy().liquidar(
@@ -1866,10 +2211,14 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         obligacion.incluir_seguridad_social = True
         obligacion.nivel_riesgo_arl = "I"
-        obligacion.eventos_laborales = [EventoLaboral(
-            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-            fecha_inicio=date(2021, 1, 1), fecha_fin=date(2021, 1, 5),  # posterior a fecha_fin del contrato (2020-12-31)
-        )]
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2021, 1, 1),
+                fecha_fin=date(2021, 1, 5),  # posterior a fecha_fin del contrato (2020-12-31)
+            )
+        ]
 
         with pytest.raises(ValueError):
             LaboralStrategy().liquidar(
@@ -1882,10 +2231,14 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         obligacion.incluir_seguridad_social = True
         obligacion.nivel_riesgo_arl = "I"
-        obligacion.eventos_laborales = [EventoLaboral(
-            obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-            fecha_inicio=date(2019, 12, 20), fecha_fin=date(2019, 12, 25),  # anterior a fecha_inicio del contrato (2020-01-01)
-        )]
+        obligacion.eventos_laborales = [
+            EventoLaboral(
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2019, 12, 20),
+                fecha_fin=date(2019, 12, 25),  # anterior a fecha_inicio del contrato (2020-01-01)
+            )
+        ]
 
         with pytest.raises(ValueError):
             LaboralStrategy().liquidar(
@@ -1900,12 +2253,16 @@ class TestLaboralStrategy:
         obligacion.nivel_riesgo_arl = "I"
         obligacion.eventos_laborales = [
             EventoLaboral(
-                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 10),
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1),
+                fecha_fin=date(2020, 5, 10),
             ),
             EventoLaboral(
-                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-                fecha_inicio=date(2020, 5, 5), fecha_fin=date(2020, 5, 15),  # se solapa con el anterior (5/5 - 5/10)
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 5),
+                fecha_fin=date(2020, 5, 15),  # se solapa con el anterior (5/5 - 5/10)
             ),
         ]
 
@@ -1922,12 +2279,18 @@ class TestLaboralStrategy:
         obligacion.nivel_riesgo_arl = "I"
         obligacion.eventos_laborales = [
             EventoLaboral(
-                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-                fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 10),
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 1),
+                fecha_fin=date(2020, 5, 10),
             ),
             EventoLaboral(
-                obligacion_id=1, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-                fecha_inicio=date(2020, 5, 10), fecha_fin=date(2020, 5, 15),  # empieza justo cuando termina el anterior, no se solapa
+                obligacion_id=1,
+                tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+                fecha_inicio=date(2020, 5, 10),
+                fecha_fin=date(
+                    2020, 5, 15
+                ),  # empieza justo cuando termina el anterior, no se solapa
             ),
         ]
 
@@ -1959,7 +2322,9 @@ class TestLaboralStrategy:
         # strategies y sigue siendo correcta (capital_previo = 0.00 cuando
         # costas es el primer item).
         obligacion = _obligacion_laboral(
-            salario=Decimal("123500000.00"), fecha_inicio=date(2024, 1, 1), fecha_fin=date(2024, 6, 1),
+            salario=Decimal("123500000.00"),
+            fecha_inicio=date(2024, 1, 1),
+            fecha_fin=date(2024, 6, 1),
         )
         obligacion.costas_tipo_proceso = "declarativo_general"
         obligacion.costas_instancia = "primera"
@@ -1970,7 +2335,9 @@ class TestLaboralStrategy:
         assert "COSTAS_PROCESALES" in tipos_evento
         indice_costas = tipos_evento.index("COSTAS_PROCESALES")
         capital_previo = (
-            resultado.items[indice_costas - 1].capital_base if indice_costas > 0 else Decimal("0.00")
+            resultado.items[indice_costas - 1].capital_base
+            if indice_costas > 0
+            else Decimal("0.00")
         )
         monto_costas = resultado.items[indice_costas].capital_base - capital_previo
 
@@ -1988,10 +2355,13 @@ class TestLaboralStrategy:
             obligacion.fecha_inicio, obligacion.fecha_fin
         )
         eventos_prestaciones = LaborScheduler(
-            salario_base=obligacion.valor, dias_trabajados=dias_trabajados,
+            salario_base=obligacion.valor,
+            dias_trabajados=dias_trabajados,
             fecha_liquidacion=obligacion.fecha_fin,
         ).generate()
-        monto_prestaciones = sum((e.payload["amount"] for e in eventos_prestaciones), Decimal("0.00"))
+        monto_prestaciones = sum(
+            (e.payload["amount"] for e in eventos_prestaciones), Decimal("0.00")
+        )
         assert monto_prestaciones == Decimal("132110808.78")
 
         # fecha_origen (= fecha_inicio) 2024-01-01 -> SMLMV 2024 = 1.300.000,00
@@ -2003,8 +2373,10 @@ class TestLaboralStrategy:
         # = monto_prestaciones.
         assert monto_costas == Decimal("8770449.94")
         assert monto_costas == calcular_agencias_en_derecho(
-            tipo_proceso=TipoProceso("declarativo_general"), instancia=Instancia("primera"),
-            pretensiones_reconocidas=monto_prestaciones, fecha_radicacion=obligacion.fecha_inicio,
+            tipo_proceso=TipoProceso("declarativo_general"),
+            instancia=Instancia("primera"),
+            pretensiones_reconocidas=monto_prestaciones,
+            fecha_radicacion=obligacion.fecha_inicio,
         )
 
     def test_costas_procesales_no_afecta_la_indemnizacion_moratoria(self):
@@ -2041,7 +2413,9 @@ class TestLaboralStrategy:
             # MINIMA en primera instancia -- las cuantias minimas se tramitan
             # en unica instancia, no en dos instancias).
             obligacion = _obligacion_laboral(
-                salario=Decimal("123500000.00"), fecha_inicio=date(2024, 1, 1), fecha_fin=date(2024, 5, 1),
+                salario=Decimal("123500000.00"),
+                fecha_inicio=date(2024, 1, 1),
+                fecha_fin=date(2024, 5, 1),
             )
             if con_costas:
                 obligacion.costas_tipo_proceso = "declarativo_general"
@@ -2058,7 +2432,9 @@ class TestLaboralStrategy:
                 assert "COSTAS_PROCESALES" in tipos_evento
             indice_mora = tipos_evento.index("SANCION_MORATORIA")
             capital_previo = (
-                resultado.items[indice_mora - 1].capital_base if indice_mora > 0 else Decimal("0.00")
+                resultado.items[indice_mora - 1].capital_base
+                if indice_mora > 0
+                else Decimal("0.00")
             )
             return resultado.items[indice_mora].capital_base - capital_previo
 
@@ -2076,7 +2452,9 @@ class TestLaboralStrategy:
         # -- _SMLMV_POR_ANIO[2020] = 877803.00 (sembrado por la fixture
         # autouse de este archivo).
         obligacion = _obligacion_laboral(
-            salario=Decimal("1.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
         )
         obligacion.es_smmlv = True
 
@@ -2094,7 +2472,9 @@ class TestLaboralStrategy:
 
     def test_es_smmlv_false_conserva_el_valor_digitado(self):
         obligacion = _obligacion_laboral(
-            salario=Decimal("3000000.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+            salario=Decimal("3000000.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
         )
         obligacion.es_smmlv = False
 
@@ -2108,10 +2488,16 @@ class TestLaboralStrategy:
         from database.models import DescuentoLaboral
 
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
-        obligacion.descuentos_laborales = [DescuentoLaboral(
-            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("1000000.00"),
-            es_legal=True, motivo="Prestamo cooperativa",
-        )]
+        obligacion.descuentos_laborales = [
+            DescuentoLaboral(
+                id=1,
+                obligacion_id=1,
+                fecha=date(2021, 1, 15),
+                monto=Decimal("1000000.00"),
+                es_legal=True,
+                motivo="Prestamo cooperativa",
+            )
+        ]
 
         resultado = LaboralStrategy().liquidar(
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
@@ -2124,10 +2510,16 @@ class TestLaboralStrategy:
         from database.models import DescuentoLaboral
 
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
-        obligacion.descuentos_laborales = [DescuentoLaboral(
-            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("1000000.00"),
-            es_legal=True, motivo="Prestamo cooperativa",
-        )]
+        obligacion.descuentos_laborales = [
+            DescuentoLaboral(
+                id=1,
+                obligacion_id=1,
+                fecha=date(2021, 1, 15),
+                monto=Decimal("1000000.00"),
+                es_legal=True,
+                motivo="Prestamo cooperativa",
+            )
+        ]
 
         resultado = LaboralStrategy().liquidar(
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
@@ -2147,10 +2539,16 @@ class TestLaboralStrategy:
         from database.models import DescuentoLaboral
 
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
-        obligacion.descuentos_laborales = [DescuentoLaboral(
-            id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("500000.00"),
-            es_legal=False, motivo=None,
-        )]
+        obligacion.descuentos_laborales = [
+            DescuentoLaboral(
+                id=1,
+                obligacion_id=1,
+                fecha=date(2021, 1, 15),
+                monto=Decimal("500000.00"),
+                es_legal=False,
+                motivo=None,
+            )
+        ]
 
         resultado = LaboralStrategy().liquidar(
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
@@ -2168,10 +2566,18 @@ class TestLaboralStrategy:
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         obligacion.descuentos_laborales = [
             DescuentoLaboral(
-                id=1, obligacion_id=1, fecha=date(2021, 1, 15), monto=Decimal("500000.00"), es_legal=True,
+                id=1,
+                obligacion_id=1,
+                fecha=date(2021, 1, 15),
+                monto=Decimal("500000.00"),
+                es_legal=True,
             ),
             DescuentoLaboral(
-                id=2, obligacion_id=1, fecha=date(2021, 2, 1), monto=Decimal("300000.00"), es_legal=True,
+                id=2,
+                obligacion_id=1,
+                fecha=date(2021, 2, 1),
+                monto=Decimal("300000.00"),
+                es_legal=True,
             ),
         ]
 
@@ -2218,7 +2624,9 @@ def _obligacion_tributaria(
 
 class TestTributarioStrategy:
     def test_impuesto_a_cargo_sin_sanciones_ni_abonos_liquida_el_valor(self):
-        obligacion = _obligacion_tributaria(categoria="IMPUESTO_A_CARGO", valor=Decimal("10000000.00"))
+        obligacion = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO", valor=Decimal("10000000.00")
+        )
 
         resultado = TributarioStrategy().liquidar(
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 3, 1)
@@ -2251,7 +2659,9 @@ class TestTributarioStrategy:
 
     def test_falta_base_sancion_en_extemporaneidad_lanza_value_error(self):
         obligacion = _obligacion_tributaria(
-            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=None, meses_extemporaneidad=2
+            categoria="SANCION_EXTEMPORANEIDAD",
+            base_sancion_tributaria=None,
+            meses_extemporaneidad=2,
         )
 
         with pytest.raises(ValueError):
@@ -2281,12 +2691,16 @@ class TestTributarioStrategy:
         # orden de imputacion (indexacion/sancion -> interes -> capital) sigue vigente,
         # simplemente ya no hay una bolsa compartida entre obligaciones distintas.
         impuesto = _obligacion_tributaria(
-            categoria="IMPUESTO_A_CARGO", valor=Decimal("1000000.00"), fecha_origen=date(2024, 3, 1)
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("1000000.00"),
+            fecha_origen=date(2024, 3, 1),
         )
         impuesto.id = 1
         sancion = _obligacion_tributaria(
-            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=Decimal("1000000.00"),
-            meses_extemporaneidad=1, fecha_origen=date(2024, 3, 1),
+            categoria="SANCION_EXTEMPORANEIDAD",
+            base_sancion_tributaria=Decimal("1000000.00"),
+            meses_extemporaneidad=1,
+            fecha_origen=date(2024, 3, 1),
         )
         sancion.id = 2
         # Sancion efectiva: 5% x 1 mes = 50,000, muy por debajo del piso de 10 UVT 2024
@@ -2294,11 +2708,17 @@ class TestTributarioStrategy:
         # y sobra 29,350 (que en la liquidacion aislada de esa obligacion no tiene a donde
         # ir, ya que no hay otro bucket dentro de la misma obligacion).
         abono_sancion = Abono(
-            id=1, obligacion_id=2, fecha=date(2024, 3, 1), monto=Decimal("500000.00"),
+            id=1,
+            obligacion_id=2,
+            fecha=date(2024, 3, 1),
+            monto=Decimal("500000.00"),
             referencia="Abono a la sancion",
         )
         abono_impuesto = Abono(
-            id=2, obligacion_id=1, fecha=date(2024, 3, 1), monto=Decimal("200000.00"),
+            id=2,
+            obligacion_id=1,
+            fecha=date(2024, 3, 1),
+            monto=Decimal("200000.00"),
             referencia="Abono al impuesto",
         )
 
@@ -2343,7 +2763,9 @@ class TestTributarioStrategy:
         # indexacion debe recortarse a 7.773.307,41 (verificado independientemente en
         # tests/engine/tax/test_actualizacion_867_1.py, mismo caso).
         impuesto = _obligacion_tributaria(
-            categoria="IMPUESTO_A_CARGO", valor=Decimal("100000000.00"), fecha_origen=date(2018, 5, 10)
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("100000000.00"),
+            fecha_origen=date(2018, 5, 10),
         )
 
         resultado = TributarioStrategy().liquidar(
@@ -2354,15 +2776,21 @@ class TestTributarioStrategy:
         assert saldo.principal == Decimal("100000000.00")
         assert saldo.interest == Decimal("123160595.20")
         assert saldo.indexation == Decimal("7773307.41")
-        assert saldo.interest + saldo.indexation == Decimal("130933902.61")  # == techo de usura plena
+        assert saldo.interest + saldo.indexation == Decimal(
+            "130933902.61"
+        )  # == techo de usura plena
 
     def test_impuesto_con_mora_de_3_anios_o_menos_no_indexa(self):
         impuesto = _obligacion_tributaria(
-            categoria="IMPUESTO_A_CARGO", valor=Decimal("100000000.00"), fecha_origen=date(2020, 5, 10)
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("100000000.00"),
+            fecha_origen=date(2020, 5, 10),
         )
 
         resultado = TributarioStrategy().liquidar(
-            obligaciones=[impuesto], abonos=[], fecha_corte=date(2023, 5, 10)  # exactamente 3 anios
+            obligaciones=[impuesto],
+            abonos=[],
+            fecha_corte=date(2023, 5, 10),  # exactamente 3 anios
         )
 
         assert resultado.final_balance().indexation == Decimal("0.00")
@@ -2372,8 +2800,10 @@ class TestTributarioStrategy:
         # se liquida interes de mora, sino que se aplica exclusivamente la actualizacion
         # inflacionaria".
         sancion = _obligacion_tributaria(
-            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=Decimal("10000000.00"),
-            meses_extemporaneidad=2, fecha_origen=date(2018, 5, 10),
+            categoria="SANCION_EXTEMPORANEIDAD",
+            base_sancion_tributaria=Decimal("10000000.00"),
+            meses_extemporaneidad=2,
+            fecha_origen=date(2018, 5, 10),
         )
         # Sancion efectiva: 5% x 2 meses = 10% de 10.000.000 = 1.000.000.
 
@@ -2397,13 +2827,17 @@ class TestTributarioStrategy:
         # correccion del Art. 867-1 sobre una sancion es si se agrega o no el evento de
         # indexacion adicional.
         sancion = _obligacion_tributaria(
-            categoria="SANCION_EXTEMPORANEIDAD", base_sancion_tributaria=Decimal("10000000.00"),
-            meses_extemporaneidad=2, fecha_origen=date(2020, 5, 10),
+            categoria="SANCION_EXTEMPORANEIDAD",
+            base_sancion_tributaria=Decimal("10000000.00"),
+            meses_extemporaneidad=2,
+            fecha_origen=date(2020, 5, 10),
         )
         # Sancion efectiva: 5% x 2 meses = 10% de 10.000.000 = 1.000.000.
 
         resultado = TributarioStrategy().liquidar(
-            obligaciones=[sancion], abonos=[], fecha_corte=date(2023, 5, 10)  # exactamente 3 anios
+            obligaciones=[sancion],
+            abonos=[],
+            fecha_corte=date(2023, 5, 10),  # exactamente 3 anios
         )
 
         saldo = resultado.final_balance()
@@ -2412,14 +2846,20 @@ class TestTributarioStrategy:
 
     def test_dos_obligaciones_renta_liquida_en_el_mismo_expediente_lanza_value_error(self):
         renta_1 = _obligacion_tributaria(
-            categoria="RENTA_LIQUIDA", ingresos_brutos=Decimal("1.00"),
-            devoluciones_rebajas_descuentos=Decimal("0.00"), costos=Decimal("0.00"),
-            deducciones=Decimal("0.00"), rentas_exentas=Decimal("0.00"),
+            categoria="RENTA_LIQUIDA",
+            ingresos_brutos=Decimal("1.00"),
+            devoluciones_rebajas_descuentos=Decimal("0.00"),
+            costos=Decimal("0.00"),
+            deducciones=Decimal("0.00"),
+            rentas_exentas=Decimal("0.00"),
         )
         renta_2 = _obligacion_tributaria(
-            categoria="RENTA_LIQUIDA", ingresos_brutos=Decimal("2.00"),
-            devoluciones_rebajas_descuentos=Decimal("0.00"), costos=Decimal("0.00"),
-            deducciones=Decimal("0.00"), rentas_exentas=Decimal("0.00"),
+            categoria="RENTA_LIQUIDA",
+            ingresos_brutos=Decimal("2.00"),
+            devoluciones_rebajas_descuentos=Decimal("0.00"),
+            costos=Decimal("0.00"),
+            deducciones=Decimal("0.00"),
+            rentas_exentas=Decimal("0.00"),
         )
 
         with pytest.raises(ValueError):
@@ -2433,15 +2873,27 @@ class TestTributarioStrategy:
 
 def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
     obligacion_legado = Obligacion(
-        id=6, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        id=6,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
         interes_sobre_capital_indexado=False,
     )
     obligacion_suma_unica = Obligacion(
-        id=7, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        id=7,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
         interes_sobre_capital_indexado=True,
     )
 
@@ -2452,16 +2904,19 @@ def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
         obligaciones=[obligacion_suma_unica], abonos=[], fecha_corte=date(2025, 12, 31)
     )
 
-    # Mismo capital, misma indexacion (77633.53, ver test_civil_familia_puntual_con_indexacion_...),
-    # misma tasa y periodo -- la unica diferencia es la base del interes.
+    # Mismo capital, misma indexacion (77633.53, ver
+    # test_civil_familia_puntual_con_indexacion_...), misma tasa y periodo -- la unica
+    # diferencia es la base del interes.
     assert resultado_legado.final_balance().indexation == Decimal("77633.53")
     assert resultado_suma_unica.final_balance().indexation == Decimal("77633.53")
     assert resultado_legado.final_balance().interest == Decimal("87488.20")
     assert resultado_suma_unica.final_balance().interest == Decimal("94283.40")
-    assert resultado_suma_unica.final_balance().interest > resultado_legado.final_balance().interest
+    assert (
+        resultado_suma_unica.final_balance().interest > resultado_legado.final_balance().interest
+    )
 
 
-def test_civil_familia_suma_unica_mezclada_en_el_expediente_liquida_cada_obligacion_con_su_propio_criterio():
+def test_civil_familia_suma_unica_mezclada_liquida_cada_obligacion_con_su_criterio():
     # Desde el Sprint 21, cada obligacion corre en su propio LiquidationCore
     # (PendingDebt independiente, ver _liquidar_por_obligacion), asi que ya no
     # hay un unico saldo compartido a nivel de expediente -- mezclar criterios
@@ -2470,15 +2925,27 @@ def test_civil_familia_suma_unica_mezclada_en_el_expediente_liquida_cada_obligac
     # antes del Sprint 21): cada obligacion simplemente liquida con su propio
     # criterio, y _fusionar_resultados suma los saldos individuales.
     obligacion_a = Obligacion(
-        id=8, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente A",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        id=8,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente A",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
         interes_sobre_capital_indexado=True,
     )
     obligacion_b = Obligacion(
-        id=9, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente B",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("500000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        id=9,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente B",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
         interes_sobre_capital_indexado=False,
     )
 
@@ -2498,15 +2965,27 @@ def test_civil_familia_suma_unica_mezclada_en_el_expediente_liquida_cada_obligac
 
 def test_civil_familia_suma_unica_ignora_obligaciones_sin_indexacion_activa():
     obligacion_indexada = Obligacion(
-        id=10, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Dano emergente",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2024, 7, 1), valor=Decimal("1000000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        id=10,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
         interes_sobre_capital_indexado=True,
     )
     obligacion_sin_indexar = Obligacion(
-        id=11, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Otro concepto",
-        categoria="DANOS_MORALES", fecha_origen=date(2024, 7, 1), valor=Decimal("200000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=False,
+        id=11,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Otro concepto",
+        categoria="DANOS_MORALES",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("200000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=False,
         interes_sobre_capital_indexado=False,
     )
 
@@ -2514,7 +2993,9 @@ def test_civil_familia_suma_unica_ignora_obligaciones_sin_indexacion_activa():
     # sin importar su propio valor de interes_sobre_capital_indexado (Suma Unica
     # solo tiene efecto cuando aplica_indexacion_ipc tambien es True).
     resultado = CivilFamiliaStrategy().liquidar(
-        obligaciones=[obligacion_indexada, obligacion_sin_indexar], abonos=[], fecha_corte=date(2025, 12, 31)
+        obligaciones=[obligacion_indexada, obligacion_sin_indexar],
+        abonos=[],
+        fecha_corte=date(2025, 12, 31),
     )
     assert resultado.final_balance().indexation == Decimal("77633.53")
 
@@ -2527,9 +3008,15 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
     # mismas fechas y el mismo capital, por lo que el resultado numerico es distinto
     # del ilustrativo de la pag. 69 -- ver docstring del test y spec de este sprint.
     obligacion = Obligacion(
-        id=12, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Credito indexado",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2010, 1, 1), valor=Decimal("50000000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        id=12,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Credito indexado",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2010, 1, 1),
+        valor=Decimal("50000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
         interes_sobre_capital_indexado=True,
     )
 
@@ -2554,9 +3041,15 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
     # el mismo caso da un interes bastante menor -- confirma que Suma Unica
     # efectivamente cambia el resultado, no solo que el motor no truena.
     obligacion_legado = Obligacion(
-        id=13, expediente_id=1, tipo=TipoObligacion.PUNTUAL, concepto="Credito indexado",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2010, 1, 1), valor=Decimal("50000000.00"),
-        tasa_efectiva_anual=Decimal("6.00"), aplica_indexacion_ipc=True,
+        id=13,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Credito indexado",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2010, 1, 1),
+        valor=Decimal("50000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
         interes_sobre_capital_indexado=False,
     )
     resultado_legado = CivilFamiliaStrategy().liquidar(
@@ -2579,10 +3072,17 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
 
 def _sembrar_prescripcion_ejecutiva(meses=60):
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="PRESCRIPCION_EJECUTIVA_MESES", valor=_Decimal(meses), vigente_desde=date(1900, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="PRESCRIPCION_EJECUTIVA_MESES",
+            valor=_Decimal(meses),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
     session.commit()
     session.close()
 
@@ -2607,7 +3107,9 @@ def test_civil_familia_marca_obligacion_prescrita_sin_cambiar_el_total():
 
 
 def test_comercial_marca_obligacion_prescrita_sin_cambiar_el_total():
-    obligacion = _obligacion_comercial(fecha_origen=date(2015, 1, 1), fecha_vencimiento=date(2015, 2, 1))
+    obligacion = _obligacion_comercial(
+        fecha_origen=date(2015, 1, 1), fecha_vencimiento=date(2015, 2, 1)
+    )
     fecha_corte = date(2026, 1, 1)
 
     referencia = ComercialStrategy().liquidar(

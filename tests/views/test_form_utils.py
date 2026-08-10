@@ -13,23 +13,34 @@ from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoOblig
 def _sesion_en_memoria(monkeypatch):
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
     return session_module.get_session()
 
 
 def test_guardar_o_actualizar_sin_id_existente_crea_una_fila_nueva(monkeypatch):
     session = _sesion_en_memoria(monkeypatch)
     expediente = Expediente(
-        radicado="2026-090", demandante="Ana", demandado="Luis",
-        area_derecho=AreaDerecho.CIVIL_FAMILIA, fecha_corte_default=date(2026, 6, 1),
+        radicado="2026-090",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
     )
     session.add(expediente)
     session.commit()
 
     obligacion_id = guardar_o_actualizar(
-        session, Obligacion, None,
-        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL, concepto="Gastos medicos",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("100.00"),
+        session,
+        Obligacion,
+        None,
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("100.00"),
         tasa_efectiva_anual=Decimal("6.00"),
     )
 
@@ -41,14 +52,21 @@ def test_guardar_o_actualizar_sin_id_existente_crea_una_fila_nueva(monkeypatch):
 def test_guardar_o_actualizar_con_id_existente_actualiza_en_vez_de_insertar(monkeypatch):
     session = _sesion_en_memoria(monkeypatch)
     expediente = Expediente(
-        radicado="2026-091", demandante="Ana", demandado="Luis",
-        area_derecho=AreaDerecho.CIVIL_FAMILIA, fecha_corte_default=date(2026, 6, 1),
+        radicado="2026-091",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
     )
     session.add(expediente)
     session.flush()
     obligacion = Obligacion(
-        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL, concepto="Original",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("100.00"),
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Original",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("100.00"),
         tasa_efectiva_anual=Decimal("6.00"),
     )
     session.add(obligacion)
@@ -56,9 +74,15 @@ def test_guardar_o_actualizar_con_id_existente_actualiza_en_vez_de_insertar(monk
     obligacion_id = obligacion.id
 
     id_devuelto = guardar_o_actualizar(
-        session, Obligacion, obligacion_id,
-        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL, concepto="Editado",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("200.00"),
+        session,
+        Obligacion,
+        obligacion_id,
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Editado",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("200.00"),
         tasa_efectiva_anual=Decimal("6.00"),
     )
 

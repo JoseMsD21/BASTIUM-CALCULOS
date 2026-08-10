@@ -13,11 +13,13 @@ class RecurringRule:
     day: int
     month: int = 1
 
+
 class RecurringScheduler(Scheduler):
     """
     Generador de eventos recurrentes determinista.
     Aplica matemáticas de fechas seguras y previene bucles infinitos.
     """
+
     def __init__(self, rule: RecurringRule, event_type: str, label: str = None):
         self.rule = rule
         self.event_type = event_type
@@ -31,13 +33,17 @@ class RecurringScheduler(Scheduler):
         while True:
             # 1. Proyectar la fecha teórica
             if self.rule.frequency == "monthly":
-                event_date = CalendarUtils.safe_create_date(current_year, current_month, self.rule.day)
+                event_date = CalendarUtils.safe_create_date(
+                    current_year, current_month, self.rule.day
+                )
             elif self.rule.frequency == "yearly":
-                event_date = CalendarUtils.safe_create_date(current_year, self.rule.month, self.rule.day)
+                event_date = CalendarUtils.safe_create_date(
+                    current_year, self.rule.month, self.rule.day
+                )
             else:
                 raise ValueError("Frecuencia no soportada por el motor.")
 
-            # 2. Condición de salida estricta: El tiempo solo avanza. 
+            # 2. Condición de salida estricta: El tiempo solo avanza.
             # Si superamos la fecha final, rompemos inmediatamente.
             if event_date > end:
                 break
@@ -47,13 +53,7 @@ class RecurringScheduler(Scheduler):
                 payload = {"amount": self.rule.amount}
                 if self.label:
                     payload["label"] = self.label
-                events.append(
-                    Event(
-                        date=event_date,
-                        payload=payload,
-                        event_type=self.event_type
-                    )
-                )
+                events.append(Event(date=event_date, payload=payload, event_type=self.event_type))
 
             # 4. Avanzar los engranajes del tiempo
             if self.rule.frequency == "monthly":

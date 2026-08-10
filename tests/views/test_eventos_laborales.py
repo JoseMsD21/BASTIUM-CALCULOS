@@ -23,20 +23,30 @@ from database.models import (
 def _obligacion_laboral_de_prueba(monkeypatch) -> int:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
-        radicado="2026-020", demandante="Ana", demandado="Luis",
-        area_derecho=AreaDerecho.LABORAL, fecha_corte_default=date(2026, 6, 1),
+        radicado="2026-020",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 6, 1),
     )
     session.add(expediente)
     session.flush()
     obligacion = Obligacion(
-        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL,
-        concepto="Liquidacion de contrato", categoria="LIQUIDACION_CONTRATO_LABORAL",
-        fecha_origen=date(2020, 1, 1), valor=Decimal("3000000.00"),
-        tasa_efectiva_anual=Decimal("0.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
     )
     session.add(obligacion)
     session.commit()
@@ -192,8 +202,10 @@ def test_evento_id_precarga_los_campos_del_evento_existente(qtbot, monkeypatch):
     obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
     session = session_module.get_session()
     evento = EventoLaboral(
-        obligacion_id=obligacion_id, tipo=TipoEventoLaboral.SUSPENSION,
-        fecha_inicio=date(2020, 3, 1), fecha_fin=date(2020, 3, 15),
+        obligacion_id=obligacion_id,
+        tipo=TipoEventoLaboral.SUSPENSION,
+        fecha_inicio=date(2020, 3, 1),
+        fecha_fin=date(2020, 3, 15),
         motivo_suspension=MotivoSuspension.HUELGA,
     )
     session.add(evento)
@@ -214,8 +226,10 @@ def test_evento_id_titulo_del_dialogo_dice_editar(qtbot, monkeypatch):
     obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
     session = session_module.get_session()
     evento = EventoLaboral(
-        obligacion_id=obligacion_id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+        obligacion_id=obligacion_id,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1),
+        fecha_fin=date(2020, 5, 4),
     )
     session.add(evento)
     session.commit()
@@ -232,8 +246,10 @@ def test_guardar_con_evento_id_actualiza_en_vez_de_crear_uno_nuevo(qtbot, monkey
     obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
     session = session_module.get_session()
     evento = EventoLaboral(
-        obligacion_id=obligacion_id, tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
-        fecha_inicio=date(2020, 5, 1), fecha_fin=date(2020, 5, 4),
+        obligacion_id=obligacion_id,
+        tipo=TipoEventoLaboral.INCAPACIDAD_COMUN,
+        fecha_inicio=date(2020, 5, 1),
+        fecha_fin=date(2020, 5, 4),
     )
     session.add(evento)
     session.commit()

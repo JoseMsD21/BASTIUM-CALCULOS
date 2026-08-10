@@ -3,11 +3,15 @@ from decimal import Decimal
 
 import pytest
 
+from app.core.exceptions import IPCMensualNoDisponibleError
 from app.engine.indexation.historical_index import (
     _IPC_VARIACION_ANUAL,
     _TRAMOS_IBC_USURA,
     get_ibc_usura_for_date,
     get_ipc_for_date,
+    get_ipc_interpolado_for_date,
+    get_ipc_interpolado_mensual_for_date,
+    get_ipc_mensual_for_month,
     get_smlmv_for_year,
     get_tramos_ibc_usura_between,
     get_uvt_for_year,
@@ -20,6 +24,7 @@ def _parametros_legales_en_memoria():
     # session_module.SessionLocal ya los deja listos el conftest.py raiz
     # (Sprint 28) antes de que esta fixture arranque.
     from scripts.migrate_parametros_legales import migrar
+
     migrar()
 
 
@@ -149,7 +154,7 @@ def test_ibc_usura_fuera_de_rango_lanza_value_error():
 
 def test_tramos_ibc_usura_sin_vacios_ni_solapes():
     tramos = sorted(_TRAMOS_IBC_USURA, key=lambda t: t.inicio)
-    for anterior, actual in zip(tramos, tramos[1:]):
+    for anterior, actual in zip(tramos, tramos[1:], strict=False):
         assert actual.inicio == anterior.fin + timedelta(days=1), (
             f"Vacio o solape entre {anterior} y {actual}"
         )
@@ -162,9 +167,6 @@ def test_usura_es_1_5_veces_ibc_en_todos_los_tramos():
             f"{tramo}: usura {tramo.usura_anual} no es ~1.5x ibc {tramo.ibc_anual} "
             f"(esperado {esperado})"
         )
-
-
-from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
 
 
 def test_ipc_interpolado_en_cierre_de_anio_coincide_con_get_ipc_for_date():
@@ -205,12 +207,6 @@ def test_ipc_interpolado_primer_anio_usa_ancla_implicita_de_100():
     assert get_ipc_interpolado_for_date(date(1967, 6, 30)) == esperado
 
 
-from app.core.exceptions import IPCMensualNoDisponibleError
-from app.engine.indexation.historical_index import (
-    get_ipc_interpolado_mensual_for_date,
-    get_ipc_mensual_for_month,
-)
-
 _IPC_MENSUAL_FIXTURE = {
     (2025, 10): Decimal("1180.50"),
     (2025, 11): Decimal("1183.20"),
@@ -225,6 +221,7 @@ def _ipc_mensual_de_prueba(monkeypatch):
     # despacho aporte la fuente (ver Preguntas-Para-Abogado.md). Esta fixture
     # solo prueba que la matematica de interpolacion por dias es correcta.
     import app.engine.indexation.historical_index as historical_index_module
+
     monkeypatch.setattr(historical_index_module, "_IPC_MENSUAL", _IPC_MENSUAL_FIXTURE)
 
 
@@ -233,11 +230,15 @@ def test_ipc_mensual_no_disponible_lanza_error_explicito():
         get_ipc_mensual_for_month(2025, 12)
 
 
-def test_ipc_interpolado_mensual_en_cierre_de_mes_coincide_con_el_indice_del_mes(_ipc_mensual_de_prueba):
+def test_ipc_interpolado_mensual_en_cierre_de_mes_coincide_con_el_indice_del_mes(
+    _ipc_mensual_de_prueba,
+):
     assert get_ipc_interpolado_mensual_for_date(date(2025, 11, 30)) == Decimal("1183.20")
 
 
-def test_ipc_interpolado_mensual_a_mitad_de_mes_es_promedio_ponderado_por_dias(_ipc_mensual_de_prueba):
+def test_ipc_interpolado_mensual_a_mitad_de_mes_es_promedio_ponderado_por_dias(
+    _ipc_mensual_de_prueba,
+):
     # 15 de noviembre: entre el cierre de octubre (31-oct) y el cierre de
     # noviembre (30-nov). t1 = dias desde 31-oct hasta 15-nov = 15;
     # t2 = dias desde 15-nov hasta 30-nov = 15.

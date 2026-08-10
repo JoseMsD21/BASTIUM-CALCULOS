@@ -27,10 +27,17 @@ _SMLMV_2024 = Decimal("1300000.00")  # historical_index._SMLMV_POR_ANIO[2024]
 @pytest.fixture(autouse=True)
 def _db_en_memoria():
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=_SMLMV_2024, vigente_desde=date(2024, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=_SMLMV_2024,
+            vigente_desde=date(2024, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     session.commit()
     session.close()
 
@@ -112,24 +119,33 @@ def test_resolver_cuantia_tier_mayor_valor_grande():
 
 def test_interpolar_en_el_piso_del_tier_da_el_porcentaje_maximo():
     resultado = _interpolar_dentro_de_rango(
-        minimo=Decimal("3"), maximo=Decimal("7.5"),
-        valor=Decimal("0"), floor=Decimal("0"), ceiling=Decimal("100"),
+        minimo=Decimal("3"),
+        maximo=Decimal("7.5"),
+        valor=Decimal("0"),
+        floor=Decimal("0"),
+        ceiling=Decimal("100"),
     )
     assert resultado == Decimal("7.5")
 
 
 def test_interpolar_en_el_techo_del_tier_da_el_porcentaje_minimo():
     resultado = _interpolar_dentro_de_rango(
-        minimo=Decimal("3"), maximo=Decimal("7.5"),
-        valor=Decimal("100"), floor=Decimal("0"), ceiling=Decimal("100"),
+        minimo=Decimal("3"),
+        maximo=Decimal("7.5"),
+        valor=Decimal("100"),
+        floor=Decimal("0"),
+        ceiling=Decimal("100"),
     )
     assert resultado == Decimal("3")
 
 
 def test_interpolar_en_el_punto_medio():
     resultado = _interpolar_dentro_de_rango(
-        minimo=Decimal("3"), maximo=Decimal("7.5"),
-        valor=Decimal("50"), floor=Decimal("0"), ceiling=Decimal("100"),
+        minimo=Decimal("3"),
+        maximo=Decimal("7.5"),
+        valor=Decimal("50"),
+        floor=Decimal("0"),
+        ceiling=Decimal("100"),
     )
     assert resultado == Decimal("5.25")
 
@@ -140,8 +156,11 @@ def test_interpolar_sin_techo_devuelve_siempre_el_minimo():
     # del rango (el extremo de "a mayor valor, menor porcentaje" llevado al
     # limite). Documentado en el design spec como aproximacion explicita.
     resultado = _interpolar_dentro_de_rango(
-        minimo=Decimal("3"), maximo=Decimal("7.5"),
-        valor=Decimal("999999999"), floor=Decimal("100"), ceiling=None,
+        minimo=Decimal("3"),
+        maximo=Decimal("7.5"),
+        valor=Decimal("999999999"),
+        floor=Decimal("100"),
+        ceiling=None,
     )
     assert resultado == Decimal("3")
 
@@ -150,8 +169,10 @@ def test_calcular_minima_cuantia_declarativo_unica_instancia():
     # Punto medio del tier minima (0 a 52.000.000): 26.000.000 -> posicion=0.5
     # -> pct = 15 - 0.5*10 = 10% -> 2.600.000
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.UNICA,
-        pretensiones_reconocidas=Decimal("26000000.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.UNICA,
+        pretensiones_reconocidas=Decimal("26000000.00"),
+        fecha_radicacion=date(2024, 6, 1),
     )
     assert resultado == Decimal("2600000.00")
 
@@ -164,24 +185,30 @@ def test_calcular_menor_cuantia_cerca_del_piso_del_tier_da_un_porcentaje_alto():
     # en menor cuantia -- la matematica exacta del piso/techo ya esta cubierta
     # por los tests puros de _interpolar_dentro_de_rango (Task 3).
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
-        pretensiones_reconocidas=Decimal("87750000.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("87750000.00"),
+        fecha_radicacion=date(2024, 6, 1),
     )
     assert resultado == Decimal("7458750.00")  # 87.750.000 * 8.5%
 
 
 def test_calcular_menor_cuantia_en_el_techo_del_tier_da_el_porcentaje_minimo():
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
-        pretensiones_reconocidas=Decimal("195000000.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("195000000.00"),
+        fecha_radicacion=date(2024, 6, 1),
     )
     assert resultado == Decimal("7800000.00")  # 195.000.000 * 4%
 
 
 def test_calcular_mayor_cuantia_usa_siempre_el_porcentaje_minimo():
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
-        pretensiones_reconocidas=Decimal("300000000.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("300000000.00"),
+        fecha_radicacion=date(2024, 6, 1),
     )
     assert resultado == Decimal("9000000.00")  # 300.000.000 * 3%
 
@@ -189,8 +216,10 @@ def test_calcular_mayor_cuantia_usa_siempre_el_porcentaje_minimo():
 def test_calcular_aplica_tope_de_20_smlmv():
     # 3% de 1.000.000.000 = 30.000.000, pero el tope es 20 * 1.300.000 = 26.000.000.
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
-        pretensiones_reconocidas=Decimal("1000000000.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("1000000000.00"),
+        fecha_radicacion=date(2024, 6, 1),
     )
     assert resultado == Decimal("26000000.00")
 
@@ -198,8 +227,10 @@ def test_calcular_aplica_tope_de_20_smlmv():
 def test_calcular_no_pecuniaria_usa_punto_medio_en_smlmv():
     # Primera instancia, sin pretension pecuniaria: 1-10 SMLMV -> punto medio 5.5 SMLMV.
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.PRIMERA,
-        pretensiones_reconocidas=Decimal("1.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("1.00"),
+        fecha_radicacion=date(2024, 6, 1),
         tiene_pretension_pecuniaria=False,
     )
     assert resultado == Decimal("7150000.00")  # 5.5 * 1.300.000
@@ -208,16 +239,20 @@ def test_calcular_no_pecuniaria_usa_punto_medio_en_smlmv():
 def test_calcular_pretensiones_no_positivas_lanza_value_error():
     with pytest.raises(ValueError):
         calcular_agencias_en_derecho(
-            tipo_proceso=TipoProceso.DECLARATIVO_GENERAL, instancia=Instancia.UNICA,
-            pretensiones_reconocidas=Decimal("0.00"), fecha_radicacion=date(2024, 6, 1),
+            tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+            instancia=Instancia.UNICA,
+            pretensiones_reconocidas=Decimal("0.00"),
+            fecha_radicacion=date(2024, 6, 1),
         )
 
 
 def test_calcular_combinacion_no_registrada_lanza_tarifa_no_disponible():
     with pytest.raises(TarifaNoDisponibleError):
         calcular_agencias_en_derecho(
-            tipo_proceso=TipoProceso.EXPROPIACION, instancia=Instancia.UNICA,
-            pretensiones_reconocidas=Decimal("10000000.00"), fecha_radicacion=date(2024, 6, 1),
+            tipo_proceso=TipoProceso.EXPROPIACION,
+            instancia=Instancia.UNICA,
+            pretensiones_reconocidas=Decimal("10000000.00"),
+            fecha_radicacion=date(2024, 6, 1),
         )
 
 
@@ -268,19 +303,25 @@ def test_monitorio_hasta_5_por_ciento():
 
 @pytest.mark.parametrize("instancia", [Instancia.UNICA, Instancia.PRIMERA])
 def test_ejecutivo_minima_cuantia_unica_y_primera(instancia):
-    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, instancia, CuantiaTier.MINIMA, True)]
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.EJECUTIVO, instancia, CuantiaTier.MINIMA, True)
+    ]
     assert rango == RangoTarifa(Decimal("5"), Decimal("15"), UnidadTarifa.PORCENTAJE)
 
 
 @pytest.mark.parametrize("instancia", [Instancia.UNICA, Instancia.PRIMERA])
 def test_ejecutivo_menor_cuantia_unica_y_primera(instancia):
-    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, instancia, CuantiaTier.MENOR, True)]
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.EJECUTIVO, instancia, CuantiaTier.MENOR, True)
+    ]
     assert rango == RangoTarifa(Decimal("4"), Decimal("10"), UnidadTarifa.PORCENTAJE)
 
 
 @pytest.mark.parametrize("instancia", [Instancia.UNICA, Instancia.PRIMERA])
 def test_ejecutivo_mayor_cuantia_unica_y_primera(instancia):
-    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, instancia, CuantiaTier.MAYOR, True)]
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.EJECUTIVO, instancia, CuantiaTier.MAYOR, True)
+    ]
     assert rango == RangoTarifa(Decimal("3"), Decimal("7.5"), UnidadTarifa.PORCENTAJE)
 
 
@@ -292,7 +333,9 @@ def test_ejecutivo_sin_contenido_dinerario(instancia):
 
 @pytest.mark.parametrize("pecuniaria", [True, False])
 def test_ejecutivo_segunda_instancia(pecuniaria):
-    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.EJECUTIVO, Instancia.SEGUNDA, None, pecuniaria)]
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.EJECUTIVO, Instancia.SEGUNDA, None, pecuniaria)
+    ]
     assert rango == RangoTarifa(Decimal("1"), Decimal("6"), UnidadTarifa.SMLMV)
 
 
@@ -352,7 +395,12 @@ def test_insolvencia_persona_natural_liquidacion_patrimonial():
     # Objeciones a inventarios/avaluos y al proyecto de adjudicacion dentro de
     # la liquidacion patrimonial: 3%-15%, distinto del resto del art. 5.5.4.
     rango = TARIFAS_AGENCIAS_EN_DERECHO[
-        (TipoProceso.INSOLVENCIA_PERSONA_NATURAL_LIQUIDACION_PATRIMONIAL, Instancia.UNICA, None, True)
+        (
+            TipoProceso.INSOLVENCIA_PERSONA_NATURAL_LIQUIDACION_PATRIMONIAL,
+            Instancia.UNICA,
+            None,
+            True,
+        )
     ]
     assert rango == RangoTarifa(Decimal("3"), Decimal("15"), UnidadTarifa.PORCENTAJE)
 
@@ -372,12 +420,15 @@ def test_calcular_tarifa_tier_agnostica_no_interpola_incluso_con_pretension_gran
     # usar el punto medio del rango sin importar que tan grande sea la pretension.
     clave = (TipoProceso.MONITORIO, Instancia.UNICA, None, True)
     monkeypatch.setitem(
-        TARIFAS_AGENCIAS_EN_DERECHO, clave,
+        TARIFAS_AGENCIAS_EN_DERECHO,
+        clave,
         RangoTarifa(Decimal("0"), Decimal("5"), UnidadTarifa.PORCENTAJE),
     )
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.MONITORIO, instancia=Instancia.UNICA,
-        pretensiones_reconocidas=Decimal("300000000.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.MONITORIO,
+        instancia=Instancia.UNICA,
+        pretensiones_reconocidas=Decimal("300000000.00"),
+        fecha_radicacion=date(2024, 6, 1),
     )
     # punto medio del rango (2.5%) * 300.000.000 = 7.500.000,00 -- NO cero.
     assert resultado == Decimal("7500000.00")
@@ -396,7 +447,9 @@ def test_jurisdiccion_voluntaria():
 
 
 def test_recurso_contra_autos():
-    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.RECURSO_CONTRA_AUTOS, Instancia.UNICA, None, True)]
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.RECURSO_CONTRA_AUTOS, Instancia.UNICA, None, True)
+    ]
     assert rango == RangoTarifa(Decimal("0.5"), Decimal("4"), UnidadTarifa.SMLMV)
 
 
@@ -406,7 +459,9 @@ def test_incidente():
 
 
 def test_recurso_extraordinario():
-    rango = TARIFAS_AGENCIAS_EN_DERECHO[(TipoProceso.RECURSO_EXTRAORDINARIO, Instancia.UNICA, None, True)]
+    rango = TARIFAS_AGENCIAS_EN_DERECHO[
+        (TipoProceso.RECURSO_EXTRAORDINARIO, Instancia.UNICA, None, True)
+    ]
     assert rango == RangoTarifa(Decimal("1"), Decimal("20"), UnidadTarifa.SMLMV)
 
 
@@ -420,7 +475,9 @@ def test_recurso_extraordinario_calcula_punto_medio_del_rango_smlmv():
     # este test confirma que el propio rango de esta categoria puede llegar
     # hasta el tope maximo sin necesitar interpolacion adicional.
     resultado = calcular_agencias_en_derecho(
-        tipo_proceso=TipoProceso.RECURSO_EXTRAORDINARIO, instancia=Instancia.UNICA,
-        pretensiones_reconocidas=Decimal("1.00"), fecha_radicacion=date(2024, 6, 1),
+        tipo_proceso=TipoProceso.RECURSO_EXTRAORDINARIO,
+        instancia=Instancia.UNICA,
+        pretensiones_reconocidas=Decimal("1.00"),
+        fecha_radicacion=date(2024, 6, 1),
     )
     assert resultado == Decimal("13650000.00")  # 10.5 * 1.300.000

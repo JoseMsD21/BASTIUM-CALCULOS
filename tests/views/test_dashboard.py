@@ -308,8 +308,10 @@ def test_dashboard_grafica_se_puebla_con_expedientes_por_area(qtbot, monkeypatch
     qtbot.addWidget(view)
 
     etiquetas_esperadas = [etiqueta for _codigo, etiqueta, _habilitada in AREAS_DERECHO]
-    conteos_esperados = [2 if etiqueta == "Civil / Familia" else 1 if etiqueta == "Comercial" else 0
-                          for etiqueta in etiquetas_esperadas]
+    conteos_esperados = [
+        2 if etiqueta == "Civil / Familia" else 1 if etiqueta == "Comercial" else 0
+        for etiqueta in etiquetas_esperadas
+    ]
 
     ejes = view.figura_por_area.axes[0]
     barras = ejes.containers[0]

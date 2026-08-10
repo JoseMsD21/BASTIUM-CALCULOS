@@ -9,26 +9,43 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
-from database.models import AreaDerecho, Base, DescuentoLaboral, Expediente, Obligacion, TipoObligacion
+from database.models import (
+    AreaDerecho,
+    Base,
+    DescuentoLaboral,
+    Expediente,
+    Obligacion,
+    TipoObligacion,
+)
 
 
 def _obligacion_laboral_de_prueba(monkeypatch) -> int:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
-        radicado="2026-080", demandante="Trabajador", demandado="Empleador SAS",
-        area_derecho=AreaDerecho.LABORAL, fecha_corte_default=date(2026, 6, 1),
+        radicado="2026-080",
+        demandante="Trabajador",
+        demandado="Empleador SAS",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 6, 1),
     )
     session.add(expediente)
     session.flush()
     obligacion = Obligacion(
-        expediente_id=expediente.id, tipo=TipoObligacion.PUNTUAL,
-        concepto="Liquidacion de contrato", categoria="LIQUIDACION_CONTRATO_LABORAL",
-        fecha_origen=date(2020, 1, 1), valor=Decimal("3000000.00"),
-        tasa_efectiva_anual=Decimal("0.00"), fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
     )
     session.add(obligacion)
     session.commit()

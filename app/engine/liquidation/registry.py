@@ -37,9 +37,15 @@ def _register_default_areas():
     AreaRegistry.register(
         "CIVIL_FAMILIA", "Obligaciones Civiles y de Familia (Art. 1617 C.C.)", CivilFamiliaStrategy
     )
-    AreaRegistry.register("COMERCIAL", "Obligaciones Comerciales (Art. 884 C.Co.)", ComercialStrategy)
-    AreaRegistry.register("LABORAL", "Obligaciones Laborales (Cesantias, Art. 65 CST)", LaboralStrategy)
-    AreaRegistry.register("SANCIONATORIO", "Sanciones administrativas (SMLMV / UVT)", SancionatorioStrategy)
+    AreaRegistry.register(
+        "COMERCIAL", "Obligaciones Comerciales (Art. 884 C.Co.)", ComercialStrategy
+    )
+    AreaRegistry.register(
+        "LABORAL", "Obligaciones Laborales (Cesantias, Art. 65 CST)", LaboralStrategy
+    )
+    AreaRegistry.register(
+        "SANCIONATORIO", "Sanciones administrativas (SMLMV / UVT)", SancionatorioStrategy
+    )
     AreaRegistry.register("HONORARIOS", "Cobro de honorarios y cuota litis", HonorariosStrategy)
     AreaRegistry.register(
         "TRIBUTARIO", "Impuesto a cargo, sanciones tributarias y renta liquida", TributarioStrategy

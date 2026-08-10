@@ -46,8 +46,7 @@ class ExpedienteFormDialog(QDialog):
         self.campo_fecha_corte = QDateEdit(QDate.currentDate())
         self.campo_fecha_corte.setCalendarPopup(True)
         self.campo_fecha_corte.setToolTip(
-            "Fecha hasta la que se calculan los intereses por defecto al liquidar este "
-            "expediente."
+            "Fecha hasta la que se calculan los intereses por defecto al liquidar este expediente."
         )
 
         self.combo_area = QComboBox()
@@ -122,7 +121,7 @@ class ExpedienteFormDialog(QDialog):
             self.campo_fecha_corte,
             self.boton_guardar,
         ]
-        for anterior, siguiente in zip(orden, orden[1:]):
+        for anterior, siguiente in zip(orden, orden[1:], strict=False):
             self.setTabOrder(anterior, siguiente)
 
     def guardar(self) -> int:
@@ -188,9 +187,7 @@ class ExpedientesListView(QWidget):
         self._estado_vacio_es_por_filtros = False
 
         self.campo_busqueda = QLineEdit()
-        self.campo_busqueda.setPlaceholderText(
-            "Buscar por radicado, demandante o demandado..."
-        )
+        self.campo_busqueda.setPlaceholderText("Buscar por radicado, demandante o demandado...")
         self.campo_busqueda.textChanged.connect(self.refrescar)
 
         self.combo_filtro_area = QComboBox()
@@ -313,8 +310,7 @@ class ExpedientesListView(QWidget):
         if total_en_base_de_datos == 0:
             self._estado_vacio_es_por_filtros = False
             self.etiqueta_estado_vacio.setText(
-                "Todavia no hay expedientes cargados.\n"
-                "Crea el primero para empezar a liquidar."
+                "Todavia no hay expedientes cargados.\nCrea el primero para empezar a liquidar."
             )
             self.boton_accion_estado_vacio.setText("Crear expediente")
         else:
@@ -395,7 +391,9 @@ class ExpedientesListView(QWidget):
         )
         if not ok or texto.strip() != radicado:
             QMessageBox.warning(
-                self, "Eliminacion cancelada", "El radicado no coincide. No se elimino el expediente."
+                self,
+                "Eliminacion cancelada",
+                "El radicado no coincide. No se elimino el expediente.",
             )
             return
 

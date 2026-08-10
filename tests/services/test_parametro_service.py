@@ -10,10 +10,17 @@ from database.models import ParametroLegal
 
 def _insertar(clave, valor, vigente_desde, vigente_hasta=None):
     session = session_module.get_session()
-    session.add(ParametroLegal(
-        clave=clave, valor=Decimal(valor), vigente_desde=vigente_desde, vigente_hasta=vigente_hasta,
-        usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave=clave,
+            valor=Decimal(valor),
+            vigente_desde=vigente_desde,
+            vigente_hasta=vigente_hasta,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     session.commit()
     session.close()
 
@@ -86,14 +93,15 @@ def test_get_parametro_modo_tramo_cerrado_no_extrapola_mas_alla_del_ultimo_tramo
         get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 2, 1))
 
 
-
-
 def test_agregar_valor_modo_abierto_no_admite_vigente_hasta():
     from app.services.parametro_service import agregar_valor
 
     with pytest.raises(ValueError):
         agregar_valor(
-            "USURA_MULTIPLICADOR", Decimal("1.5"), date(2026, 1, 1), "abogado1",
+            "USURA_MULTIPLICADOR",
+            Decimal("1.5"),
+            date(2026, 1, 1),
+            "abogado1",
             vigente_hasta=date(2026, 12, 31),
         )
 
@@ -109,7 +117,10 @@ def test_agregar_valor_guarda_y_queda_disponible_para_get_parametro():
     from app.services.parametro_service import agregar_valor, get_parametro
 
     agregar_valor(
-        "SMLMV", Decimal("1900000.00"), date(2027, 1, 1), "abogado1",
+        "SMLMV",
+        Decimal("1900000.00"),
+        date(2027, 1, 1),
+        "abogado1",
         motivo="Publicado por el Gobierno",
     )
     assert get_parametro("SMLMV", date(2027, 3, 1)) == Decimal("1900000.00")
@@ -181,7 +192,10 @@ def test_agregar_valor_rechaza_vigente_hasta_anterior_a_vigente_desde():
 
     with pytest.raises(ValueError):
         agregar_valor(
-            "IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 2, 1), "abogado1",
+            "IBC_CONSUMO_ORDINARIO",
+            Decimal("16.24"),
+            date(2026, 2, 1),
+            "abogado1",
             vigente_hasta=date(2026, 1, 1),
         )
 
@@ -190,12 +204,18 @@ def test_agregar_valor_rechaza_tramo_cerrado_solapado():
     from app.services.parametro_service import agregar_valor
 
     agregar_valor(
-        "IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 1, 1), "abogado1",
+        "IBC_CONSUMO_ORDINARIO",
+        Decimal("16.24"),
+        date(2026, 1, 1),
+        "abogado1",
         vigente_hasta=date(2026, 1, 31),
     )
     with pytest.raises(ValueError):
         agregar_valor(
-            "IBC_CONSUMO_ORDINARIO", Decimal("16.50"), date(2026, 1, 15), "abogado1",
+            "IBC_CONSUMO_ORDINARIO",
+            Decimal("16.50"),
+            date(2026, 1, 15),
+            "abogado1",
             vigente_hasta=date(2026, 2, 15),
         )
 
@@ -204,11 +224,17 @@ def test_agregar_valor_permite_tramo_cerrado_consecutivo_sin_solape():
     from app.services.parametro_service import agregar_valor
 
     agregar_valor(
-        "IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 1, 1), "abogado1",
+        "IBC_CONSUMO_ORDINARIO",
+        Decimal("16.24"),
+        date(2026, 1, 1),
+        "abogado1",
         vigente_hasta=date(2026, 1, 31),
     )
     fila = agregar_valor(
-        "IBC_CONSUMO_ORDINARIO", Decimal("16.82"), date(2026, 2, 1), "abogado1",
+        "IBC_CONSUMO_ORDINARIO",
+        Decimal("16.82"),
+        date(2026, 2, 1),
+        "abogado1",
         vigente_hasta=date(2026, 2, 28),
     )
     assert fila.valor == Decimal("16.82")

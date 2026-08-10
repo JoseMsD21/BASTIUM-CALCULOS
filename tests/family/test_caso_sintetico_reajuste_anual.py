@@ -53,14 +53,28 @@ def _sembrar_smlmv_sintetico(session) -> None:
     # Cifras redondas sinteticas (no la serie SMLMV real -- ver docstring del
     # modulo): 2023 -> 2024 sube 10%, para poder verificar a mano el capital
     # reajustado de cada año.
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("1000000.00"), vigente_desde=date(2023, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("1100000.00"), vigente_desde=date(2024, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("1000000.00"),
+            vigente_desde=date(2023, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("1100000.00"),
+            vigente_desde=date(2024, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
 
 
 def _crear_expediente_y_obligacion_recurrente(session) -> tuple[int, int]:
@@ -131,9 +145,14 @@ def test_caso_sintetico_capital_correcto_por_anio_y_mora_independiente_con_abono
     assert monto_abono < interes_causado_cuota_noviembre_al_abono
 
     session = session_module.get_session()
-    session.add(Abono(
-        obligacion_id=cuota_noviembre.id, fecha=fecha_abono, monto=monto_abono, referencia="Abono parcial",
-    ))
+    session.add(
+        Abono(
+            obligacion_id=cuota_noviembre.id,
+            fecha=fecha_abono,
+            monto=monto_abono,
+            referencia="Abono parcial",
+        )
+    )
     session.commit()
     session.close()
 
@@ -168,7 +187,10 @@ def test_caso_sintetico_capital_correcto_por_anio_y_mora_independiente_con_abono
     # (tests/family/test_interes_autonomo_por_cuota.py), aqui extendido a un
     # escenario con reajuste anual real y un abono parcial de por medio.
     interes_aislado_total_sin_abonos = sum(
-        (_interes_aislado_dia_a_dia(cuota.valor, cuota.fecha_origen, fecha_corte) for cuota in cuotas),
+        (
+            _interes_aislado_dia_a_dia(cuota.valor, cuota.fecha_origen, fecha_corte)
+            for cuota in cuotas
+        ),
         Decimal("0.00"),
     )
     interes_consolidado_esperado = interes_aislado_total_sin_abonos - monto_abono

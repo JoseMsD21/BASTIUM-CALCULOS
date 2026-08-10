@@ -22,7 +22,9 @@ from app.services.parametro_service import get_parametro
 
 PUNTOS_DESCUENTO_ET_635 = Decimal("2")
 
-FUENTE_MORATORIO_TRIBUTARIO = "Interes moratorio tributario (E.T. art. 635): usura vigente - 2 puntos"
+FUENTE_MORATORIO_TRIBUTARIO = (
+    "Interes moratorio tributario (E.T. art. 635): usura vigente - 2 puntos"
+)
 
 
 def construir_rate_provider_moratorio_tributario(

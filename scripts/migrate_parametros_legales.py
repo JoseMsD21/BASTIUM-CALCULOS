@@ -71,9 +71,7 @@ from database.models import ParametroLegal
 from database.session import get_session
 
 USUARIO_MIGRACION = "sistema"
-MOTIVO_MIGRACION = (
-    "Dato migrado automaticamente al implementar parametros legales versionados."
-)
+MOTIVO_MIGRACION = "Dato migrado automaticamente al implementar parametros legales versionados."
 ANCLA_SIN_FECHA_NORMA = date(1900, 1, 1)
 
 _CLAVE_POR_TIPO_ACCION = {
@@ -82,14 +80,23 @@ _CLAVE_POR_TIPO_ACCION = {
     TipoAccion.HONORARIOS_PROFESIONALES: "PRESCRIPCION_HONORARIOS_MESES",
     TipoAccion.CAMBIARIA_DIRECTA: "PRESCRIPCION_CAMBIARIA_DIRECTA_MESES",
     TipoAccion.CAMBIARIA_REGRESO_TENEDOR: "PRESCRIPCION_CAMBIARIA_REGRESO_TENEDOR_MESES",
-    TipoAccion.CAMBIARIA_REGRESO_ENTRE_OBLIGADOS: "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES",
+    TipoAccion.CAMBIARIA_REGRESO_ENTRE_OBLIGADOS: (
+        "PRESCRIPCION_CAMBIARIA_REGRESO_ENTRE_OBLIGADOS_MESES"
+    ),
 }
 
 
-def _fila(clave: str, valor: Decimal, vigente_desde: date, vigente_hasta: date | None = None) -> ParametroLegal:
+def _fila(
+    clave: str, valor: Decimal, vigente_desde: date, vigente_hasta: date | None = None
+) -> ParametroLegal:
     return ParametroLegal(
-        clave=clave, valor=valor, vigente_desde=vigente_desde, vigente_hasta=vigente_hasta,
-        usuario=USUARIO_MIGRACION, motivo=MOTIVO_MIGRACION, creado_en=datetime.now(),
+        clave=clave,
+        valor=valor,
+        vigente_desde=vigente_desde,
+        vigente_hasta=vigente_hasta,
+        usuario=USUARIO_MIGRACION,
+        motivo=MOTIVO_MIGRACION,
+        creado_en=datetime.now(),
     )
 
 
@@ -142,7 +149,11 @@ def migrar() -> int:
         for tipo_accion, clave in _CLAVE_POR_TIPO_ACCION.items():
             if _clave_ya_sembrada(session, clave):
                 continue
-            session.add(_fila(clave, Decimal(PLAZOS_PRESCRIPCION_MESES[tipo_accion]), ANCLA_SIN_FECHA_NORMA))
+            session.add(
+                _fila(
+                    clave, Decimal(PLAZOS_PRESCRIPCION_MESES[tipo_accion]), ANCLA_SIN_FECHA_NORMA
+                )
+            )
             sembradas += 1
 
         for tipo_proceso, meses in PLAZOS_CADUCIDAD_MESES_CONOCIDOS.items():
@@ -164,12 +175,16 @@ def migrar() -> int:
 
         if not _clave_ya_sembrada(session, "IBC_CONSUMO_ORDINARIO"):
             for tramo in _TRAMOS_IBC_USURA:
-                session.add(_fila("IBC_CONSUMO_ORDINARIO", tramo.ibc_anual, tramo.inicio, tramo.fin))
+                session.add(
+                    _fila("IBC_CONSUMO_ORDINARIO", tramo.ibc_anual, tramo.inicio, tramo.fin)
+                )
             sembradas += 1
 
         if not _clave_ya_sembrada(session, "USURA_CONSUMO_ORDINARIO"):
             for tramo in _TRAMOS_IBC_USURA:
-                session.add(_fila("USURA_CONSUMO_ORDINARIO", tramo.usura_anual, tramo.inicio, tramo.fin))
+                session.add(
+                    _fila("USURA_CONSUMO_ORDINARIO", tramo.usura_anual, tramo.inicio, tramo.fin)
+                )
             sembradas += 1
 
         if not _clave_ya_sembrada(session, "UVT"):

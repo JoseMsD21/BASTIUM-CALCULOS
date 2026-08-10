@@ -61,7 +61,9 @@ def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> 
     identico al de antes de este sprint)."""
     if obligacion.costas_pct_manual is not None:
         validar_costas_pct_manual(
-            obligacion.costas_pct_manual, pretensiones_reconocidas, obligacion.fecha_origen,
+            obligacion.costas_pct_manual,
+            pretensiones_reconocidas,
+            obligacion.fecha_origen,
         )
         costas_monto = pretensiones_reconocidas * obligacion.costas_pct_manual / Decimal("100")
     elif obligacion.costas_tipo_proceso is not None and obligacion.costas_instancia is not None:
@@ -122,24 +124,29 @@ def _liquidar_por_obligacion(
         abonos_obligacion = [abono for abono in abonos if abono.obligacion_id == obligacion.id]
         pagos = [
             Payment(
-                date=abono.fecha, amount=monto_abono_fn(obligacion, abono),
+                date=abono.fecha,
+                amount=monto_abono_fn(obligacion, abono),
                 reference=abono.referencia or "",
             )
             for abono in abonos_obligacion
         ]
         service = UniversalLiquidationService()
-        resultados.append(service.liquidar(
-            eventos_causacion=eventos_fn(obligacion),
-            pagos=pagos,
-            fecha_corte=fecha_corte,
-            rate_provider=rate_provider_fn(obligacion, fecha_corte),
-            usar_suma_unica=usar_suma_unica_fn(obligacion),
-        ))
+        resultados.append(
+            service.liquidar(
+                eventos_causacion=eventos_fn(obligacion),
+                pagos=pagos,
+                fecha_corte=fecha_corte,
+                rate_provider=rate_provider_fn(obligacion, fecha_corte),
+                usar_suma_unica=usar_suma_unica_fn(obligacion),
+            )
+        )
 
     return _fusionar_resultados(resultados, fecha_corte)
 
 
-def _fusionar_resultados(resultados: list[LiquidationResult], fecha_corte: date) -> LiquidationResult:
+def _fusionar_resultados(
+    resultados: list[LiquidationResult], fecha_corte: date
+) -> LiquidationResult:
     """Intercala los items de N LiquidationResult (uno por obligacion) en una sola linea
     de tiempo cronologica, recalculando el saldo consolidado del expediente en cada fila.
     Colapsa a la identidad cuando hay una sola obligacion (garantiza que los expedientes
@@ -163,17 +170,23 @@ def _fusionar_resultados(resultados: list[LiquidationResult], fecha_corte: date)
     for _fecha, indice_obligacion, _posicion, item in filas_regulares:
         ultimo_estado[indice_obligacion] = item.balance.debt
         saldo_consolidado = PendingDebt(
-            principal=sum((estado.principal for estado in ultimo_estado.values()), Decimal("0.00")),
-            interest=sum((estado.interest for estado in ultimo_estado.values()), Decimal("0.00")),
-            indexation=sum((estado.indexation for estado in ultimo_estado.values()), Decimal("0.00")),
-        )
-        items_fusionados.append(replace(
-            item,
-            capital_base=saldo_consolidado.principal,
-            balance=RunningBalance(
-                date=item.date, debt=saldo_consolidado, event_type=item.balance.event_type
+            principal=sum(
+                (estado.principal for estado in ultimo_estado.values()), Decimal("0.00")
             ),
-        ))
+            interest=sum((estado.interest for estado in ultimo_estado.values()), Decimal("0.00")),
+            indexation=sum(
+                (estado.indexation for estado in ultimo_estado.values()), Decimal("0.00")
+            ),
+        )
+        items_fusionados.append(
+            replace(
+                item,
+                capital_base=saldo_consolidado.principal,
+                balance=RunningBalance(
+                    date=item.date, debt=saldo_consolidado, event_type=item.balance.event_type
+                ),
+            )
+        )
 
     # Misma condicion que usa LiquidationCore.process() para agregar su propia fila de
     # cierre (last_event_date < cutoff_date): si al menos una obligacion la disparo, se
@@ -188,17 +201,21 @@ def _fusionar_resultados(resultados: list[LiquidationResult], fecha_corte: date)
             interest=sum((r.final_balance().interest for r in resultados), Decimal("0.00")),
             indexation=sum((r.final_balance().indexation for r in resultados), Decimal("0.00")),
         )
-        items_fusionados.append(LiquidationItem(
-            date=fecha_corte,
-            concept="Corte final de liquidación",
-            capital_base=saldo_final.principal,
-            interest_rate=Decimal("0.00"),
-            interest_amount=Decimal("0.00"),
-            indexation_amount=Decimal("0.00"),
-            payment_amount=Decimal("0.00"),
-            balance=RunningBalance(date=fecha_corte, debt=saldo_final, event_type="LIQUIDATION_CUTOFF"),
-            rate_source="Varias tasas — ver detalle por fila arriba",
-        ))
+        items_fusionados.append(
+            LiquidationItem(
+                date=fecha_corte,
+                concept="Corte final de liquidación",
+                capital_base=saldo_final.principal,
+                interest_rate=Decimal("0.00"),
+                interest_amount=Decimal("0.00"),
+                indexation_amount=Decimal("0.00"),
+                payment_amount=Decimal("0.00"),
+                balance=RunningBalance(
+                    date=fecha_corte, debt=saldo_final, event_type="LIQUIDATION_CUTOFF"
+                ),
+                rate_source="Varias tasas — ver detalle por fila arriba",
+            )
+        )
 
     return LiquidationResult(items_fusionados)
 
@@ -222,7 +239,10 @@ class AreaStrategy(ABC):
         tasa_diaria = EffectiveRateConverter.annual_to_daily(tasa_efectiva_anual)
         provider = MemoryRateProvider()
         provider.add_rate_period(
-            start=fecha_inicio - timedelta(days=1), end=fecha_corte, rate=tasa_diaria, source=source,
+            start=fecha_inicio - timedelta(days=1),
+            end=fecha_corte,
+            rate=tasa_diaria,
+            source=source,
         )
         return provider
 
@@ -281,7 +301,9 @@ class CivilFamiliaStrategy(AreaStrategy):
         puede variar libremente obligacion por obligacion sin ambiguedad; no
         hace falta validar consistencia entre obligaciones (a diferencia de la
         version original de este metodo, escrita antes del Sprint 21)."""
-        return bool(obligacion.aplica_indexacion_ipc) and bool(obligacion.interes_sobre_capital_indexado)
+        return bool(obligacion.aplica_indexacion_ipc) and bool(
+            obligacion.interes_sobre_capital_indexado
+        )
 
     def _eventos_de_obligacion(
         self, obligacion, fecha_corte: date, ids_con_cuotas_generadas: set[int] | None = None
@@ -303,7 +325,9 @@ class CivilFamiliaStrategy(AreaStrategy):
                         fecha_corte=fecha_corte,
                     )
                 )
-            evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.valor)
+            evento_costas = _evento_costas_procesales(
+                obligacion, pretensiones_reconocidas=obligacion.valor
+            )
             if evento_costas is not None:
                 eventos.append(evento_costas)
             return eventos
@@ -377,12 +401,18 @@ class CivilFamiliaStrategy(AreaStrategy):
             event_type="INDEXATION",
         )
 
-    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+    def _construir_rate_provider_obligacion(
+        self, obligacion, fecha_corte: date
+    ) -> MemoryRateProvider:
         fecha_inicio = (
-            obligacion.fecha_origen if obligacion.tipo.value == "PUNTUAL" else obligacion.fecha_inicio
+            obligacion.fecha_origen
+            if obligacion.tipo.value == "PUNTUAL"
+            else obligacion.fecha_inicio
         )
         return self._rate_provider_tasa_plana(
-            fecha_inicio, fecha_corte, obligacion.tasa_efectiva_anual,
+            fecha_inicio,
+            fecha_corte,
+            obligacion.tasa_efectiva_anual,
             source="Tasa pactada en la obligación (Art. 1617 C.C.)",
         )
 
@@ -398,7 +428,8 @@ class ComercialStrategy(AreaStrategy):
     Split real de tasa remuneratoria (antes del vencimiento) / moratoria (despues)
     solo aplica a obligaciones PUNTUAL. RECURRENTE usa una sola tasa moratoria para
     todo el periodo, igual que CivilFamiliaStrategy, porque el vencimiento de cada
-    cuota individual no esta modelado (ver docs/superpowers/specs/2026-07-15-area-comercial-design.md).
+    cuota individual no esta modelado
+    (ver docs/superpowers/specs/2026-07-15-area-comercial-design.md).
 
     No es compatible con indexacion IPC (soporta_indexacion_ipc = False).
 
@@ -470,25 +501,38 @@ class ComercialStrategy(AreaStrategy):
         eventos = self._eventos_de_obligacion(obligacion, fecha_corte)
         pagos = [
             Payment(
-                date=abono.fecha, amount=self._monto_abono_en_pesos(obligacion, abono),
+                date=abono.fecha,
+                amount=self._monto_abono_en_pesos(obligacion, abono),
                 reference=abono.referencia or "",
             )
             for abono in abonos
         ]
 
-        intereses_cobrados = UniversalLiquidationService().liquidar(
-            eventos_causacion=eventos,
-            pagos=pagos,
-            fecha_corte=fecha_corte,
-            rate_provider=self._construir_rate_provider_obligacion(obligacion, fecha_corte),
-        ).final_balance().interest
+        intereses_cobrados = (
+            UniversalLiquidationService()
+            .liquidar(
+                eventos_causacion=eventos,
+                pagos=pagos,
+                fecha_corte=fecha_corte,
+                rate_provider=self._construir_rate_provider_obligacion(obligacion, fecha_corte),
+            )
+            .final_balance()
+            .interest
+        )
 
-        intereses_con_tasa_usura = UniversalLiquidationService().liquidar(
-            eventos_causacion=eventos,
-            pagos=pagos,
-            fecha_corte=fecha_corte,
-            rate_provider=self._construir_rate_provider_obligacion(obligacion, fecha_corte, tope=tope),
-        ).final_balance().interest
+        intereses_con_tasa_usura = (
+            UniversalLiquidationService()
+            .liquidar(
+                eventos_causacion=eventos,
+                pagos=pagos,
+                fecha_corte=fecha_corte,
+                rate_provider=self._construir_rate_provider_obligacion(
+                    obligacion, fecha_corte, tope=tope
+                ),
+            )
+            .final_balance()
+            .interest
+        )
 
         exceso = intereses_cobrados - intereses_con_tasa_usura
         return {
@@ -509,20 +553,25 @@ class ComercialStrategy(AreaStrategy):
                 interest=saldo.interest - ajuste["sancion"],
                 indexation=saldo.indexation,
             )
-            items.append(LiquidationItem(
-                date=fecha_corte,
-                concept=(
-                    f"Sanción por usura (Art. 72 Ley 45/1990) — {ajuste['obligacion'].concepto}: "
-                    f"exceso cobrado {ajuste['exceso']} x 2, devuelto doblado al deudor"
-                ),
-                capital_base=saldo.principal,
-                interest_rate=Decimal("0.00"),
-                interest_amount=-ajuste["sancion"],
-                indexation_amount=Decimal("0.00"),
-                payment_amount=Decimal("0.00"),
-                balance=RunningBalance(date=fecha_corte, debt=saldo, event_type="SANCION_USURA"),
-                rate_source=f"Tope de usura vigente: {ajuste['tope']}% (Ley 45/1990 art. 72)",
-            ))
+            items.append(
+                LiquidationItem(
+                    date=fecha_corte,
+                    concept=(
+                        f"Sanción por usura (Art. 72 Ley 45/1990) — "
+                        f"{ajuste['obligacion'].concepto}: "
+                        f"exceso cobrado {ajuste['exceso']} x 2, devuelto doblado al deudor"
+                    ),
+                    capital_base=saldo.principal,
+                    interest_rate=Decimal("0.00"),
+                    interest_amount=-ajuste["sancion"],
+                    indexation_amount=Decimal("0.00"),
+                    payment_amount=Decimal("0.00"),
+                    balance=RunningBalance(
+                        date=fecha_corte, debt=saldo, event_type="SANCION_USURA"
+                    ),
+                    rate_source=f"Tope de usura vigente: {ajuste['tope']}% (Ley 45/1990 art. 72)",
+                )
+            )
         return LiquidationResult(items, renta_liquida=resultado.renta_liquida)
 
     def _validar_obligacion_comercial(self, obligacion) -> None:
@@ -542,7 +591,8 @@ class ComercialStrategy(AreaStrategy):
         if obligacion.fecha_vencimiento < obligacion.fecha_origen:
             raise ValueError(
                 f"La obligacion comercial '{obligacion.concepto}' tiene fecha_vencimiento "
-                f"({obligacion.fecha_vencimiento}) anterior a fecha_origen ({obligacion.fecha_origen})."
+                f"({obligacion.fecha_vencimiento}) anterior a fecha_origen "
+                f"({obligacion.fecha_origen})."
             )
 
         # Una tasa pactada por encima del tope de usura ya NO se rechaza aqui (ver
@@ -561,7 +611,10 @@ class ComercialStrategy(AreaStrategy):
                     f"({obligacion.trm_aplicable}) que no es un valor positivo."
                 )
 
-        if obligacion.anatocismo_demanda_judicial and obligacion.anatocismo_fecha_acuerdo is not None:
+        if (
+            obligacion.anatocismo_demanda_judicial
+            and obligacion.anatocismo_fecha_acuerdo is not None
+        ):
             raise ValueError(
                 f"La obligacion comercial '{obligacion.concepto}' no puede tener "
                 f"'anatocismo_demanda_judicial' y 'anatocismo_fecha_acuerdo' activos a la vez "
@@ -569,7 +622,8 @@ class ComercialStrategy(AreaStrategy):
             )
 
         anatocismo_activo = (
-            obligacion.anatocismo_demanda_judicial or obligacion.anatocismo_fecha_acuerdo is not None
+            obligacion.anatocismo_demanda_judicial
+            or obligacion.anatocismo_fecha_acuerdo is not None
         )
         if anatocismo_activo and obligacion.tipo.value != "PUNTUAL":
             raise ValueError(
@@ -582,9 +636,11 @@ class ComercialStrategy(AreaStrategy):
             fecha_minima_acuerdo = obligacion.fecha_vencimiento + timedelta(days=365)
             if obligacion.anatocismo_fecha_acuerdo < fecha_minima_acuerdo:
                 raise ValueError(
-                    f"La obligacion comercial '{obligacion.concepto}' tiene 'anatocismo_fecha_acuerdo' "
-                    f"({obligacion.anatocismo_fecha_acuerdo}) que no cumple el año de anterioridad "
-                    f"exigido por el Art. 886 C.Co. (debe ser >= {fecha_minima_acuerdo})."
+                    f"La obligacion comercial '{obligacion.concepto}' tiene "
+                    f"'anatocismo_fecha_acuerdo' "
+                    f"({obligacion.anatocismo_fecha_acuerdo}) que no cumple el año de "
+                    f"anterioridad exigido por el Art. 886 C.Co. "
+                    f"(debe ser >= {fecha_minima_acuerdo})."
                 )
 
     def _resolver_trm_provider(self, obligacion) -> TRMProvider:
@@ -635,7 +691,10 @@ class ComercialStrategy(AreaStrategy):
                 Event(
                     date=fecha_evento,
                     payload={
-                        "label": "Capitalización de intereses (Art. 886 C.Co. — anatocismo comercial)"
+                        "label": (
+                            "Capitalización de intereses "
+                            "(Art. 886 C.Co. — anatocismo comercial)"
+                        )
                     },
                     event_type="CAPITALIZACION_INTERESES_ANATOCISMO",
                 )
@@ -654,7 +713,9 @@ class ComercialStrategy(AreaStrategy):
                 )
             ]
             eventos.extend(self._eventos_anatocismo(obligacion, fecha_corte))
-            evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=valor_pesos)
+            evento_costas = _evento_costas_procesales(
+                obligacion, pretensiones_reconocidas=valor_pesos
+            )
             if evento_costas is not None:
                 eventos.append(evento_costas)
             return eventos
@@ -688,7 +749,9 @@ class ComercialStrategy(AreaStrategy):
         tasa_moratoria_diaria = EffectiveRateConverter.annual_to_daily(tasa_moratoria_anual)
 
         if obligacion.tipo.value == "PUNTUAL":
-            tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(tasa_remuneratoria_anual)
+            tasa_remuneratoria_diaria = EffectiveRateConverter.annual_to_daily(
+                tasa_remuneratoria_anual
+            )
             inicio_remuneratorio = obligacion.fecha_origen - timedelta(days=1)
             fin_remuneratorio = min(obligacion.fecha_vencimiento, fecha_corte)
             provider.add_rate_period(
@@ -781,7 +844,9 @@ class LaboralStrategy(AreaStrategy):
 
         monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
 
-        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=monto_prestaciones)
+        evento_costas = _evento_costas_procesales(
+            obligacion, pretensiones_reconocidas=monto_prestaciones
+        )
         if evento_costas is not None:
             eventos.append(evento_costas)
 
@@ -799,50 +864,76 @@ class LaboralStrategy(AreaStrategy):
                 fecha_referencia=obligacion.fecha_fin,
             )
             for concepto, monto, etiqueta in [
-                ("COTIZACION_PENSION", cotizaciones.monto_pension, "Cotizacion Pension (seguridad social no pagada)"),
-                ("COTIZACION_SALUD", cotizaciones.monto_salud, "Cotizacion Salud (seguridad social no pagada)"),
-                ("COTIZACION_ARL", cotizaciones.monto_arl, "Cotizacion ARL (seguridad social no pagada)"),
-                ("COTIZACION_FSP", cotizaciones.monto_fsp, "Cotizacion FSP (Fondo de Solidaridad Pensional)"),
+                (
+                    "COTIZACION_PENSION",
+                    cotizaciones.monto_pension,
+                    "Cotizacion Pension (seguridad social no pagada)",
+                ),
+                (
+                    "COTIZACION_SALUD",
+                    cotizaciones.monto_salud,
+                    "Cotizacion Salud (seguridad social no pagada)",
+                ),
+                (
+                    "COTIZACION_ARL",
+                    cotizaciones.monto_arl,
+                    "Cotizacion ARL (seguridad social no pagada)",
+                ),
+                (
+                    "COTIZACION_FSP",
+                    cotizaciones.monto_fsp,
+                    "Cotizacion FSP (Fondo de Solidaridad Pensional)",
+                ),
             ]:
                 if monto > Decimal("0.00"):
-                    eventos.append(Event(
-                        date=obligacion.fecha_fin,
-                        payload={"amount": monto, "label": etiqueta},
-                        event_type=concepto,
-                    ))
+                    eventos.append(
+                        Event(
+                            date=obligacion.fecha_fin,
+                            payload={"amount": monto, "label": etiqueta},
+                            event_type=concepto,
+                        )
+                    )
 
             for evento in obligacion.eventos_laborales:
                 if evento.tipo.value == "SUSPENSION":
-                    eventos.append(Event(
-                        date=evento.fecha_fin,
-                        payload={
-                            "amount": Decimal("0.00"),
-                            "label": (
-                                f"Suspension ({evento.motivo_suspension.value}) "
-                                f"{evento.fecha_inicio}-{evento.fecha_fin}: no causa ARL"
-                            ),
-                        },
-                        event_type="SUSPENSION_INFORMATIVA",
-                    ))
+                    eventos.append(
+                        Event(
+                            date=evento.fecha_fin,
+                            payload={
+                                "amount": Decimal("0.00"),
+                                "label": (
+                                    f"Suspension ({evento.motivo_suspension.value}) "
+                                    f"{evento.fecha_inicio}-{evento.fecha_fin}: no causa ARL"
+                                ),
+                            },
+                            event_type="SUSPENSION_INFORMATIVA",
+                        )
+                    )
                 else:
                     dias_incapacidad = (evento.fecha_fin - evento.fecha_inicio).days
                     desglose = IncapacidadCalculator.calcular(
-                        tipo=evento.tipo, ibc_mensual=cotizaciones.ibc_mensual,
+                        tipo=evento.tipo,
+                        ibc_mensual=cotizaciones.ibc_mensual,
                         dias_incapacidad=dias_incapacidad,
                     )
                     for tramo in desglose.tramos:
                         es_empleador = tramo.pagador == "EMPLEADOR"
-                        eventos.append(Event(
-                            date=evento.fecha_fin,
-                            payload={
-                                "amount": tramo.monto if es_empleador else Decimal("0.00"),
-                                "label": (
-                                    f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
-                                    f"{tramo.pagador} ({tramo.porcentaje:.2%}): ${tramo.monto:,.2f}"
-                                ),
-                            },
-                            event_type="INCAPACIDAD_EMPLEADOR" if es_empleador else "INCAPACIDAD_INFORMATIVA",
-                        ))
+                        eventos.append(
+                            Event(
+                                date=evento.fecha_fin,
+                                payload={
+                                    "amount": tramo.monto if es_empleador else Decimal("0.00"),
+                                    "label": (
+                                        f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
+                                        f"{tramo.pagador} ({tramo.porcentaje:.2%}): "
+                                        f"${tramo.monto:,.2f}"
+                                    ),
+                                },
+                                event_type="INCAPACIDAD_EMPLEADOR"
+                                if es_empleador
+                                else "INCAPACIDAD_INFORMATIVA",
+                            )
+                        )
 
         # fecha_pago_total (si existe) es cuando realmente se extinguio la
         # deuda; nunca puede ser posterior a fecha_corte para efectos de este
@@ -862,11 +953,16 @@ class LaboralStrategy(AreaStrategy):
                 fecha_pago_o_corte=fecha_referencia_mora,
             )
             if mora.total > Decimal("0.00"):
-                eventos.append(Event(
-                    date=fecha_referencia_mora,
-                    payload={"amount": mora.total, "label": "Indemnizacion moratoria Art. 65 CST"},
-                    event_type="SANCION_MORATORIA",
-                ))
+                eventos.append(
+                    Event(
+                        date=fecha_referencia_mora,
+                        payload={
+                            "amount": mora.total,
+                            "label": "Indemnizacion moratoria Art. 65 CST",
+                        },
+                        event_type="SANCION_MORATORIA",
+                    )
+                )
 
         # Descuentos del empleador (Sprint 44, punto 3): se inyectan como
         # eventos PAYMENT mas -- mismo mecanismo de pagos/allocation que ya
@@ -880,11 +976,13 @@ class LaboralStrategy(AreaStrategy):
             etiqueta = f"Descuento del empleador ({calificacion})"
             if descuento.motivo:
                 etiqueta += f": {descuento.motivo}"
-            eventos.append(Event(
-                date=descuento.fecha,
-                payload={"amount": descuento.monto, "label": etiqueta},
-                event_type="PAYMENT",
-            ))
+            eventos.append(
+                Event(
+                    date=descuento.fecha,
+                    payload={"amount": descuento.monto, "label": etiqueta},
+                    event_type="PAYMENT",
+                )
+            )
 
         pagos = [
             Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
@@ -920,9 +1018,7 @@ class LaboralStrategy(AreaStrategy):
                 f"fecha de inicio del contrato ({obligacion.fecha_inicio})."
             )
         if obligacion.pagada and obligacion.fecha_pago_total is None:
-            raise ValueError(
-                "Una obligacion marcada como pagada debe tener 'fecha_pago_total'."
-            )
+            raise ValueError("Una obligacion marcada como pagada debe tener 'fecha_pago_total'.")
         if obligacion.incluir_seguridad_social and not obligacion.nivel_riesgo_arl:
             raise ValueError(
                 "Si se incluyen cotizaciones de seguridad social, 'nivel_riesgo_arl' "
@@ -937,7 +1033,10 @@ class LaboralStrategy(AreaStrategy):
             )
 
         for evento in obligacion.eventos_laborales:
-            if evento.fecha_inicio < obligacion.fecha_inicio or evento.fecha_fin > obligacion.fecha_fin:
+            if (
+                evento.fecha_inicio < obligacion.fecha_inicio
+                or evento.fecha_fin > obligacion.fecha_fin
+            ):
                 raise ValueError(
                     f"El evento contractual del {evento.fecha_inicio} al {evento.fecha_fin} "
                     "cae fuera del rango del contrato "
@@ -945,7 +1044,7 @@ class LaboralStrategy(AreaStrategy):
                 )
 
         eventos_ordenados = sorted(obligacion.eventos_laborales, key=lambda e: e.fecha_inicio)
-        for anterior, siguiente in zip(eventos_ordenados, eventos_ordenados[1:]):
+        for anterior, siguiente in zip(eventos_ordenados, eventos_ordenados[1:], strict=False):
             if anterior.fecha_fin > siguiente.fecha_inicio:
                 raise ValueError(
                     "Dos eventos contractuales se solapan en el tiempo: "
@@ -1010,8 +1109,12 @@ class SancionatorioStrategy(AreaStrategy):
             eventos.append(evento_costas)
         return eventos
 
-    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
-        return self._rate_provider_tasa_plana(obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual)
+    def _construir_rate_provider_obligacion(
+        self, obligacion, fecha_corte: date
+    ) -> MemoryRateProvider:
+        return self._rate_provider_tasa_plana(
+            obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual
+        )
 
 
 class HonorariosStrategy(AreaStrategy):
@@ -1079,7 +1182,8 @@ class HonorariosStrategy(AreaStrategy):
             raise CuotaLitisExcedeTopeError(
                 f"Honorarios Desproporcionados - Art. 35 Num. 4 Ley 1123/2007: la suma de "
                 f"honorarios fijos + cuota litis de '{obligacion.concepto}' ({total_honorarios}) "
-                f"excede el tope legal del {tope_total_pct}% del beneficio obtenido ({tope_total})."
+                f"excede el tope legal del {tope_total_pct}% del beneficio obtenido "
+                f"({tope_total})."
             )
 
     def _cuota_litis_monto(self, obligacion) -> Decimal:
@@ -1096,13 +1200,19 @@ class HonorariosStrategy(AreaStrategy):
                 event_type=obligacion.categoria,
             )
         ]
-        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=obligacion.beneficio_obtenido)
+        evento_costas = _evento_costas_procesales(
+            obligacion, pretensiones_reconocidas=obligacion.beneficio_obtenido
+        )
         if evento_costas is not None:
             eventos.append(evento_costas)
         return eventos
 
-    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
-        return self._rate_provider_tasa_plana(obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual)
+    def _construir_rate_provider_obligacion(
+        self, obligacion, fecha_corte: date
+    ) -> MemoryRateProvider:
+        return self._rate_provider_tasa_plana(
+            obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual
+        )
 
 
 class TributarioStrategy(AreaStrategy):
@@ -1205,12 +1315,16 @@ class TributarioStrategy(AreaStrategy):
         if obligacion.categoria == "IMPUESTO_A_CARGO":
             if obligacion.valor is None or obligacion.valor <= Decimal("0.00"):
                 raise ValueError(
-                    f"El impuesto a cargo '{obligacion.concepto}' debe tener 'valor' mayor que cero."
+                    f"El impuesto a cargo '{obligacion.concepto}' debe tener 'valor' mayor "
+                    "que cero."
                 )
             return
 
         if obligacion.categoria == "SANCION_EXTEMPORANEIDAD":
-            if obligacion.base_sancion_tributaria is None or obligacion.meses_extemporaneidad is None:
+            if (
+                obligacion.base_sancion_tributaria is None
+                or obligacion.meses_extemporaneidad is None
+            ):
                 raise ValueError(
                     f"La sancion por extemporaneidad '{obligacion.concepto}' necesita "
                     f"'base_sancion_tributaria' y 'meses_extemporaneidad'."
@@ -1221,7 +1335,8 @@ class TributarioStrategy(AreaStrategy):
             if obligacion.base_sancion_tributaria is None:
                 raise ValueError(
                     f"La sancion por inexactitud '{obligacion.concepto}' necesita "
-                    f"'base_sancion_tributaria' (la diferencia entre el saldo determinado y el declarado)."
+                    "'base_sancion_tributaria' (la diferencia entre el saldo determinado "
+                    "y el declarado)."
                 )
             return
 
@@ -1233,9 +1348,7 @@ class TributarioStrategy(AreaStrategy):
                 )
             return
 
-        raise ValueError(
-            f"Categoria tributaria desconocida: '{obligacion.categoria}'."
-        )
+        raise ValueError(f"Categoria tributaria desconocida: '{obligacion.categoria}'.")
 
     def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
         eventos = [self._evento_de_obligacion(obligacion)]
@@ -1276,7 +1389,10 @@ class TributarioStrategy(AreaStrategy):
 
         return Event(
             date=obligacion.fecha_origen,
-            payload={"amount": monto, "label": f"Actualización Art. 867-1 E.T. — {obligacion.concepto}"},
+            payload={
+                "amount": monto,
+                "label": f"Actualización Art. 867-1 E.T. — {obligacion.concepto}",
+            },
             event_type="INDEXATION",
         )
 
@@ -1299,7 +1415,9 @@ class TributarioStrategy(AreaStrategy):
             fecha_referencia=obligacion.fecha_origen,
         )
 
-    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> MemoryRateProvider:
+    def _construir_rate_provider_obligacion(
+        self, obligacion, fecha_corte: date
+    ) -> MemoryRateProvider:
         provider = MemoryRateProvider()
 
         if obligacion.categoria != "IMPUESTO_A_CARGO" and aplica_actualizacion_867_1(
@@ -1312,11 +1430,16 @@ class TributarioStrategy(AreaStrategy):
                 start=obligacion.fecha_origen,
                 end=fecha_corte,
                 rate=Rate(Decimal("0.0")),
-                source="Sin interés moratorio: mora > 3 años, reemplazado por actualización IPC (Art. 867-1 E.T.)",
+                source=(
+                    "Sin interés moratorio: mora > 3 años, reemplazado por actualización "
+                    "IPC (Art. 867-1 E.T.)"
+                ),
             )
             return provider
 
-        provider = construir_rate_provider_moratorio_tributario(obligacion.fecha_origen, fecha_corte)
+        provider = construir_rate_provider_moratorio_tributario(
+            obligacion.fecha_origen, fecha_corte
+        )
         # construir_rate_provider_moratorio_tributario solo cubre desde el dia siguiente a la
         # exigibilidad (inicio_mora = fecha_origen + 1 dia, la mora nunca corre el mismo
         # dia en que nace la obligacion -- ver docstring del modulo). LiquidationCore, sin

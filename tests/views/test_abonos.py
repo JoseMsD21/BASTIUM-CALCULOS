@@ -15,7 +15,9 @@ from database.models import Abono, AreaDerecho, Base, Expediente, Obligacion, Ti
 def _obligacion_de_prueba(monkeypatch) -> int:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -72,7 +74,9 @@ def test_monto_cero_lanza_error_de_validacion(qtbot, monkeypatch):
         dialog.guardar()
 
 
-def test_abono_que_supera_el_valor_de_la_obligacion_muestra_advertencia_no_bloqueante(qtbot, monkeypatch):
+def test_abono_que_supera_el_valor_de_la_obligacion_muestra_advertencia_no_bloqueante(
+    qtbot, monkeypatch
+):
     obligacion_id = _obligacion_de_prueba(monkeypatch)  # valor=427900.00
 
     avisos = []

@@ -15,16 +15,29 @@ def _ipc_en_memoria():
     # que tests/engine/labor/test_seguridad_social.py.
     session = session_module.get_session()
     indices = {
-        2017: Decimal("100"), 2018: Decimal("105"), 2019: Decimal("110"),
-        2020: Decimal("115"), 2021: Decimal("120"), 2022: Decimal("125"),
-        2023: Decimal("130"), 2024: Decimal("135"), 2025: Decimal("140"),
+        2017: Decimal("100"),
+        2018: Decimal("105"),
+        2019: Decimal("110"),
+        2020: Decimal("115"),
+        2021: Decimal("120"),
+        2022: Decimal("125"),
+        2023: Decimal("130"),
+        2024: Decimal("135"),
+        2025: Decimal("140"),
         2026: Decimal("145"),
     }
     for anio, valor in indices.items():
-        session.add(ParametroLegal(
-            clave="IPC_INDICE_ACUMULADO", valor=valor, vigente_desde=date(anio, 1, 1),
-            vigente_hasta=None, usuario="test", motivo=None, creado_en=_dt.now(),
-        ))
+        session.add(
+            ParametroLegal(
+                clave="IPC_INDICE_ACUMULADO",
+                valor=valor,
+                vigente_desde=date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
     session.commit()
     session.close()
 
@@ -50,18 +63,24 @@ def test_tasa_reemplazo_s_uno_sin_bono_da_65_5_menos_medio_por_ciento():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+        ibl=Decimal("1000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1300,
         anio_causacion=2020,
     )
 
-    assert resultado == Decimal("65.00")  # s=1 -> r = 65.5 - 0.5*1 = 65.0 (dentro del rango, sin recorte)
+    assert resultado == Decimal(
+        "65.00"
+    )  # s=1 -> r = 65.5 - 0.5*1 = 65.0 (dentro del rango, sin recorte)
 
 
 def test_tasa_reemplazo_s_uno_con_bono_de_dos_bloques():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1400,
+        ibl=Decimal("1000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1400,
         anio_causacion=2020,
     )
 
@@ -76,7 +95,9 @@ def test_tasa_reemplazo_s_alto_baja_del_65_pero_no_del_piso_55():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("10000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+        ibl=Decimal("10000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1300,
         anio_causacion=2020,
     )
 
@@ -87,7 +108,9 @@ def test_tasa_reemplazo_s_muy_alto_si_toca_el_piso_legal_de_55():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("25000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1300,
+        ibl=Decimal("25000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1300,
         anio_causacion=2020,
     )
 
@@ -98,7 +121,9 @@ def test_tasa_reemplazo_bono_grande_no_sube_del_techo_80():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("2000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=3800,
+        ibl=Decimal("2000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=3800,
         anio_causacion=2020,
     )
 
@@ -111,7 +136,9 @@ def test_tasa_reemplazo_semanas_minimas_varian_por_anio_no_estan_fijas_en_1300()
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("800000.00"), smlmv_vigente=Decimal("400000.00"), semanas_cotizadas=1664,
+        ibl=Decimal("800000.00"),
+        smlmv_vigente=Decimal("400000.00"),
+        semanas_cotizadas=1664,
         anio_causacion=2006,
     )
 
@@ -125,7 +152,9 @@ def test_tasa_reemplazo_semanas_minimas_2005_es_1050():
 
     # s=1 -> r_inicial = 65.5 - 0.5 = 65.0. Semanas = minimo exacto de 2005 (1050) -> sin bono.
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1050,
+        ibl=Decimal("1000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1050,
         anio_causacion=2005,
     )
 
@@ -136,7 +165,9 @@ def test_tasa_reemplazo_semanas_minimas_antes_de_2005_es_1000():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
-        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1050,
+        ibl=Decimal("1000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1050,
         anio_causacion=2000,
     )
 
@@ -148,11 +179,15 @@ def test_tasa_reemplazo_semanas_minimas_desde_2015_se_queda_fija_en_1300():
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado_2015 = calcular_tasa_reemplazo(
-        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1350,
+        ibl=Decimal("1000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1350,
         anio_causacion=2015,
     )
     resultado_2026 = calcular_tasa_reemplazo(
-        ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("1000000.00"), semanas_cotizadas=1350,
+        ibl=Decimal("1000000.00"),
+        smlmv_vigente=Decimal("1000000.00"),
+        semanas_cotizadas=1350,
         anio_causacion=2026,
     )
 
@@ -165,7 +200,9 @@ def test_tasa_reemplazo_smlmv_cero_lanza_error():
 
     with pytest.raises(ValueError):
         calcular_tasa_reemplazo(
-            ibl=Decimal("1000000.00"), smlmv_vigente=Decimal("0.00"), semanas_cotizadas=1300,
+            ibl=Decimal("1000000.00"),
+            smlmv_vigente=Decimal("0.00"),
+            semanas_cotizadas=1300,
             anio_causacion=2020,
         )
 
@@ -181,9 +218,13 @@ def test_densidad_semanas_calendario_real_vs_ano_comercial_360():
     dias_ano_comercial_360 = 13 * 30
     semanas_ano_comercial_360 = round(dias_ano_comercial_360 / 7)
 
-    assert semanas_calendario_real == 57  # (2025-02-01 - 2024-01-01).days == 397; 397/7 = 56.71 -> 57
+    assert (
+        semanas_calendario_real == 57
+    )  # (2025-02-01 - 2024-01-01).days == 397; 397/7 = 56.71 -> 57
     assert semanas_ano_comercial_360 == 56
-    assert semanas_calendario_real != semanas_ano_comercial_360  # documenta la diferencia real de 1 semana
+    assert (
+        semanas_calendario_real != semanas_ano_comercial_360
+    )  # documenta la diferencia real de 1 semana
 
 
 def test_densidad_semanas_caso_real_sentencia_sl138_2024():

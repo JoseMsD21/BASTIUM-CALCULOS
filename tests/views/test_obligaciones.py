@@ -8,7 +8,14 @@ from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.obligaciones import ObligacionFormDialog
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
+from database.models import (
+    AreaDerecho,
+    Base,
+    Expediente,
+    Obligacion,
+    TipoObligacion,
+    TipoReajusteAnual,
+)
 
 
 def _filas_con_etiqueta_huerfana(layout: QFormLayout) -> list[str]:
@@ -35,7 +42,9 @@ def _filas_con_etiqueta_huerfana(layout: QFormLayout) -> list[str]:
 def _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA) -> int:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    monkeypatch.setattr(session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
 
     session = session_module.get_session()
     expediente = Expediente(
@@ -115,7 +124,9 @@ def test_guarda_obligacion_recurrente_civil_familia_con_reajuste_smmlv(qtbot, mo
     session.close()
 
 
-def test_guarda_obligacion_recurrente_civil_familia_sin_tocar_reajuste_queda_ninguno(qtbot, monkeypatch):
+def test_guarda_obligacion_recurrente_civil_familia_sin_tocar_reajuste_queda_ninguno(
+    qtbot, monkeypatch
+):
     expediente_id = _expediente_de_prueba(monkeypatch)
 
     dialog = ObligacionFormDialog(expediente_id=expediente_id)
@@ -190,6 +201,7 @@ def test_valor_negativo_lanza_error_de_validacion(qtbot, monkeypatch):
     dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -232,6 +244,7 @@ def test_tasa_moratoria_comercial_absurdamente_alta_lanza_error_de_validacion(qt
     dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -250,6 +263,7 @@ def test_ibc_vigente_negativo_lanza_error_de_validacion(qtbot, monkeypatch):
     dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -311,6 +325,7 @@ def test_cantidad_smlmv_uvt_no_positiva_lanza_error_de_validacion(qtbot, monkeyp
     dialog.campo_cantidad_smlmv_uvt.setText("0")
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -541,6 +556,7 @@ def test_valor_cero_o_negativo_en_laboral_lanza_error(qtbot, monkeypatch):
     dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -593,7 +609,9 @@ def test_check_indexacion_visible_solo_en_civil_familia(qtbot, monkeypatch):
     assert dialog_civil.check_aplica_indexacion_ipc.isVisible() is True
 
     expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
-    dialog_comercial = ObligacionFormDialog(expediente_id=expediente_id_comercial, area="COMERCIAL")
+    dialog_comercial = ObligacionFormDialog(
+        expediente_id=expediente_id_comercial, area="COMERCIAL"
+    )
     qtbot.addWidget(dialog_comercial)
     dialog_comercial.show()
     assert dialog_comercial.check_aplica_indexacion_ipc.isVisible() is False
@@ -689,12 +707,15 @@ def test_laboral_concepto_vacio_lanza_error_de_validacion(qtbot, monkeypatch):
     dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
 
 def test_laboral_fecha_inicio_contrato_posterior_a_fecha_de_corte_lanza_error(qtbot, monkeypatch):
-    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)  # corte = 2026-06-01
+    expediente_id = _expediente_de_prueba(
+        monkeypatch, area=AreaDerecho.LABORAL
+    )  # corte = 2026-06-01
 
     dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
     qtbot.addWidget(dialog)
@@ -704,6 +725,7 @@ def test_laboral_fecha_inicio_contrato_posterior_a_fecha_de_corte_lanza_error(qt
     dialog.campo_fecha_fin.setDate(date(2026, 12, 31))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -743,7 +765,9 @@ def test_label_fecha_origen_cambia_para_area_laboral(qtbot, monkeypatch):
 
 def test_combo_moneda_visible_solo_para_area_comercial(qtbot, monkeypatch):
     expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
-    dialog_comercial = ObligacionFormDialog(expediente_id=expediente_id_comercial, area="COMERCIAL")
+    dialog_comercial = ObligacionFormDialog(
+        expediente_id=expediente_id_comercial, area="COMERCIAL"
+    )
     qtbot.addWidget(dialog_comercial)
     dialog_comercial.show()
     assert dialog_comercial.combo_moneda.isVisible() is True
@@ -856,12 +880,15 @@ def test_tributario_concepto_vacio_lanza_error_de_validacion(qtbot, monkeypatch)
     dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
 
 def test_tributario_fecha_origen_posterior_a_fecha_de_corte_lanza_error(qtbot, monkeypatch):
-    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)  # corte = 2026-06-01
+    expediente_id = _expediente_de_prueba(
+        monkeypatch, area=AreaDerecho.TRIBUTARIO
+    )  # corte = 2026-06-01
 
     dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
     qtbot.addWidget(dialog)
@@ -871,6 +898,7 @@ def test_tributario_fecha_origen_posterior_a_fecha_de_corte_lanza_error(qtbot, m
     dialog.campo_fecha_origen.setDate(date(2026, 7, 1))  # posterior al corte
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1066,7 +1094,9 @@ def test_check_interes_sobre_capital_indexado_visible_solo_en_civil_familia(qtbo
     assert dialog_civil.check_interes_sobre_capital_indexado.isVisible() is True
 
     expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
-    dialog_comercial = ObligacionFormDialog(expediente_id=expediente_id_comercial, area="COMERCIAL")
+    dialog_comercial = ObligacionFormDialog(
+        expediente_id=expediente_id_comercial, area="COMERCIAL"
+    )
     qtbot.addWidget(dialog_comercial)
     dialog_comercial.show()
     assert dialog_comercial.check_interes_sobre_capital_indexado.isVisible() is False
@@ -1093,7 +1123,9 @@ def test_guarda_obligacion_con_interes_sobre_capital_indexado_marcado(qtbot, mon
     session.close()
 
 
-def test_guarda_obligacion_sin_marcar_interes_sobre_capital_indexado_queda_en_false(qtbot, monkeypatch):
+def test_guarda_obligacion_sin_marcar_interes_sobre_capital_indexado_queda_en_false(
+    qtbot, monkeypatch
+):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
 
     dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
@@ -1128,6 +1160,7 @@ def test_comercial_con_ibc_invalido_lanza_error_de_validacion(qtbot, monkeypatch
     dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1146,6 +1179,7 @@ def test_honorarios_con_beneficio_obtenido_invalido_lanza_error_de_validacion(qt
     dialog.campo_beneficio_obtenido.setText("no es un numero")
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1163,6 +1197,7 @@ def test_cuota_litis_fuera_de_rango_lanza_error_de_validacion(qtbot, monkeypatch
     dialog.campo_beneficio_obtenido.setText("10000000.00")
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1181,6 +1216,7 @@ def test_costas_pct_fuera_de_rango_lanza_error_de_validacion(qtbot, monkeypatch)
     dialog.campo_costas_pct.setText("-5.00")
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1196,6 +1232,7 @@ def test_tasa_efectiva_negativa_lanza_error_de_validacion(qtbot, monkeypatch):
     dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1211,6 +1248,7 @@ def test_tasa_efectiva_absurdamente_alta_lanza_error_de_validacion(qtbot, monkey
     dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1226,6 +1264,7 @@ def test_concepto_vacio_lanza_error_de_validacion(qtbot, monkeypatch):
     dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1241,11 +1280,14 @@ def test_fecha_origen_posterior_a_fecha_de_corte_lanza_error_de_validacion(qtbot
     dialog.campo_fecha_origen.setDate(date(2026, 7, 1))  # posterior al corte
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
 
-def test_fecha_inicio_recurrente_posterior_a_fecha_de_corte_lanza_error_de_validacion(qtbot, monkeypatch):
+def test_fecha_inicio_recurrente_posterior_a_fecha_de_corte_lanza_error_de_validacion(
+    qtbot, monkeypatch
+):
     expediente_id = _expediente_de_prueba(monkeypatch)  # fecha_corte_default = 2026-06-01
 
     dialog = ObligacionFormDialog(expediente_id=expediente_id)
@@ -1258,6 +1300,7 @@ def test_fecha_inicio_recurrente_posterior_a_fecha_de_corte_lanza_error_de_valid
     dialog.campo_dia_pago.setValue(5)
 
     import pytest
+
     with pytest.raises(ValueError):
         dialog.guardar()
 
@@ -1298,7 +1341,9 @@ def test_grupo_tasas_intereses_oculto_para_laboral_y_tributario(qtbot, monkeypat
     assert dialog_tributario.grupo_tasas_intereses.isVisible() is False
 
     expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
-    dialog_comercial = ObligacionFormDialog(expediente_id=expediente_id_comercial, area="COMERCIAL")
+    dialog_comercial = ObligacionFormDialog(
+        expediente_id=expediente_id_comercial, area="COMERCIAL"
+    )
     qtbot.addWidget(dialog_comercial)
     dialog_comercial.show()
     assert dialog_comercial.grupo_tasas_intereses.isVisible() is True
@@ -1572,7 +1617,14 @@ def test_sin_labels_huerfanas_en_cada_area_y_categoria_tributaria(qtbot, monkeyp
     """Barrido amplio (Sprint 39): ninguna combinacion de area (y, para
     TRIBUTARIO, de categoria) deja una fila huerfana en ninguno de los 3
     QFormLayout del dialogo."""
-    for area in ("CIVIL_FAMILIA", "COMERCIAL", "SANCIONATORIO", "HONORARIOS", "LABORAL", "TRIBUTARIO"):
+    for area in (
+        "CIVIL_FAMILIA",
+        "COMERCIAL",
+        "SANCIONATORIO",
+        "HONORARIOS",
+        "LABORAL",
+        "TRIBUTARIO",
+    ):
         area_derecho = getattr(AreaDerecho, area)
         expediente_id = _expediente_de_prueba(monkeypatch, area=area_derecho)
 
@@ -1627,10 +1679,18 @@ def test_guarda_obligacion_laboral_con_es_smmlv_resuelve_el_valor(qtbot, monkeyp
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
     session = session_module.get_session()
     from database.models import ParametroLegal
-    session.add(ParametroLegal(
-        clave="SMLMV", valor=Decimal("1300000.00"), vigente_desde=date(2024, 1, 1),
-        vigente_hasta=None, usuario="test", motivo=None, creado_en=datetime.now(),
-    ))
+
+    session.add(
+        ParametroLegal(
+            clave="SMLMV",
+            valor=Decimal("1300000.00"),
+            vigente_desde=date(2024, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
     session.commit()
     session.close()
 
@@ -1675,8 +1735,12 @@ def test_obligacion_id_titulo_del_dialogo_dice_editar(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch)
     session = session_module.get_session()
     obligacion = Obligacion(
-        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Gastos medicos",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("427900.00"),
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("427900.00"),
         tasa_efectiva_anual=Decimal("6.00"),
     )
     session.add(obligacion)
@@ -1694,8 +1758,12 @@ def test_obligacion_id_precarga_los_campos_civil_familia(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch)
     session = session_module.get_session()
     obligacion = Obligacion(
-        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Gastos medicos",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("427900.00"),
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("427900.00"),
         tasa_efectiva_anual=Decimal("6.00"),
     )
     session.add(obligacion)
@@ -1721,11 +1789,17 @@ def test_obligacion_id_precarga_fecha_de_pago_real_en_laboral(qtbot, monkeypatch
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
     session = session_module.get_session()
     obligacion = Obligacion(
-        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Liquidacion de contrato",
-        categoria="LIQUIDACION_CONTRATO_LABORAL", fecha_origen=date(2020, 1, 1),
-        valor=Decimal("3000000.00"), tasa_efectiva_anual=Decimal("0.00"),
-        fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
-        pagada=True, fecha_pago_total=date(2021, 1, 15),
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
+        pagada=True,
+        fecha_pago_total=date(2021, 1, 15),
     )
     session.add(obligacion)
     session.commit()
@@ -1733,7 +1807,9 @@ def test_obligacion_id_precarga_fecha_de_pago_real_en_laboral(qtbot, monkeypatch
     session.close()
 
     dialog = ObligacionFormDialog(
-        expediente_id=expediente_id, area="LABORAL", obligacion_id=obligacion_id,
+        expediente_id=expediente_id,
+        area="LABORAL",
+        obligacion_id=obligacion_id,
     )
     qtbot.addWidget(dialog)
     dialog.show()
@@ -1747,8 +1823,12 @@ def test_guardar_con_obligacion_id_actualiza_en_vez_de_crear_una_nueva(qtbot, mo
     expediente_id = _expediente_de_prueba(monkeypatch)
     session = session_module.get_session()
     obligacion = Obligacion(
-        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Original",
-        categoria="DANO_EMERGENTE", fecha_origen=date(2025, 11, 20), valor=Decimal("100000.00"),
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Original",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("100000.00"),
         tasa_efectiva_anual=Decimal("6.00"),
     )
     session.add(obligacion)
@@ -1776,10 +1856,15 @@ def test_guardar_con_obligacion_id_laboral_actualiza_en_vez_de_crear_una_nueva(q
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
     session = session_module.get_session()
     obligacion = Obligacion(
-        expediente_id=expediente_id, tipo=TipoObligacion.PUNTUAL, concepto="Liquidacion de contrato",
-        categoria="LIQUIDACION_CONTRATO_LABORAL", fecha_origen=date(2020, 1, 1),
-        valor=Decimal("3000000.00"), tasa_efectiva_anual=Decimal("0.00"),
-        fecha_inicio=date(2020, 1, 1), fecha_fin=date(2020, 12, 31),
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 1, 1),
+        fecha_fin=date(2020, 12, 31),
     )
     session.add(obligacion)
     session.commit()
@@ -1787,7 +1872,9 @@ def test_guardar_con_obligacion_id_laboral_actualiza_en_vez_de_crear_una_nueva(q
     session.close()
 
     dialog = ObligacionFormDialog(
-        expediente_id=expediente_id, area="LABORAL", obligacion_id=obligacion_id,
+        expediente_id=expediente_id,
+        area="LABORAL",
+        obligacion_id=obligacion_id,
     )
     qtbot.addWidget(dialog)
     dialog.check_pagada.setChecked(True)

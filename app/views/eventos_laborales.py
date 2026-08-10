@@ -15,12 +15,16 @@ class EventoLaboralFormDialog(QDialog):
         super().__init__(parent)
         self._obligacion_id = obligacion_id
         self._evento_id = evento_id
-        self.setWindowTitle("Editar evento contractual" if evento_id else "Agregar evento contractual")
+        self.setWindowTitle(
+            "Editar evento contractual" if evento_id else "Agregar evento contractual"
+        )
 
         self.combo_tipo = QComboBox()
         self.combo_tipo.addItem("Suspension", userData=TipoEventoLaboral.SUSPENSION)
         self.combo_tipo.addItem("Incapacidad comun", userData=TipoEventoLaboral.INCAPACIDAD_COMUN)
-        self.combo_tipo.addItem("Incapacidad laboral", userData=TipoEventoLaboral.INCAPACIDAD_LABORAL)
+        self.combo_tipo.addItem(
+            "Incapacidad laboral", userData=TipoEventoLaboral.INCAPACIDAD_LABORAL
+        )
 
         self.campo_fecha_inicio = QDateEdit(QDate.currentDate())
         self.campo_fecha_inicio.setCalendarPopup(True)
@@ -29,7 +33,9 @@ class EventoLaboralFormDialog(QDialog):
 
         self.combo_motivo = QComboBox()
         self.combo_motivo.addItem("Huelga", userData=MotivoSuspension.HUELGA)
-        self.combo_motivo.addItem("Licencia no remunerada", userData=MotivoSuspension.LICENCIA_NO_REMUNERADA)
+        self.combo_motivo.addItem(
+            "Licencia no remunerada", userData=MotivoSuspension.LICENCIA_NO_REMUNERADA
+        )
         self.combo_motivo.addItem("Disciplinaria", userData=MotivoSuspension.DISCIPLINARIA)
 
         self.boton_guardar = QPushButton("Guardar")
@@ -108,7 +114,9 @@ class EventoLaboralFormDialog(QDialog):
 
         session = session_module.get_session()
         evento_id = guardar_o_actualizar(
-            session, EventoLaboral, self._evento_id,
+            session,
+            EventoLaboral,
+            self._evento_id,
             obligacion_id=self._obligacion_id,
             tipo=tipo,
             fecha_inicio=fecha_inicio,
