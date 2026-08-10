@@ -1,6 +1,6 @@
 from PySide6.QtCore import QCoreApplication, QSettings, Qt
-from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QStackedWidget, QToolBar
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtWidgets import QLabel, QMainWindow, QStackedWidget, QToolBar
 
 import database.session as session_module
 from app.views.configuracion import ParametrosView
@@ -108,26 +108,46 @@ class MainWindow(QMainWindow):
         self.atajo_inicio.activated.connect(self._ir_inicio)
 
     def _crear_barra_navegacion(self) -> None:
+        # Sprint 49: los 3 botones se agregan como QAction (via addAction()), no como
+        # QPushButton crudo (via addWidget()) como antes del Sprint 49. QToolBar
+        # resetea a True la visibilidad de los widgets agregados via addWidget() cada
+        # vez que su layout interno se invalida (ej. el primer LayoutRequest que
+        # procesa el bucle de eventos real tras show(), pero tambien cualquier
+        # invalidacion de layout posterior durante la vida de la ventana) --
+        # QToolBarLayout.performLayout() fuerza ese reset sin mirar si el widget fue
+        # ocultado a proposito. Un QAction no sufre ese reset: QToolBarLayout respeta
+        # accion.isVisible() como la fuente de verdad, incluso a traves de layouts
+        # repetidos (confirmado con un script standalone que llama
+        # app.processEvents() 10+ veces tras show(), ver Sprint 49). Guardamos la
+        # QAction en un atributo "_accion_*" para poder controlar su visibilidad
+        # (fuente de verdad), y self.boton_* apunta al QToolButton que QToolBar crea
+        # automaticamente para esa accion (barra.widgetForAction()) -- ese
+        # QToolButton expone la misma API que el QPushButton anterior (click(),
+        # isVisible(), setProperty(), icon()...) que el resto del codigo y los tests
+        # ya usaban, asi que no hizo falta tocar esos otros usos.
         barra = QToolBar("Navegacion")
         barra.setMovable(False)
 
-        self.boton_volver = QPushButton(" Volver")
-        self.boton_volver.setIcon(icon("back"))
+        self._accion_volver = QAction(" Volver", self)
+        self._accion_volver.setIcon(icon("back"))
+        self._accion_volver.triggered.connect(self._volver)
+        barra.addAction(self._accion_volver)
+        self.boton_volver = barra.widgetForAction(self._accion_volver)
         self.boton_volver.setProperty("class", "secondary")
-        self.boton_volver.clicked.connect(self._volver)
-        barra.addWidget(self.boton_volver)
 
-        self.boton_inicio = QPushButton(" Inicio")
-        self.boton_inicio.setIcon(icon("home"))
+        self._accion_inicio = QAction(" Inicio", self)
+        self._accion_inicio.setIcon(icon("home"))
+        self._accion_inicio.triggered.connect(self._ir_inicio)
+        barra.addAction(self._accion_inicio)
+        self.boton_inicio = barra.widgetForAction(self._accion_inicio)
         self.boton_inicio.setProperty("class", "secondary")
-        self.boton_inicio.clicked.connect(self._ir_inicio)
-        barra.addWidget(self.boton_inicio)
 
-        self.boton_parametros = QPushButton(" Parametros")
-        self.boton_parametros.setIcon(icon("settings"))
+        self._accion_parametros = QAction(" Parametros", self)
+        self._accion_parametros.setIcon(icon("settings"))
+        self._accion_parametros.triggered.connect(self._ir_a_parametros)
+        barra.addAction(self._accion_parametros)
+        self.boton_parametros = barra.widgetForAction(self._accion_parametros)
         self.boton_parametros.setProperty("class", "secondary")
-        self.boton_parametros.clicked.connect(self._ir_a_parametros)
-        barra.addWidget(self.boton_parametros)
 
         barra.addSeparator()
 
@@ -150,8 +170,12 @@ class MainWindow(QMainWindow):
         self._actualizar_estado_activo_navegacion()
 
     def _actualizar_botones_navegacion(self) -> None:
-        self.boton_volver.setVisible(bool(self._history))
-        self.boton_inicio.setVisible(self._current_page_name != "dashboard")
+        # Se controla la visibilidad a traves de la QAction (self._accion_*), no del
+        # QToolButton (self.boton_*) -- ver el comentario en _crear_barra_navegacion():
+        # es la QAction la que QToolBarLayout respeta de forma consistente a traves de
+        # los layouts repetidos que dispara el bucle de eventos real.
+        self._accion_volver.setVisible(bool(self._history))
+        self._accion_inicio.setVisible(self._current_page_name != "dashboard")
 
     def _actualizar_breadcrumb(self) -> None:
         self.etiqueta_breadcrumb.setText(self._texto_breadcrumb())
@@ -185,14 +209,6 @@ class MainWindow(QMainWindow):
         )
         self.boton_parametros.style().unpolish(self.boton_parametros)
         self.boton_parametros.style().polish(self.boton_parametros)
-
-    def showEvent(self, event) -> None:
-        # QToolBar resets the visibility of widgets added via addWidget() to True
-        # the first time the toolbar itself becomes visible, overriding any
-        # setVisible(False) applied while the window was not yet shown. Resync
-        # the buttons' visibility once the window is actually shown.
-        super().showEvent(event)
-        self._actualizar_botones_navegacion()
 
     def _volver(self) -> None:
         if not self._history:

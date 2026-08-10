@@ -147,6 +147,14 @@ def test_botones_navegacion_visibles_al_entrar_a_detalle(qtbot):
     window.show()
 
     window.show_page("detalle")
+    # boton_volver/boton_inicio son ahora QToolButton auto-creados por QToolBar para
+    # una QAction (Sprint 49): QToolBar sincroniza la visibilidad del QToolButton con
+    # la de su QAction en el siguiente ciclo del bucle de eventos, no de forma
+    # sincronica dentro de la misma llamada a setVisible() (a diferencia del
+    # QPushButton+addWidget() anterior). En la app real esto es imperceptible (Qt
+    # procesa ese ciclo antes del proximo repintado), pero el test si necesita ceder
+    # el control explicitamente -- igual que test_botones_navegacion_ocultos_en_pagina_inicial.
+    qtbot.wait(1)
 
     assert window.boton_volver.isVisible() is True
     assert window.boton_inicio.isVisible() is True
