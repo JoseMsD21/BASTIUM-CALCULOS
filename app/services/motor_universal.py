@@ -67,7 +67,8 @@ class UniversalLiquidationService:
 
         # 6. Sprint 42: marcar (sin excluir) las filas cuya obligacion de origen ya
         # vencio su plazo de prescripcion/caducidad a la fecha de corte. Decision del
-        # despacho (ver docs/superpowers/plans/2026-08-07-sprint42-prescripcion-caducidad-wiring.md):
+        # despacho (ver
+        # docs/superpowers/plans/2026-08-07-sprint42-prescripcion-caducidad-wiring.md):
         # la obligacion prescrita se sigue calculando exactamente igual (el total NO
         # cambia), solo se marca informativamente para que el abogado decida.
         return self._marcar_obligaciones_prescritas(

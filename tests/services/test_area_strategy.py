@@ -1,5 +1,7 @@
+from datetime import date, timedelta
 from datetime import date as _date
 from datetime import datetime as _dt
+from decimal import Decimal
 from decimal import Decimal as _Decimal
 
 import pytest
@@ -7,12 +9,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
+from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.engine.indexation.historical_index import (
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
     _UVT_POR_ANIO,
 )
+from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+from app.engine.liquidation.engine import LiquidationCore
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.area_strategy import (
     CivilFamiliaStrategy,
@@ -21,15 +26,23 @@ from app.services.area_strategy import (
     LaboralStrategy,
     SancionatorioStrategy,
     TributarioStrategy,
+    _evento_costas_procesales,
 )
-from database.models import Base, ParametroLegal
+from database.models import (
+    Abono,
+    Base,
+    Obligacion,
+    ParametroLegal,
+    TipoObligacion,
+    TipoReajusteAnual,
+)
 
 
 @pytest.fixture(autouse=True)
 def _parametros_legales_en_memoria(monkeypatch):
     # Fixture autouse global para todo el archivo: TestComercialStrategy ya
-    # depende de calcular_tope_usura (Tarea 7, corregido Sprint 2), que ahora lee USURA_MULTIPLICADOR
-    # via parametro_service en cada liquidar() -- si esta fixture solo sembrara
+    # depende de calcular_tope_usura (Tarea 7, corregido Sprint 2), que ahora lee
+    # USURA_MULTIPLICADOR via parametro_service en cada liquidar() -- si esta fixture solo sembrara
     # las claves de Honorarios, todos los tests de Comercial de este archivo
     # fallarian con ParametroNoDisponibleError. Se siembran aqui las claves
     # que cualquier test de este archivo puede necesitar. Valores/fechas de
@@ -246,12 +259,6 @@ def test_registry_expone_las_6_areas():
 def test_civil_familia_es_la_unica_area_operable():
     strategy = AreaRegistry.get_strategy("CIVIL_FAMILIA")
     assert isinstance(strategy, CivilFamiliaStrategy)
-
-
-from datetime import date, timedelta
-from decimal import Decimal
-
-from database.models import Abono, Obligacion, TipoObligacion, TipoReajusteAnual
 
 
 def _obligacion_puntual(expediente_id=1, valor=Decimal("427900.00")):
@@ -525,7 +532,7 @@ def test_civil_familia_recurrente_con_indexacion_reutiliza_ipc_entre_cuotas_del_
         obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 5)
     )
 
-    llamadas_ipc = [l for l in llamadas if l[0] == "IPC_INDICE_ACUMULADO"]
+    llamadas_ipc = [llamada for llamada in llamadas if llamada[0] == "IPC_INDICE_ACUMULADO"]
     # 12 cuotas (una por mes de 2025) todas resuelven IPC_INDICE_ACUMULADO
     # contra date(2025,1,1) (fecha_causacion, mismo año) y date(2025,1,1)
     # (fecha_corte 2025-12-05, tambien 2025) -- con la cache activa, ambas
@@ -556,7 +563,7 @@ def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
     )  # 123.500.000 + 8.645.000
 
 
-def test_civil_familia_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa():
+def test_civil_familia_obligaciones_tasas_distintas_fechas_solapadas_usan_tasa_propia():
     fecha_corte = date(2026, 1, 11)
     obligacion_a = Obligacion(
         id=101,
@@ -706,9 +713,6 @@ def test_civil_familia_dos_obligaciones_producen_una_sola_fila_de_cierre_consoli
     ]
     assert len(filas_de_cierre) == 1
     assert resultado.final_balance().principal == Decimal("2000000.00")
-
-
-from app.engine.liquidation.engine import LiquidationCore
 
 
 def test_capital_concepts_incluye_los_codigos_comerciales_nuevos():
@@ -1235,7 +1239,8 @@ class TestComercialStrategy:
             )
 
     def test_acuerdo_posterior_que_no_cumple_un_anio_lanza_value_error(self):
-        # vencimiento 2025-02-01 + 365 dias = 2026-02-01; un acuerdo antes de esa fecha es invalido.
+        # vencimiento 2025-02-01 + 365 dias = 2026-02-01; un acuerdo antes de esa fecha es
+        # invalido.
         obligacion = _obligacion_comercial(anatocismo_fecha_acuerdo=date(2026, 1, 15))
 
         with pytest.raises(ValueError):
@@ -1552,9 +1557,6 @@ class TestSancionatorioStrategy:
         )
 
 
-from app.core.exceptions import CuotaLitisExcedeTopeError
-
-
 def _obligacion_honorarios(
     expediente_id=1,
     honorarios_fijos_pactados=Decimal("1000000.00"),
@@ -1606,11 +1608,10 @@ def test_honorarios_liquidar_reutiliza_honorarios_total_pct_entre_obligaciones_c
         obligaciones=obligaciones, abonos=[], fecha_corte=date(2026, 1, 1)
     )
 
-    llamadas_honorarios = [l for l in llamadas if l[0] == "HONORARIOS_TOTAL_PCT"]
+    llamadas_honorarios = [
+        llamada for llamada in llamadas if llamada[0] == "HONORARIOS_TOTAL_PCT"
+    ]
     assert len(llamadas_honorarios) == 1
-
-
-from app.services.area_strategy import _evento_costas_procesales
 
 
 def test_evento_costas_procesales_usa_costas_pct_manual_si_esta_presente():
@@ -1704,10 +1705,11 @@ class TestHonorariosStrategy:
     def test_cuota_litis_sola_por_encima_de_30_por_ciento_no_lanza_error_si_el_total_no_excede_50(
         self,
     ):
-        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 4): no se aplican dos topes en
-        # cascada -- el unico tope legal es el 50% acumulado. cuota litis = 10M * 35% = 3.5M (35%
-        # individual, por encima de lo que antes era un tope propio de 30%), pero honorarios_fijos=0
-        # asi que el total (3.5M) sigue por debajo del 50% (5M) -> ya no debe fallar.
+        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 4): no se aplican dos
+        # topes en cascada -- el unico tope legal es el 50% acumulado. cuota litis =
+        # 10M * 35% = 3.5M (35% individual, por encima de lo que antes era un tope
+        # propio de 30%), pero honorarios_fijos=0 asi que el total (3.5M) sigue por
+        # debajo del 50% (5M) -> ya no debe fallar.
         obligacion = _obligacion_honorarios(
             honorarios_fijos_pactados=Decimal("0.00"), cuota_litis_pactada_pct=Decimal("35.00")
         )
@@ -1805,9 +1807,6 @@ class TestHonorariosStrategy:
             resultado_combinado.final_balance().interest
             != Decimal("2") * resultado_solo_a.final_balance().interest
         )
-
-
-from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 
 
 def _obligacion_laboral(
@@ -2905,8 +2904,9 @@ def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
         obligaciones=[obligacion_suma_unica], abonos=[], fecha_corte=date(2025, 12, 31)
     )
 
-    # Mismo capital, misma indexacion (77633.53, ver test_civil_familia_puntual_con_indexacion_...),
-    # misma tasa y periodo -- la unica diferencia es la base del interes.
+    # Mismo capital, misma indexacion (77633.53, ver
+    # test_civil_familia_puntual_con_indexacion_...), misma tasa y periodo -- la unica
+    # diferencia es la base del interes.
     assert resultado_legado.final_balance().indexation == Decimal("77633.53")
     assert resultado_suma_unica.final_balance().indexation == Decimal("77633.53")
     assert resultado_legado.final_balance().interest == Decimal("87488.20")
@@ -2916,7 +2916,7 @@ def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
     )
 
 
-def test_civil_familia_suma_unica_mezclada_en_el_expediente_liquida_cada_obligacion_con_su_propio_criterio():
+def test_civil_familia_suma_unica_mezclada_liquida_cada_obligacion_con_su_criterio():
     # Desde el Sprint 21, cada obligacion corre en su propio LiquidationCore
     # (PendingDebt independiente, ver _liquidar_por_obligacion), asi que ya no
     # hay un unico saldo compartido a nivel de expediente -- mezclar criterios

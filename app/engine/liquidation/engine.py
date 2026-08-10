@@ -10,6 +10,12 @@ from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningB
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 
+# Singleton de modulo (Sprint 48, B008): evita instanciar Rate(Decimal("0.0")) en cada
+# definicion de LiquidationCore.__init__ -- Rate es inmutable, asi que reusar la misma
+# instancia como default no cambia el comportamiento respecto a construirla en cada
+# llamada.
+_TASA_CERO = Rate(Decimal("0.0"))
+
 
 class LiquidationCore:
     """
@@ -21,7 +27,7 @@ class LiquidationCore:
 
     def __init__(
         self,
-        default_daily_rate: Rate = Rate(Decimal("0.0")),
+        default_daily_rate: Rate = _TASA_CERO,
         rate_provider: RateProvider | None = None,
         usar_suma_unica: bool = False,
     ):

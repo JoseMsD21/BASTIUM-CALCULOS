@@ -31,7 +31,8 @@ def test_migrar_preserva_las_filas_existentes_con_moneda_cop_por_defecto(db_sin_
 
     con = sqlite3.connect(db_sin_columnas)
     fila = con.execute(
-        "SELECT concepto, moneda, trm_aplicable, trm_fecha_referencia FROM obligaciones WHERE id = 1"
+        "SELECT concepto, moneda, trm_aplicable, trm_fecha_referencia "
+        "FROM obligaciones WHERE id = 1"
     ).fetchone()
     con.close()
     assert fila == ("Capital de pagare", "COP", None, None)

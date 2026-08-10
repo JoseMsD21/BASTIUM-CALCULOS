@@ -31,7 +31,8 @@ def test_migrar_preserva_las_filas_existentes_con_default_false(db_sin_columnas)
 
     con = sqlite3.connect(db_sin_columnas)
     fila = con.execute(
-        "SELECT concepto, incluir_seguridad_social, nivel_riesgo_arl FROM obligaciones WHERE id = 1"
+        "SELECT concepto, incluir_seguridad_social, nivel_riesgo_arl "
+        "FROM obligaciones WHERE id = 1"
     ).fetchone()
     con.close()
     assert fila == ("Liquidacion de contrato", 0, None)

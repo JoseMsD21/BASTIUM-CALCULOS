@@ -1182,7 +1182,8 @@ class HonorariosStrategy(AreaStrategy):
             raise CuotaLitisExcedeTopeError(
                 f"Honorarios Desproporcionados - Art. 35 Num. 4 Ley 1123/2007: la suma de "
                 f"honorarios fijos + cuota litis de '{obligacion.concepto}' ({total_honorarios}) "
-                f"excede el tope legal del {tope_total_pct}% del beneficio obtenido ({tope_total})."
+                f"excede el tope legal del {tope_total_pct}% del beneficio obtenido "
+                f"({tope_total})."
             )
 
     def _cuota_litis_monto(self, obligacion) -> Decimal:
@@ -1314,7 +1315,8 @@ class TributarioStrategy(AreaStrategy):
         if obligacion.categoria == "IMPUESTO_A_CARGO":
             if obligacion.valor is None or obligacion.valor <= Decimal("0.00"):
                 raise ValueError(
-                    f"El impuesto a cargo '{obligacion.concepto}' debe tener 'valor' mayor que cero."
+                    f"El impuesto a cargo '{obligacion.concepto}' debe tener 'valor' mayor "
+                    "que cero."
                 )
             return
 
@@ -1333,7 +1335,8 @@ class TributarioStrategy(AreaStrategy):
             if obligacion.base_sancion_tributaria is None:
                 raise ValueError(
                     f"La sancion por inexactitud '{obligacion.concepto}' necesita "
-                    f"'base_sancion_tributaria' (la diferencia entre el saldo determinado y el declarado)."
+                    "'base_sancion_tributaria' (la diferencia entre el saldo determinado "
+                    "y el declarado)."
                 )
             return
 
@@ -1427,7 +1430,10 @@ class TributarioStrategy(AreaStrategy):
                 start=obligacion.fecha_origen,
                 end=fecha_corte,
                 rate=Rate(Decimal("0.0")),
-                source="Sin interés moratorio: mora > 3 años, reemplazado por actualización IPC (Art. 867-1 E.T.)",
+                source=(
+                    "Sin interés moratorio: mora > 3 años, reemplazado por actualización "
+                    "IPC (Art. 867-1 E.T.)"
+                ),
             )
             return provider
 

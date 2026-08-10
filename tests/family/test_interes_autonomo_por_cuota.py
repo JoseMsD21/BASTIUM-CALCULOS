@@ -98,7 +98,7 @@ def _expediente_con_tres_cuotas(session) -> tuple[int, list[tuple[Decimal, date]
     return expediente.id, datos
 
 
-def test_interes_consolidado_de_civilfamiliastrategy_coincide_con_suma_de_interes_aislado_por_cuota():
+def test_interes_consolidado_coincide_con_suma_de_interes_aislado_por_cuota():
     session = session_module.get_session()
     expediente_id, datos = _expediente_con_tres_cuotas(session)
     fecha_corte = date(2025, 6, 1)

@@ -35,7 +35,8 @@ def test_liquidar_expediente_alimentos_completo():
     # 2. Febrero 5: Cuota 2 ($300k)
     # 3. Marzo 5: Cuota 3 ($300k)
     # 4. Abril 5: Cuota 4 ($300k) -> Total Capital = $1,200,000
-    # 5. Abril 15: Pago de $500,000. Se aplica primero a los intereses generados por los 4 meses, el resto a capital.
+    # 5. Abril 15: Pago de $500,000. Se aplica primero a los intereses generados por
+    #    los 4 meses, el resto a capital.
     # 6. Abril 30: Corte, liquida intereses de los últimos 15 días sobre el saldo restante.
 
     assert resultado.is_empty() is False

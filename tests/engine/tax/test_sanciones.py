@@ -92,7 +92,8 @@ def test_piso_sancion_minima_eleva_montos_por_debajo_de_10_uvt():
 
 
 def test_extemporaneidad_5_pct_mensual_por_cada_mes():
-    # Impuesto a cargo 10,000,000, 2 meses de atraso: 5% x 2 = 10% = 1,000,000 (por encima del piso).
+    # Impuesto a cargo 10,000,000, 2 meses de atraso: 5% x 2 = 10% = 1,000,000 (por
+    # encima del piso).
     resultado = calcular_sancion_extemporaneidad(
         impuesto_a_cargo=Decimal("10000000.00"),
         meses_o_fraccion=2,
@@ -120,14 +121,15 @@ def test_extemporaneidad_por_debajo_del_piso_queda_en_10_uvt():
     assert resultado == Decimal("470650.00")
 
 
-def test_extemporaneidad_el_piso_de_10_uvt_puede_superar_el_tope_del_100_pct_para_impuestos_pequenos():
-    # Impuesto a cargo pequeño (100,000), 1 mes de atraso: 5% = 5,000, ya por debajo del tope del
-    # 100% (min(5000, 100000) = 5000 sin efecto real del tope aqui), pero el piso de 10 UVT 2024
-    # (470,650.00) es mayor que ese monto -- el resultado final termina siendo ~4.7x el impuesto a
-    # cargo original. Esto es intencional y coincide con el criterio ya usado en el resto del motor
-    # (el piso del Estatuto Tributario, art. 639, es un minimo absoluto que no se exime para
-    # impuestos pequeños) -- este test documenta explicitamente esta interaccion piso/tope, que no
-    # tenia cobertura dedicada antes (encontrado en la revision final de rama completa del Sprint 15).
+def test_extemporaneidad_piso_10_uvt_supera_el_tope_100_pct_en_impuestos_pequenos():
+    # Impuesto a cargo pequeño (100,000), 1 mes de atraso: 5% = 5,000, ya por debajo del
+    # tope del 100% (min(5000, 100000) = 5000 sin efecto real del tope aqui), pero el
+    # piso de 10 UVT 2024 (470,650.00) es mayor que ese monto -- el resultado final
+    # termina siendo ~4.7x el impuesto a cargo original. Esto es intencional y coincide
+    # con el criterio ya usado en el resto del motor (el piso del Estatuto Tributario,
+    # art. 639, es un minimo absoluto que no se exime para impuestos pequeños) -- este
+    # test documenta explicitamente esta interaccion piso/tope, que no tenia cobertura
+    # dedicada antes (encontrado en la revision final de rama completa del Sprint 15).
     resultado = calcular_sancion_extemporaneidad(
         impuesto_a_cargo=Decimal("100000.00"),
         meses_o_fraccion=1,

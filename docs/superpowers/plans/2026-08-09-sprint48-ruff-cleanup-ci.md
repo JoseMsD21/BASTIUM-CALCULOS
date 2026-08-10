@@ -59,37 +59,50 @@ sin limpiarla (alcance explícitamente excluido). Limpiar por categoría, de má
 
 ### Task 1: Limpieza automática segura (I001 + revisión de unsafe-fixes)
 
-- [ ] `ruff check --fix .` para los 3 `I001` (orden de imports, fixable seguro).
-- [ ] Revisar una por una las 15 "hidden fixes" de `--unsafe-fixes` (`ruff check --unsafe-fixes --diff .`
-      para ver el diff sin aplicar primero) — aplicar solo las que no cambian comportamiento.
-- [ ] Suite completa en verde tras este paso.
+- [x] `ruff check --fix .` para los `I001` (orden de imports).
+- [x] Revisadas las "hidden fixes" de `--unsafe-fixes` (zip sin `strict=`, `assert False`, `StrEnum`) —
+      aplicadas solo las que no cambian comportamiento.
+- [x] Suite completa en verde tras este paso.
 
-### Task 2: E501 (line-too-long, 411 casos)
+### Task 2: E501 (line-too-long, 411 casos iniciales)
 
-- [ ] Reformatear archivo por archivo (o por directorio, lo que sea más manejable) hasta que `ruff check .`
-      no reporte más `E501`.
-- [ ] Suite completa en verde tras este paso (commit intermedio recomendado, es el grueso del trabajo).
+- [x] `ruff format .` resolvió la gran mayoría (reformateo automático de estructura/espaciado). Las
+      f-strings/literales largas que `ruff format` no reenvuelve (no reescribe contenido de strings) se
+      dividieron a mano en 2 commits, preservando el texto exacto.
+- [x] Suite completa en verde tras este paso.
 
 ### Task 3: E402 (module-import-not-at-top-of-file, 13 casos)
 
-- [ ] Revisar cada caso; mover el import al tope si no hay razón intencional, o dejar `# noqa: E402` con
-      comentario si la hay.
-- [ ] Suite completa en verde.
+- [x] Los 13 casos eran imports de nivel de módulo agregados incrementalmente a mitad de archivos de test
+      grandes (`test_area_strategy.py` x9, `test_historical_index.py` x3, `test_engine.py` x1,
+      `test_expediente_detalle.py` x2) — todos sin razón intencional real (no había conflicto de
+      importación circular ni lazy-loading deliberado), así que se movieron al bloque de imports del tope
+      de cada archivo, sin necesidad de ningún `# noqa`.
+- [x] Suite completa en verde.
 
 ### Task 4: Reglas de comportamiento (B905, B011, UP042, B904, E741, B008, F841 — 23 casos combinados)
 
-- [ ] Revisar y corregir cada ocurrencia individualmente, leyendo el contexto (estas reglas señalan
-      problemas reales de código, no solo estilo — ej. `F841` variable nunca usada podría indicar un bug).
-- [ ] Suite completa en verde.
+- [x] `B904` (2): `raise ... from err` en los 2 `except` que traducen una excepción interna
+      (`KeyError`/`InvalidOperation`) a una excepción de dominio (`IPCMensualNoDisponibleError`/
+      `ValueError`) — preserva la cadena de traceback original para debugging.
+- [x] `B008` (1): `LiquidationCore.__init__`'s `default_daily_rate: Rate = Rate(Decimal("0.0"))` movido a
+      un singleton de módulo (`_TASA_CERO`) — `Rate` es un `@dataclass(frozen=True)` (confirmado leyendo
+      `app/engine/financial/rate.py`), así que reusar la misma instancia no cambia el comportamiento.
+- [x] `E741` (2): `l` renombrado a `llamada` en 2 comprensiones de lista de tests.
+- [x] `B905`, `B011`, `UP042`, `F841` (0 casos reales al llegar aquí): ya habían quedado resueltos como
+      efecto secundario de `--unsafe-fixes` (Task 1) o no se reprodujeron en el estado actual del repo —
+      confirmado con `ruff check .` sin ninguno de estos códigos en el resultado final.
+- [x] Suite completa en verde.
 
 ### Task 5: CI
 
-- [ ] Agregar `ruff check .` como paso obligatorio en `.github/workflows/ci.yml` (Sprint 28), después del
-      paso de `pytest` o antes, decidir según convención del archivo actual.
-- [ ] Confirmar `ruff check .` sobre el repo completo devuelve cero errores.
+- [x] `ruff check .` agregado como paso obligatorio en `.github/workflows/ci.yml`, antes de `pytest`
+      (falla rápido si hay una violación de estilo, sin gastar tiempo corriendo la suite completa).
+- [x] Confirmado `ruff check .` sobre el repo completo devuelve cero errores.
 
 ### Task 6: Verificación final
 
-- [ ] `ruff check .` → 0 errores.
-- [ ] Suite completa de tests (`pytest`) en verde, mismo conteo de tests que antes de empezar (la limpieza
-      no debe agregar ni quitar ningún test).
+- [x] `ruff check .` → **0 errores** (`All checks passed!`).
+- [x] Suite completa de tests (`pytest`) en verde: **953 passed** — mismo conteo que antes de empezar la
+      limpieza (no se agregó ni quitó ningún test, solo se renombraron 3 funciones de test demasiado
+      largas para caber en 99 columnas).

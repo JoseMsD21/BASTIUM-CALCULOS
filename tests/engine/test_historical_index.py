@@ -3,11 +3,15 @@ from decimal import Decimal
 
 import pytest
 
+from app.core.exceptions import IPCMensualNoDisponibleError
 from app.engine.indexation.historical_index import (
     _IPC_VARIACION_ANUAL,
     _TRAMOS_IBC_USURA,
     get_ibc_usura_for_date,
     get_ipc_for_date,
+    get_ipc_interpolado_for_date,
+    get_ipc_interpolado_mensual_for_date,
+    get_ipc_mensual_for_month,
     get_smlmv_for_year,
     get_tramos_ibc_usura_between,
     get_uvt_for_year,
@@ -165,9 +169,6 @@ def test_usura_es_1_5_veces_ibc_en_todos_los_tramos():
         )
 
 
-from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
-
-
 def test_ipc_interpolado_en_cierre_de_anio_coincide_con_get_ipc_for_date():
     assert get_ipc_interpolado_for_date(date(2025, 12, 31)) == get_ipc_for_date(date(2025, 12, 31))
 
@@ -205,12 +206,6 @@ def test_ipc_interpolado_primer_anio_usa_ancla_implicita_de_100():
     esperado = (t1 * v_1967 + t2 * Decimal("100")) / (t1 + t2)
     assert get_ipc_interpolado_for_date(date(1967, 6, 30)) == esperado
 
-
-from app.core.exceptions import IPCMensualNoDisponibleError
-from app.engine.indexation.historical_index import (
-    get_ipc_interpolado_mensual_for_date,
-    get_ipc_mensual_for_month,
-)
 
 _IPC_MENSUAL_FIXTURE = {
     (2025, 10): Decimal("1180.50"),

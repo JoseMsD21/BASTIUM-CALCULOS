@@ -8,7 +8,9 @@ from sqlalchemy.pool import StaticPool
 
 import database.database as database_module
 import database.session as session_module
+from app.engine.audit.service import registrar_liquidacion
 from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO
+from app.engine.liquidation.registry import AreaRegistry
 from app.views.expediente_detalle import ExpedienteDetallePage
 from database.models import (
     AreaDerecho,
@@ -336,9 +338,9 @@ def _expediente_sancionatorio_con_hecho_posterior_a_2026(monkeypatch) -> int:
             tipo=TipoObligacion.PUNTUAL,
             concepto="Multa SIC",
             categoria="MULTA_SANCIONATORIA",
-            fecha_origen=date(
-                2027, 1, 1
-            ),  # posterior a 2026: fuera del rango de la tabla historica UVT (2006-2026), aun no publicada por la DIAN
+            # posterior a 2026: fuera del rango de la tabla historica UVT (2006-2026),
+            # aun no publicada por la DIAN
+            fecha_origen=date(2027, 1, 1),
             valor=Decimal("0.00"),
             tasa_efectiva_anual=Decimal("0.00"),
             cantidad_smlmv_uvt=Decimal("2"),
@@ -802,10 +804,6 @@ def test_liquidar_area_laboral_con_seguridad_social_no_lanza_detached_instance_e
 
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "COTIZACION_PENSION" in tipos_evento
-
-
-from app.engine.audit.service import registrar_liquidacion
-from app.engine.liquidation.registry import AreaRegistry
 
 
 def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monkeypatch):

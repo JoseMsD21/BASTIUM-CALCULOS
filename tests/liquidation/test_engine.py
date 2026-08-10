@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from app.engine.financial.rate import Rate
+from app.engine.interest.provider import MemoryRateProvider
 from app.engine.liquidation.engine import LiquidationCore
 from app.engine.temporal.schedulers.base import Event
 
@@ -31,9 +32,6 @@ def test_engine_processes_chronological_events():
     assert final_debt.principal == Decimal("550.00")
     assert final_debt.interest == Decimal("0.00")
     assert result.total_payments_applied() == Decimal("500.00")
-
-
-from app.engine.interest.provider import MemoryRateProvider
 
 
 def test_engine_popula_rate_source_desde_el_rate_provider():
@@ -235,7 +233,7 @@ def test_engine_usar_suma_unica_true_capital_base_en_liquidation_item_incluye_in
     assert item_cierre.capital_base == Decimal("1500.00")
 
 
-def test_engine_usar_suma_unica_false_capital_base_en_liquidation_item_sigue_siendo_solo_principal():
+def test_engine_usar_suma_unica_false_capital_base_sigue_siendo_solo_principal():
     events = [
         Event(
             date=date(2026, 1, 1), payload={"amount": Decimal("1000.00")}, event_type="INSTALLMENT"

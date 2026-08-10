@@ -38,7 +38,8 @@ def migrar(db_path: Path = DB_PATH) -> bool:
 if __name__ == "__main__":
     if migrar():
         print(
-            "Columnas anatocismo_demanda_judicial/anatocismo_fecha_acuerdo agregadas a obligaciones."
+            "Columnas anatocismo_demanda_judicial/anatocismo_fecha_acuerdo agregadas a "
+            "obligaciones."
         )
     else:
         print("Las columnas ya existian, no se hizo nada.")
