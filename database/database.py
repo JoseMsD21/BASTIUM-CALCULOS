@@ -76,4 +76,4 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     migrar_reajuste_anual_familia(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
-    migrar_parametros_legales()
+    migrar_parametros_legales(ruta)

@@ -52,6 +52,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from datetime import date, datetime
 from decimal import Decimal
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.engine.indexation.historical_index import (
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
@@ -67,7 +70,7 @@ from app.engine.temporal.prescripcion import (
     TipoAccion,
 )
 from database.database import init_db
-from database.models import ParametroLegal
+from database.models import Base, ParametroLegal
 from database.session import get_session
 
 USUARIO_MIGRACION = "sistema"
@@ -104,11 +107,29 @@ def _clave_ya_sembrada(session, clave: str) -> bool:
     return session.query(ParametroLegal).filter(ParametroLegal.clave == clave).first() is not None
 
 
-def migrar() -> int:
+def migrar(db_path: Path | None = None) -> int:
     """Siembra parametros_legales. Retorna cuantas claves se sembraron (0 si
-    ya estaban todas cargadas)."""
-    init_db()
-    session = get_session()
+    ya estaban todas cargadas).
+
+    Sprint 52 (bug de integridad): a diferencia de las otras 10 migraciones
+    de scripts/migrate_*.py, esta funcion antes ignoraba por completo
+    db_path -- via init_db()/get_session(), siempre operaba contra el engine
+    global de database.database (construido una sola vez al importar ese
+    modulo), sin importar que ruta le pasara aplicar_migraciones_pendientes().
+    Si se recibe db_path, se usa un engine SQLAlchemy ad hoc apuntando
+    exactamente a esa ruta -- nunca al engine global -- para que la siembra
+    quede aislada en la base destino. Sin db_path (invocacion directa del
+    script, `python scripts/migrate_parametros_legales.py`), se preserva el
+    comportamiento historico contra la bastium.db real via init_db()/
+    get_session()."""
+    engine_ad_hoc = None
+    if db_path is None:
+        init_db()
+        session = get_session()
+    else:
+        engine_ad_hoc = create_engine(f"sqlite:///{db_path}")
+        Base.metadata.create_all(engine_ad_hoc)
+        session = sessionmaker(bind=engine_ad_hoc, expire_on_commit=False)()
     sembradas = 0
     try:
         valores_unicos = [
@@ -196,6 +217,8 @@ def migrar() -> int:
         return sembradas
     finally:
         session.close()
+        if engine_ad_hoc is not None:
+            engine_ad_hoc.dispose()
 
 
 if __name__ == "__main__":
