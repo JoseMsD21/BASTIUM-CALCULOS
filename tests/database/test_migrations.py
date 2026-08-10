@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -50,15 +51,26 @@ def _apuntar_session_module_a(engine, monkeypatch) -> None:
     )
 
 
+@contextmanager
 def _sesion_para(db_path: Path):
     """Sesion SQLAlchemy ad hoc apuntando directamente a db_path -- a
     diferencia de _apuntar_session_module_a(), no toca el engine global de
     database.database ni el SessionLocal de database.session. Sirve para
     verificar, tras el fix del Sprint 52, que migrate_parametros_legales.migrar()
     ya siembra en db_path por si solo (via su propio engine ad hoc) sin que el
-    test necesite redirigir el engine global para poder leer el resultado."""
+    test necesite redirigir el engine global para poder leer el resultado.
+
+    Context manager (en vez de devolver solo la sesion) para garantizar que
+    tanto la Session como el Engine SQLite ad hoc se cierren siempre --
+    dejarlos a merced del GC produce ResourceWarning: unclosed database y, en
+    Windows, PermissionError intermitente al limpiar tmp_path."""
     engine = create_engine(f"sqlite:///{db_path}")
-    return sessionmaker(bind=engine, expire_on_commit=False)()
+    session = sessionmaker(bind=engine, expire_on_commit=False)()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
 
 
 def test_aplicar_migraciones_pendientes_agrega_las_columnas_faltantes_de_obligaciones(tmp_path):
@@ -167,9 +179,8 @@ def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path):
 
     aplicar_migraciones_pendientes(db_path)
 
-    session = _sesion_para(db_path)
-    claves = {fila.clave for fila in session.query(ParametroLegal).all()}
-    session.close()
+    with _sesion_para(db_path) as session:
+        claves = {fila.clave for fila in session.query(ParametroLegal).all()}
     assert len(claves) == 39
 
 
@@ -183,10 +194,12 @@ def test_aplicar_migraciones_pendientes_es_idempotente(tmp_path):
     engine.dispose()
 
     aplicar_migraciones_pendientes(db_path)
-    total_filas_primera_vez = _sesion_para(db_path).query(ParametroLegal).count()
+    with _sesion_para(db_path) as session:
+        total_filas_primera_vez = session.query(ParametroLegal).count()
 
     aplicar_migraciones_pendientes(db_path)
-    total_filas_segunda_vez = _sesion_para(db_path).query(ParametroLegal).count()
+    with _sesion_para(db_path) as session:
+        total_filas_segunda_vez = session.query(ParametroLegal).count()
 
     assert total_filas_segunda_vez == total_filas_primera_vez
 
