@@ -232,6 +232,19 @@ class MainWindow(QMainWindow):
         if not self._history:
             return
         pagina_anterior = self._history.pop()
+        # Sprint 55 (hallazgo 1): igual que _ir_inicio(), si la pagina de destino
+        # es el dashboard hay que refrescarlo antes de mostrarlo -- si no, un
+        # cambio de tema hecho en otra pantalla deja la grafica con los colores
+        # del modo viejo al volver con "Volver" (a diferencia de "Inicio", que
+        # siempre refresca). No se generaliza a un refrescar() incondicional
+        # para cualquier pagina destino: ni expedientes_page ni parametros_page
+        # se refrescan aqui a proposito -- su refrescar() ya se dispara desde
+        # los metodos que llevan a esas pantallas por primera vez
+        # (_ir_a_expedientes, _ir_a_parametros), y volver a llamarlo en cada
+        # "Volver" seria trabajo repetido sin beneficio (esas pantallas no
+        # dependen del tema como el dashboard).
+        if pagina_anterior == "dashboard":
+            self.dashboard_page.refrescar()
         self.show_page(pagina_anterior, add_to_history=False)
 
     def _ir_inicio(self) -> None:

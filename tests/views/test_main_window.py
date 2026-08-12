@@ -89,6 +89,31 @@ def test_volver_respeta_el_orden_de_visitas(qtbot):
     assert window.stacked_widget.currentWidget() is window.dashboard_page
 
 
+def test_volver_al_dashboard_refresca_la_grafica_con_el_tema_activo(qtbot, monkeypatch):
+    """Sprint 55 (hallazgo 1): a diferencia de _ir_inicio(), _volver() no llamaba
+    a dashboard_page.refrescar() antes de mostrar la pagina. Si el usuario
+    cambia de tema estando en otra pantalla y regresa con "Volver" (no con
+    "Inicio"), la grafica del dashboard debia quedar con los colores del modo
+    vigente al momento de volver, no con los de la ultima vez que se llamo
+    refrescar() (construccion de MainWindow, en modo claro)."""
+    from matplotlib.colors import to_rgba
+
+    from app.core import apariencia, theme_colors_dark
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.show_page("detalle")  # dashboard queda en el historial, en modo claro
+    monkeypatch.setattr(apariencia, "cargar_modo_tema", lambda: apariencia.MODO_OSCURO)
+
+    window._volver()
+
+    assert window.stacked_widget.currentWidget() is window.dashboard_page
+    ejes = window.dashboard_page.figura_por_area.axes[0]
+    color_barra = ejes.containers[0][0].get_facecolor()
+    assert color_barra == to_rgba(theme_colors_dark.PRIMARIO)
+
+
 def test_volver_sin_historial_no_hace_nada(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)

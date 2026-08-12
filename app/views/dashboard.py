@@ -2,7 +2,9 @@ from datetime import date, timedelta
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -57,6 +59,10 @@ class DashboardView(QWidget):
 
         self.tabla_por_area = QTableWidget(len(AREAS_DERECHO), 2)
         self.tabla_por_area.setHorizontalHeaderLabels(["Área", "Expedientes"])
+        # Sprint 55 (hallazgo 3): sin esto, doble clic entraba en modo edicion
+        # sin persistir el cambio en ningun lado -- solo confunde. Mismo patron
+        # que configuracion.py y expediente_detalle.py.
+        self.tabla_por_area.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         # Grafica de expedientes por area (Sprint 50, Tarea 3): complementa la tabla
         # tabular de arriba, no la reemplaza -- matplotlib estaba en requirements.txt
@@ -67,6 +73,18 @@ class DashboardView(QWidget):
         self.figura_por_area = Figure(figsize=(4, 2.5))
         self.canvas_por_area = FigureCanvasQTAgg(self.figura_por_area)
         self._ejes_por_area = self.figura_por_area.add_subplot(111)
+        # Sprint 55 (hallazgo 2): tight_layout() solo se aplicaba una vez, al
+        # poblar la grafica con datos nuevos (_refrescar_grafica_por_area) -- sin
+        # un manejador de resize, las etiquetas del eje X quedaban apretadas o
+        # superpuestas al redimensionar la ventana, porque el ancho disponible
+        # para acomodarlas cambio pero nadie volvia a llamar tight_layout(). Se
+        # usa un eventFilter (en vez de subclasificar FigureCanvasQTAgg) porque
+        # solo hace falta reaccionar a QEvent.Type.Resize del canvas ya
+        # construido, sin tocar su clase. No hay riesgo de bucle: tight_layout()
+        # solo reacomoda los margenes de la figura ya dibujada (no cambia el
+        # tamano del widget QWidget), y draw_idle() solo agenda un repintado, no
+        # dispara un nuevo evento de resize.
+        self.canvas_por_area.installEventFilter(self)
 
         layout_resumen_contenido = QHBoxLayout()
         layout_resumen_contenido.addWidget(self.tabla_por_area)
@@ -82,6 +100,7 @@ class DashboardView(QWidget):
         self.tabla_alertas.setHorizontalHeaderLabels(
             ["Radicado", "Concepto", "Fecha límite", "Estado"]
         )
+        self.tabla_alertas.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla_alertas.cellDoubleClicked.connect(self._abrir_expediente_de_alerta)
         self._expediente_ids_por_fila_alerta: list[int] = []
 
@@ -92,6 +111,7 @@ class DashboardView(QWidget):
 
         self.tabla_actividad = QTableWidget(0, 3)
         self.tabla_actividad.setHorizontalHeaderLabels(["Fecha", "Radicado", "Área"])
+        self.tabla_actividad.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         grupo_actividad = QGroupBox("Actividad reciente")
         layout_actividad = QVBoxLayout()
@@ -110,6 +130,17 @@ class DashboardView(QWidget):
         self.setLayout(layout_principal)
 
         self.refrescar()
+
+    def eventFilter(self, watched, event) -> bool:
+        # Sprint 55 (hallazgo 2): reacomoda el layout de la grafica de barras al
+        # redimensionar el canvas -- sin re-consultar la base de datos ni
+        # recalcular datos (a diferencia de refrescar()/_refrescar_grafica_por_area(),
+        # que si lo hacen). Ver el comentario junto a installEventFilter() en
+        # __init__ para el detalle de por que no hay riesgo de bucle.
+        if watched is self.canvas_por_area and event.type() == QEvent.Type.Resize:
+            self.figura_por_area.tight_layout()
+            self.canvas_por_area.draw_idle()
+        return super().eventFilter(watched, event)
 
     def _emitir_ver_expedientes(self) -> None:
         if self._on_ver_expedientes:

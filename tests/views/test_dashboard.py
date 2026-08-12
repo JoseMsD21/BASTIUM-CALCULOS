@@ -362,6 +362,62 @@ def _hex_a_rgba_matplotlib(hex_color: str) -> tuple:
     return to_rgba(hex_color)
 
 
+# --- Sprint 55: 3 bugs de UI en el Dashboard --------------------------------
+
+
+def test_dashboard_tablas_no_son_editables(qtbot, monkeypatch):
+    """Hallazgo 3: doble clic en una celda de cualquiera de las 3 tablas del
+    Dashboard entraba en modo edicion sin persistir el cambio en ningun lado --
+    solo confunde. Mismo patron que ya usan configuracion.py y
+    expediente_detalle.py (NoEditTriggers)."""
+    from PySide6.QtWidgets import QAbstractItemView
+
+    _sesion_en_memoria(monkeypatch)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    for tabla in (view.tabla_por_area, view.tabla_alertas, view.tabla_actividad):
+        assert tabla.editTriggers() == QAbstractItemView.EditTrigger.NoEditTriggers
+
+
+def test_dashboard_resize_reajusta_el_layout_de_la_grafica_sin_recalcular_datos(
+    qtbot, monkeypatch
+):
+    """Hallazgo 2: _refrescar_grafica_por_area() solo llamaba tight_layout() una
+    vez, al refrescar datos -- sin un manejador de resize, las etiquetas de la
+    grafica de barras quedaban apretadas/superpuestas al redimensionar la
+    ventana. No hay un patron establecido en el repo para testear layout de
+    matplotlib embebido pixel a pixel, asi que este test verifica lo que si es
+    observable y determinista: que redimensionar el canvas dispara un nuevo
+    tight_layout()+draw_idle() sobre la figura YA dibujada, sin volver a
+    consultar la base de datos (no debe llamarse a refrescar())."""
+    _sesion_en_memoria(monkeypatch)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+    view.show()
+    qtbot.waitExposed(view)
+
+    llamadas_refrescar = []
+    monkeypatch.setattr(view, "refrescar", lambda *a, **k: llamadas_refrescar.append(1))
+
+    llamadas_tight_layout = []
+    tight_layout_original = view.figura_por_area.tight_layout
+
+    def tight_layout_contado(*args, **kwargs):
+        llamadas_tight_layout.append(1)
+        return tight_layout_original(*args, **kwargs)
+
+    monkeypatch.setattr(view.figura_por_area, "tight_layout", tight_layout_contado)
+
+    view.resize(900, 700)
+    qtbot.wait(50)
+
+    assert llamadas_tight_layout, "redimensionar debe volver a acomodar el layout de la figura"
+    assert llamadas_refrescar == [], "el resize no debe volver a consultar datos"
+
+
 # --- Sprint 53: patron N+1 de consultas en el Dashboard --------------------
 
 
