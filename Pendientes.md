@@ -189,7 +189,7 @@ afirmación incorrecta sobre prescripción/caducidad que sí le llega al usuario
 - [Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` ✅ Completado](#sprint-52--bug-de-integridad-aplicar_migraciones_pendientes-ignora-db_path-al-sembrar-parametros_legales--completado)
 - [Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard ✅ Completado](#sprint-53--rendimiento-patrón-n1-de-consultas-en-el-dashboard--completado)
 - [Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 ✅ Completado](#sprint-54--corrección-de-documentación-desactualizada-tras-los-sprints-41-42-50-y-51--completado)
-- [Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable 📋 Pendiente](#sprint-55--3-bugs-de-ui-en-el-dashboard-gráfica-con-colores-viejos-etiquetas-apretadas-y-tabla-editable--pendiente)
+- [Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable ✅ Completado](#sprint-55--3-bugs-de-ui-en-el-dashboard-gráfica-con-colores-viejos-etiquetas-apretadas-y-tabla-editable--completado)
 
 ---
 
@@ -4389,7 +4389,7 @@ cambió (anclas internas intactas).
 
 ---
 
-## Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable 📋 Pendiente
+## Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable ✅ Completado
 
 **Prioridad sugerida:** Media — ninguno rompe un cálculo ni pierde datos, pero los 3 son visibles de inmediato
 en la primera pantalla que ve el usuario en cada arranque, y el tercero (tabla editable) puede hacerle creer
@@ -4467,6 +4467,22 @@ hallazgos se verificaron leyendo el código real antes de escribir este sprint (
   aceptable si no hay patrón de test para esto en el repo).
 - Ninguna celda de las 3 tablas del Dashboard es editable.
 - Suite completa en verde.
+
+**Cierre de implementación (2026-08-11):** Completado, vía Subagent-Driven Development.
+`MainWindow._volver()` ahora llama a `dashboard_page.refrescar()` cuando la página destino del historial
+es `"dashboard"` (mismo patrón que ya usaba `_ir_inicio()`), sin refrescar incondicionalmente para otras
+páginas. Las 3 tablas del Dashboard tienen `setEditTriggers(NoEditTriggers)`. El fix del reacomodo de la
+gráfica al redimensionar **cambió de enfoque durante la revisión de calidad**: el primer intento
+(`installEventFilter` sobre `canvas_por_area`, interceptando `QEvent.Type.Resize`) resultó tener un bug de
+orden de eventos verificado empíricamente — Qt despacha los event filters *antes* de que
+`FigureCanvasQT.resizeEvent()` (código nativo de matplotlib) sincronice el tamaño de la figura, así que
+`tight_layout()` calculaba los márgenes para el tamaño VIEJO del widget, reproduciendo el bug original
+justo en el caso más común (un salto grande de tamaño, ej. maximizar la ventana). Corregido enganchando al
+sistema de eventos propio de matplotlib (`canvas_por_area.mpl_connect("resize_event", ...)`, que sí corre
+después de que el tamaño ya está sincronizado) en vez de interceptar el evento crudo de Qt — más idiomático
+además para un canvas de matplotlib embebido. Verificado con un test que captura la geometría exacta en el
+momento en que `tight_layout()` corre, confirmado que detecta el bug (falla contra la implementación vieja,
+pasa contra la nueva). Suite completa en verde (1010 tests tras este sprint).
 
 ---
 
