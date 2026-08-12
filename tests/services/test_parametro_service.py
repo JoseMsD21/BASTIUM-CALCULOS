@@ -5,7 +5,17 @@ import pytest
 
 import database.session as session_module
 from app.core.exceptions import ParametroNoDisponibleError
+from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE
 from database.models import ParametroLegal
+
+
+def _area_unidad(clave):
+    """kwargs areas_derecho/unidad para `clave` segun AREA_UNIDAD_POR_CLAVE --
+    evita hardcodear valores en cada test de este archivo que no ejercitan la
+    tabla de area/unidad en si (ver tests/services/test_areas_parametro.py
+    para esos)."""
+    areas, unidad = AREA_UNIDAD_POR_CLAVE[clave]
+    return {"areas_derecho": areas, "unidad": unidad}
 
 
 def _insertar(clave, valor, vigente_desde, vigente_hasta=None):
@@ -125,6 +135,7 @@ def test_agregar_valor_modo_abierto_no_admite_vigente_hasta():
             date(2026, 1, 1),
             "abogado1",
             vigente_hasta=date(2026, 12, 31),
+            **_area_unidad("USURA_MULTIPLICADOR"),
         )
 
 
@@ -132,7 +143,69 @@ def test_agregar_valor_modo_tramo_cerrado_exige_vigente_hasta():
     from app.services.parametro_service import agregar_valor
 
     with pytest.raises(ValueError):
-        agregar_valor("IBC_CONSUMO_ORDINARIO", Decimal("16.24"), date(2026, 8, 1), "abogado1")
+        agregar_valor(
+            "IBC_CONSUMO_ORDINARIO",
+            Decimal("16.24"),
+            date(2026, 8, 1),
+            "abogado1",
+            **_area_unidad("IBC_CONSUMO_ORDINARIO"),
+        )
+
+
+def test_agregar_valor_sin_areas_derecho_ni_unidad_falla_por_firma():
+    """Sprint 57: areas_derecho/unidad son parametros requeridos nuevos --
+    llamar agregar_valor() sin ellos debe fallar en la firma misma (TypeError),
+    no silenciosamente."""
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(TypeError):
+        agregar_valor("USURA_MULTIPLICADOR", Decimal("1.5"), date(2026, 1, 1), "abogado1")
+
+
+def test_agregar_valor_areas_derecho_vacia_lanza_value_error():
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(ValueError):
+        agregar_valor(
+            "USURA_MULTIPLICADOR",
+            Decimal("1.5"),
+            date(2026, 1, 1),
+            "abogado1",
+            areas_derecho=[],
+            unidad="veces",
+        )
+
+
+def test_agregar_valor_unidad_vacia_lanza_value_error():
+    from app.services.parametro_service import agregar_valor
+    from database.models import AreaDerecho
+
+    with pytest.raises(ValueError):
+        agregar_valor(
+            "USURA_MULTIPLICADOR",
+            Decimal("1.5"),
+            date(2026, 1, 1),
+            "abogado1",
+            areas_derecho=[AreaDerecho.COMERCIAL],
+            unidad="   ",
+        )
+
+
+def test_agregar_valor_guarda_areas_derecho_y_unidad_legibles():
+    from app.services.areas_parametro import deserializar_areas
+    from app.services.parametro_service import agregar_valor
+    from database.models import AreaDerecho
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(2026, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    assert deserializar_areas(fila.areas_derecho) == [AreaDerecho.COMERCIAL]
+    assert fila.unidad == "veces"
 
 
 def test_agregar_valor_guarda_y_queda_disponible_para_get_parametro():
@@ -144,6 +217,7 @@ def test_agregar_valor_guarda_y_queda_disponible_para_get_parametro():
         date(2027, 1, 1),
         "abogado1",
         motivo="Publicado por el Gobierno",
+        **_area_unidad("SMLMV"),
     )
     assert get_parametro("SMLMV", date(2027, 3, 1)) == Decimal("1900000.00")
 
@@ -151,8 +225,12 @@ def test_agregar_valor_guarda_y_queda_disponible_para_get_parametro():
 def test_historial_ordena_del_mas_reciente_al_mas_antiguo():
     from app.services.parametro_service import agregar_valor, historial
 
-    agregar_valor("SMLMV", Decimal("1423500.00"), date(2025, 1, 1), "abogado1")
-    agregar_valor("SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1")
+    agregar_valor(
+        "SMLMV", Decimal("1423500.00"), date(2025, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
 
     filas = historial("SMLMV")
     assert [f.vigente_desde for f in filas] == [date(2026, 1, 1), date(2025, 1, 1)]
@@ -167,7 +245,13 @@ def test_valor_vigente_hoy_retorna_none_sin_datos():
 def test_valor_vigente_hoy_retorna_la_fila_resuelta_para_hoy():
     from app.services.parametro_service import agregar_valor, valor_vigente_hoy
 
-    agregar_valor("HONORARIOS_TOTAL_PCT", Decimal("50"), date(2007, 1, 1), "abogado1")
+    agregar_valor(
+        "HONORARIOS_TOTAL_PCT",
+        Decimal("50"),
+        date(2007, 1, 1),
+        "abogado1",
+        **_area_unidad("HONORARIOS_TOTAL_PCT"),
+    )
     fila = valor_vigente_hoy("HONORARIOS_TOTAL_PCT")
     assert fila is not None
     assert fila.valor == Decimal("50")
@@ -176,8 +260,20 @@ def test_valor_vigente_hoy_retorna_la_fila_resuelta_para_hoy():
 def test_ultimo_anio_disponible_retorna_el_mayor_anio_cargado():
     from app.services.parametro_service import agregar_valor, ultimo_anio_disponible
 
-    agregar_valor("IPC_INDICE_ACUMULADO", Decimal("100"), date(1967, 1, 1), "sistema")
-    agregar_valor("IPC_INDICE_ACUMULADO", Decimal("500"), date(2025, 1, 1), "sistema")
+    agregar_valor(
+        "IPC_INDICE_ACUMULADO",
+        Decimal("100"),
+        date(1967, 1, 1),
+        "sistema",
+        **_area_unidad("IPC_INDICE_ACUMULADO"),
+    )
+    agregar_valor(
+        "IPC_INDICE_ACUMULADO",
+        Decimal("500"),
+        date(2025, 1, 1),
+        "sistema",
+        **_area_unidad("IPC_INDICE_ACUMULADO"),
+    )
     assert ultimo_anio_disponible("IPC_INDICE_ACUMULADO") == 2025
 
 
@@ -199,14 +295,26 @@ def test_agregar_valor_rechaza_valor_negativo():
     from app.services.parametro_service import agregar_valor
 
     with pytest.raises(ValueError):
-        agregar_valor("USURA_MULTIPLICADOR", Decimal("-1.5"), date(2026, 1, 1), "abogado1")
+        agregar_valor(
+            "USURA_MULTIPLICADOR",
+            Decimal("-1.5"),
+            date(2026, 1, 1),
+            "abogado1",
+            **_area_unidad("USURA_MULTIPLICADOR"),
+        )
 
 
 def test_agregar_valor_rechaza_valor_cero():
     from app.services.parametro_service import agregar_valor
 
     with pytest.raises(ValueError):
-        agregar_valor("USURA_MULTIPLICADOR", Decimal("0"), date(2026, 1, 1), "abogado1")
+        agregar_valor(
+            "USURA_MULTIPLICADOR",
+            Decimal("0"),
+            date(2026, 1, 1),
+            "abogado1",
+            **_area_unidad("USURA_MULTIPLICADOR"),
+        )
 
 
 def test_agregar_valor_rechaza_vigente_hasta_anterior_a_vigente_desde():
@@ -219,6 +327,7 @@ def test_agregar_valor_rechaza_vigente_hasta_anterior_a_vigente_desde():
             date(2026, 2, 1),
             "abogado1",
             vigente_hasta=date(2026, 1, 1),
+            **_area_unidad("IBC_CONSUMO_ORDINARIO"),
         )
 
 
@@ -231,6 +340,7 @@ def test_agregar_valor_rechaza_tramo_cerrado_solapado():
         date(2026, 1, 1),
         "abogado1",
         vigente_hasta=date(2026, 1, 31),
+        **_area_unidad("IBC_CONSUMO_ORDINARIO"),
     )
     with pytest.raises(ValueError):
         agregar_valor(
@@ -239,6 +349,7 @@ def test_agregar_valor_rechaza_tramo_cerrado_solapado():
             date(2026, 1, 15),
             "abogado1",
             vigente_hasta=date(2026, 2, 15),
+            **_area_unidad("IBC_CONSUMO_ORDINARIO"),
         )
 
 
@@ -251,6 +362,7 @@ def test_agregar_valor_permite_tramo_cerrado_consecutivo_sin_solape():
         date(2026, 1, 1),
         "abogado1",
         vigente_hasta=date(2026, 1, 31),
+        **_area_unidad("IBC_CONSUMO_ORDINARIO"),
     )
     fila = agregar_valor(
         "IBC_CONSUMO_ORDINARIO",
@@ -258,6 +370,7 @@ def test_agregar_valor_permite_tramo_cerrado_consecutivo_sin_solape():
         date(2026, 2, 1),
         "abogado1",
         vigente_hasta=date(2026, 2, 28),
+        **_area_unidad("IBC_CONSUMO_ORDINARIO"),
     )
     assert fila.valor == Decimal("16.82")
 

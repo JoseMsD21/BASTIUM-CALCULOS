@@ -26,7 +26,8 @@ from typing import NamedTuple
 
 import database.session as session_module
 from app.core.exceptions import ParametroNoDisponibleError
-from database.models import ParametroLegal
+from app.services.areas_parametro import serializar_areas
+from database.models import AreaDerecho, ParametroLegal
 
 
 class ModoResolucion(enum.Enum):
@@ -457,11 +458,20 @@ def agregar_valor(
     valor: Decimal,
     vigente_desde: date,
     usuario: str,
+    areas_derecho: list[AreaDerecho],
+    unidad: str,
     motivo: str | None = None,
     vigente_hasta: date | None = None,
 ) -> ParametroLegal:
     """Inserta una fila nueva (append-only: nunca modifica ni borra filas
-    existentes). Usada por la GUI (app/views/configuracion.py)."""
+    existentes). Usada por la GUI (app/views/configuracion.py).
+
+    areas_derecho/unidad (Sprint 57): obligatorias para toda fila creada por
+    esta funcion -- se guardan por fila (no como metadato fijo en Python) y
+    nunca se editan despues de creadas (decision del usuario, ver spec). El
+    modelo las deja nullable a nivel de columna SQLite (ver database/models.py)
+    precisamente para que esa obligatoriedad la exija esta funcion, no un
+    CHECK/NOT NULL de la base de datos."""
     info = _validar_clave(clave)
     if info.modo == ModoResolucion.TRAMO_CERRADO and vigente_hasta is None:
         raise ValueError(f"'{clave}' requiere 'vigente_hasta' (modo TRAMO_CERRADO).")
@@ -471,6 +481,10 @@ def agregar_valor(
         raise ValueError("El valor debe ser positivo.")
     if vigente_hasta is not None and vigente_hasta < vigente_desde:
         raise ValueError("'vigente_hasta' no puede ser anterior a 'vigente_desde'.")
+    areas_derecho_json = serializar_areas(areas_derecho)
+    unidad = unidad.strip()
+    if not unidad:
+        raise ValueError("La unidad es obligatoria.")
 
     session = session_module.get_session()
     try:
@@ -498,6 +512,8 @@ def agregar_valor(
             usuario=usuario,
             motivo=motivo,
             creado_en=datetime.now(),
+            areas_derecho=areas_derecho_json,
+            unidad=unidad,
         )
         session.add(fila)
         session.commit()
