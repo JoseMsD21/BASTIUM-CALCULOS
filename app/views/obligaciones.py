@@ -31,7 +31,12 @@ from app.core.constants import (
 )
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
-from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable, set_row_visible
+from app.views.form_utils import (
+    agregar_ayuda,
+    guardar_o_actualizar,
+    hacer_redimensionable,
+    set_row_visible,
+)
 from app.views.icons import icon
 from database.models import Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
 
@@ -296,18 +301,23 @@ class ObligacionFormDialog(QDialog):
         layout_grupo_honorarios_costas.addWidget(contenido_honorarios_costas)
         self.grupo_honorarios_costas.toggled.connect(contenido_honorarios_costas.setVisible)
 
-        # Concepto/Valor/Tasa se envuelven con iconos de advertencia (y, para Tasa,
-        # tambien un icono informativo del valor por defecto) -- ver
+        # Concepto/Valor/Tasa se envuelven con un icono de advertencia -- ver
         # _envolver_campo_con_iconos. A partir de aqui, ocultar/mostrar la FILA de
         # Valor/Tasa segun el area debe apuntar al contenedor devuelto, no al
         # QLineEdit interno (que solo controla su propia visibilidad, no la del
         # icono que lo acompaña).
         self._contenedor_campo_concepto = self._envolver_campo_con_iconos(self.campo_concepto)
         self._contenedor_campo_valor = self._envolver_campo_con_iconos(self.campo_valor)
-        self._contenedor_campo_tasa = self._envolver_campo_con_iconos(
-            self.campo_tasa,
-            icono_info="info",
-            tooltip_info="Valor por defecto: interés civil legal, Art. 1617 C.C.",
+        # Tasa ademas recibe el icono informativo del valor por defecto (Sprint 34),
+        # ahora mediante el helper compartido `agregar_ayuda` (Sprint 59) en vez de un
+        # parametro propio de _envolver_campo_con_iconos -- agrega tambien la fila al
+        # layout, por eso no aparece un addRow("Tasa efectiva anual (%)", ...) separado
+        # mas abajo, junto a las demas filas de "Tasas e intereses".
+        self._contenedor_campo_tasa = agregar_ayuda(
+            self.layout_tasas_intereses,
+            "Tasa efectiva anual (%)",
+            self._envolver_campo_con_iconos(self.campo_tasa),
+            tooltip="Valor por defecto: interés civil legal, Art. 1617 C.C.",
         )
 
         self.layout_datos_basicos.addRow("Tipo", self.combo_tipo)
@@ -352,7 +362,6 @@ class ObligacionFormDialog(QDialog):
         self.layout_datos_basicos.addRow(self.check_incluir_seguridad_social)
         self.layout_datos_basicos.addRow("Nivel de riesgo ARL", self.combo_nivel_riesgo_arl)
 
-        self.layout_tasas_intereses.addRow("Tasa efectiva anual (%)", self._contenedor_campo_tasa)
         self.layout_tasas_intereses.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
         self.layout_tasas_intereses.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
         self.layout_tasas_intereses.addRow("IBC vigente aplicable (%)", self.campo_ibc_vigente)
@@ -889,28 +898,27 @@ class ObligacionFormDialog(QDialog):
                 f"del expediente ({expediente.fecha_corte_default.isoformat()})."
             )
 
-    def _envolver_campo_con_iconos(
-        self, campo: QLineEdit, *, icono_info: str | None = None, tooltip_info: str = ""
-    ) -> QWidget:
-        """Envuelve `campo` en un contenedor horizontal con, opcionalmente, un
-        icono de informacion fijo (explica de donde sale un valor por defecto,
-        Sprint 34) y siempre un icono de advertencia oculto por defecto que
-        `_marcar_campo_invalido` muestra cuando la validacion en tiempo real
-        detecta un error. QFormLayout no admite dos widgets de "campo" en la
-        misma fila sin este contenedor intermedio -- por eso las llamadas que
-        antes ocultaban `campo` directamente (para ocultar/mostrar toda la fila
-        segun el area) ahora deben apuntar al contenedor devuelto por este
-        metodo, no al QLineEdit interno (ver __init__).
+    def _envolver_campo_con_iconos(self, campo: QLineEdit) -> QWidget:
+        """Envuelve `campo` en un contenedor horizontal con un icono de
+        advertencia oculto por defecto que `_marcar_campo_invalido` muestra
+        cuando la validacion en tiempo real detecta un error. QFormLayout no
+        admite dos widgets de "campo" en la misma fila sin este contenedor
+        intermedio -- por eso las llamadas que antes ocultaban `campo`
+        directamente (para ocultar/mostrar toda la fila segun el area) ahora
+        deben apuntar al contenedor devuelto por este metodo, no al QLineEdit
+        interno (ver __init__).
+
+        El icono informativo de un valor por defecto (Sprint 34, antes tambien
+        construido aqui via `icono_info=`) se extrajo al helper compartido
+        `agregar_ayuda` (app/views/form_utils.py, Sprint 59) -- ver el call
+        site de "Tasa efectiva anual" en __init__, que envuelve el contenedor
+        que devuelve este metodo con `agregar_ayuda` para agregar ese icono
+        y la fila al layout.
         """
         contenedor = QWidget()
         layout_fila = QHBoxLayout(contenedor)
         layout_fila.setContentsMargins(0, 0, 0, 0)
         layout_fila.addWidget(campo)
-        if icono_info is not None:
-            etiqueta_info = QLabel()
-            etiqueta_info.setPixmap(icon(icono_info).pixmap(16, 16))
-            etiqueta_info.setToolTip(tooltip_info)
-            layout_fila.addWidget(etiqueta_info)
         etiqueta_advertencia = QLabel()
         etiqueta_advertencia.setPixmap(icon("warning").pixmap(16, 16))
         etiqueta_advertencia.setVisible(False)

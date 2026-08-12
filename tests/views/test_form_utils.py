@@ -2,12 +2,17 @@ from datetime import date
 from decimal import Decimal
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QFormLayout, QLineEdit
+from PySide6.QtWidgets import QDialog, QFormLayout, QLabel, QLineEdit
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable, set_row_visible
+from app.views.form_utils import (
+    agregar_ayuda,
+    guardar_o_actualizar,
+    hacer_redimensionable,
+    set_row_visible,
+)
 from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
 
 
@@ -145,6 +150,41 @@ def test_set_row_visible_no_falla_si_el_widget_no_tiene_etiqueta(qtbot):
     set_row_visible(layout, check, False)
 
     assert check.isVisible() is False
+
+
+def test_agregar_ayuda_agrega_fila_con_icono_y_tooltip(qtbot):
+    dialogo = QDialog()
+    layout = QFormLayout(dialogo)
+    campo = QLineEdit()
+    qtbot.addWidget(dialogo)
+
+    contenedor = agregar_ayuda(layout, "Campo de prueba", campo, tooltip="Explicacion corta.")
+
+    assert layout.rowCount() == 1
+    assert layout.labelForField(contenedor).text() == "Campo de prueba"
+    assert campo in contenedor.findChildren(QLineEdit)
+    iconos_info = [
+        hijo for hijo in contenedor.findChildren(QLabel) if hijo.toolTip() == "Explicacion corta."
+    ]
+    assert len(iconos_info) == 1
+
+
+def test_agregar_ayuda_combina_tooltip_y_ejemplo_en_el_icono(qtbot):
+    dialogo = QDialog()
+    layout = QFormLayout(dialogo)
+    campo = QLineEdit()
+    qtbot.addWidget(dialogo)
+
+    contenedor = agregar_ayuda(
+        layout, "Campo de prueba", campo, tooltip="Explicacion.", ejemplo="6.00"
+    )
+
+    iconos_info = [
+        hijo
+        for hijo in contenedor.findChildren(QLabel)
+        if hijo.toolTip() == "Explicacion.\nEjemplo: 6.00"
+    ]
+    assert len(iconos_info) == 1
 
 
 def test_hacer_redimensionable_agrega_flags_de_minimizar_y_maximizar(qtbot):
