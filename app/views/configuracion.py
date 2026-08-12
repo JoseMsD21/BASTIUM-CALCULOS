@@ -40,7 +40,7 @@ from app.services.parametro_service import (
     valor_vigente_hoy,
     vigencia_hasta_mostrar,
 )
-from app.views.form_utils import hacer_redimensionable, set_row_visible
+from app.views.form_utils import agregar_ayuda, hacer_redimensionable, set_row_visible
 from app.views.icons import icon
 from database.models import AreaDerecho, ParametroLegal
 
@@ -90,14 +90,31 @@ class ParametroFormDialog(QDialog):
         self.setWindowTitle("Agregar valor de parametro")
 
         self.combo_clave = QComboBox()
+        self.combo_clave.setToolTip(
+            "Clave del parametro legal a versionar; la descripcion entre parentesis "
+            "identifica que mide (ej. 'Tasa de interes civil legal anual "
+            "(CIVIL_ANNUAL_RATE)')."
+        )
         for clave, info in CATALOGO_PARAMETROS.items():
             self.combo_clave.addItem(f"{info.descripcion} ({clave})", userData=clave)
 
         self.campo_valor = QLineEdit()
+        self.campo_valor.setToolTip(
+            "Valor numerico vigente para la clave elegida, en la unidad indicada abajo. "
+            "Ejemplo: 6.00 para una tasa del 6%, o 1300000 para un SMLMV en pesos."
+        )
         self.campo_vigente_desde = QDateEdit(QDate.currentDate())
         self.campo_vigente_desde.setCalendarPopup(True)
+        self.campo_vigente_desde.setToolTip(
+            "Fecha desde la que este valor empieza a regir (normalmente la fecha del "
+            "decreto o resolucion). Ejemplo: 2024-01-01."
+        )
         self.campo_vigente_hasta = QDateEdit(QDate.currentDate())
         self.campo_vigente_hasta.setCalendarPopup(True)
+        self.campo_vigente_hasta.setToolTip(
+            "Fecha hasta la que este valor rigio; solo aplica a parametros con un "
+            "rango de vigencia cerrado (ej. tramos historicos de tasas certificadas)."
+        )
 
         # Casillas de area del derecho (Sprint 57): una por AreaDerecho,
         # preseleccionadas segun AREA_UNIDAD_POR_CLAVE cuando cambia la clave
@@ -107,6 +124,10 @@ class ParametroFormDialog(QDialog):
         # depender del orden de iteracion.
         self.casillas_area: dict[AreaDerecho, QCheckBox] = {}
         self._contenedor_areas = QWidget()
+        self._contenedor_areas.setToolTip(
+            "Area(s) del derecho a las que aplica este valor (puede marcar varias). Se "
+            "preselecciona segun la clave elegida; no se puede editar despues de guardar."
+        )
         _layout_areas = QVBoxLayout(self._contenedor_areas)
         _layout_areas.setContentsMargins(0, 0, 0, 0)
         for codigo, etiqueta, _habilitada in AREAS_DERECHO:
@@ -117,7 +138,15 @@ class ParametroFormDialog(QDialog):
         self.campo_unidad = QLineEdit()
 
         self.campo_usuario = QLineEdit()
+        self.campo_usuario.setToolTip(
+            "Nombre de quien registra este valor, para la bitacora de auditoria del "
+            "parametro (no se puede editar ni borrar despues)."
+        )
         self.campo_motivo = QLineEdit()
+        self.campo_motivo.setToolTip(
+            "Justificacion o fuente del cambio, para dejar constancia del porque de "
+            "este valor. Ejemplo: 'Decreto 2613 de 2023, ajuste SMLMV 2024'."
+        )
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
@@ -143,7 +172,21 @@ class ParametroFormDialog(QDialog):
         self._layout_formulario.addRow("Vigente desde", self.campo_vigente_desde)
         self._layout_formulario.addRow("Vigente hasta", self.campo_vigente_hasta)
         self._layout_formulario.addRow("Área(s) del derecho", self._contenedor_areas)
-        self._layout_formulario.addRow("Unidad", self.campo_unidad)
+        # "Unidad" recibe el icono (i) explicito (Sprint 59, helper compartido
+        # agregar_ayuda): se pre-rellena segun la clave elegida
+        # (_actualizar_area_unidad_sugeridas), asi que el icono deja claro que es una
+        # propuesta editable, no un valor fijo -- mismo patron que "Tasa efectiva
+        # anual" en ObligacionFormDialog para un campo con valor por defecto.
+        self._contenedor_campo_unidad = agregar_ayuda(
+            self._layout_formulario,
+            "Unidad",
+            self.campo_unidad,
+            tooltip=(
+                "Unidad de medida del valor, sugerida automaticamente segun la clave "
+                "elegida. No se puede editar despues de guardar."
+            ),
+            ejemplo="%, COP, meses, índice",
+        )
         self._layout_formulario.addRow("Usuario", self.campo_usuario)
         self._layout_formulario.addRow("Motivo (opcional)", self.campo_motivo)
         self._layout_formulario.addRow(self.boton_guardar)

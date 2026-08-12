@@ -6,7 +6,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QDateEdit, QDialog, QFormLayout, QLineEdit, QMessageBox, QPushButton
 
 import database.session as session_module
-from app.views.form_utils import hacer_redimensionable
+from app.views.form_utils import agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
 from database.models import Abono, Obligacion
 
@@ -20,8 +20,19 @@ class AbonoFormDialog(QDialog):
 
         self.campo_fecha = QDateEdit(QDate.currentDate())
         self.campo_fecha.setCalendarPopup(True)
+        self.campo_fecha.setToolTip(
+            "Fecha en que se realizo el pago. Ejemplo: si el abono se hizo el "
+            "15/03/2024, seleccione esa fecha aunque se registre despues."
+        )
         self.campo_monto = QLineEdit()
+        self.campo_monto.setToolTip(
+            "Valor efectivamente pagado por el cliente o deudor en la fecha indicada."
+        )
         self.campo_referencia = QLineEdit()
+        self.campo_referencia.setToolTip(
+            "Referencia de pago opcional (ej. numero de consignacion, cheque o "
+            "transaccion)."
+        )
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
@@ -39,7 +50,20 @@ class AbonoFormDialog(QDialog):
 
         layout = QFormLayout()
         layout.addRow("Fecha", self.campo_fecha)
-        layout.addRow("Monto", self.campo_monto)
+        # "Monto" recibe ademas el icono (i) explicito (Sprint 59, helper compartido
+        # agregar_ayuda): es el campo con efecto no obvio -- interactua con la
+        # heuristica de sobrepago que compara la suma de abonos contra el valor de la
+        # obligacion (ver guardar()).
+        self._contenedor_campo_monto = agregar_ayuda(
+            layout,
+            "Monto",
+            self.campo_monto,
+            tooltip=(
+                "Valor efectivamente pagado por el cliente o deudor; se resta al "
+                "saldo pendiente al liquidar."
+            ),
+            ejemplo="$500.000 si el deudor abono esa suma en la fecha indicada.",
+        )
         layout.addRow("Referencia", self.campo_referencia)
         layout.addRow(self.boton_guardar)
         self.setLayout(layout)

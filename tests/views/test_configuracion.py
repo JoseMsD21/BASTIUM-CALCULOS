@@ -75,6 +75,36 @@ def test_parametros_view_muestra_el_valor_vigente_cuando_hay_dato(qtbot):
     assert vista.tabla.item(fila_usura, 2).text() == "1.5"
 
 
+def test_parametro_form_dialog_campos_no_autoexplicativos_tienen_tooltip(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    for nombre_campo in (
+        "combo_clave",
+        "campo_valor",
+        "campo_vigente_desde",
+        "campo_vigente_hasta",
+        "campo_usuario",
+        "campo_motivo",
+        "_contenedor_areas",
+    ):
+        widget = getattr(dialogo, nombre_campo)
+        assert widget.toolTip() != "", f"{nombre_campo} deberia tener un tooltip"
+
+
+def test_parametro_form_dialog_unidad_muestra_icono_informativo(qtbot):
+    """Sprint 59: 'Unidad' (Sprint 57) se pre-rellena segun la clave elegida --
+    recibe el icono (i) explicito, mismo patron que 'Tasa efectiva anual' en
+    ObligacionFormDialog, para dejar claro que es una propuesta editable."""
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    iconos_info = [
+        hijo for hijo in dialogo._contenedor_campo_unidad.findChildren(QLabel) if hijo.toolTip()
+    ]
+    assert len(iconos_info) == 1
+
+
 def test_parametro_form_dialog_guarda_un_valor_abierto(qtbot):
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)

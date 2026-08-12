@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog
+from PySide6.QtWidgets import QDialog, QLabel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -43,6 +43,34 @@ def _obligacion_de_prueba(monkeypatch) -> int:
     obligacion_id = obligacion.id
     session.close()
     return obligacion_id
+
+
+def test_campos_no_autoexplicativos_tienen_tooltip(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    for nombre_campo in ("campo_fecha", "campo_monto", "campo_referencia"):
+        widget = getattr(dialog, nombre_campo)
+        assert widget.toolTip() != "", f"{nombre_campo} deberia tener un tooltip"
+
+
+def test_monto_muestra_icono_informativo(qtbot, monkeypatch):
+    """Sprint 59: 'Monto' es el campo con efecto no obvio (interactua con la
+    heuristica de sobrepago) -- recibe el icono (i) explicito, mismo patron
+    compartido de agregar_ayuda que los demas formularios principales."""
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    iconos_info = [
+        hijo
+        for hijo in dialog._contenedor_campo_monto.findChildren(QLabel)
+        if hijo.toolTip() != ""
+    ]
+    assert len(iconos_info) == 1
 
 
 def test_guarda_abono_asociado_a_obligacion(qtbot, monkeypatch):

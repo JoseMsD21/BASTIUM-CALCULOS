@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
-from app.views.form_utils import hacer_redimensionable
+from app.views.form_utils import agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
 from database.models import AreaDerecho, Expediente
 
@@ -100,7 +100,24 @@ class ExpedienteFormDialog(QDialog):
         layout.addRow("Demandado", self.campo_demandado)
         layout.addRow("Area del derecho", self.combo_area)
         layout.addRow("Juzgado", self.campo_juzgado)
-        layout.addRow("Fecha de corte", self.campo_fecha_corte)
+        # "Fecha de corte" recibe ademas el icono (i) explicito (Sprint 59, helper
+        # compartido agregar_ayuda) -- es el campo con mayor efecto no obvio del
+        # formulario: fija hasta que dia se calculan los intereses por defecto al
+        # liquidar, sin que el usuario tenga que abrir el dialogo de liquidacion para
+        # descubrirlo.
+        self._contenedor_campo_fecha_corte = agregar_ayuda(
+            layout,
+            "Fecha de corte",
+            self.campo_fecha_corte,
+            tooltip=(
+                "Fecha hasta la que se calculan los intereses por defecto al liquidar "
+                "este expediente."
+            ),
+            ejemplo=(
+                "si el corte es 2026-06-30, los intereses se calculan hasta ese dia "
+                "salvo que se indique otra fecha al momento de liquidar."
+            ),
+        )
         layout.addRow(self.boton_guardar)
         self.setLayout(layout)
 
