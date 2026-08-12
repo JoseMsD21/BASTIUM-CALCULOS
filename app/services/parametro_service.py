@@ -297,6 +297,15 @@ def _validar_clave(clave: str) -> InfoParametro:
 
 
 def _resolver_fila(clave: str, fecha: date) -> ParametroLegal | None:
+    """Resuelve `clave` en SQL para una sola `fecha`. Existe una segunda
+    implementacion del mismo criterio de filtrado/orden, `_resolver_entre_filas`
+    (mas abajo en este archivo), que lo replica en memoria para resolver muchas
+    fechas de una clave sin una consulta por fecha (Sprint 53, precargar_parametro).
+    Si cambias el criterio de filtrado/orden aqui (los `if info.modo == ...` de
+    abajo o el `order_by`), actualiza tambien `_resolver_entre_filas` --
+    test_resolver_fila_y_resolver_entre_filas_dan_el_mismo_resultado en
+    tests/services/test_parametro_service.py compara ambas contra los mismos
+    datos y falla si se desincronizan."""
     info = _validar_clave(clave)
     session = session_module.get_session()
     try:
@@ -398,7 +407,13 @@ def precargar_parametro(clave: str) -> None:
     Requiere un bloque `cache_de_liquidacion()` activo -- sin uno, no hay
     donde guardar la precarga y esta funcion no hace nada: `get_parametro`
     simplemente sigue consultando la base de datos por fecha, el
-    comportamiento de siempre."""
+    comportamiento de siempre.
+
+    Trae TODAS las filas de `clave` sin limite -- para claves de crecimiento
+    acotado (ej. plazos de prescripcion, topes legales, que agregan filas
+    nuevas rara vez) el costo es despreciable, pero para series historicas que
+    crecen cada año (ej. SMLMV, IBC_CONSUMO_ORDINARIO) conviene medir el costo
+    antes de precargarlas en un bucle grande."""
     _validar_clave(clave)
     filas_precargadas = _filas_precargadas_activa.get()
     if filas_precargadas is None:
