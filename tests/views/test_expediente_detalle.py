@@ -1623,3 +1623,109 @@ def test_tabla_obligaciones_tiene_columna_eliminar(qtbot):
         page.tabla_obligaciones.horizontalHeaderItem(i).text() for i in range(5)
     ]
     assert encabezados == ["Concepto", "Tipo", "Valor", "Editar", "Eliminar"]
+
+
+def test_editar_abono_abre_el_dialogo_con_el_id_y_refresca(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    abono = Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    session.add(abono)
+    session.commit()
+    abono_id = abono.id
+    session.close()
+
+    ids_recibidos = {}
+
+    def _simular_edicion_y_guardado(self):
+        ids_recibidos["abono_id"] = self._abono_id
+        self.campo_referencia.setText("Editado")
+        self.guardar()
+        return True
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.AbonoFormDialog.exec",
+        _simular_edicion_y_guardado,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._editar_abono(abono_id)
+
+    assert ids_recibidos["abono_id"] == abono_id
+    session = session_module.get_session()
+    assert session.query(Abono).count() == 1  # no se creo uno nuevo
+    guardado = session.query(Abono).filter_by(id=abono_id).one()
+    assert guardado.referencia == "Editado"
+    session.close()
+
+
+def test_eliminar_abono_lo_quita_de_la_tabla_y_la_base(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    abono = Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    session.add(abono)
+    session.commit()
+    abono_id = abono.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_abonos.rowCount() == 1
+
+    page._eliminar_abono(abono_id)
+
+    assert page.tabla_abonos.rowCount() == 0
+    session = session_module.get_session()
+    assert session.query(Abono).count() == 0
+    session.close()
+
+
+def test_eliminar_abono_cancelado_no_lo_elimina(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    abono = Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    session.add(abono)
+    session.commit()
+    abono_id = abono.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.No,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._eliminar_abono(abono_id)
+
+    session = session_module.get_session()
+    assert session.query(Abono).count() == 1
+    session.close()
+
+
+def test_tabla_abonos_tiene_columnas_editar_y_eliminar(qtbot):
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+
+    assert page.tabla_abonos.columnCount() == 5
+    encabezados = [page.tabla_abonos.horizontalHeaderItem(i).text() for i in range(5)]
+    assert encabezados == ["Fecha", "Monto", "Referencia", "Editar", "Eliminar"]

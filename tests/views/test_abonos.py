@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import QDialog, QLabel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -249,4 +249,60 @@ def test_enter_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
     session = session_module.get_session()
     obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
     assert len(obligacion.abonos) == 1
+    session.close()
+
+
+# --- Sprint 60: editar abono (abono_id opcional) ----------------------------
+
+
+def test_abono_id_none_crea_titulo_y_estado_de_creacion(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.windowTitle() == "Agregar abono"
+    assert dialog._abono_id is None
+
+
+def test_abono_id_precarga_los_campos_del_abono_existente(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    primer_dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(primer_dialog)
+    primer_dialog.campo_monto.setText("100000.00")
+    primer_dialog.campo_referencia.setText("Original")
+    primer_dialog.campo_fecha.setDate(date(2026, 1, 15))
+    abono_id = primer_dialog.guardar()
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id, abono_id=abono_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.windowTitle() == "Editar abono"
+    assert dialog.campo_monto.text() == "100000.00"
+    assert dialog.campo_referencia.text() == "Original"
+    assert dialog.campo_fecha.date() == QDate(2026, 1, 15)
+
+
+def test_abono_id_actualiza_la_fila_existente_en_vez_de_crear_una_nueva(qtbot, monkeypatch):
+    obligacion_id = _obligacion_de_prueba(monkeypatch)
+
+    primer_dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(primer_dialog)
+    primer_dialog.campo_monto.setText("100000.00")
+    primer_dialog.campo_fecha.setDate(date(2026, 1, 15))
+    abono_id = primer_dialog.guardar()
+
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id, abono_id=abono_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_monto.setText("250000.00")
+    dialog.campo_referencia.setText("Editado")
+    resultado_id = dialog.guardar()
+
+    assert resultado_id == abono_id
+    session = session_module.get_session()
+    assert session.query(Abono).count() == 1  # no se creo una fila nueva
+    guardado = session.query(Abono).filter_by(id=abono_id).one()
+    assert guardado.monto == Decimal("250000.00")
+    assert guardado.referencia == "Editado"
     session.close()
