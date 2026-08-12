@@ -619,6 +619,57 @@ _CASOS_EQUIVALENCIA = [
 ]
 
 
+# --- Sprint 58: vigencia_hasta_mostrar (regla de presentacion pura) ---
+
+
+def test_vigencia_hasta_mostrar_con_vigente_hasta_real_se_muestra_tal_cual():
+    from app.services.parametro_service import CATALOGO_PARAMETROS, vigencia_hasta_mostrar
+
+    fila = ParametroLegal(
+        clave="IBC_CONSUMO_ORDINARIO",
+        valor=Decimal("16.24"),
+        vigente_desde=date(2026, 1, 1),
+        vigente_hasta=date(2026, 1, 31),
+        usuario="test",
+        creado_en=datetime.now(),
+    )
+    info = CATALOGO_PARAMETROS["IBC_CONSUMO_ORDINARIO"]
+
+    assert vigencia_hasta_mostrar(fila, info) == "2026-01-31"
+
+
+def test_vigencia_hasta_mostrar_anual_exacto_sin_vigente_hasta_calcula_31_diciembre():
+    from app.services.parametro_service import CATALOGO_PARAMETROS, vigencia_hasta_mostrar
+
+    fila = ParametroLegal(
+        clave="SMLMV",
+        valor=Decimal("1750905.00"),
+        vigente_desde=date(2026, 1, 1),
+        vigente_hasta=None,
+        usuario="test",
+        creado_en=datetime.now(),
+    )
+    info = CATALOGO_PARAMETROS["SMLMV"]
+
+    assert vigencia_hasta_mostrar(fila, info) == "2026-12-31 (calculado)"
+
+
+def test_vigencia_hasta_mostrar_abierto_sin_vigente_hasta_es_indefinido():
+    from app.services.parametro_service import CATALOGO_PARAMETROS, vigencia_hasta_mostrar
+
+    fila = ParametroLegal(
+        clave="USURA_MULTIPLICADOR",
+        valor=Decimal("1.5"),
+        vigente_desde=date(1990, 1, 1),
+        vigente_hasta=None,
+        usuario="test",
+        creado_en=datetime.now(),
+    )
+    info = CATALOGO_PARAMETROS["USURA_MULTIPLICADOR"]
+
+    assert vigencia_hasta_mostrar(fila, info) == "Indefinido"
+
+
 @pytest.mark.parametrize("clave, fecha", _CASOS_EQUIVALENCIA)
 def test_resolver_fila_y_resolver_entre_filas_dan_el_mismo_resultado(clave, fecha):
     from app.services import parametro_service

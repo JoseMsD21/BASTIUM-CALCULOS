@@ -539,6 +539,33 @@ def historial(clave: str) -> list[ParametroLegal]:
         session.close()
 
 
+def vigencia_hasta_mostrar(fila: ParametroLegal, info: InfoParametro) -> str:
+    """Texto de PRESENTACION para la columna "Vigente hasta" de la GUI
+    (ParametrosView.tabla, HistorialParametroDialog.tabla) -- Sprint 58.
+    Regla de presentacion pura: no modifica `fila` ni ningun dato guardado, y
+    no participa de get_parametro()/_resolver_fila() (el calculo real de
+    liquidacion sigue exactamente igual).
+
+    - Si `fila.vigente_hasta` ya esta guardado (modo TRAMO_CERRADO), se
+      muestra tal cual, en ISO.
+    - Si el modo de la clave es ANUAL_EXACTO y no hay `vigente_hasta` (el
+      gobierno fija un valor nuevo cada año -- SMLMV, IPC_INDICE_ACUMULADO,
+      UVT -- pero la fila nunca guarda una fecha de cierre explicita, solo
+      `vigente_desde`), se calcula "31 de diciembre del año de
+      vigente_desde": el mismo año calendario que ya usa
+      _resolver_fila/_resolver_entre_filas para resolver ese modo
+      (vigente_desde == date(fecha.year, 1, 1)), asi que el texto nunca
+      contradice lo que get_parametro() realmente resuelve.
+    - En cualquier otro caso (modo ABIERTO -- ej. USURA_MULTIPLICADOR, que
+      estructuralmente no tiene fecha de fin -- sin `vigente_hasta`), se
+      muestra "Indefinido" en vez de dejar la celda vacia."""
+    if fila.vigente_hasta is not None:
+        return fila.vigente_hasta.isoformat()
+    if info.modo == ModoResolucion.ANUAL_EXACTO:
+        return f"{date(fila.vigente_desde.year, 12, 31).isoformat()} (calculado)"
+    return "Indefinido"
+
+
 def valor_vigente_hoy(clave: str) -> ParametroLegal | None:
     """Fila resuelta para la fecha de hoy -- alimenta la tabla resumen de la GUI."""
     return _resolver_fila(clave, date.today())
