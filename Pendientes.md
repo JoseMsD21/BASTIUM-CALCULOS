@@ -186,9 +186,9 @@ afirmación incorrecta sobre prescripción/caducidad que sí le llega al usuario
 - [Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana ✅ Completado](#sprint-49--bug-de-ui-los-botones-volverinicio-reaparecen-visibles-tras-el-primer-render-de-la-ventana--completado)
 - [Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) ✅ Completado](#sprint-50--mejoras-de-personalización-y-presentación-diferidas-de-los-sprints-31-33-modo-oscuro-sidebar-gráficas-del-dashboard--completado)
 - [Sprint 51 — Migración automática de esquema y datos al arrancar la app ✅ Completado](#sprint-51--migración-automática-de-esquema-y-datos-al-arrancar-la-app--completado)
-- [Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` 🔴 Bug confirmado sin corregir](#sprint-52--bug-de-integridad-aplicar_migraciones_pendientes-ignora-db_path-al-sembrar-parametros_legales--bug-confirmado-sin-corregir)
-- [Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard 📋 Pendiente](#sprint-53--rendimiento-patrón-n1-de-consultas-en-el-dashboard--pendiente)
-- [Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 📋 Pendiente](#sprint-54--corrección-de-documentación-desactualizada-tras-los-sprints-41-42-50-y-51--pendiente)
+- [Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` ✅ Completado](#sprint-52--bug-de-integridad-aplicar_migraciones_pendientes-ignora-db_path-al-sembrar-parametros_legales--completado)
+- [Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard ✅ Completado](#sprint-53--rendimiento-patrón-n1-de-consultas-en-el-dashboard--completado)
+- [Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 ✅ Completado](#sprint-54--corrección-de-documentación-desactualizada-tras-los-sprints-41-42-50-y-51--completado)
 
 ---
 
@@ -4152,7 +4152,7 @@ base confirmando que ya no crashea.
 
 ---
 
-## Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` 🔴 Bug confirmado sin corregir
+## Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` ✅ Completado
 
 **Prioridad sugerida:** Alta — es un bug en la propia infraestructura de migraciones que el Sprint 51
 construyó para evitar exactamente este tipo de inconsistencia de datos. Hoy no afecta al usuario final
@@ -4226,9 +4226,23 @@ auditoría técnica transversal (barrido automático + agentes en paralelo + ver
   hacerlo.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-11):** Completado, vía Subagent-Driven Development (implementador +
+revisor de spec + revisor de calidad, con re-revisión tras cada corrección) sobre un worktree aislado.
+`scripts/migrate_parametros_legales.py::migrar()` ahora acepta `db_path: Path | None = None`; cuando se
+recibe una ruta, usa un engine SQLAlchemy ad hoc apuntando exactamente a esa ruta (nunca al engine global)
+para sembrar `parametros_legales`, con la creación del engine dentro del `try/finally` para evitar fugas si
+`create_all` falla. **Se conservó la rama sin `db_path`** (contra la sugerencia inicial de eliminarla): el
+implementador verificó empíricamente que eliminarla rompía 42 tests, porque `tests/conftest.py` tiene una
+fixture `autouse` (`_db_en_memoria_por_defecto`) que depende de que `migrar()` sin argumentos use el engine
+global — no es código muerto, es un segundo camino real usado por la suite. Se igualó `autoflush=False` en
+ambas ramas (inconsistencia real detectada en revisión) y se corrigió una fuga de conexiones SQLite en los
+tests nuevos (`_sesion_para` ahora es un context manager que dispone el engine). Test de regresión nuevo
+(`test_aplicar_migraciones_pendientes_siembra_parametros_legales_en_db_path`) confirmado que detecta el bug
+original (falla contra el código pre-fix). Suite completa en verde (985 tests tras este sprint).
+
 ---
 
-## Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard 📋 Pendiente
+## Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard ✅ Completado
 
 **Prioridad sugerida:** Media — no es un bug de resultado (el Dashboard sigue mostrando los datos
 correctos), pero repite exactamente el patrón que el Sprint 25 ya identificó y corrigió para
@@ -4280,9 +4294,28 @@ protección.
   no pagada.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-11):** Completado, vía Subagent-Driven Development. El primer intento
+(envolver `_refrescar_alertas_vencimiento` en `cache_de_liquidacion()`, tal como sugería este sprint)
+resultó **insuficiente**: la revisión de spec verificó empíricamente que `PRESCRIPCION_EJECUTIVA_MESES`
+usa `ModoResolucion.ABIERTO` y que la cache de `get_parametro` indexa por `(clave, fecha)` exacta — con
+`fecha_origen` distinta por obligación (el caso real, no el caso de prueba con fechas repetidas), el fix
+seguía abriendo 9 sesiones para 8 obligaciones, sin mejora. Fix final: `precargar_parametro(clave)` nueva
+en `app/services/parametro_service.py`, que trae **todas** las filas de una clave en una sola consulta
+(vía `historial(clave)`) y las guarda en un `ContextVar` (`_filas_precargadas_activa`) scoped por
+`cache_de_liquidacion()`; `get_parametro` resuelve en memoria contra esas filas (`_resolver_entre_filas`,
+que replica exactamente el criterio de `_resolver_fila` para los 3 `ModoResolucion`) en vez de golpear la
+base por cada fecha distinta. Verificado con 8 obligaciones de `fecha_origen` distintas: 2 sesiones, no 9.
+Un test de equivalencia parametrizado (`test_resolver_fila_y_resolver_entre_filas_dan_el_mismo_resultado`,
+11 casos incluido un empate de `vigente_desde` con `creado_en` distinto) protege contra que ambos caminos
+diverjan en el futuro — confirmado que detecta una rotura deliberada antes de aceptarse. `_refrescar_actividad_reciente`
+también se corrigió con una consulta `IN` batched (`historial_de_expedientes` nueva en
+`app/engine/audit/service.py`). Ningún otro caller de `get_parametro`/`cache_de_liquidacion()` (las 6
+`AreaStrategy`, `historical_index.py`) cambia de comportamiento. Suite completa en verde (1006 tests tras
+este sprint).
+
 ---
 
-## Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 📋 Pendiente
+## Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 ✅ Completado
 
 **Prioridad sugerida:** Media-alta — dos de los hallazgos (prescripción/caducidad y navegación) le dicen al
 usuario final algo que ya no es cierto sobre una función jurídicamente relevante y sobre cómo usar la app;
@@ -4341,6 +4374,17 @@ archivo `.py` involucrado).
 - `docs/specifications/07_motor_juridico_familia.md` y `03_motor_indexacion.md` corregidos.
 - `CONTRIBUTING.md` lista los prefijos de commit realmente usados en el repo.
 - `CHANGELOG.md` menciona el Sprint 51 en el párrafo resumen de `[Unreleased]`.
+
+**Cierre de implementación (2026-08-11):** Completado. Las 3 secciones de `docs/GUIA_USUARIO.md` (tour de
+navegación, sección de Parámetros, sección 8) ahora describen el sidebar del Sprint 50 en vez del
+`QToolBar` viejo, documentan el modo oscuro y la gráfica del Dashboard, y corrigen la afirmación sobre
+prescripción/caducidad (era la más urgente: le decía al usuario algo jurídicamente incorrecto sobre el
+propio software). `docs/specifications/07_motor_juridico_familia.md` ya describe el reajuste anual
+SMMLV/IPC del Sprint 41; `03_motor_indexacion.md` ya no dice que la UVT "sigue sin cargar" (solo la UVR
+sigue pendiente). `CONTRIBUTING.md` lista los 5 prefijos de commit que faltaban (`merge:`, `refactor:`,
+`perf:`, `style:`, `build:`), verificados contra el historial real. Verificado que no queda ninguna mención
+residual de "barra superior"/`QToolBar` como estado actual en `GUIA_USUARIO.md`, y que ningún encabezado
+cambió (anclas internas intactas).
 
 ---
 

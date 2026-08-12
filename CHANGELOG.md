@@ -18,9 +18,12 @@ timing de visibilidad en los botones de navegación corregido (y superado estruc
 del Sprint 50). Sprint 50: modo oscuro/claro, sidebar de navegación y gráfica del Dashboard. Sprint 51:
 migración automática de esquema y datos al arrancar la app, sin pasos manuales para una `bastium.db`
 existente ni para un clon nuevo del repositorio. Sprint 48:
-deuda de `ruff` limpiada (447 → 0 errores) y lint agregado al pipeline de CI. Ningún cambio de saldo final
-ya calculado en ningún sprint — solo el desglose de interés por fila del Sprint 40 y el desglose por cuota
-del Sprint 41 cambian de forma, no de total.
+deuda de `ruff` limpiada (447 → 0 errores) y lint agregado al pipeline de CI. Sprints 52-54 (auditoría
+técnica transversal, 2026-08-10): bug real corregido en la siembra de `parametros_legales` cuando se pasa
+una ruta de base de datos explícita (Sprint 52), patrón N+1 de consultas eliminado en el Dashboard
+(Sprint 53), y documentación desactualizada corregida en `docs/GUIA_USUARIO.md` y 2 specs de motores
+(Sprint 54). Ningún cambio de saldo final ya calculado en ningún sprint — solo el desglose de interés por
+fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de total.
 
 ### Added
 - Modo oscuro/claro, sidebar de navegación y gráfica del Dashboard (Sprint 50): tema oscuro completo
@@ -78,6 +81,15 @@ del Sprint 41 cambian de forma, no de total.
   anterior ni para un clon nuevo del repositorio.
 
 ### Fixed
+- `aplicar_migraciones_pendientes(db_path)` ignoraba `db_path` al sembrar `parametros_legales` (Sprint 52):
+  el script de siembra usaba siempre el engine global en vez de la ruta recibida — inofensivo en producción
+  (donde siempre apunta a la misma `bastium.db`), pero hacía que la suite de tests tocara la base real como
+  efecto secundario, y era una trampa para cualquier uso futuro de `db_path` con una base distinta.
+- Patrón N+1 de consultas en el Dashboard (Sprint 53): calcular las alertas de plazos próximos a vencer
+  abría una sesión SQLAlchemy nueva por cada obligación no pagada (una por cada `fecha_origen` distinta);
+  armar la actividad reciente consultaba una vez por expediente. Corregido con una precarga de parámetros
+  en memoria (`app/services/parametro_service.py::precargar_parametro()`) y una consulta `IN` batched
+  (`app/engine/audit/service.py::historial_de_expedientes()`).
 - `sqlite3.OperationalError: no such column: obligaciones.costas_tipo_proceso` al abrir la app con una
   `bastium.db` creada antes de los Sprints 18-20 (Sprint 51) — causa raíz: 3 scripts de migración de
   esquema nunca se habían corrido, y además la tabla `parametros_legales` estaba completamente vacía
@@ -101,6 +113,11 @@ del Sprint 41 cambian de forma, no de total.
 - Deuda técnica de `ruff` eliminada por completo (Sprint 48): 447 errores preexistentes (mayoritariamente
   líneas demasiado largas) limpiados sin cambiar comportamiento; `ruff check .` agregado como paso
   obligatorio del pipeline de CI (`.github/workflows/ci.yml`), antes de la suite de tests.
+- `docs/GUIA_USUARIO.md` y 2 `docs/specifications/*.md` actualizados (Sprint 54): describían la barra de
+  navegación superior en vez del sidebar del Sprint 50, no mencionaban el modo oscuro ni la gráfica del
+  Dashboard, afirmaban que prescripción/caducidad seguía sin conectarse (ya lo estaba desde el Sprint 42),
+  y que la UVT seguía sin cargar (cargada desde los Sprints 5/14). `CONTRIBUTING.md` actualizado con los
+  prefijos de commit realmente usados en el repo (`merge:`, `refactor:`, `perf:`, `style:`, `build:`).
 
 ## [0.1.0] - 2026-08-04
 
