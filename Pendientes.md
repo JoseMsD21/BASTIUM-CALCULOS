@@ -132,6 +132,20 @@ Sprint 53 (patrón N+1 de consultas, mismo tipo de problema que el Sprint 25 ya 
 y 2 `docs/specifications/*.md` describen comportamiento anterior a los Sprints 41/42/50, incluida una
 afirmación incorrecta sobre prescripción/caducidad que sí le llega al usuario final).
 
+**Sprints 56-61 (nuevos, 2026-08-11): reporte directo del usuario tras probar la app, con brainstorming
+completo de diseño antes de escribir código** (ver
+`docs/superpowers/specs/2026-08-11-parametros-ux-dialogos-crud-design.md` y
+`docs/superpowers/plans/2026-08-11-parametros-ux-dialogos-crud.md`). Sprint 56 (los 7 `QDialog` del
+proyecto ganan minimizar/maximizar/redimensionar). Sprints 57-58 (Parámetros: columnas de Área y Unidad
+por fila, no editables después de creadas, con migración de las 683 filas existentes según una tabla
+área-por-clave derivada del código real y revisada con el usuario; vigencia "inteligente" para
+parámetros anuales de gobierno; IPC con su variación % cruda visible junto al índice ya calculado).
+Sprint 59 (tooltips ⓘ de ayuda, hoy solo en 1 de ~15 campos de `ObligacionFormDialog`, extendidos a los
+4 formularios principales de captura). Sprint 60 (Obligaciones y Abonos ganan "Eliminar"
+completo/"Editar" que les faltaba, mismo patrón que ya tiene Eventos Laborales). Sprint 61 (placeholder,
+sin implementar: conectar a futuro los 18 parámetros de prescripción/caducidad que hoy no tiene ningún
+botón real que los dispare).
+
 ---
 
 ## Índice de sprints
@@ -190,6 +204,12 @@ afirmación incorrecta sobre prescripción/caducidad que sí le llega al usuario
 - [Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard ✅ Completado](#sprint-53--rendimiento-patrón-n1-de-consultas-en-el-dashboard--completado)
 - [Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 ✅ Completado](#sprint-54--corrección-de-documentación-desactualizada-tras-los-sprints-41-42-50-y-51--completado)
 - [Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable ✅ Completado](#sprint-55--3-bugs-de-ui-en-el-dashboard-gráfica-con-colores-viejos-etiquetas-apretadas-y-tabla-editable--completado)
+- [Sprint 56 — Diálogos redimensionables/maximizables (los 7 QDialog del proyecto) 📋 Pendiente](#sprint-56--diálogos-redimensionablesmaximizables-los-7-qdialog-del-proyecto--pendiente)
+- [Sprint 57 — Parámetros: columnas Área y Unidad por fila 📋 Pendiente](#sprint-57--parámetros-columnas-área-y-unidad-por-fila--pendiente)
+- [Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) 📋 Pendiente](#sprint-58--parámetros-presentación-inteligente-vigencia-ipc-crudo-vs-calculado-historial--pendiente)
+- [Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales 📋 Pendiente](#sprint-59--tooltips-de-ayuda-en-los-4-formularios-principales--pendiente)
+- [Sprint 60 — Editar/eliminar Obligaciones y Abonos 📋 Pendiente](#sprint-60--editareliminar-obligaciones-y-abonos--pendiente)
+- [Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión](#sprint-61--conectar-los-parámetros-de-prescripcióncaducidad-sin-wiring-a-pantallas-reales--bloqueado--pendiente-de-decisión)
 
 ---
 
@@ -4483,6 +4503,200 @@ después de que el tamaño ya está sincronizado) en vez de interceptar el event
 además para un canvas de matplotlib embebido. Verificado con un test que captura la geometría exacta en el
 momento en que `tight_layout()` corre, confirmado que detecta el bug (falla contra la implementación vieja,
 pasa contra la nueva). Suite completa en verde (1010 tests tras este sprint).
+
+---
+
+## Sprint 56 — Diálogos redimensionables/maximizables (los 7 QDialog del proyecto) 📋 Pendiente
+
+**Prioridad sugerida:** Media — no bloquea ningún flujo, pero `HistorialParametroDialog` puede mostrar
+cientos de filas (IPC: 683) sin ninguna forma cómoda de agrandar la ventana.
+
+**Depende de:** Nada.
+
+**Contexto:** reportado por el usuario (captura de `HistorialParametroDialog` solo con botón de cerrar).
+Confirmado que los 7 `QDialog` del proyecto (`AbonoFormDialog`, `ParametroFormDialog`,
+`HistorialParametroDialog`, `DescuentoLaboralFormDialog`, `EventoLaboralFormDialog`,
+`ExpedienteFormDialog`, `ObligacionFormDialog`) usan los flags por defecto de Qt en Windows (solo
+cerrar). El usuario decidió aplicar el fix a los 7 por consistencia, no solo al que más lo necesita hoy.
+
+**Código nuevo a crear:** ver
+`docs/superpowers/plans/2026-08-11-parametros-ux-dialogos-crud.md`, Sprint 56 — helper
+`hacer_redimensionable(dialog)` nuevo en `app/views/form_utils.py`, aplicado en el `__init__` de los 7
+diálogos.
+
+**Alcance explícitamente excluido:**
+- No cambia el tamaño inicial ni el contenido de ningún diálogo — solo agrega la capacidad de
+  redimensionar/maximizar/minimizar.
+
+**Definición de Hecho:**
+- Los 7 `QDialog` tienen los flags de minimizar/maximizar activos, verificado con test.
+- Suite completa en verde.
+
+---
+
+## Sprint 57 — Parámetros: columnas Área y Unidad por fila 📋 Pendiente
+
+**Prioridad sugerida:** Media-alta — el usuario no puede saber hoy a qué área del derecho corresponde
+cada uno de los 39 parámetros legales, ni la unidad del valor que está viendo.
+
+**Depende de:** Nada técnicamente.
+
+**Contexto:** reportado por el usuario. Brainstorming completo con el usuario (ver
+`docs/superpowers/specs/2026-08-11-parametros-ux-dialogos-crud-design.md`), incluyendo una investigación
+completa de las 39 claves de `CATALOGO_PARAMETROS` para determinar su área real (21 confirmadas por
+código en ejecución, 18 sin ningún botón real que las dispare todavía — motores construidos pero no
+conectados, ver Sprint 61).
+
+**Decisiones tomadas con el usuario (no re-derivar):**
+- Área y unidad se guardan **por fila** en `parametros_legales` (no como metadato fijo en Python) y
+  **no son editables** después de creada la fila — ni doble clic ni ningún otro mecanismo.
+- Multi-área: casillas de verificación en el formulario, guardadas como lista (JSON), no como texto con
+  separador.
+- Las 18 claves sin wiring reciben la mejor propuesta por nombre/artículo legal igual que el resto; se
+  corrige si hace falta cuando se conecten en el Sprint 61.
+- `CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES` recibe ambas áreas (Civil/Familia y Comercial) por ser
+  doctrina aplicable en las dos, sin evidencia de código que incline a una sola.
+
+**Código nuevo a crear:** ver el plan (Sprint 57, 5 tareas) y la spec (tabla completa de área/unidad por
+las 39 claves, sección "Tabla de área propuesta por clave") para el detalle exacto — no se repite aquí
+para no desincronizar dos copias de la misma tabla:
+- `database/models.py::ParametroLegal`: columnas nuevas `areas_derecho`/`unidad`.
+- `app/services/areas_parametro.py` (nuevo): `serializar_areas`/`deserializar_areas`.
+- `app/services/parametro_service.py::agregar_valor()`: exige `areas_derecho`/`unidad`.
+- `scripts/migrate_parametros_area_unidad.py` (nuevo): agrega las columnas y completa las 683 filas
+  existentes según la tabla de la spec; registrado en `aplicar_migraciones_pendientes()`.
+- `app/views/configuracion.py`: `ParametroFormDialog` con casillas de área (preseleccionadas según la
+  clave) y campo de unidad; `ParametrosView.tabla` con las 2 columnas nuevas.
+
+**Alcance explícitamente excluido:**
+- No se agrega ninguna forma de editar área/unidad de una fila ya creada.
+- No se conecta ninguno de los 18 parámetros sin wiring a una pantalla real (Sprint 61).
+
+**Definición de Hecho:**
+- Las 683 filas existentes quedan migradas según la tabla de la spec, verificado con test.
+- `ParametroFormDialog` exige área(s) y unidad para guardar.
+- La tabla de Parámetros muestra las 2 columnas nuevas.
+- Suite completa en verde.
+
+---
+
+## Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) 📋 Pendiente
+
+**Prioridad sugerida:** Media.
+
+**Depende de:** Sprint 57 (comparte `app/views/configuracion.py`, se implementa justo después).
+
+**Contexto:** 3 hallazgos del usuario, cada uno investigado antes de diseñar la solución (ver spec):
+1. "Vigente hasta" vacío es correcto para parámetros sin fecha de fin real (`ModoResolucion.ABIERTO`),
+   pero engañoso para los que el gobierno fija año a año (`ANUAL_EXACTO`: SMLMV, IPC, UVT) — cada valor
+   solo rige ese año calendario. Confirmado con un ejemplo concreto del usuario (SMLMV 2025 vs. 2026).
+2. `IPC_INDICE_ACUMULADO` es el único de los 39 parámetros calculado con fórmula
+   (`indice = indice_anterior * (1 + variacion_anual/100)`) a partir de una tabla cruda que hoy no se
+   siembra en la base — solo el resultado. El usuario la consultó con el abogado y quiere ver ambos.
+3. Parámetros con muchas filas históricas no tienen ninguna acción visible más allá de un doble clic no
+   documentado para ver su historial completo.
+
+**Código nuevo a crear:** ver el plan (Sprint 58, 4 tareas) y la spec (sección "Diseño" del Sprint 58)
+para el código exacto de `vigencia_hasta_mostrar()`, la siembra de `IPC_VARIACION_ANUAL`, y el enlace
+"Ver historial".
+
+**Alcance explícitamente excluido:**
+- Es una regla de presentación pura — no cambia ningún dato guardado ni ningún cálculo de liquidación
+  (verificar con la suite completa, especialmente `tests/family/`, `tests/engine/` de indexación).
+- El desglose crudo-vs-calculado es solo para IPC — confirmado con el usuario que hoy es el único
+  parámetro con fórmula; el mecanismo (`CLAVE_CRUDA_DE`) queda genérico por si aparece otro caso a futuro.
+
+**Definición de Hecho:**
+- SMLMV/IPC/UVT muestran "31 de diciembre de {año}" en vez de vacío; el resto sin fecha de fin real
+  muestra "Indefinido".
+- El historial de IPC muestra la variación % anual cruda junto al índice, con la fórmula explicada.
+- Cualquier clave con más de 1 fila tiene una acción visible para ver su historial.
+- Suite completa en verde, sin cambios de resultado en ninguna liquidación.
+
+---
+
+## Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales 📋 Pendiente
+
+**Prioridad sugerida:** Media.
+
+**Depende de:** Nada técnicamente, pero comparte archivos con 57/58 (`configuracion.py`) — se
+implementa después de esos dos.
+
+**Contexto:** el usuario vio el ícono ⓘ en el campo "Tasa efectiva anual" de `ObligacionFormDialog`
+(único campo, de ~15, que lo tiene hoy) y pidió el mismo patrón en el resto de ese formulario, más en
+`ExpedienteFormDialog`, `AbonoFormDialog` y `ParametroFormDialog` — los 4 formularios principales de
+captura de datos.
+
+**Código nuevo a crear:** ver el plan (Sprint 59, 3 tareas) — extraer el helper privado ya existente en
+`obligaciones.py` a `app/views/form_utils.py::agregar_ayuda()` (reutilizable), aplicarlo al resto de
+campos no autoexplicativos de `ObligacionFormDialog`, y a los 3 formularios restantes.
+
+**Alcance explícitamente excluido:**
+- No se agregan tooltips a pantallas de solo lectura (listados, resultado de liquidación) — solo a los 4
+  formularios de captura.
+- Campos autoexplicativos (ej. "Concepto", texto libre) no reciben tooltip forzado.
+
+**Definición de Hecho:**
+- Los 4 formularios usan el helper compartido, sin ninguna implementación duplicada del ícono ⓘ.
+- Cada campo no autoexplicativo de los 4 formularios tiene tooltip con ejemplo.
+- Suite completa en verde.
+
+---
+
+## Sprint 60 — Editar/eliminar Obligaciones y Abonos 📋 Pendiente
+
+**Prioridad sugerida:** Alta — gap funcional real: hoy no hay forma de corregir un error de captura sin
+recrear el expediente.
+
+**Depende de:** Nada.
+
+**Contexto:** el usuario notó, mientras probaba el flujo de captura, que `tabla_obligaciones` tiene
+"Editar" (Sprint 44) pero no "Eliminar", y `tabla_abonos` no tiene ninguno de los dos.
+`tabla_eventos_laborales` ya tiene ambos (Sprint 44, punto 4) — es el patrón de referencia. Confirmado
+leyendo `database/models.py` que `Obligacion.abonos`/`.eventos_laborales`/`.descuentos_laborales` ya
+tienen `cascade="all, delete-orphan"`, así que eliminar una obligación ya los borra automáticamente. El
+único caso especial es `obligacion_padre_id` (cuotas generadas por reajuste anual, Sprint 41): no es una
+`relationship()` de SQLAlchemy, así que no se borra sola — confirmado con el usuario que se elimina junto
+con la obligación padre, sin bloquear la operación.
+
+**Código nuevo a crear:** ver el plan (Sprint 60, 2 tareas) — columna "Eliminar" en `tabla_obligaciones`
+(`_eliminar_obligacion`, con cascada explícita de cuotas hijas antes del padre); `abono_id` opcional en
+`AbonoFormDialog` para editar; columnas "Editar"/"Eliminar" en `tabla_abonos`.
+
+**Alcance explícitamente excluido:**
+- No se agrega una papelera/deshacer — la eliminación es definitiva tras confirmar, mismo criterio que
+  ya usa Eventos Laborales.
+
+**Definición de Hecho:**
+- `tabla_obligaciones` tiene "Editar" y "Eliminar" por fila; eliminar una obligación con cuotas hijas las
+  elimina a todas en la misma operación, verificado con test.
+- `tabla_abonos` tiene "Editar" y "Eliminar" por fila.
+- Suite completa en verde.
+
+---
+
+## Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión
+
+**Prioridad sugerida:** Baja-media — ninguno de los 18 parámetros afectados bloquea el uso actual de la
+app (solo `PRESCRIPCION_EJECUTIVA_MESES`, el default de `UniversalLiquidationService`, está realmente
+conectado hoy).
+
+**Depende de:** Nada técnicamente, pero requiere una conversación de alcance con el usuario antes de
+codificar — mismo patrón que otros gaps grandes de este proyecto (Sprints 13/16/20/41).
+
+**Contexto:** al investigar el Sprint 57 (área por parámetro) se confirmó que 18 de las 39 claves de
+`CATALOGO_PARAMETROS` (12 de prescripción/caducidad no-ejecutiva + `CIVIL_ANNUAL_RATE`, más el uso
+parcial de `IBC_CONSUMO_ORDINARIO`) tienen motores completos y probados
+(`app/engine/temporal/prescripcion.py`, `app/engine/interest/legal_rates.py`) pero ningún botón de la
+app los dispara — solo se ejercitan en tests. El usuario pidió explícitamente que se cree este sprint
+placeholder para no perder de vista el pendiente, a trabajar en el futuro.
+
+**Código nuevo a crear:** ninguno todavía — placeholder. Antes de codificar, decidir con el usuario
+área por área desde qué pantalla/flujo se debería invocar cada `TipoAccion`/`TipoProceso` (no se puede
+inferir solo del código, a diferencia del etiquetado informativo del Sprint 57).
+
+**Definición de Hecho:** no aplica todavía — este sprint se cierra dividiéndose en sprints concretos el
+día que se retome.
 
 ---
 
