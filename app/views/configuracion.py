@@ -28,6 +28,8 @@ from app.core.apariencia import (
     cargar_modo_tema,
     guardar_modo_tema,
 )
+from app.core.constants import AREAS_DERECHO
+from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
 from app.services.parametro_service import (
     CATALOGO_PARAMETROS,
     ModoResolucion,
@@ -37,6 +39,26 @@ from app.services.parametro_service import (
 )
 from app.views.form_utils import hacer_redimensionable, set_row_visible
 from app.views.icons import icon
+from database.models import AreaDerecho, ParametroLegal
+
+# Etiqueta humana por codigo de AreaDerecho, reutilizada tanto para las
+# casillas de ParametroFormDialog como para la columna "Área" de
+# ParametrosView.tabla (Sprint 57) -- una sola fuente (AREAS_DERECHO en
+# app/core/constants.py), no texto nuevo inventado aqui.
+_ETIQUETA_POR_AREA = {
+    AreaDerecho(codigo): etiqueta for codigo, etiqueta, _habilitada in AREAS_DERECHO
+}
+
+
+def _texto_areas(fila: ParametroLegal | None) -> str:
+    """Etiquetas humanas (no codigos crudos) de `fila.areas_derecho`,
+    separadas por coma, para la columna "Área" de ParametrosView.tabla.
+    Cadena vacia si no hay fila vigente o si la fila todavia no tiene
+    areas_derecho asignado (legado, no deberia pasar tras la migracion del
+    Sprint 57, pero se maneja de forma defensiva)."""
+    if fila is None or not fila.areas_derecho:
+        return ""
+    return ", ".join(_ETIQUETA_POR_AREA[area] for area in deserializar_areas(fila.areas_derecho))
 
 
 class ParametroFormDialog(QDialog):
@@ -54,6 +76,24 @@ class ParametroFormDialog(QDialog):
         self.campo_vigente_desde.setCalendarPopup(True)
         self.campo_vigente_hasta = QDateEdit(QDate.currentDate())
         self.campo_vigente_hasta.setCalendarPopup(True)
+
+        # Casillas de area del derecho (Sprint 57): una por AreaDerecho,
+        # preseleccionadas segun AREA_UNIDAD_POR_CLAVE cuando cambia la clave
+        # elegida (_actualizar_area_unidad_sugeridas), pero editables antes de
+        # guardar -- el usuario puede ajustar la propuesta. Guardadas en un
+        # dict (no una lista) para poder leer/escribir por AreaDerecho sin
+        # depender del orden de iteracion.
+        self.casillas_area: dict[AreaDerecho, QCheckBox] = {}
+        self._contenedor_areas = QWidget()
+        _layout_areas = QVBoxLayout(self._contenedor_areas)
+        _layout_areas.setContentsMargins(0, 0, 0, 0)
+        for codigo, etiqueta, _habilitada in AREAS_DERECHO:
+            casilla = QCheckBox(etiqueta)
+            self.casillas_area[AreaDerecho(codigo)] = casilla
+            _layout_areas.addWidget(casilla)
+
+        self.campo_unidad = QLineEdit()
+
         self.campo_usuario = QLineEdit()
         self.campo_motivo = QLineEdit()
 
@@ -80,13 +120,29 @@ class ParametroFormDialog(QDialog):
         self._layout_formulario.addRow("Valor", self.campo_valor)
         self._layout_formulario.addRow("Vigente desde", self.campo_vigente_desde)
         self._layout_formulario.addRow("Vigente hasta", self.campo_vigente_hasta)
+        self._layout_formulario.addRow("Área(s) del derecho", self._contenedor_areas)
+        self._layout_formulario.addRow("Unidad", self.campo_unidad)
         self._layout_formulario.addRow("Usuario", self.campo_usuario)
         self._layout_formulario.addRow("Motivo (opcional)", self.campo_motivo)
         self._layout_formulario.addRow(self.boton_guardar)
         self.setLayout(self._layout_formulario)
 
         self.combo_clave.currentIndexChanged.connect(self._actualizar_visibilidad_vigente_hasta)
+        self.combo_clave.currentIndexChanged.connect(self._actualizar_area_unidad_sugeridas)
         self._actualizar_visibilidad_vigente_hasta()
+        self._actualizar_area_unidad_sugeridas()
+
+    def _actualizar_area_unidad_sugeridas(self) -> None:
+        """Preselecciona las casillas de area y pre-rellena la unidad segun
+        AREA_UNIDAD_POR_CLAVE para la clave elegida -- el usuario puede
+        ajustar ambos antes de guardar (Sprint 57, decision del usuario: la
+        propuesta no es definitiva, solo un punto de partida)."""
+        clave = self.combo_clave.currentData()
+        areas_sugeridas, unidad_sugerida = AREA_UNIDAD_POR_CLAVE[clave]
+        areas_sugeridas_set = set(areas_sugeridas)
+        for area, casilla in self.casillas_area.items():
+            casilla.setChecked(area in areas_sugeridas_set)
+        self.campo_unidad.setText(unidad_sugerida)
 
     def _actualizar_visibilidad_vigente_hasta(self) -> None:
         clave = self.combo_clave.currentData()
@@ -125,11 +181,18 @@ class ParametroFormDialog(QDialog):
 
         motivo = self.campo_motivo.text().strip() or None
 
+        areas_derecho = [
+            area for area, casilla in self.casillas_area.items() if casilla.isChecked()
+        ]
+        unidad = self.campo_unidad.text().strip()
+
         return agregar_valor(
             clave=clave,
             valor=valor,
             vigente_desde=vigente_desde,
             usuario=usuario,
+            areas_derecho=areas_derecho,
+            unidad=unidad,
             motivo=motivo,
             vigente_hasta=vigente_hasta,
         )
@@ -176,7 +239,14 @@ class ParametrosView(QWidget):
         super().__init__()
         self._claves_por_fila: list[str] = []
 
-        columnas = ["Categoria", "Parametro", "Valor vigente hoy", "Vigente desde"]
+        columnas = [
+            "Categoria",
+            "Parametro",
+            "Valor vigente hoy",
+            "Vigente desde",
+            "Área",
+            "Unidad",
+        ]
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -230,6 +300,10 @@ class ParametrosView(QWidget):
             self.tabla.setItem(
                 fila_idx, 3,
                 QTableWidgetItem(vigente.vigente_desde.isoformat() if vigente else ""),
+            )
+            self.tabla.setItem(fila_idx, 4, QTableWidgetItem(_texto_areas(vigente)))
+            self.tabla.setItem(
+                fila_idx, 5, QTableWidgetItem(vigente.unidad if vigente and vigente.unidad else "")
             )
             self._claves_por_fila.append(clave)
 

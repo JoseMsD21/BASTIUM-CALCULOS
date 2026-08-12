@@ -1,16 +1,24 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import QApplication, QDialog
 
 from app.core.apariencia import MODO_CLARO, MODO_OSCURO, cargar_modo_tema, guardar_modo_tema
+from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
 from app.services.parametro_service import agregar_valor, historial
 from app.views.configuracion import (
     HistorialParametroDialog,
     ParametroFormDialog,
     ParametrosView,
 )
+from database.models import AreaDerecho
+
+
+def _area_unidad(clave):
+    areas, unidad = AREA_UNIDAD_POR_CLAVE[clave]
+    return {"areas_derecho": areas, "unidad": unidad}
 
 
 def test_parametros_view_lista_todas_las_claves_del_catalogo(qtbot):
@@ -29,7 +37,13 @@ def test_parametros_view_muestra_sin_dato_cuando_no_hay_valor_cargado(qtbot):
 
 
 def test_parametros_view_muestra_el_valor_vigente_cuando_hay_dato(qtbot):
-    agregar_valor("USURA_MULTIPLICADOR", Decimal("1.5"), date(1900, 1, 1), "test")
+    agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "test",
+        **_area_unidad("USURA_MULTIPLICADOR"),
+    )
     vista = ParametrosView()
     qtbot.addWidget(vista)
     fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
@@ -128,8 +142,12 @@ def test_parametro_form_dialog_valor_no_finito_lanza_value_error(qtbot):
 
 
 def test_historial_parametro_dialog_lista_todas_las_filas_de_una_clave(qtbot):
-    agregar_valor("SMLMV", Decimal("1423500.00"), date(2025, 1, 1), "abogado1")
-    agregar_valor("SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1")
+    agregar_valor(
+        "SMLMV", Decimal("1423500.00"), date(2025, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
 
     dialogo = HistorialParametroDialog("SMLMV")
     qtbot.addWidget(dialogo)
@@ -142,9 +160,17 @@ def test_parametros_view_abrir_dialogo_agregar_refresca_la_tabla(qtbot, monkeypa
 
     vista = ParametrosView()
     qtbot.addWidget(vista)
-    monkeypatch.setattr(ParametroFormDialog, "guardar", lambda self: agregar_valor(
-        "USURA_MULTIPLICADOR", Decimal("1.5"), date(1900, 1, 1), "abogado1",
-    ))
+    monkeypatch.setattr(
+        ParametroFormDialog,
+        "guardar",
+        lambda self: agregar_valor(
+            "USURA_MULTIPLICADOR",
+            Decimal("1.5"),
+            date(1900, 1, 1),
+            "abogado1",
+            **_area_unidad("USURA_MULTIPLICADOR"),
+        ),
+    )
 
     def _exec_simulado(self):
         # Simula el flujo real (click en "Guardar" -> _guardar_y_cerrar ->
@@ -295,3 +321,134 @@ def test_enter_guarda_y_cierra_el_dialogo(qtbot):
     filas = historial("USURA_MULTIPLICADOR")
     assert len(filas) == 1
     assert filas[0].valor == Decimal("1.5")
+
+
+# --- Sprint 57: casillas de area y campo de unidad ---
+
+
+def test_parametro_form_dialog_preselecciona_areas_segun_la_clave(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("SMLMV"))
+
+    areas_esperadas, unidad_esperada = AREA_UNIDAD_POR_CLAVE["SMLMV"]
+    areas_esperadas_set = set(areas_esperadas)
+    for area, casilla in dialogo.casillas_area.items():
+        assert casilla.isChecked() == (area in areas_esperadas_set), area
+    assert dialogo.campo_unidad.text() == unidad_esperada
+
+
+def test_parametro_form_dialog_cambiar_de_clave_actualiza_la_preseleccion(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is True
+    assert dialogo.casillas_area[AreaDerecho.LABORAL].isChecked() is False
+    assert dialogo.campo_unidad.text() == "veces"
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("SS_PENSION_PCT"))
+    assert dialogo.casillas_area[AreaDerecho.LABORAL].isChecked() is True
+    assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is False
+    assert dialogo.campo_unidad.text() == "%"
+
+
+def test_parametro_form_dialog_sin_ninguna_area_marcada_lanza_value_error(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+    for casilla in dialogo.casillas_area.values():
+        casilla.setChecked(False)
+
+    with pytest.raises(ValueError):
+        dialogo.guardar()
+
+
+def test_parametro_form_dialog_unidad_vacia_lanza_value_error(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+    dialogo.campo_unidad.setText("   ")
+
+    with pytest.raises(ValueError):
+        dialogo.guardar()
+
+
+def test_parametro_form_dialog_guarda_areas_derecho_y_unidad_correctos(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+
+    dialogo.guardar()
+
+    filas = historial("USURA_MULTIPLICADOR")
+    assert len(filas) == 1
+    assert deserializar_areas(filas[0].areas_derecho) == [AreaDerecho.COMERCIAL]
+    assert filas[0].unidad == "veces"
+
+
+def test_parametro_form_dialog_permite_ajustar_areas_y_unidad_antes_de_guardar(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+
+    dialogo.casillas_area[AreaDerecho.CIVIL_FAMILIA].setChecked(True)
+    dialogo.campo_unidad.setText("veces (ajustado)")
+
+    dialogo.guardar()
+
+    filas = historial("USURA_MULTIPLICADOR")
+    assert set(deserializar_areas(filas[0].areas_derecho)) == {
+        AreaDerecho.COMERCIAL,
+        AreaDerecho.CIVIL_FAMILIA,
+    }
+    assert filas[0].unidad == "veces (ajustado)"
+
+
+def test_parametros_view_tabla_tiene_columnas_area_y_unidad(qtbot):
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    assert vista.tabla.columnCount() == 6
+    etiquetas = [vista.tabla.horizontalHeaderItem(i).text() for i in range(6)]
+    assert etiquetas == [
+        "Categoria",
+        "Parametro",
+        "Valor vigente hoy",
+        "Vigente desde",
+        "Área",
+        "Unidad",
+    ]
+
+
+def test_parametros_view_muestra_area_y_unidad_de_la_fila_vigente(qtbot):
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    fila_smlmv = vista._claves_por_fila.index("SMLMV")
+    assert vista.tabla.item(fila_smlmv, 5).text() == "COP"
+    texto_area = vista.tabla.item(fila_smlmv, 4).text()
+    assert "Civil" in texto_area
+    assert "Laboral" in texto_area
+
+
+def test_parametros_view_area_y_unidad_vacios_sin_dato_cargado(qtbot):
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
+    assert vista.tabla.item(fila_usura, 4).text() == ""
+    assert vista.tabla.item(fila_usura, 5).text() == ""
