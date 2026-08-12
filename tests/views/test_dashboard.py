@@ -362,6 +362,108 @@ def _hex_a_rgba_matplotlib(hex_color: str) -> tuple:
     return to_rgba(hex_color)
 
 
+# --- Sprint 55: 3 bugs de UI en el Dashboard --------------------------------
+
+
+def test_dashboard_tablas_no_son_editables(qtbot, monkeypatch):
+    """Hallazgo 3: doble clic en una celda de cualquiera de las 3 tablas del
+    Dashboard entraba en modo edicion sin persistir el cambio en ningun lado --
+    solo confunde. Mismo patron que ya usan configuracion.py y
+    expediente_detalle.py (NoEditTriggers)."""
+    from PySide6.QtWidgets import QAbstractItemView
+
+    _sesion_en_memoria(monkeypatch)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    for tabla in (view.tabla_por_area, view.tabla_alertas, view.tabla_actividad):
+        assert tabla.editTriggers() == QAbstractItemView.EditTrigger.NoEditTriggers
+
+
+def test_dashboard_resize_reajusta_el_layout_de_la_grafica_sin_recalcular_datos(
+    qtbot, monkeypatch
+):
+    """Hallazgo 2: _refrescar_grafica_por_area() solo llamaba tight_layout() una
+    vez, al refrescar datos -- sin un manejador de resize, las etiquetas de la
+    grafica de barras quedaban apretadas/superpuestas al redimensionar la
+    ventana. No hay un patron establecido en el repo para testear layout de
+    matplotlib embebido pixel a pixel, asi que este test verifica lo que si es
+    observable y determinista: que redimensionar el canvas dispara un nuevo
+    tight_layout()+draw_idle() sobre la figura YA dibujada, sin volver a
+    consultar la base de datos (no debe llamarse a refrescar())."""
+    _sesion_en_memoria(monkeypatch)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+    view.show()
+    qtbot.waitExposed(view)
+
+    llamadas_refrescar = []
+    monkeypatch.setattr(view, "refrescar", lambda *a, **k: llamadas_refrescar.append(1))
+
+    llamadas_tight_layout = []
+    tight_layout_original = view.figura_por_area.tight_layout
+
+    def tight_layout_contado(*args, **kwargs):
+        llamadas_tight_layout.append(1)
+        return tight_layout_original(*args, **kwargs)
+
+    monkeypatch.setattr(view.figura_por_area, "tight_layout", tight_layout_contado)
+
+    view.resize(900, 700)
+    qtbot.wait(50)
+
+    assert llamadas_tight_layout, "redimensionar debe volver a acomodar el layout de la figura"
+    assert llamadas_refrescar == [], "el resize no debe volver a consultar datos"
+
+
+def test_dashboard_resize_recalcula_el_layout_con_el_tamano_ya_sincronizado_de_la_figura(
+    qtbot, monkeypatch
+):
+    """Hallazgo 2 (revision de calidad post-fix): un primer intento de arreglo
+    usaba `installEventFilter` sobre `canvas_por_area` para interceptar
+    `QEvent.Type.Resize`. El problema: Qt despacha los event filters instalados
+    via `installEventFilter` ANTES de que el evento llegue al `resizeEvent()`
+    propio del widget observado -- y es justo ese `resizeEvent()` nativo de
+    `FigureCanvasQTAgg` (matplotlib, `backend_qt.py`) quien llama
+    `figure.set_size_inches()` con el tamano NUEVO. Un eventFilter entonces
+    corre `tight_layout()` con el tamano de figura todavia VIEJO, mas notorio
+    en saltos grandes (ej. maximizar la ventana). El fix usa
+    `canvas.mpl_connect("resize_event", ...)`: matplotlib emite ese evento
+    DESPUES de `set_size_inches()` (ver `resizeEvent()` en
+    `matplotlib/backends/backend_qt.py`), asi que el tamano ya esta
+    sincronizado. Este test verifica exactamente eso: el tamano de figura que
+    ve `tight_layout()` en el momento en que corre coincide con el tamano final
+    de la figura tras el resize -- con la implementacion de `eventFilter` este
+    assert fallaba (veia el tamano previo al salto)."""
+    _sesion_en_memoria(monkeypatch)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+    view.show()
+    qtbot.waitExposed(view)
+    qtbot.wait(50)
+
+    tamanos_vistos_por_tight_layout = []
+    tight_layout_original = view.figura_por_area.tight_layout
+
+    def tight_layout_que_registra_tamano(*args, **kwargs):
+        tamanos_vistos_por_tight_layout.append(tuple(view.figura_por_area.get_size_inches()))
+        return tight_layout_original(*args, **kwargs)
+
+    monkeypatch.setattr(view.figura_por_area, "tight_layout", tight_layout_que_registra_tamano)
+
+    # Salto grande (simula maximizar la ventana, el caso donde el desfase de
+    # orden es mas notorio -- en arrastres continuos pequenos se autocorrige).
+    view.resize(1200, 900)
+    qtbot.wait(50)
+
+    assert tamanos_vistos_por_tight_layout, "el resize debe disparar tight_layout()"
+    tamano_final = tuple(view.figura_por_area.get_size_inches())
+    assert tamanos_vistos_por_tight_layout[-1] == tamano_final
+
+
 # --- Sprint 53: patron N+1 de consultas en el Dashboard --------------------
 
 

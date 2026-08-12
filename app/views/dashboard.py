@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -57,6 +58,10 @@ class DashboardView(QWidget):
 
         self.tabla_por_area = QTableWidget(len(AREAS_DERECHO), 2)
         self.tabla_por_area.setHorizontalHeaderLabels(["Área", "Expedientes"])
+        # Sprint 55 (hallazgo 3): sin esto, doble clic entraba en modo edicion
+        # sin persistir el cambio en ningun lado -- solo confunde. Mismo patron
+        # que configuracion.py y expediente_detalle.py.
+        self.tabla_por_area.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         # Grafica de expedientes por area (Sprint 50, Tarea 3): complementa la tabla
         # tabular de arriba, no la reemplaza -- matplotlib estaba en requirements.txt
@@ -67,6 +72,29 @@ class DashboardView(QWidget):
         self.figura_por_area = Figure(figsize=(4, 2.5))
         self.canvas_por_area = FigureCanvasQTAgg(self.figura_por_area)
         self._ejes_por_area = self.figura_por_area.add_subplot(111)
+        # Sprint 55 (hallazgo 2): tight_layout() solo se aplicaba una vez, al
+        # poblar la grafica con datos nuevos (_refrescar_grafica_por_area) -- sin
+        # un manejador de resize, las etiquetas del eje X quedaban apretadas o
+        # superpuestas al redimensionar la ventana, porque el ancho disponible
+        # para acomodarlas cambio pero nadie volvia a llamar tight_layout(). Se
+        # usa el hook nativo de matplotlib (mpl_connect("resize_event", ...)) en
+        # vez de un QEvent.Type.Resize interceptado con installEventFilter: Qt
+        # despacha los event filters ANTES de que el evento llegue al
+        # resizeEvent() propio del widget observado, y es justo ese
+        # resizeEvent() nativo de FigureCanvasQTAgg quien llama
+        # figure.set_size_inches() con el tamano NUEVO -- un eventFilter corre
+        # entonces con el tamano de figura todavia VIEJO y tight_layout()
+        # calcularia margenes para una geometria que ya no aplica (mas notorio
+        # en saltos grandes, ej. maximizar la ventana). matplotlib emite su
+        # propio "resize_event" DESPUES de sincronizar el tamano de la figura,
+        # asi que engancharse ahi con mpl_connect da el tamano correcto. No hay
+        # riesgo de bucle: tight_layout() solo reacomoda los margenes de la
+        # figura ya redimensionada (no cambia el tamano del widget QWidget), y
+        # draw_idle() solo agenda un repintado, no dispara un nuevo resize.
+        self.canvas_por_area.mpl_connect(
+            "resize_event",
+            lambda _event: (self.figura_por_area.tight_layout(), self.canvas_por_area.draw_idle()),
+        )
 
         layout_resumen_contenido = QHBoxLayout()
         layout_resumen_contenido.addWidget(self.tabla_por_area)
@@ -82,6 +110,7 @@ class DashboardView(QWidget):
         self.tabla_alertas.setHorizontalHeaderLabels(
             ["Radicado", "Concepto", "Fecha límite", "Estado"]
         )
+        self.tabla_alertas.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla_alertas.cellDoubleClicked.connect(self._abrir_expediente_de_alerta)
         self._expediente_ids_por_fila_alerta: list[int] = []
 
@@ -92,6 +121,7 @@ class DashboardView(QWidget):
 
         self.tabla_actividad = QTableWidget(0, 3)
         self.tabla_actividad.setHorizontalHeaderLabels(["Fecha", "Radicado", "Área"])
+        self.tabla_actividad.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         grupo_actividad = QGroupBox("Actividad reciente")
         layout_actividad = QVBoxLayout()

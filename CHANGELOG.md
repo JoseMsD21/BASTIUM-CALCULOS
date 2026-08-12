@@ -22,7 +22,9 @@ deuda de `ruff` limpiada (447 → 0 errores) y lint agregado al pipeline de CI. 
 técnica transversal, 2026-08-10): bug real corregido en la siembra de `parametros_legales` cuando se pasa
 una ruta de base de datos explícita (Sprint 52), patrón N+1 de consultas eliminado en el Dashboard
 (Sprint 53), y documentación desactualizada corregida en `docs/GUIA_USUARIO.md` y 2 specs de motores
-(Sprint 54). Ningún cambio de saldo final ya calculado en ningún sprint — solo el desglose de interés por
+(Sprint 54). Sprint 55 (reportado por el usuario): 3 bugs de UI en el Dashboard (gráfica con colores del
+tema anterior, etiquetas superpuestas al redimensionar, tabla "Expedientes por área" editable sin razón).
+Ningún cambio de saldo final ya calculado en ningún sprint — solo el desglose de interés por
 fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de total.
 
 ### Added
@@ -81,6 +83,10 @@ fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de
   anterior ni para un clon nuevo del repositorio.
 
 ### Fixed
+- 3 bugs de UI en el Dashboard (Sprint 55): la gráfica de expedientes por área se quedaba con los colores
+  del tema anterior al volver a la pantalla con el botón "Volver" (solo "Inicio" la refrescaba); las
+  etiquetas de la gráfica se superponían al redimensionar la ventana (el layout no se recalculaba); y las
+  3 tablas del Dashboard eran editables con doble clic sin persistir el cambio.
 - `aplicar_migraciones_pendientes(db_path)` ignoraba `db_path` al sembrar `parametros_legales` (Sprint 52):
   el script de siembra usaba siempre el engine global en vez de la ruta recibida — inofensivo en producción
   (donde siempre apunta a la misma `bastium.db`), pero hacía que la suite de tests tocara la base real como
