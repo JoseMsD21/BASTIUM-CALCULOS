@@ -360,3 +360,50 @@ def _hex_a_rgba_matplotlib(hex_color: str) -> tuple:
     from matplotlib.colors import to_rgba
 
     return to_rgba(hex_color)
+
+
+# --- Sprint 53: patron N+1 de consultas en el Dashboard --------------------
+
+
+def test_dashboard_refrescar_no_abre_una_sesion_nueva_por_cada_obligacion_no_pagada(
+    qtbot, monkeypatch
+):
+    """Antes del Sprint 53, `_refrescar_alertas_vencimiento` llamaba a
+    `calcular_prescripcion` (que internamente resuelve PRESCRIPCION_EJECUTIVA_MESES
+    via `get_parametro`) por cada obligacion no pagada sin una cache de liquidacion
+    activa -- cada llamada abria y cerraba su propia sesion SQLAlchemy
+    (`_resolver_fila`, app/services/parametro_service.py). Con 8 obligaciones eso
+    eran 8 sesiones nuevas ademas de la que abre `refrescar()` para leer los
+    expedientes. Con `cache_de_liquidacion()` envolviendo el bucle (mismo patron
+    que ya usan las AreaStrategy en app/services/area_strategy.py), el parametro
+    se resuelve una sola vez para las 8 obligaciones porque comparten la misma
+    fecha_origen."""
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _sembrar_parametro_prescripcion_ejecutiva(session)
+    for indice in range(8):
+        expediente = _crear_expediente(session, f"2026-10{indice}", AreaDerecho.CIVIL_FAMILIA)
+        _crear_obligacion(session, expediente.id, date(2021, 1, 4))
+    session.close()
+
+    fecha_limite = calcular_prescripcion(date(2021, 1, 4), TipoAccion.EJECUTIVA)
+    hoy = fecha_limite - timedelta(days=30)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    llamadas_get_session: list[None] = []
+    get_session_original = session_module.get_session
+
+    def get_session_contada():
+        llamadas_get_session.append(None)
+        return get_session_original()
+
+    monkeypatch.setattr(session_module, "get_session", get_session_contada)
+
+    view.refrescar(hoy=hoy)
+
+    assert view.tabla_alertas.rowCount() == 8
+    # 1 sesion para leer los expedientes (refrescar()) + 1 sesion para resolver
+    # PRESCRIPCION_EJECUTIVA_MESES una sola vez -- nunca 8 (una por obligacion).
+    assert len(llamadas_get_session) == 2

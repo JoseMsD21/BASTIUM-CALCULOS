@@ -17,8 +17,9 @@ import database.session as session_module
 from app.core import apariencia, theme_colors, theme_colors_dark
 from app.core.constants import AREAS_DERECHO
 from app.core.exceptions import ParametroNoDisponibleError
-from app.engine.audit.service import historial_de_expediente
+from app.engine.audit.service import historial_de_expedientes
 from app.engine.temporal.prescripcion import TipoAccion, calcular_prescripcion
+from app.services.parametro_service import cache_de_liquidacion
 from database.models import AuditLog, Expediente
 
 DIAS_ALERTA_VENCIMIENTO = 90
@@ -172,29 +173,37 @@ class DashboardView(QWidget):
         -- el mismo default que usa `filtrar_cuotas_prescritas` en
         `app/engine/temporal/prescripcion.py`, ver Architecture del plan de este
         sprint) de alguna obligación no pagada cae dentro de los próximos
-        `DIAS_ALERTA_VENCIMIENTO` días, o ya venció."""
+        `DIAS_ALERTA_VENCIMIENTO` días, o ya venció.
+
+        Sprint 53: envuelve el bucle en `cache_de_liquidacion()` (mismo patrón
+        que ya usan las `AreaStrategy` en `app/services/area_strategy.py`) para
+        que `get_parametro` reutilice el valor ya resuelto de
+        PRESCRIPCION_EJECUTIVA_MESES para la misma fecha en vez de abrir una
+        sesión SQLAlchemy nueva (`_resolver_fila`) por cada obligación no pagada.
+        """
         limite = hoy + timedelta(days=DIAS_ALERTA_VENCIMIENTO)
         alertas = []
-        for expediente in expedientes:
-            for obligacion in expediente.obligaciones:
-                if obligacion.pagada:
-                    continue
-                try:
-                    fecha_limite = calcular_prescripcion(
-                        obligacion.fecha_origen, TipoAccion.EJECUTIVA
-                    )
-                except ParametroNoDisponibleError:
-                    # Sin PRESCRIPCION_EJECUTIVA_MESES configurado en Parametros no
-                    # se puede calcular la fecha limite de esta obligacion -- se
-                    # omite de las alertas en vez de tumbar todo el dashboard.
-                    continue
-                if fecha_limite <= limite:
-                    dias_restantes = (fecha_limite - hoy).days
-                    if dias_restantes < 0:
-                        estado = "Vencido"
-                    else:
-                        estado = f"Vence en {dias_restantes} días"
-                    alertas.append((expediente, obligacion, fecha_limite, estado))
+        with cache_de_liquidacion():
+            for expediente in expedientes:
+                for obligacion in expediente.obligaciones:
+                    if obligacion.pagada:
+                        continue
+                    try:
+                        fecha_limite = calcular_prescripcion(
+                            obligacion.fecha_origen, TipoAccion.EJECUTIVA
+                        )
+                    except ParametroNoDisponibleError:
+                        # Sin PRESCRIPCION_EJECUTIVA_MESES configurado en Parametros
+                        # no se puede calcular la fecha limite de esta obligacion --
+                        # se omite de las alertas en vez de tumbar todo el dashboard.
+                        continue
+                    if fecha_limite <= limite:
+                        dias_restantes = (fecha_limite - hoy).days
+                        if dias_restantes < 0:
+                            estado = "Vencido"
+                        else:
+                            estado = f"Vence en {dias_restantes} días"
+                        alertas.append((expediente, obligacion, fecha_limite, estado))
 
         alertas.sort(key=lambda item: item[2])
 
@@ -211,12 +220,13 @@ class DashboardView(QWidget):
         self, session, expedientes: list[Expediente]
     ) -> None:
         """Últimas liquidaciones ejecutadas en cualquier expediente, más recientes
-        primero -- reutiliza `historial_de_expediente` (Sprint 9,
-        `app/engine/audit/service.py`) una vez por expediente y fusiona/recorta el
-        resultado combinado, en vez de duplicar la consulta a `AuditLog` aquí."""
-        registros: list[AuditLog] = []
-        for expediente in expedientes:
-            registros.extend(historial_de_expediente(session, expediente.id))
+        primero -- usa `historial_de_expedientes` (Sprint 53,
+        `app/engine/audit/service.py`) para traer los `AuditLog` de todos los
+        expedientes en una sola consulta (`expediente_id.in_(...)`) en vez de un
+        round-trip a SQLite por expediente (antes de este sprint: una llamada a
+        `historial_de_expediente` por expediente)."""
+        expediente_ids = [expediente.id for expediente in expedientes]
+        registros: list[AuditLog] = historial_de_expedientes(session, expediente_ids)
         registros.sort(key=lambda log: log.fecha_ejecucion, reverse=True)
         registros = registros[:MAX_LIQUIDACIONES_RECIENTES]
 

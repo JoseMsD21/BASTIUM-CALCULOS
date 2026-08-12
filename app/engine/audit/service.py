@@ -48,3 +48,21 @@ def historial_de_expediente(session: Session, expediente_id: int) -> list[AuditL
         .order_by(AuditLog.fecha_ejecucion.desc())
         .all()
     )
+
+
+def historial_de_expedientes(
+    session: Session, expediente_ids: list[int]
+) -> list[AuditLog]:
+    """Liquidaciones ejecutadas para varios expedientes a la vez, más recientes
+    primero -- mismo criterio de orden que `historial_de_expediente` pero en una
+    sola consulta (`expediente_id.in_(...)`), para vistas agregadas como el
+    Dashboard (Sprint 53) que antes llamaban a `historial_de_expediente` una vez
+    por expediente (un round-trip a SQLite por expediente)."""
+    if not expediente_ids:
+        return []
+    return (
+        session.query(AuditLog)
+        .filter(AuditLog.expediente_id.in_(expediente_ids))
+        .order_by(AuditLog.fecha_ejecucion.desc())
+        .all()
+    )
