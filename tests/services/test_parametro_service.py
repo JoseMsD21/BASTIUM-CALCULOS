@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -331,3 +331,123 @@ def test_cache_de_liquidacion_usada_como_decorador_crea_bloque_nuevo_por_llamada
     _dos_consultas_iguales()
 
     assert len(llamadas) == 2  # 1 por invocacion de _dos_consultas_iguales, no 4
+
+
+# --- Sprint 53: precargar_parametro (resuelve N fechas distintas sin N consultas) ---
+
+
+def test_precargar_parametro_resuelve_fechas_distintas_sin_reconsultar(monkeypatch):
+    """A diferencia de la cache por (clave, fecha) de cache_de_liquidacion (que
+    solo evita repetir la MISMA fecha exacta), precargar_parametro debe cubrir
+    N fechas DISTINTAS de la misma clave con una sola consulta -- el caso real
+    del Dashboard (N obligaciones con N fechas_origen distintas)."""
+    from app.services import parametro_service
+    from app.services.parametro_service import (
+        cache_de_liquidacion,
+        get_parametro,
+        precargar_parametro,
+    )
+
+    _insertar("USURA_MULTIPLICADOR", "1.5", date(1997, 7, 1))
+    _insertar("USURA_MULTIPLICADOR", "2.0", date(2030, 1, 1))
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    with cache_de_liquidacion():
+        precargar_parametro("USURA_MULTIPLICADOR")
+        valores = [
+            get_parametro("USURA_MULTIPLICADOR", date(2026, 1, 1) + timedelta(days=indice))
+            for indice in range(10)
+        ]
+
+    assert valores == [Decimal("1.5")] * 10
+    assert len(llamadas) == 0  # ninguna consulta por fecha: todo resuelto en memoria
+
+
+def test_precargar_parametro_respeta_el_valor_vigente_por_fecha():
+    from app.services.parametro_service import (
+        cache_de_liquidacion,
+        get_parametro,
+        precargar_parametro,
+    )
+
+    _insertar("USURA_MULTIPLICADOR", "1.5", date(1997, 7, 1))
+    _insertar("USURA_MULTIPLICADOR", "2.0", date(2030, 1, 1))
+
+    with cache_de_liquidacion():
+        precargar_parametro("USURA_MULTIPLICADOR")
+        assert get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20)) == Decimal("1.5")
+        assert get_parametro("USURA_MULTIPLICADOR", date(2031, 1, 1)) == Decimal("2.0")
+
+
+def test_precargar_parametro_respeta_modo_anual_exacto():
+    from app.services.parametro_service import (
+        cache_de_liquidacion,
+        get_parametro,
+        precargar_parametro,
+    )
+
+    _insertar("SMLMV", "1750905.00", date(2026, 1, 1))
+    _insertar("SMLMV", "1423500.00", date(2025, 1, 1))
+
+    with cache_de_liquidacion():
+        precargar_parametro("SMLMV")
+        assert get_parametro("SMLMV", date(2026, 7, 20)) == Decimal("1750905.00")
+        assert get_parametro("SMLMV", date(2025, 12, 31)) == Decimal("1423500.00")
+        with pytest.raises(ParametroNoDisponibleError):
+            get_parametro("SMLMV", date(2027, 1, 1))
+
+
+def test_precargar_parametro_respeta_modo_tramo_cerrado():
+    from app.services.parametro_service import (
+        cache_de_liquidacion,
+        get_parametro,
+        precargar_parametro,
+    )
+
+    _insertar("IBC_CONSUMO_ORDINARIO", "16.24", date(2026, 1, 1), vigente_hasta=date(2026, 1, 31))
+    _insertar("IBC_CONSUMO_ORDINARIO", "16.82", date(2026, 2, 1), vigente_hasta=date(2026, 2, 28))
+
+    with cache_de_liquidacion():
+        precargar_parametro("IBC_CONSUMO_ORDINARIO")
+        assert get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 1, 15)) == Decimal("16.24")
+        assert get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 2, 15)) == Decimal("16.82")
+        with pytest.raises(ParametroNoDisponibleError):
+            get_parametro("IBC_CONSUMO_ORDINARIO", date(2026, 3, 1))
+
+
+def test_precargar_parametro_sin_cache_de_liquidacion_activa_no_hace_nada(monkeypatch):
+    """Sin un bloque cache_de_liquidacion() activo no hay donde guardar la
+    precarga -- precargar_parametro no debe fallar, simplemente no tiene
+    efecto y get_parametro sigue consultando la base de datos por fecha."""
+    from app.services import parametro_service
+    from app.services.parametro_service import get_parametro, precargar_parametro
+
+    _insertar("USURA_MULTIPLICADOR", "1.5", date(1997, 7, 1))
+
+    llamadas = []
+    original = parametro_service._resolver_fila
+
+    def _contando(clave, fecha):
+        llamadas.append((clave, fecha))
+        return original(clave, fecha)
+
+    monkeypatch.setattr(parametro_service, "_resolver_fila", _contando)
+
+    precargar_parametro("USURA_MULTIPLICADOR")  # no-op: ningun cache_de_liquidacion() activo
+    assert get_parametro("USURA_MULTIPLICADOR", date(2026, 7, 20)) == Decimal("1.5")
+    assert len(llamadas) == 1
+
+
+def test_precargar_parametro_clave_desconocida_lanza_value_error():
+    from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
+
+    with cache_de_liquidacion(), pytest.raises(ValueError):
+        precargar_parametro("NO_EXISTE")

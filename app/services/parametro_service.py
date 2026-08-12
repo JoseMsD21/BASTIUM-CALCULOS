@@ -318,8 +318,37 @@ def _resolver_fila(clave: str, fecha: date) -> ParametroLegal | None:
         session.close()
 
 
+def _resolver_entre_filas(
+    info: InfoParametro, fecha: date, filas: list[ParametroLegal]
+) -> ParametroLegal | None:
+    """Aplica en memoria el mismo criterio de filtrado que `_resolver_fila` usa
+    en SQL, sobre `filas` ya cargadas para una clave (ver `precargar_parametro`).
+    Requiere que `filas` venga ordenada (vigente_desde desc, creado_en desc) --
+    el mismo orden que retorna `historial()` -- para que el primer match sea
+    equivalente a `.order_by(...).first()`."""
+    if info.modo == ModoResolucion.ANUAL_EXACTO:
+        objetivo = date(fecha.year, 1, 1)
+        return next((fila for fila in filas if fila.vigente_desde == objetivo), None)
+    if info.modo == ModoResolucion.TRAMO_CERRADO:
+        return next(
+            (
+                fila
+                for fila in filas
+                if fila.vigente_desde <= fecha
+                and fila.vigente_hasta is not None
+                and fila.vigente_hasta >= fecha
+            ),
+            None,
+        )
+    return next((fila for fila in filas if fila.vigente_desde <= fecha), None)
+
+
 _cache_liquidacion_activa: ContextVar[dict[tuple[str, date], Decimal] | None] = ContextVar(
     "_cache_liquidacion_activa", default=None
+)
+
+_filas_precargadas_activa: ContextVar[dict[str, list[ParametroLegal]] | None] = ContextVar(
+    "_filas_precargadas_activa", default=None
 )
 
 
@@ -337,12 +366,44 @@ def cache_de_liquidacion():
     misma entrada de cache). contextlib.contextmanager hereda de
     ContextDecorator, asi que este mismo objeto tambien sirve como decorador
     (@cache_de_liquidacion()) -- cada invocacion decorada abre su propio
-    bloque nuevo, nunca comparte cache con otra llamada."""
+    bloque nuevo, nunca comparte cache con otra llamada.
+
+    Tambien habilita el espacio para `precargar_parametro` (Sprint 53): la
+    cache de arriba solo ayuda cuando se repite la MISMA (clave, fecha) exacta
+    -- no sirve cuando N llamadas comparten clave pero cada una tiene una
+    fecha distinta (ej. N obligaciones con N fechas_origen distintas). Ese
+    caso requiere precargar_parametro(clave), que trae todas las filas de la
+    clave en una sola consulta y las deja aqui para que get_parametro resuelva
+    cualquier fecha en memoria."""
     token = _cache_liquidacion_activa.set({})
+    token_precarga = _filas_precargadas_activa.set({})
     try:
         yield
     finally:
         _cache_liquidacion_activa.reset(token)
+        _filas_precargadas_activa.reset(token_precarga)
+
+
+def precargar_parametro(clave: str) -> None:
+    """Trae TODAS las filas de `clave` en una sola consulta (mismo query que
+    `historial()`) y las deja disponibles para que `get_parametro` resuelva
+    cualquier fecha de esa clave sin una consulta nueva por fecha (Sprint 53,
+    hallazgo 1 del Dashboard: N obligaciones no pagadas con N fechas_origen
+    distintas resolviendo PRESCRIPCION_EJECUTIVA_MESES abrian N sesiones
+    SQLAlchemy, porque la cache por (clave, fecha) de `cache_de_liquidacion`
+    solo colapsa fechas EXACTAMENTE iguales -- aqui se resuelve cualquier
+    fecha en memoria contra las filas ya cargadas, vía `_resolver_entre_filas`,
+    con el mismo criterio de filtrado/orden que `_resolver_fila` usa en SQL).
+
+    Requiere un bloque `cache_de_liquidacion()` activo -- sin uno, no hay
+    donde guardar la precarga y esta funcion no hace nada: `get_parametro`
+    simplemente sigue consultando la base de datos por fecha, el
+    comportamiento de siempre."""
+    _validar_clave(clave)
+    filas_precargadas = _filas_precargadas_activa.get()
+    if filas_precargadas is None:
+        return
+    filas_precargadas[clave] = historial(clave)
 
 
 def get_parametro(clave: str, fecha: date) -> Decimal:
@@ -350,13 +411,21 @@ def get_parametro(clave: str, fecha: date) -> Decimal:
     declarado en CATALOGO_PARAMETROS (ver Adenda de diseno de la spec). Si hay
     una cache de liquidacion activa (cache_de_liquidacion), reutiliza el valor
     ya resuelto para el mismo (clave, fecha) en vez de abrir una sesion
-    SQLAlchemy nueva."""
+    SQLAlchemy nueva. Si ademas `clave` fue precargada (precargar_parametro),
+    resuelve `fecha` en memoria contra esas filas en vez de consultar la base
+    de datos, sin importar si `fecha` ya se habia visto antes."""
     cache = _cache_liquidacion_activa.get()
     clave_cache = (clave, fecha)
     if cache is not None and clave_cache in cache:
         return cache[clave_cache]
 
-    fila = _resolver_fila(clave, fecha)
+    filas_precargadas = _filas_precargadas_activa.get()
+    if filas_precargadas is not None and clave in filas_precargadas:
+        info = _validar_clave(clave)
+        fila = _resolver_entre_filas(info, fecha, filas_precargadas[clave])
+    else:
+        fila = _resolver_fila(clave, fecha)
+
     if fila is None:
         info = _validar_clave(clave)
         raise ParametroNoDisponibleError(

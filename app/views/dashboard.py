@@ -18,8 +18,12 @@ from app.core import apariencia, theme_colors, theme_colors_dark
 from app.core.constants import AREAS_DERECHO
 from app.core.exceptions import ParametroNoDisponibleError
 from app.engine.audit.service import historial_de_expedientes
-from app.engine.temporal.prescripcion import TipoAccion, calcular_prescripcion
-from app.services.parametro_service import cache_de_liquidacion
+from app.engine.temporal.prescripcion import (
+    CLAVE_POR_TIPO_ACCION,
+    TipoAccion,
+    calcular_prescripcion,
+)
+from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
 from database.models import AuditLog, Expediente
 
 DIAS_ALERTA_VENCIMIENTO = 90
@@ -175,15 +179,21 @@ class DashboardView(QWidget):
         sprint) de alguna obligación no pagada cae dentro de los próximos
         `DIAS_ALERTA_VENCIMIENTO` días, o ya venció.
 
-        Sprint 53: envuelve el bucle en `cache_de_liquidacion()` (mismo patrón
-        que ya usan las `AreaStrategy` en `app/services/area_strategy.py`) para
-        que `get_parametro` reutilice el valor ya resuelto de
-        PRESCRIPCION_EJECUTIVA_MESES para la misma fecha en vez de abrir una
-        sesión SQLAlchemy nueva (`_resolver_fila`) por cada obligación no pagada.
-        """
+        Sprint 53: envuelve el bucle en `cache_de_liquidacion()` y precarga
+        PRESCRIPCION_EJECUTIVA_MESES con `precargar_parametro` (ambos en
+        `app/services/parametro_service.py`) antes de iterar. La cache sola
+        (mismo patrón que ya usan las `AreaStrategy` en
+        `app/services/area_strategy.py`) solo evita reabrir sesión cuando dos
+        obligaciones comparten la misma `fecha_origen` exacta -- en datos
+        reales cada obligación suele tener una fecha distinta, así que sin la
+        precarga cada fecha distinta seguiría abriendo su propia sesión
+        SQLAlchemy (`_resolver_fila`). `precargar_parametro` trae todas las
+        filas de la clave en una sola consulta y deja que `get_parametro`
+        resuelva cualquier fecha en memoria contra ellas."""
         limite = hoy + timedelta(days=DIAS_ALERTA_VENCIMIENTO)
         alertas = []
         with cache_de_liquidacion():
+            precargar_parametro(CLAVE_POR_TIPO_ACCION[TipoAccion.EJECUTIVA])
             for expediente in expedientes:
                 for obligacion in expediente.obligaciones:
                     if obligacion.pagada:
