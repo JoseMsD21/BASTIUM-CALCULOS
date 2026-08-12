@@ -63,7 +63,8 @@ def _texto_areas(fila: ParametroLegal | None) -> str:
     Ningun camino de escritura actual (agregar_valor(), la migracion) puede
     producir un `areas_derecho` corrupto -- ambos pasan por
     serializar_areas()/AREA_UNIDAD_POR_CLAVE, controlados. Pero
-    ParametrosView.refrescar() itera las 39 claves de una sola pasada: si
+    ParametrosView.refrescar() itera las 40 claves de una sola pasada (39 mas
+    IPC_VARIACION_ANUAL, Sprint 58): si
     algun dia una fila quedara con JSON invalido o un codigo de area que ya
     no existe en el enum (ej. tras retirar un AreaDerecho en el futuro), que
     esta funcion propague la excepcion tumbaria la carga de TODA la pantalla,
@@ -227,15 +228,25 @@ class ParametroFormDialog(QDialog):
 
 
 class HistorialParametroDialog(QDialog):
-    # Formula fija (Sprint 58) mostrada cuando la clave abierta tiene un dato
-    # crudo asociado (hoy solo IPC_INDICE_ACUMULADO, via CLAVE_CRUDA_DE) --
-    # ver docstring de _construir_indice_ipc_acumulado en historical_index.py
-    # para la derivacion completa.
-    _FORMULA_IPC = (
-        "Índice = índice del año anterior × (1 + variación anual / 100). "
-        "Fuente: tabla de variación % anual del PDF de requerimientos, "
-        "transcrita en historical_index.py."
-    )
+    # Sprint 58: etiqueta de columna + nota de formula por CADA clave
+    # calculada que tiene un dato crudo asociado (CLAVE_CRUDA_DE,
+    # parametro_service.py). Separado de ese diccionario a proposito:
+    # CLAVE_CRUDA_DE es DATO (que clave se deriva de cual), esto es TEXTO DE
+    # PRESENTACION (como mostrarlo) -- si en el futuro aparece un segundo caso
+    # con formula propia, agregar su entrada aqui (ademas de en
+    # CLAVE_CRUDA_DE) es indispensable: `_presentacion_dato_crudo[clave]` mas
+    # abajo es un indexado directo (no `.get()` con default), asi que agregar
+    # una clave a CLAVE_CRUDA_DE sin agregar su presentacion aqui revienta
+    # con KeyError en vez de mostrar en silencio la etiqueta/formula del IPC
+    # para una clave que no es IPC.
+    _PRESENTACION_DATO_CRUDO: dict[str, tuple[str, str]] = {
+        "IPC_INDICE_ACUMULADO": (
+            "Variación anual (%)",
+            "Índice = índice del año anterior × (1 + variación anual / 100). "
+            "Fuente: tabla de variación % anual del PDF de requerimientos, "
+            "transcrita en historical_index.py.",
+        ),
+    }
 
     def __init__(self, clave: str, parent=None):
         super().__init__(parent)
@@ -245,12 +256,17 @@ class HistorialParametroDialog(QDialog):
 
         # Sprint 58: si `clave` tiene un dato crudo asociado (CLAVE_CRUDA_DE),
         # se agrega una columna extra con ese valor cruda por año, mas una
-        # nota fija explicando la formula -- mecanismo generico, no
-        # hardcodeado a IPC aqui (ver CLAVE_CRUDA_DE en parametro_service.py).
+        # nota fija explicando la formula -- ambos textos salen de
+        # _PRESENTACION_DATO_CRUDO (arriba), nunca hardcodeados a IPC aqui.
         clave_cruda = CLAVE_CRUDA_DE.get(clave)
-        columnas = ["Valor", "Vigente desde", "Vigente hasta", "Usuario", "Motivo"]
+        etiqueta_columna_cruda: str | None = None
+        formula_texto: str | None = None
         if clave_cruda is not None:
-            columnas = [*columnas, "Variación anual (%)"]
+            etiqueta_columna_cruda, formula_texto = self._PRESENTACION_DATO_CRUDO[clave]
+
+        columnas = ["Valor", "Vigente desde", "Vigente hasta", "Usuario", "Motivo"]
+        if etiqueta_columna_cruda is not None:
+            columnas = [*columnas, etiqueta_columna_cruda]
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -276,8 +292,8 @@ class HistorialParametroDialog(QDialog):
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabla)
-        if clave_cruda is not None:
-            nota_formula = QLabel(self._FORMULA_IPC)
+        if formula_texto is not None:
+            nota_formula = QLabel(formula_texto)
             nota_formula.setWordWrap(True)
             layout.addWidget(nota_formula)
         self.setLayout(layout)

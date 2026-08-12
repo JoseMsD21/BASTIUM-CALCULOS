@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QDate, Qt
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6.QtWidgets import QApplication, QDialog, QLabel
 
 import database.session as session_module
 from app.core.apariencia import MODO_CLARO, MODO_OSCURO, cargar_modo_tema, guardar_modo_tema
@@ -630,7 +630,28 @@ def test_historial_parametro_dialog_ipc_indice_acumulado_muestra_nota_de_formula
     dialogo = HistorialParametroDialog("IPC_INDICE_ACUMULADO")
     qtbot.addWidget(dialogo)
 
-    assert "índice del año anterior" in dialogo._FORMULA_IPC
+    # La nota es el segundo widget del layout (el primero es self.tabla) --
+    # se verifica el texto realmente mostrado en la UI, no un atributo de
+    # clase, para que este test detecte si algun dia la nota deja de
+    # agregarse al layout.
+    nota = dialogo.layout().itemAt(1).widget()
+    assert isinstance(nota, QLabel)
+    assert "índice del año anterior" in nota.text()
+
+
+def test_historial_parametro_dialog_otra_clave_no_muestra_nota_de_formula(qtbot):
+    """Complementa test_historial_parametro_dialog_otra_clave_no_muestra_columna_variacion:
+    ademas de no tener la columna extra, el dialogo de una clave sin dato
+    crudo asociado no debe agregar la nota de formula al layout (solo la
+    tabla)."""
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    dialogo = HistorialParametroDialog("SMLMV")
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.layout().count() == 1
 
 
 def test_historial_parametro_dialog_otra_clave_no_muestra_columna_variacion(qtbot):
