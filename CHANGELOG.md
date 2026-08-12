@@ -15,7 +15,9 @@ publicada. Sprints 41/42/44/45: cuotas alimentarias con reajuste anual en Famili
 conectada al flujo real de liquidación, varios gaps de UX/alcance en Laboral, y transparencia de unidad en
 Sancionatorio. Sprint 46: saldo a favor de un sobrepago visible en PDF/Word/pantalla. Sprint 49: bug de
 timing de visibilidad en los botones de navegación corregido (y superado estructuralmente por el sidebar
-del Sprint 50). Sprint 50: modo oscuro/claro, sidebar de navegación y gráfica del Dashboard. Sprint 48:
+del Sprint 50). Sprint 50: modo oscuro/claro, sidebar de navegación y gráfica del Dashboard. Sprint 51:
+migración automática de esquema y datos al arrancar la app, sin pasos manuales para una `bastium.db`
+existente ni para un clon nuevo del repositorio. Sprint 48:
 deuda de `ruff` limpiada (447 → 0 errores) y lint agregado al pipeline de CI. Ningún cambio de saldo final
 ya calculado en ningún sprint — solo el desglose de interés por fila del Sprint 40 y el desglose por cuota
 del Sprint 41 cambian de forma, no de total.
