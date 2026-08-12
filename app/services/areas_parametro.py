@@ -81,6 +81,9 @@ AREA_UNIDAD_POR_CLAVE: dict[str, tuple[list[AreaDerecho], str]] = {
     "CADUCIDAD_SEGURO_EXTRAORDINARIA_MESES": ([_CO], "meses"),
     "CADUCIDAD_IMPUGNACION_ACTAS_SOCIALES_MESES": ([_CO], "meses"),
     "CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES": ([_CF, _CO], "meses"),
+    # Sprint 58: mismas areas que IPC_INDICE_ACUMULADO -- es el dato crudo del
+    # que ese se deriva (ver CLAVE_CRUDA_DE en parametro_service.py).
+    "IPC_VARIACION_ANUAL": ([_CF, _TR], "%"),
 }
 
 

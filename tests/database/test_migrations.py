@@ -181,7 +181,9 @@ def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path):
 
     with _sesion_para(db_path) as session:
         claves = {fila.clave for fila in session.query(ParametroLegal).all()}
-    assert len(claves) == 39
+    # 39 claves de migrar_parametros_legales + IPC_VARIACION_ANUAL (Sprint 58,
+    # sembrada por separado via migrar_ipc_variacion_anual).
+    assert len(claves) == 40
 
 
 def test_aplicar_migraciones_pendientes_es_idempotente(tmp_path):
@@ -227,7 +229,8 @@ def test_aplicar_migraciones_pendientes_siembra_parametros_legales_en_db_path(tm
         "SELECT COUNT(DISTINCT clave) FROM parametros_legales"
     ).fetchone()
     con.close()
-    assert total_claves == 39
+    # 39 claves de migrar_parametros_legales + IPC_VARIACION_ANUAL (Sprint 58).
+    assert total_claves == 40
 
 
 def test_aplicar_migraciones_pendientes_agrega_los_indices_de_rendimiento(tmp_path):
@@ -346,7 +349,11 @@ def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tm
     completa, aplicar_migraciones_pendientes() debe sembrar las 683 filas
     (migrar_parametros_legales) Y completar areas_derecho/unidad de todas
     ellas en la misma pasada -- exige que la migracion nueva corra despues de
-    la siembra, no antes."""
+    la siembra, no antes.
+
+    742 = 683 + 59 (Sprint 58: migrar_ipc_variacion_anual siembra
+    IPC_VARIACION_ANUAL, una fila por año 1967-2025, ver
+    scripts/migrate_ipc_variacion_anual.py)."""
     from database.database import aplicar_migraciones_pendientes
 
     db_path = tmp_path / "nueva_area_unidad.db"
@@ -364,7 +371,7 @@ def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tm
     ).fetchone()[0]
     con.close()
 
-    assert total_filas == 683
+    assert total_filas == 742
     assert total_sin_migrar == 0
 
 

@@ -287,7 +287,30 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Ley 797/2003, art. 8",
         ModoResolucion.ABIERTO,
     ),
+    # Sprint 58: dato CRUDO del que se deriva IPC_INDICE_ACUMULADO --
+    # indice = indice_anterior * (1 + variacion_anual / 100), ver
+    # app/engine/indexation/historical_index.py::_construir_indice_ipc_acumulado.
+    # NO se usa en ningun calculo de liquidacion (solo IPC_INDICE_ACUMULADO se
+    # consulta desde get_ipc_for_date) -- existe solo para que
+    # HistorialParametroDialog pueda mostrarla junto al indice ya calculado,
+    # via CLAVE_CRUDA_DE (abajo). Sembrada por
+    # scripts/migrate_ipc_variacion_anual.py.
+    "IPC_VARIACION_ANUAL": InfoParametro(
+        "Variacion porcentual anual del IPC (dato crudo, antes de acumular)",
+        "Indicadores historicos",
+        "PDF pagina 62",
+        ModoResolucion.ANUAL_EXACTO,
+    ),
 }
+
+# Sprint 58: clave calculada -> clave cruda de la que se deriva, para que
+# HistorialParametroDialog pueda mostrar el dato crudo junto al calculado sin
+# hardcodear "si clave == IPC_INDICE_ACUMULADO" en la UI. Mecanismo generico,
+# extensible si en el futuro aparece otro parametro con formula -- confirmado
+# con el usuario que por ahora solo IPC_INDICE_ACUMULADO aplica (de los otros
+# 4 "indicadores historicos" -- SMLMV, UVT, IBC, USURA -- ninguno se deriva de
+# otra clave, son tablas planas transcritas directo).
+CLAVE_CRUDA_DE: dict[str, str] = {"IPC_INDICE_ACUMULADO": "IPC_VARIACION_ANUAL"}
 
 
 def _validar_clave(clave: str) -> InfoParametro:

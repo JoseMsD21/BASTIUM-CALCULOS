@@ -25,12 +25,14 @@ def test_serializar_guarda_como_lista_json_de_codigos():
     assert texto == '["CIVIL_FAMILIA", "LABORAL"]'
 
 
-def test_area_unidad_por_clave_cubre_las_39_claves_del_catalogo():
+def test_area_unidad_por_clave_cubre_las_40_claves_del_catalogo():
+    """39 claves del Sprint 57 + IPC_VARIACION_ANUAL (Sprint 58, dato crudo
+    del que se deriva IPC_INDICE_ACUMULADO -- ver CLAVE_CRUDA_DE)."""
     from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE
     from app.services.parametro_service import CATALOGO_PARAMETROS
 
     assert set(AREA_UNIDAD_POR_CLAVE.keys()) == set(CATALOGO_PARAMETROS.keys())
-    assert len(AREA_UNIDAD_POR_CLAVE) == 39
+    assert len(AREA_UNIDAD_POR_CLAVE) == 40
 
 
 def test_area_unidad_por_clave_cada_entrada_tiene_al_menos_un_area_y_una_unidad():
