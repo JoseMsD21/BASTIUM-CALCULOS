@@ -15,7 +15,8 @@ en vez de invocar `widget.setVisible(...)` directamente sobre un widget que
 vive en un `QFormLayout`.
 """
 
-from PySide6.QtWidgets import QFormLayout, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDialog, QFormLayout, QWidget
 
 
 def guardar_o_actualizar(session, modelo_cls, id_existente: int | None, **campos) -> int:
@@ -67,3 +68,14 @@ def set_row_visible(layout: QFormLayout, widget: QWidget, visible: bool) -> None
     etiqueta = layout.labelForField(widget)
     if etiqueta is not None:
         etiqueta.setVisible(visible)
+
+
+def hacer_redimensionable(dialog: QDialog) -> None:
+    """Agrega minimizar/maximizar y redimensionado a un QDialog -- Qt no los
+    incluye por defecto en Windows (Sprint 56). Llamar una vez en __init__,
+    justo despues de super().__init__(parent)."""
+    dialog.setWindowFlags(
+        dialog.windowFlags()
+        | Qt.WindowType.WindowMinimizeButtonHint
+        | Qt.WindowType.WindowMaximizeButtonHint
+    )

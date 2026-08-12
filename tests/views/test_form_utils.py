@@ -1,12 +1,13 @@
 from datetime import date
 from decimal import Decimal
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QFormLayout, QLineEdit
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
-from app.views.form_utils import guardar_o_actualizar, set_row_visible
+from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable, set_row_visible
 from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
 
 
@@ -144,3 +145,13 @@ def test_set_row_visible_no_falla_si_el_widget_no_tiene_etiqueta(qtbot):
     set_row_visible(layout, check, False)
 
     assert check.isVisible() is False
+
+
+def test_hacer_redimensionable_agrega_flags_de_minimizar_y_maximizar(qtbot):
+    dialogo = QDialog()
+    qtbot.addWidget(dialogo)
+    hacer_redimensionable(dialogo)
+
+    flags = dialogo.windowFlags()
+    assert flags & Qt.WindowType.WindowMinimizeButtonHint
+    assert flags & Qt.WindowType.WindowMaximizeButtonHint
