@@ -2,7 +2,6 @@ from datetime import date, timedelta
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QGroupBox,
@@ -78,13 +77,24 @@ class DashboardView(QWidget):
         # un manejador de resize, las etiquetas del eje X quedaban apretadas o
         # superpuestas al redimensionar la ventana, porque el ancho disponible
         # para acomodarlas cambio pero nadie volvia a llamar tight_layout(). Se
-        # usa un eventFilter (en vez de subclasificar FigureCanvasQTAgg) porque
-        # solo hace falta reaccionar a QEvent.Type.Resize del canvas ya
-        # construido, sin tocar su clase. No hay riesgo de bucle: tight_layout()
-        # solo reacomoda los margenes de la figura ya dibujada (no cambia el
-        # tamano del widget QWidget), y draw_idle() solo agenda un repintado, no
-        # dispara un nuevo evento de resize.
-        self.canvas_por_area.installEventFilter(self)
+        # usa el hook nativo de matplotlib (mpl_connect("resize_event", ...)) en
+        # vez de un QEvent.Type.Resize interceptado con installEventFilter: Qt
+        # despacha los event filters ANTES de que el evento llegue al
+        # resizeEvent() propio del widget observado, y es justo ese
+        # resizeEvent() nativo de FigureCanvasQTAgg quien llama
+        # figure.set_size_inches() con el tamano NUEVO -- un eventFilter corre
+        # entonces con el tamano de figura todavia VIEJO y tight_layout()
+        # calcularia margenes para una geometria que ya no aplica (mas notorio
+        # en saltos grandes, ej. maximizar la ventana). matplotlib emite su
+        # propio "resize_event" DESPUES de sincronizar el tamano de la figura,
+        # asi que engancharse ahi con mpl_connect da el tamano correcto. No hay
+        # riesgo de bucle: tight_layout() solo reacomoda los margenes de la
+        # figura ya redimensionada (no cambia el tamano del widget QWidget), y
+        # draw_idle() solo agenda un repintado, no dispara un nuevo resize.
+        self.canvas_por_area.mpl_connect(
+            "resize_event",
+            lambda _event: (self.figura_por_area.tight_layout(), self.canvas_por_area.draw_idle()),
+        )
 
         layout_resumen_contenido = QHBoxLayout()
         layout_resumen_contenido.addWidget(self.tabla_por_area)
@@ -130,17 +140,6 @@ class DashboardView(QWidget):
         self.setLayout(layout_principal)
 
         self.refrescar()
-
-    def eventFilter(self, watched, event) -> bool:
-        # Sprint 55 (hallazgo 2): reacomoda el layout de la grafica de barras al
-        # redimensionar el canvas -- sin re-consultar la base de datos ni
-        # recalcular datos (a diferencia de refrescar()/_refrescar_grafica_por_area(),
-        # que si lo hacen). Ver el comentario junto a installEventFilter() en
-        # __init__ para el detalle de por que no hay riesgo de bucle.
-        if watched is self.canvas_por_area and event.type() == QEvent.Type.Resize:
-            self.figura_por_area.tight_layout()
-            self.canvas_por_area.draw_idle()
-        return super().eventFilter(watched, event)
 
     def _emitir_ver_expedientes(self) -> None:
         if self._on_ver_expedientes:
