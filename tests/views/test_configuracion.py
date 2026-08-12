@@ -443,13 +443,14 @@ def test_parametros_view_tabla_tiene_columnas_area_y_unidad(qtbot):
     vista = ParametrosView()
     qtbot.addWidget(vista)
 
-    assert vista.tabla.columnCount() == 6
-    etiquetas = [vista.tabla.horizontalHeaderItem(i).text() for i in range(6)]
+    assert vista.tabla.columnCount() == 7
+    etiquetas = [vista.tabla.horizontalHeaderItem(i).text() for i in range(7)]
     assert etiquetas == [
         "Categoria",
         "Parametro",
         "Valor vigente hoy",
         "Vigente desde",
+        "Vigente hasta",
         "Área",
         "Unidad",
     ]
@@ -464,8 +465,8 @@ def test_parametros_view_muestra_area_y_unidad_de_la_fila_vigente(qtbot):
     qtbot.addWidget(vista)
 
     fila_smlmv = vista._claves_por_fila.index("SMLMV")
-    assert vista.tabla.item(fila_smlmv, 5).text() == "COP"
-    texto_area = vista.tabla.item(fila_smlmv, 4).text()
+    assert vista.tabla.item(fila_smlmv, 6).text() == "COP"
+    texto_area = vista.tabla.item(fila_smlmv, 5).text()
     assert "Civil" in texto_area
     assert "Laboral" in texto_area
 
@@ -475,8 +476,8 @@ def test_parametros_view_area_y_unidad_vacios_sin_dato_cargado(qtbot):
     qtbot.addWidget(vista)
 
     fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
-    assert vista.tabla.item(fila_usura, 4).text() == ""
     assert vista.tabla.item(fila_usura, 5).text() == ""
+    assert vista.tabla.item(fila_usura, 6).text() == ""
 
 
 # --- Revision de calidad Sprint 57: areas_derecho corrupto no debe tumbar
@@ -495,12 +496,12 @@ def test_parametros_view_json_corrupto_en_areas_derecho_no_rompe_el_refresco(qtb
     qtbot.addWidget(vista)
 
     fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
-    assert vista.tabla.item(fila_usura, 4).text() == "?"
+    assert vista.tabla.item(fila_usura, 5).text() == "?"
 
     # El resto de la tabla se sigue mostrando bien -- la fila corrupta no
     # afecta a las demas.
     fila_smlmv = vista._claves_por_fila.index("SMLMV")
-    assert "Civil" in vista.tabla.item(fila_smlmv, 4).text()
+    assert "Civil" in vista.tabla.item(fila_smlmv, 5).text()
 
 
 def test_parametros_view_codigo_de_area_desconocido_no_rompe_el_refresco(qtbot):
@@ -515,7 +516,168 @@ def test_parametros_view_codigo_de_area_desconocido_no_rompe_el_refresco(qtbot):
     qtbot.addWidget(vista)
 
     fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
-    assert vista.tabla.item(fila_usura, 4).text() == "?"
+    assert vista.tabla.item(fila_usura, 5).text() == "?"
 
     fila_smlmv = vista._claves_por_fila.index("SMLMV")
-    assert "Civil" in vista.tabla.item(fila_smlmv, 4).text()
+    assert "Civil" in vista.tabla.item(fila_smlmv, 5).text()
+
+
+# --- Sprint 58: vigencia inteligente en ParametrosView.tabla e Historial ---
+
+
+def test_parametros_view_muestra_vigencia_calculada_para_anual_exacto(qtbot):
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    fila_smlmv = vista._claves_por_fila.index("SMLMV")
+    assert vista.tabla.item(fila_smlmv, 4).text() == "2026-12-31 (calculado)"
+
+
+def test_parametros_view_muestra_indefinido_para_abierto_sin_vigente_hasta(qtbot):
+    agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1990, 1, 1),
+        "abogado1",
+        **_area_unidad("USURA_MULTIPLICADOR"),
+    )
+
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
+    assert vista.tabla.item(fila_usura, 4).text() == "Indefinido"
+
+
+def test_parametros_view_vigente_hasta_vacio_sin_dato_cargado(qtbot):
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
+    assert vista.tabla.item(fila_usura, 4).text() == ""
+
+
+def test_historial_parametro_dialog_muestra_vigencia_calculada_para_anual_exacto(qtbot):
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    dialogo = HistorialParametroDialog("SMLMV")
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.tabla.item(0, 2).text() == "2026-12-31 (calculado)"
+
+
+def test_historial_parametro_dialog_vigente_hasta_real_no_cambia(qtbot):
+    agregar_valor(
+        "IBC_CONSUMO_ORDINARIO",
+        Decimal("16.24"),
+        date(2026, 1, 1),
+        "abogado1",
+        vigente_hasta=date(2026, 1, 31),
+        **_area_unidad("IBC_CONSUMO_ORDINARIO"),
+    )
+
+    dialogo = HistorialParametroDialog("IBC_CONSUMO_ORDINARIO")
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.tabla.item(0, 2).text() == "2026-01-31"
+
+
+# --- Sprint 58: IPC crudo (IPC_VARIACION_ANUAL) vs. calculado (IPC_INDICE_ACUMULADO) ---
+
+
+def test_historial_parametro_dialog_ipc_indice_acumulado_muestra_columna_variacion(qtbot):
+    agregar_valor(
+        "IPC_INDICE_ACUMULADO",
+        Decimal("500.00"),
+        date(2025, 1, 1),
+        "sistema",
+        **_area_unidad("IPC_INDICE_ACUMULADO"),
+    )
+    agregar_valor(
+        "IPC_VARIACION_ANUAL",
+        Decimal("5.10"),
+        date(2025, 1, 1),
+        "sistema",
+        **_area_unidad("IPC_VARIACION_ANUAL"),
+    )
+
+    dialogo = HistorialParametroDialog("IPC_INDICE_ACUMULADO")
+    qtbot.addWidget(dialogo)
+
+    etiquetas = [
+        dialogo.tabla.horizontalHeaderItem(i).text() for i in range(dialogo.tabla.columnCount())
+    ]
+    assert "Variación anual (%)" in etiquetas
+    columna_variacion = etiquetas.index("Variación anual (%)")
+    assert dialogo.tabla.item(0, columna_variacion).text() == "5.10"
+
+
+def test_historial_parametro_dialog_ipc_indice_acumulado_muestra_nota_de_formula(qtbot):
+    agregar_valor(
+        "IPC_INDICE_ACUMULADO",
+        Decimal("500.00"),
+        date(2025, 1, 1),
+        "sistema",
+        **_area_unidad("IPC_INDICE_ACUMULADO"),
+    )
+
+    dialogo = HistorialParametroDialog("IPC_INDICE_ACUMULADO")
+    qtbot.addWidget(dialogo)
+
+    assert "índice del año anterior" in dialogo._FORMULA_IPC
+
+
+def test_historial_parametro_dialog_otra_clave_no_muestra_columna_variacion(qtbot):
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    dialogo = HistorialParametroDialog("SMLMV")
+    qtbot.addWidget(dialogo)
+
+    etiquetas = [
+        dialogo.tabla.horizontalHeaderItem(i).text() for i in range(dialogo.tabla.columnCount())
+    ]
+    assert "Variación anual (%)" not in etiquetas
+
+
+# --- Sprint 58: enlace "Ver historial" en ParametrosView.tabla ---
+
+
+def test_parametros_view_muestra_enlace_ver_historial_con_mas_de_una_fila(qtbot):
+    agregar_valor(
+        "SMLMV", Decimal("1423500.00"), date(2025, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    fila_smlmv = vista._claves_por_fila.index("SMLMV")
+    texto = vista.tabla.item(fila_smlmv, 2).text()
+    assert "1750905.00" in texto
+    assert "Ver 2 valores históricos" in texto
+
+
+def test_parametros_view_sin_enlace_ver_historial_con_una_sola_fila(qtbot):
+    agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1990, 1, 1),
+        "abogado1",
+        **_area_unidad("USURA_MULTIPLICADOR"),
+    )
+
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
+    assert vista.tabla.item(fila_usura, 2).text() == "1.5"

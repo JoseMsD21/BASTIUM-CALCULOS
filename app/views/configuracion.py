@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -32,10 +33,12 @@ from app.core.constants import AREAS_DERECHO
 from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
 from app.services.parametro_service import (
     CATALOGO_PARAMETROS,
+    CLAVE_CRUDA_DE,
     ModoResolucion,
     agregar_valor,
     historial,
     valor_vigente_hoy,
+    vigencia_hasta_mostrar,
 )
 from app.views.form_utils import hacer_redimensionable, set_row_visible
 from app.views.icons import icon
@@ -224,31 +227,59 @@ class ParametroFormDialog(QDialog):
 
 
 class HistorialParametroDialog(QDialog):
+    # Formula fija (Sprint 58) mostrada cuando la clave abierta tiene un dato
+    # crudo asociado (hoy solo IPC_INDICE_ACUMULADO, via CLAVE_CRUDA_DE) --
+    # ver docstring de _construir_indice_ipc_acumulado en historical_index.py
+    # para la derivacion completa.
+    _FORMULA_IPC = (
+        "Índice = índice del año anterior × (1 + variación anual / 100). "
+        "Fuente: tabla de variación % anual del PDF de requerimientos, "
+        "transcrita en historical_index.py."
+    )
+
     def __init__(self, clave: str, parent=None):
         super().__init__(parent)
         hacer_redimensionable(self)
         info = CATALOGO_PARAMETROS[clave]
         self.setWindowTitle(f"Historial: {info.descripcion}")
 
+        # Sprint 58: si `clave` tiene un dato crudo asociado (CLAVE_CRUDA_DE),
+        # se agrega una columna extra con ese valor cruda por año, mas una
+        # nota fija explicando la formula -- mecanismo generico, no
+        # hardcodeado a IPC aqui (ver CLAVE_CRUDA_DE en parametro_service.py).
+        clave_cruda = CLAVE_CRUDA_DE.get(clave)
         columnas = ["Valor", "Vigente desde", "Vigente hasta", "Usuario", "Motivo"]
+        if clave_cruda is not None:
+            columnas = [*columnas, "Variación anual (%)"]
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         filas = historial(clave)
+        variacion_por_anio: dict[int, str] = {}
+        if clave_cruda is not None:
+            variacion_por_anio = {
+                fila_cruda.vigente_desde.year: str(fila_cruda.valor)
+                for fila_cruda in historial(clave_cruda)
+            }
+
         self.tabla.setRowCount(len(filas))
         for fila_idx, fila in enumerate(filas):
             self.tabla.setItem(fila_idx, 0, QTableWidgetItem(str(fila.valor)))
             self.tabla.setItem(fila_idx, 1, QTableWidgetItem(fila.vigente_desde.isoformat()))
-            self.tabla.setItem(
-                fila_idx, 2,
-                QTableWidgetItem(fila.vigente_hasta.isoformat() if fila.vigente_hasta else ""),
-            )
+            self.tabla.setItem(fila_idx, 2, QTableWidgetItem(vigencia_hasta_mostrar(fila, info)))
             self.tabla.setItem(fila_idx, 3, QTableWidgetItem(fila.usuario))
             self.tabla.setItem(fila_idx, 4, QTableWidgetItem(fila.motivo or ""))
+            if clave_cruda is not None:
+                variacion = variacion_por_anio.get(fila.vigente_desde.year, "")
+                self.tabla.setItem(fila_idx, 5, QTableWidgetItem(variacion))
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabla)
+        if clave_cruda is not None:
+            nota_formula = QLabel(self._FORMULA_IPC)
+            nota_formula.setWordWrap(True)
+            layout.addWidget(nota_formula)
         self.setLayout(layout)
 
 
@@ -262,6 +293,7 @@ class ParametrosView(QWidget):
             "Parametro",
             "Valor vigente hoy",
             "Vigente desde",
+            "Vigente hasta",
             "Área",
             "Unidad",
         ]
@@ -312,16 +344,28 @@ class ParametrosView(QWidget):
             vigente = valor_vigente_hoy(clave)
             self.tabla.setItem(fila_idx, 0, QTableWidgetItem(info.categoria))
             self.tabla.setItem(fila_idx, 1, QTableWidgetItem(info.descripcion))
-            self.tabla.setItem(
-                fila_idx, 2, QTableWidgetItem(str(vigente.valor) if vigente else "(sin dato)")
-            )
+            texto_valor = str(vigente.valor) if vigente else "(sin dato)"
+            if vigente is not None:
+                # Sprint 58: enlace descubrible al historial completo cuando
+                # una clave tiene mas de 1 fila -- antes solo el doble clic
+                # (no documentado) lo abria. No duplica la logica de apertura:
+                # sigue siendo _abrir_historial via cellDoubleClicked, este
+                # texto solo la hace visible.
+                n_historicas = len(historial(clave))
+                if n_historicas > 1:
+                    texto_valor = f"{texto_valor} — Ver {n_historicas} valores históricos"
+            self.tabla.setItem(fila_idx, 2, QTableWidgetItem(texto_valor))
             self.tabla.setItem(
                 fila_idx, 3,
                 QTableWidgetItem(vigente.vigente_desde.isoformat() if vigente else ""),
             )
-            self.tabla.setItem(fila_idx, 4, QTableWidgetItem(_texto_areas(vigente)))
             self.tabla.setItem(
-                fila_idx, 5, QTableWidgetItem(vigente.unidad if vigente and vigente.unidad else "")
+                fila_idx, 4,
+                QTableWidgetItem(vigencia_hasta_mostrar(vigente, info) if vigente else ""),
+            )
+            self.tabla.setItem(fila_idx, 5, QTableWidgetItem(_texto_areas(vigente)))
+            self.tabla.setItem(
+                fila_idx, 6, QTableWidgetItem(vigente.unidad if vigente and vigente.unidad else "")
             )
             self._claves_por_fila.append(clave)
         # La columna "Área" (Sprint 57) puede mostrar hasta las 6 etiquetas
