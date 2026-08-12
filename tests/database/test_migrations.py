@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -48,6 +49,28 @@ def _apuntar_session_module_a(engine, monkeypatch) -> None:
     monkeypatch.setattr(
         session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
     )
+
+
+@contextmanager
+def _sesion_para(db_path: Path):
+    """Sesion SQLAlchemy ad hoc apuntando directamente a db_path -- a
+    diferencia de _apuntar_session_module_a(), no toca el engine global de
+    database.database ni el SessionLocal de database.session. Sirve para
+    verificar, tras el fix del Sprint 52, que migrate_parametros_legales.migrar()
+    ya siembra en db_path por si solo (via su propio engine ad hoc) sin que el
+    test necesite redirigir el engine global para poder leer el resultado.
+
+    Context manager (en vez de devolver solo la sesion) para garantizar que
+    tanto la Session como el Engine SQLite ad hoc se cierren siempre --
+    dejarlos a merced del GC produce ResourceWarning: unclosed database y, en
+    Windows, PermissionError intermitente al limpiar tmp_path."""
+    engine = create_engine(f"sqlite:///{db_path}")
+    session = sessionmaker(bind=engine, expire_on_commit=False)()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
 
 
 def test_aplicar_migraciones_pendientes_agrega_las_columnas_faltantes_de_obligaciones(tmp_path):
@@ -142,37 +165,69 @@ def test_migracion_reajuste_anual_agrega_columnas_con_default_ninguno_y_null(tmp
     assert migrar(db_path) is False
 
 
-def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path, monkeypatch):
+def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path):
+    """Sprint 52: ya no hace falta _apuntar_session_module_a -- desde el fix,
+    migrate_parametros_legales.migrar(db_path) siembra directamente en
+    db_path via su propio engine ad hoc, asi que basta con leer ese mismo
+    archivo con una sesion aparte para verificar el resultado."""
     from database.database import aplicar_migraciones_pendientes
 
     db_path = tmp_path / "nueva.db"
     engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
-    _apuntar_session_module_a(engine, monkeypatch)
+    engine.dispose()
 
     aplicar_migraciones_pendientes(db_path)
 
-    session = session_module.get_session()
-    claves = {fila.clave for fila in session.query(ParametroLegal).all()}
-    session.close()
+    with _sesion_para(db_path) as session:
+        claves = {fila.clave for fila in session.query(ParametroLegal).all()}
     assert len(claves) == 39
 
 
-def test_aplicar_migraciones_pendientes_es_idempotente(tmp_path, monkeypatch):
+def test_aplicar_migraciones_pendientes_es_idempotente(tmp_path):
+    """Sprint 52: idem -- ya no hace falta _apuntar_session_module_a."""
     from database.database import aplicar_migraciones_pendientes
 
     db_path = tmp_path / "idempotente.db"
     engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
-    _apuntar_session_module_a(engine, monkeypatch)
+    engine.dispose()
 
     aplicar_migraciones_pendientes(db_path)
-    total_filas_primera_vez = session_module.get_session().query(ParametroLegal).count()
+    with _sesion_para(db_path) as session:
+        total_filas_primera_vez = session.query(ParametroLegal).count()
 
     aplicar_migraciones_pendientes(db_path)
-    total_filas_segunda_vez = session_module.get_session().query(ParametroLegal).count()
+    with _sesion_para(db_path) as session:
+        total_filas_segunda_vez = session.query(ParametroLegal).count()
 
     assert total_filas_segunda_vez == total_filas_primera_vez
+
+
+def test_aplicar_migraciones_pendientes_siembra_parametros_legales_en_db_path(tmp_path):
+    """Regresion Sprint 52 (hallazgo 3): antes del fix, migrar_parametros_legales()
+    ignoraba por completo el db_path que aplicar_migraciones_pendientes() le
+    pasa a las otras 10 migraciones, y sembraba siempre contra el engine
+    global de database.database. Este test NO parchea ese engine global de
+    ninguna forma (a diferencia de _apuntar_session_module_a, usado en otros
+    tests de este archivo) y verifica el resultado con sqlite3 crudo sobre
+    db_path, para que sea imposible que pase "por accidente" contra otra
+    base: si el bug reaparece, parametros_legales en db_path queda vacia."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "aislada.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    (total_claves,) = con.execute(
+        "SELECT COUNT(DISTINCT clave) FROM parametros_legales"
+    ).fetchone()
+    con.close()
+    assert total_claves == 39
 
 
 def test_aplicar_migraciones_pendientes_agrega_los_indices_de_rendimiento(tmp_path):

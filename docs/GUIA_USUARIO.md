@@ -5,12 +5,14 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-06 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
-> Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, los botones de
-> navegación (Volver/Inicio/Parámetros) con íconos y estado activo, el breadcrumb de contexto y los
-> atajos de teclado de navegación y de los formularios, la edición/eliminación de expediente, la
-> pantalla de parámetros legales versionados, y el Dashboard de inicio con resumen de expedientes y
-> alertas de vencimiento. Cada vez que se complete un sprint nuevo de
+> **Última actualización:** 2026-08-09 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, el panel de
+> navegación lateral fijo (sidebar) con los botones Volver/Inicio/Parámetros con íconos y estado activo,
+> el modo oscuro/claro alternable desde Parámetros, el breadcrumb de contexto y los atajos de teclado de
+> navegación y de los formularios, la edición/eliminación de expediente, la pantalla de parámetros
+> legales versionados, la prescripción/caducidad conectada al cálculo real de la liquidación, y el
+> Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. Cada vez
+> que se complete un sprint nuevo de
 > [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
 > respecto al programa real.
 
@@ -168,14 +170,17 @@ sube a internet ni se comparte con nadie).
 
 ## 4. Tour de la aplicación
 
-BASTIUM tiene **5 pantallas**. Te mueves entre la mayoría automáticamente según lo que hagas (no hay un
-menú de navegación separado); a la de Parámetros se entra con un botón de la barra superior:
+BASTIUM tiene **5 pantallas**. Te mueves entre la mayoría automáticamente según lo que hagas; a la de
+Parámetros se entra con un botón del panel lateral de navegación (sidebar), siempre visible a la
+izquierda de la ventana:
 
 1. **Dashboard (Inicio)** — la pantalla con la que arranca el programa (Sprint 33). Muestra el total de
-   expedientes y su conteo por área, una tabla de **"Plazos próximos a vencer"** (obligaciones no pagadas
-   cuya prescripción vence dentro de los próximos 90 días, o ya vencida — doble clic sobre una fila abre
-   ese expediente), y una tabla de **"Actividad reciente"** con las últimas liquidaciones ejecutadas en
-   cualquier expediente. El botón **"Ver todos los expedientes"** lleva a la Lista de Expedientes.
+   expedientes y su conteo por área (en una tabla y, junto a ella, una gráfica de barras equivalente que
+   combina con el tema claro u oscuro activo, Sprint 50), una tabla de **"Plazos próximos a vencer"**
+   (obligaciones no pagadas cuya prescripción vence dentro de los próximos 90 días, o ya vencida — doble
+   clic sobre una fila abre ese expediente), y una tabla de **"Actividad reciente"** con las últimas
+   liquidaciones ejecutadas en cualquier expediente. El botón **"Ver todos los expedientes"** lleva a la
+   Lista de Expedientes.
 
 2. **Lista de Expedientes** — se abre desde el botón "Ver todos los expedientes" del Dashboard. Muestra
    una tabla con todos los expedientes que ya creaste (radicado, demandante, demandado, área, y botones de
@@ -192,13 +197,15 @@ menú de navegación separado); a la de Parámetros se entra con un botón de la
    acumulado, pagos aplicados y saldo final.
 
 5. **⚙ Parámetros** — la pantalla de parámetros legales versionados (tasas, topes, plazos e indicadores
-   históricos). Se abre desde el botón **"⚙ Parámetros"** de la barra superior, disponible siempre, sin
-   importar en qué otra pantalla estés. Ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)
+   históricos). Se abre desde el botón **"⚙ Parámetros"** del panel lateral de navegación, disponible
+   siempre, sin importar en qué otra pantalla estés. Ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)
    para el detalle completo.
 
-En la parte superior de la ventana hay una barra de navegación con tres botones y, a su derecha, un
-texto de "breadcrumb" que muestra en qué expediente y pantalla estás parado en cada momento (por
-ejemplo, "Expedientes › Radicado 2026-00123 › Liquidación"):
+A la izquierda de la ventana hay un panel lateral de navegación fijo (sidebar, Sprint 50 — reemplazó la
+barra superior de versiones anteriores del programa) con tres botones, dentro de un divisor que deja el
+resto del espacio para la pantalla actual; encima de esa pantalla, un texto de "breadcrumb" muestra en
+qué expediente y pantalla estás parado en cada momento (por ejemplo, "Expedientes › Radicado
+2026-00123 › Liquidación"):
 
 - **Volver** — regresa a la pantalla anterior (por ejemplo, de Resultado de Liquidación a Detalle de
   Expediente, y de ahí al Dashboard o a la Lista de Expedientes, según por dónde hayas entrado). Recuerda
@@ -587,8 +594,9 @@ Antes, si el multiplicador de usura, un tope de cuota litis, un plazo de prescri
 SMLMV de un año nuevo cambiaban, había que pedirle a un programador que editara el código. Ya no: desde
 la pantalla **"⚙ Parámetros"** cualquier abogado puede consultar y agregar esos valores directamente.
 
-**Dónde está:** haz clic en el botón **"⚙ Parámetros"** de la barra superior — está siempre visible, sin
-importar en qué pantalla estés (Lista de Expedientes, Detalle de Expediente o Resultado de Liquidación).
+**Dónde está:** haz clic en el botón **"⚙ Parámetros"** del panel lateral de navegación (sidebar) — está
+siempre visible, sin importar en qué pantalla estés (Lista de Expedientes, Detalle de Expediente o
+Resultado de Liquidación).
 
 **Qué muestra la tabla principal:** una fila por cada parámetro que el programa sabe manejar, con cuatro
 columnas:
@@ -653,6 +661,12 @@ cualquier liquidación calculada en el pasado (ver [sección 5.13](#513-ver-el-h
 se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
 Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
 vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
+
+**Modo oscuro / claro (Sprint 50):** en la misma pantalla "⚙ Parámetros", junto al botón "+ Agregar valor
+nuevo", hay una casilla **"Modo oscuro"**. Márcala para cambiar toda la aplicación a un tema oscuro
+(incluida la gráfica del Dashboard, que recalcula sus colores para seguir siendo legible), o desmárcala
+para volver al tema claro de siempre — el cambio se aplica de inmediato, sin reiniciar el programa, y
+queda recordado para la próxima vez que lo abras.
 
 ### 5.15. Agregar una obligación tributaria
 
@@ -970,11 +984,14 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   (`Pendientes.md`, Sprint 19). Ver [sección 5.7](#57-agregar-una-obligación-comercial).
 - ✅ **Indexación por IPC** ya está conectada a Civil/Familia (Sprint 8) — ver
   [sección 7.7](#77-indexación-ipc-corrección-monetaria).
-- 🚧 **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — el
-  motor de cálculo ya existe y está probado (`app/engine/temporal/prescripcion.py`: fechas límite por
-  tipo de acción, prescripción parcial cuota a cuota para cuotas alimentarias, e interrupción por
-  demanda), pero todavía no está conectado a ninguna pantalla ni bloquea la liquidación de un expediente
-  (`Pendientes.md`, Sprint 7).
+- ✅ **Prescripción y caducidad** (saber si una deuda ya "venció" el plazo legal para cobrarla) — el motor
+  de cálculo (`app/engine/temporal/prescripcion.py`: fechas límite por tipo de acción, prescripción
+  parcial cuota a cuota para cuotas alimentarias, e interrupción por demanda) ya está conectado al flujo
+  real de liquidación desde el Sprint 42: cualquier obligación cuyo plazo ya venció **se marca, no se
+  excluye**, con una advertencia visual en pantalla, en el PDF y en el Word exportados — nunca bloquea la
+  liquidación, solo la señala. La tabla "Plazos próximos a vencer" del Dashboard
+  ([sección 4](#4-tour-de-la-aplicación)) usa el mismo motor para avisar con anticipación, antes de que la
+  obligación llegue a vencer (`Pendientes.md`, Sprint 7 y Sprint 42).
 - 🚧 **Calendario de días hábiles y términos procesales** — el motor ya existe y está probado
   (`CalendarUtils.es_dia_habil/sumar_dias_habiles/dias_habiles_entre/notificacion_surtida_el/
   vencimiento_calendario` en `app/engine/time/calendar.py`, y el modelador de términos con

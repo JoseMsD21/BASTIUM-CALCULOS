@@ -360,3 +360,88 @@ def _hex_a_rgba_matplotlib(hex_color: str) -> tuple:
     from matplotlib.colors import to_rgba
 
     return to_rgba(hex_color)
+
+
+# --- Sprint 53: patron N+1 de consultas en el Dashboard --------------------
+
+
+def test_dashboard_refrescar_no_abre_una_sesion_por_obligacion_con_fechas_origen_distintas(
+    qtbot, monkeypatch
+):
+    """Caso realista y el que exige la Definicion de Hecho del Sprint 53: las
+    obligaciones NO suelen compartir `fecha_origen`. La cache de
+    `cache_de_liquidacion()` sola solo colapsa `get_parametro` cuando la
+    (clave, fecha) es EXACTAMENTE igual entre dos llamadas -- con 8
+    fechas_origen distintas, sin `precargar_parametro` (Sprint 53,
+    app/services/parametro_service.py) cada fecha distinta seguiria abriendo
+    su propia sesion SQLAlchemy (`_resolver_fila`), reproduciendo el patron
+    N+1 aun con la cache activa. `precargar_parametro` trae TODAS las filas
+    de PRESCRIPCION_EJECUTIVA_MESES en una sola consulta y deja que
+    `get_parametro` resuelva cualquier fecha en memoria contra ellas."""
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _sembrar_parametro_prescripcion_ejecutiva(session)
+    fechas_origen = [date(2021, 1, 1) + timedelta(days=indice) for indice in range(8)]
+    for indice, fecha_origen in enumerate(fechas_origen):
+        expediente = _crear_expediente(session, f"2026-11{indice}", AreaDerecho.CIVIL_FAMILIA)
+        _crear_obligacion(session, expediente.id, fecha_origen)
+    session.close()
+
+    fecha_limite_referencia = calcular_prescripcion(fechas_origen[0], TipoAccion.EJECUTIVA)
+    hoy = fecha_limite_referencia - timedelta(days=30)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    llamadas_get_session: list[None] = []
+    get_session_original = session_module.get_session
+
+    def get_session_contada():
+        llamadas_get_session.append(None)
+        return get_session_original()
+
+    monkeypatch.setattr(session_module, "get_session", get_session_contada)
+
+    view.refrescar(hoy=hoy)
+
+    assert view.tabla_alertas.rowCount() == 8
+    # 1 sesion para leer los expedientes (refrescar()) + 1 sesion para
+    # precargar TODAS las filas de PRESCRIPCION_EJECUTIVA_MESES de una vez
+    # (precargar_parametro) -- nunca 8 (una por fecha_origen distinta).
+    assert len(llamadas_get_session) == 2
+
+
+def test_dashboard_refrescar_no_abre_una_sesion_por_obligacion_con_la_misma_fecha_origen(
+    qtbot, monkeypatch
+):
+    """Caso adicional: cuando varias obligaciones SI comparten exactamente la
+    misma fecha_origen (ej. una carga en lote del mismo pagare), tanto la
+    cache por (clave, fecha) de cache_de_liquidacion como la precarga de
+    precargar_parametro evitan abrir una sesion por obligacion."""
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _sembrar_parametro_prescripcion_ejecutiva(session)
+    for indice in range(8):
+        expediente = _crear_expediente(session, f"2026-10{indice}", AreaDerecho.CIVIL_FAMILIA)
+        _crear_obligacion(session, expediente.id, date(2021, 1, 4))
+    session.close()
+
+    fecha_limite = calcular_prescripcion(date(2021, 1, 4), TipoAccion.EJECUTIVA)
+    hoy = fecha_limite - timedelta(days=30)
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    llamadas_get_session: list[None] = []
+    get_session_original = session_module.get_session
+
+    def get_session_contada():
+        llamadas_get_session.append(None)
+        return get_session_original()
+
+    monkeypatch.setattr(session_module, "get_session", get_session_contada)
+
+    view.refrescar(hoy=hoy)
+
+    assert view.tabla_alertas.rowCount() == 8
+    assert len(llamadas_get_session) == 2

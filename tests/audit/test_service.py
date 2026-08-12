@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.engine.audit.service import (
     historial_de_expediente,
+    historial_de_expedientes,
     reconstruir_liquidacion,
     registrar_liquidacion,
 )
@@ -23,9 +24,9 @@ def session():
         yield s
 
 
-def _expediente(session) -> int:
+def _expediente(session, radicado: str = "2026-00200") -> int:
     expediente = Expediente(
-        radicado="2026-00200",
+        radicado=radicado,
         demandante="Ana Perez",
         demandado="Luis Gomez",
         area_derecho=AreaDerecho.CIVIL_FAMILIA,
@@ -146,3 +147,35 @@ def test_historial_de_expediente_sin_liquidaciones_devuelve_lista_vacia(session)
     historial = historial_de_expediente(session, expediente_id)
 
     assert historial == []
+
+
+def test_historial_de_expedientes_combina_varios_expedientes_mas_reciente_primero(session):
+    expediente_1 = _expediente(session, "2026-00201")
+    expediente_2 = _expediente(session, "2026-00202")
+
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_1,
+        area_derecho="CIVIL_FAMILIA",
+        fecha_corte=date(2026, 6, 1),
+        resultado=_resultado(),
+        usuario="jsilva",
+        fecha_ejecucion=datetime(2026, 6, 1, 9, 0, 0),
+    )
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_2,
+        area_derecho="CIVIL_FAMILIA",
+        fecha_corte=date(2026, 7, 14),
+        resultado=_resultado(),
+        usuario="jsilva",
+        fecha_ejecucion=datetime(2026, 7, 14, 9, 0, 0),
+    )
+
+    historial = historial_de_expedientes(session, [expediente_1, expediente_2])
+
+    assert [log.expediente_id for log in historial] == [expediente_2, expediente_1]
+
+
+def test_historial_de_expedientes_con_lista_vacia_devuelve_lista_vacia(session):
+    assert historial_de_expedientes(session, []) == []

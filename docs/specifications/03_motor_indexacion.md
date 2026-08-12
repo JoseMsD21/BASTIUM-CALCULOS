@@ -19,8 +19,10 @@ activacion opcional por obligacion.
   `get_ipc_mensual_for_month`/`get_ipc_interpolado_mensual_for_date` (interpolación lineal por días entre
   el índice de cierre del mes anterior y el del mes de la fecha, tal como exige el despacho) — la tabla de
   datos (`_IPC_MENSUAL`) queda deliberadamente vacía hasta conseguir la fuente real del DANE, y **no está
-  conectada todavía a `CivilFamiliaStrategy`** (ver "Limitaciones conocidas"). UVT sigue pendiente (sin
-  fuente completa, ver Sprint 5).
+  conectada todavía a `CivilFamiliaStrategy`** (ver "Limitaciones conocidas"). La UVT, en cambio, ya está
+  cargada (`_UVT_POR_ANIO`, tabla histórica 2006-2026) y en producción desde los Sprints 5 y 14, conectada
+  a `SancionatorioStrategy` (conversión SMLMV→UVT) y al piso legal de 10 UVT de `TributarioStrategy` — ver
+  `docs/specifications/` de esas áreas.
 - `app/services/area_strategy.py`, `CivilFamiliaStrategy._evento_indexacion` (Sprint 8): genera un evento
   `INDEXATION` por cada evento de capital cuando `Obligacion.aplica_indexacion_ipc` es `True` -- uno para
   obligaciones PUNTUAL, uno por cuota para RECURRENTE (tracto sucesivo).
@@ -52,6 +54,7 @@ Familia.
   cuando `Obligacion.interes_sobre_capital_indexado` esta activo (ademas de `aplica_indexacion_ipc`) --
   opt-in explicito por obligacion, Sprint 20. Sin ese flag, el comportamiento es el mismo de antes: interes
   solo sobre el capital historico.
-- UVT y UVR siguen sin cargar (fuera de alcance, ver Sprint 5).
+- La UVT ya está cargada y conectada en producción (Sprints 5 y 14 — ver arriba, "Componentes"); solo la
+  **UVR** sigue sin cargar (fuera de alcance).
 
 Ver `Pendientes.md`, Sprints 8 y 20.

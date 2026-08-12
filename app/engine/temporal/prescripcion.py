@@ -36,7 +36,11 @@ PLAZOS_PRESCRIPCION_MESES = {
 }
 
 
-_CLAVE_POR_TIPO_ACCION = {
+# Publica (Sprint 53): el Dashboard (app/views/dashboard.py) la usa junto con
+# `precargar_parametro` (app/services/parametro_service.py) para resolver la
+# clave de PRESCRIPCION_EJECUTIVA_MESES antes de calcular_prescripcion, sin
+# duplicar aqui el mapeo tipo_accion -> clave.
+CLAVE_POR_TIPO_ACCION = {
     TipoAccion.EJECUTIVA: "PRESCRIPCION_EJECUTIVA_MESES",
     TipoAccion.ORDINARIA: "PRESCRIPCION_ORDINARIA_MESES",
     TipoAccion.HONORARIOS_PROFESIONALES: "PRESCRIPCION_HONORARIOS_MESES",
@@ -49,7 +53,7 @@ _CLAVE_POR_TIPO_ACCION = {
 
 
 def calcular_prescripcion(fecha_exigibilidad: date, tipo_accion: TipoAccion) -> date:
-    meses = int(get_parametro(_CLAVE_POR_TIPO_ACCION[tipo_accion], fecha_exigibilidad))
+    meses = int(get_parametro(CLAVE_POR_TIPO_ACCION[tipo_accion], fecha_exigibilidad))
     return CalendarUtils.vencimiento_calendario(fecha_exigibilidad, meses)
 
 

@@ -65,6 +65,12 @@ explica el *por qué* del cambio, no solo el *qué*:
 - `test:` — cambios que solo agregan o corrigen pruebas.
 - `chore:` — tareas de mantenimiento (dependencias, configuración, housekeeping) que no cambian
   comportamiento de la aplicación.
+- `merge:` — cierre de un sprint completo, integrando en `main` el trabajo ya revisado de una rama o
+  worktree de sprint (es el prefijo que usan casi todos los sprints recientes al cerrarse).
+- `refactor:` — reestructuración de código existente sin cambiar su comportamiento observable.
+- `perf:` — mejora de rendimiento (ej. resolver un patrón N+1 de consultas) sin cambiar comportamiento.
+- `style:` — cambios de formato/estilo de código (espaciado, orden de imports) sin efecto funcional.
+- `build:` — cambios al empaquetado, dependencias o pipeline de build/CI.
 
 Ejemplo: `fix: corregir redondeo de intereses moratorios en liquidacion laboral`.
 

@@ -52,6 +52,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from datetime import date, datetime
 from decimal import Decimal
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.engine.indexation.historical_index import (
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
@@ -67,7 +70,7 @@ from app.engine.temporal.prescripcion import (
     TipoAccion,
 )
 from database.database import init_db
-from database.models import ParametroLegal
+from database.models import Base, ParametroLegal
 from database.session import get_session
 
 USUARIO_MIGRACION = "sistema"
@@ -104,11 +107,49 @@ def _clave_ya_sembrada(session, clave: str) -> bool:
     return session.query(ParametroLegal).filter(ParametroLegal.clave == clave).first() is not None
 
 
-def migrar() -> int:
+def migrar(db_path: Path | None = None) -> int:
     """Siembra parametros_legales. Retorna cuantas claves se sembraron (0 si
-    ya estaban todas cargadas)."""
-    init_db()
-    session = get_session()
+    ya estaban todas cargadas).
+
+    Sprint 52 (bug de integridad): esta funcion antes ignoraba por completo
+    db_path -- via init_db()/get_session(), siempre operaba contra el engine
+    global de database.database (construido una sola vez al importar ese
+    modulo), sin importar que ruta le pasara aplicar_migraciones_pendientes().
+    Si se recibe db_path, ahora se usa siempre un engine SQLAlchemy ad hoc
+    apuntando exactamente a esa ruta -- nunca al engine global -- para que la
+    siembra quede aislada en la base destino, mismo patron que los otros 10
+    scripts/migrate_*.py.
+
+    La rama sin db_path (init_db()/get_session(), atada al engine global) NO
+    es codigo muerto: es un camino real usado por la suite de tests (ver
+    tests/conftest.py::_db_en_memoria_por_defecto, que documenta
+    explicitamente que migrar() sin argumentos debe leer/escribir el engine
+    global para poder sembrar el engine en memoria que esa fixture parchea en
+    cada test) -- confirmado empiricamente: eliminar esta rama rompe 42 tests
+    en tests/scripts/test_migrate_parametros_legales.py,
+    tests/engine/test_historical_index.py, tests/engine/tax/
+    test_actualizacion_867_1.py y tests/views/test_expediente_detalle.py, que
+    llaman migrar() sin argumentos esperando que siembre el engine en memoria
+    ya parcheado por esa fixture."""
+    engine_ad_hoc = None
+    try:
+        if db_path is None:
+            init_db()
+            session = get_session()
+        else:
+            engine_ad_hoc = create_engine(f"sqlite:///{db_path}")
+            Base.metadata.create_all(engine_ad_hoc)
+            # autoflush=False para igualar exactamente la configuracion de
+            # get_session() (database/session.py) -- ambas ramas deben
+            # comportarse igual salvo por a que engine apuntan.
+            session = sessionmaker(bind=engine_ad_hoc, autoflush=False, expire_on_commit=False)()
+        return _sembrar(session)
+    finally:
+        if engine_ad_hoc is not None:
+            engine_ad_hoc.dispose()
+
+
+def _sembrar(session) -> int:
     sembradas = 0
     try:
         valores_unicos = [

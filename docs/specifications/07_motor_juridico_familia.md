@@ -14,7 +14,17 @@ C.C.), Comercial, Sancionatorio, Honorarios/Litigio, Laboral y Tributario.
   - `CivilFamiliaStrategy`: mapea cada `Obligacion` Puntual a un unico `Event` de capital; cada
     `Obligacion` Recurrente se expande con `FamilyScheduler` en eventos mensuales; cada `Abono` se convierte
     en un `Payment`. Construye un `MemoryRateProvider` con la tasa efectiva anual pactada (convertida a
-    diaria via `EffectiveRateConverter`), y delega en `UniversalLiquidationService.liquidar(...)`.
+    diaria via `EffectiveRateConverter`), y delega en `UniversalLiquidationService.liquidar(...)`. Desde el
+    Sprint 41, una `Obligacion` Recurrente con `tipo_reajuste_anual` (SMMLV o IPC) activo puede generar y
+    persistir sus cuotas mensuales reales como `Obligacion` Puntuales hijas (`obligacion_padre_id`
+    apuntando a la Recurrente original) via `generar_cuotas_mensuales`
+    (`app/services/reajuste_anual.py`): capital constante dentro de cada año calendario, reajustado el 1
+    de enero de cada año siguiente segun el indice elegido, concepto dinamico por mes/año, y cada cuota
+    individual queda seleccionable en la GUI para registrar su propio abono por separado. Una vez
+    generadas, esas cuotas corren por el motor consolidado como Obligaciones Puntuales independientes (la
+    Recurrente padre deja de aportar eventos de capital propios, para no duplicar el capital); mientras no
+    se generen, la Recurrente sigue expandiendose de forma efimera con `FamilyScheduler` (capital
+    constante, sin reajuste), el comportamiento anterior al Sprint 41.
   - `ComercialStrategy`: pagares, letras de cambio, cheques y facturas, con validacion de tope de usura
     (`usury_validator`) sobre la tasa remuneratoria y moratoria.
   - `SancionatorioStrategy`: multas administrativas expresadas en SMLMV o UVT, con conversion automatica
