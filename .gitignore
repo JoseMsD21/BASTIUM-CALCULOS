@@ -15,6 +15,9 @@ exports/*.pdf
 # Worktrees aislados para desarrollo (superpowers)
 .worktrees/
 
+# Mockups del companero visual de brainstorming (superpowers)
+.superpowers/
+
 # Configuracion local de Claude Code (no compartida en el repo)
 .claude/settings.local.json
 
