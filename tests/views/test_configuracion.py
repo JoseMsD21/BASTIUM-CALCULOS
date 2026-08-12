@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import QApplication, QDialog
 
+import database.session as session_module
 from app.core.apariencia import MODO_CLARO, MODO_OSCURO, cargar_modo_tema, guardar_modo_tema
 from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
 from app.services.parametro_service import agregar_valor, historial
@@ -13,12 +14,36 @@ from app.views.configuracion import (
     ParametroFormDialog,
     ParametrosView,
 )
-from database.models import AreaDerecho
+from database.models import AreaDerecho, ParametroLegal
 
 
 def _area_unidad(clave):
     areas, unidad = AREA_UNIDAD_POR_CLAVE[clave]
     return {"areas_derecho": areas, "unidad": unidad}
+
+
+def _insertar_fila_cruda(clave, areas_derecho, unidad, vigente_desde=date(2026, 1, 1)):
+    """Inserta una fila de ParametroLegal sin pasar por agregar_valor() --
+    unico modo de producir un `areas_derecho` corrupto (JSON invalido o
+    codigo de area desconocido) hoy, ya que agregar_valor()/la migracion
+    siempre pasan por serializar_areas()/AREA_UNIDAD_POR_CLAVE, controlados.
+    Simula una fila legada o dañada para probar que ParametrosView no se cae
+    con datos corruptos (revision de calidad, Sprint 57)."""
+    session = session_module.get_session()
+    session.add(
+        ParametroLegal(
+            clave=clave,
+            valor=Decimal("1.5"),
+            vigente_desde=vigente_desde,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+            areas_derecho=areas_derecho,
+            unidad=unidad,
+        )
+    )
+    session.commit()
+    session.close()
 
 
 def test_parametros_view_lista_todas_las_claves_del_catalogo(qtbot):
@@ -452,3 +477,45 @@ def test_parametros_view_area_y_unidad_vacios_sin_dato_cargado(qtbot):
     fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
     assert vista.tabla.item(fila_usura, 4).text() == ""
     assert vista.tabla.item(fila_usura, 5).text() == ""
+
+
+# --- Revision de calidad Sprint 57: areas_derecho corrupto no debe tumbar
+# ParametrosView.refrescar() completo, solo degradar esa celda ---
+
+
+def test_parametros_view_json_corrupto_en_areas_derecho_no_rompe_el_refresco(qtbot):
+    _insertar_fila_cruda(
+        "USURA_MULTIPLICADOR", areas_derecho="{esto no es json valido", unidad="veces"
+    )
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    vista = ParametrosView()  # no debe lanzar excepcion
+    qtbot.addWidget(vista)
+
+    fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
+    assert vista.tabla.item(fila_usura, 4).text() == "?"
+
+    # El resto de la tabla se sigue mostrando bien -- la fila corrupta no
+    # afecta a las demas.
+    fila_smlmv = vista._claves_por_fila.index("SMLMV")
+    assert "Civil" in vista.tabla.item(fila_smlmv, 4).text()
+
+
+def test_parametros_view_codigo_de_area_desconocido_no_rompe_el_refresco(qtbot):
+    _insertar_fila_cruda(
+        "USURA_MULTIPLICADOR", areas_derecho='["AREA_RETIRADA_DEL_ENUM"]', unidad="veces"
+    )
+    agregar_valor(
+        "SMLMV", Decimal("1750905.00"), date(2026, 1, 1), "abogado1", **_area_unidad("SMLMV")
+    )
+
+    vista = ParametrosView()  # no debe lanzar excepcion
+    qtbot.addWidget(vista)
+
+    fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
+    assert vista.tabla.item(fila_usura, 4).text() == "?"
+
+    fila_smlmv = vista._claves_por_fila.index("SMLMV")
+    assert "Civil" in vista.tabla.item(fila_smlmv, 4).text()

@@ -55,10 +55,28 @@ def _texto_areas(fila: ParametroLegal | None) -> str:
     separadas por coma, para la columna "Área" de ParametrosView.tabla.
     Cadena vacia si no hay fila vigente o si la fila todavia no tiene
     areas_derecho asignado (legado, no deberia pasar tras la migracion del
-    Sprint 57, pero se maneja de forma defensiva)."""
+    Sprint 57, pero se maneja de forma defensiva).
+
+    Ningun camino de escritura actual (agregar_valor(), la migracion) puede
+    producir un `areas_derecho` corrupto -- ambos pasan por
+    serializar_areas()/AREA_UNIDAD_POR_CLAVE, controlados. Pero
+    ParametrosView.refrescar() itera las 39 claves de una sola pasada: si
+    algun dia una fila quedara con JSON invalido o un codigo de area que ya
+    no existe en el enum (ej. tras retirar un AreaDerecho en el futuro), que
+    esta funcion propague la excepcion tumbaria la carga de TODA la pantalla,
+    no solo esa fila. json.JSONDecodeError hereda de ValueError, asi que un
+    solo except cubre los dos casos (JSON malformado y codigo desconocido de
+    AreaDerecho); KeyError cubre ademas un AreaDerecho valido que faltara en
+    _ETIQUETA_POR_AREA -- se degrada solo esa celda a "?", el resto de la
+    tabla sigue mostrandose."""
     if fila is None or not fila.areas_derecho:
         return ""
-    return ", ".join(_ETIQUETA_POR_AREA[area] for area in deserializar_areas(fila.areas_derecho))
+    try:
+        return ", ".join(
+            _ETIQUETA_POR_AREA[area] for area in deserializar_areas(fila.areas_derecho)
+        )
+    except (ValueError, KeyError):
+        return "?"
 
 
 class ParametroFormDialog(QDialog):
@@ -306,6 +324,10 @@ class ParametrosView(QWidget):
                 fila_idx, 5, QTableWidgetItem(vigente.unidad if vigente and vigente.unidad else "")
             )
             self._claves_por_fila.append(clave)
+        # La columna "Área" (Sprint 57) puede mostrar hasta las 6 etiquetas
+        # concatenadas (ej. PRESCRIPCION_EJECUTIVA_MESES) -- sin esto el ancho
+        # fijo por defecto de QTableWidget la trunca.
+        self.tabla.resizeColumnsToContents()
 
     def _abrir_dialogo_agregar(self) -> None:
         dialogo = ParametroFormDialog(self)
