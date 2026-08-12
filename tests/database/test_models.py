@@ -554,3 +554,15 @@ def test_columnas_de_filtrado_frecuente_tienen_indice(session):
     assert "expediente_id" in indices_audit_logs
     assert "obligacion_id" in indices_abonos
     assert "clave" in indices_parametros
+
+
+def test_parametro_legal_tiene_columnas_areas_derecho_y_unidad():
+    """Sprint 57: areas_derecho (JSON de codigos AreaDerecho) y unidad
+    (texto libre corto, ej. "COP"/"%"/"meses") se agregan a ParametroLegal
+    para que cada fila declare a que area(s) del derecho pertenece y en que
+    unidad se mide -- ver docs/superpowers/specs/2026-08-11-parametros-ux-
+    dialogos-crud-design.md, seccion Sprint 57."""
+    from database.models import ParametroLegal
+
+    assert "areas_derecho" in ParametroLegal.__table__.columns
+    assert "unidad" in ParametroLegal.__table__.columns
