@@ -90,12 +90,15 @@ class ExpedienteDetallePage(QWidget):
         self._expediente_id = None
         self._obligacion_ids_por_fila = []
 
-        # Columna "Editar" (Sprint 44, punto 2): mismo patron de boton por fila
-        # que ya usa ExpedientesListView (app/views/expedientes.py) para
-        # Expediente -- un QPushButton "secondary" por celda, conectado con un
+        # Columnas "Editar"/"Eliminar" (Sprint 44, punto 2; "Eliminar" agregada en
+        # el Sprint 60): mismo patron de boton por fila que ya usa
+        # ExpedientesListView (app/views/expedientes.py) para Expediente -- un
+        # QPushButton "secondary"/"destructive" por celda, conectado con un
         # lambda que captura el id de esa fila.
-        self.tabla_obligaciones = QTableWidget(0, 4)
-        self.tabla_obligaciones.setHorizontalHeaderLabels(["Concepto", "Tipo", "Valor", "Editar"])
+        self.tabla_obligaciones = QTableWidget(0, 5)
+        self.tabla_obligaciones.setHorizontalHeaderLabels(
+            ["Concepto", "Tipo", "Valor", "Editar", "Eliminar"]
+        )
         self.boton_agregar_obligacion = QPushButton("Agregar obligacion")
         self.boton_agregar_obligacion.setProperty("class", "secondary")
         self.boton_agregar_obligacion.clicked.connect(self._abrir_dialogo_obligacion)
@@ -250,6 +253,14 @@ class ExpedienteDetallePage(QWidget):
             )
             self.tabla_obligaciones.setCellWidget(fila, 3, boton_editar)
 
+            boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.setIcon(icon("delete"))
+            boton_eliminar.setProperty("class", "destructive")
+            boton_eliminar.clicked.connect(
+                lambda _checked=False, id_=obligacion.id: self._eliminar_obligacion(id_)
+            )
+            self.tabla_obligaciones.setCellWidget(fila, 4, boton_eliminar)
+
             self._obligacion_ids_por_fila.append(obligacion.id)
         session.close()
 
@@ -375,6 +386,40 @@ class ExpedienteDetallePage(QWidget):
         )
         if dialogo.exec():
             self._refrescar_obligaciones()
+
+    def _eliminar_obligacion(self, obligacion_id: int) -> None:
+        """Sprint 60: elimina una Obligacion y confirma antes con el usuario.
+        `abonos`/`eventos_laborales`/`descuentos_laborales` se eliminan solos
+        via `cascade="all, delete-orphan"` (database/models.py:178-186).
+
+        Caso especial: si esta obligacion es RECURRENTE con reajuste anual y
+        ya genero cuotas hijas (`obligacion_padre_id` apuntando a ella, Sprint
+        41), esa relacion NO es un `relationship()` de SQLAlchemy -- ver el
+        comentario en database/models.py junto a `obligacion_padre_id` sobre
+        por que se omitio deliberadamente el ForeignKey -- asi que las cuotas
+        hijas no se borran por cascada del ORM y hay que consultarlas y
+        borrarlas explicitamente, en la misma transaccion, antes del padre."""
+        session = session_module.get_session()
+        hijas = (
+            session.query(Obligacion)
+            .filter(Obligacion.obligacion_padre_id == obligacion_id)
+            .all()
+        )
+        mensaje = "¿Eliminar esta obligación? Esta acción no se puede deshacer."
+        if hijas:
+            mensaje += f" Esto también eliminará sus {len(hijas)} cuota(s) generada(s)."
+        respuesta = QMessageBox.question(self, "Eliminar obligación", mensaje)
+        if respuesta != QMessageBox.StandardButton.Yes:
+            session.close()
+            return
+
+        for hija in hijas:
+            session.delete(hija)
+        obligacion = session.get(Obligacion, obligacion_id)
+        session.delete(obligacion)
+        session.commit()
+        session.close()
+        self._refrescar_obligaciones()
 
     def _abrir_dialogo_abono(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
