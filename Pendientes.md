@@ -189,6 +189,7 @@ afirmación incorrecta sobre prescripción/caducidad que sí le llega al usuario
 - [Sprint 52 — Bug de integridad: `aplicar_migraciones_pendientes` ignora `db_path` al sembrar `parametros_legales` ✅ Completado](#sprint-52--bug-de-integridad-aplicar_migraciones_pendientes-ignora-db_path-al-sembrar-parametros_legales--completado)
 - [Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard ✅ Completado](#sprint-53--rendimiento-patrón-n1-de-consultas-en-el-dashboard--completado)
 - [Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 ✅ Completado](#sprint-54--corrección-de-documentación-desactualizada-tras-los-sprints-41-42-50-y-51--completado)
+- [Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable 📋 Pendiente](#sprint-55--3-bugs-de-ui-en-el-dashboard-gráfica-con-colores-viejos-etiquetas-apretadas-y-tabla-editable--pendiente)
 
 ---
 
@@ -4385,6 +4386,87 @@ sigue pendiente). `CONTRIBUTING.md` lista los 5 prefijos de commit que faltaban 
 `perf:`, `style:`, `build:`), verificados contra el historial real. Verificado que no queda ninguna mención
 residual de "barra superior"/`QToolBar` como estado actual en `GUIA_USUARIO.md`, y que ningún encabezado
 cambió (anclas internas intactas).
+
+---
+
+## Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable 📋 Pendiente
+
+**Prioridad sugerida:** Media — ninguno rompe un cálculo ni pierde datos, pero los 3 son visibles de inmediato
+en la primera pantalla que ve el usuario en cada arranque, y el tercero (tabla editable) puede hacerle creer
+al usuario que cambió el conteo real de expedientes por área cuando no es así.
+
+**Depende de:** Sprint 50 (modo oscuro/gráfica del Dashboard, ya completado) y Sprint 53 (ya completado en
+esta misma ronda) — comparte archivo (`app/views/dashboard.py`) con el Sprint 53, pero ningún cambio de
+ese sprint se superpone con estos 3 hallazgos (áreas de código distintas dentro del mismo archivo).
+
+**Contexto:** reportado directamente por el usuario tras probar la app con modo oscuro activo. Los 3
+hallazgos se verificaron leyendo el código real antes de escribir este sprint (no se asumió nada):
+
+**Hallazgos (verificados 2026-08-10/11):**
+1. **La gráfica del Dashboard se queda con los colores del tema anterior si se vuelve con el botón
+   "Volver" en vez de "Inicio".** `MainWindow._ir_inicio()` (`app/views/main_window.py:237-240`) llama
+   `self.dashboard_page.refrescar()` antes de mostrar la página — por eso entrar por "Inicio" sí repinta la
+   gráfica con los colores correctos. `MainWindow._volver()` (líneas 231-235) NO llama a `refrescar()`, solo
+   cambia de página (`show_page`). Si el usuario cambia el tema (modo oscuro) estando en otra pantalla y
+   vuelve al Dashboard con "Volver" (no con "Inicio"), `_refrescar_grafica_por_area()` nunca se vuelve a
+   ejecutar, así que la gráfica queda pintada con `theme_colors`/`theme_colors_dark` (el módulo resuelto en
+   `apariencia.cargar_modo_tema()` la última vez que corrió) del modo viejo, mientras el resto de la
+   interfaz (sidebar, tablas, QSS) ya cambió porque esos sí son estilos de Qt aplicados en caliente por
+   `aplicar_tema()`. Mismo tipo de "refresco parcial al navegar" que ya causó el bug del Sprint 49.
+2. **Las etiquetas de la gráfica de barras se ven apretadas/superpuestas y no se reacomodan al
+   redimensionar la ventana.** `_refrescar_grafica_por_area()` (`app/views/dashboard.py:142-166`) llama
+   `self.figura_por_area.tight_layout()` una sola vez, dentro del método que solo se ejecuta cuando cambian
+   los datos (`refrescar()`). `FigureCanvasQTAgg` sí redimensiona el área de dibujo cuando cambia el tamaño
+   del widget (es un `QWidget` normal dentro del layout), pero el espaciado/tamaño de fuente calculado por
+   `tight_layout()` para las 6 etiquetas de área (`Civil / Familia`, `Comercial`, `Laboral`,
+   `Sancionatorio`, `Honorarios / Litigio`, `Tributario`) no se recalcula — no hay ningún manejador de
+   `resizeEvent` conectado al canvas ni a la vista.
+3. **La tabla "Expedientes por área" del Dashboard es editable con doble clic, y el cambio no se revierte
+   ni persiste — solo confunde.** Ninguna de las 3 tablas de `app/views/dashboard.py`
+   (`tabla_por_area`, `tabla_alertas`, `tabla_actividad`) llama a
+   `setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)`, a diferencia de las tablas de solo
+   lectura en `app/views/configuracion.py` (líneas 153, 180) y `app/views/expediente_detalle.py` (línea
+   187), que sí lo hacen — es una omisión respecto al patrón ya establecido en el resto del proyecto, no
+   una decisión de diseño. Confirmado que doble-clic en una celda de "Expedientes" permite escribir
+   cualquier texto; el valor editado desaparece en el siguiente `refrescar()` (no se guarda en la base de
+   datos), pero mientras tanto el usuario ve un número que no representa nada real.
+
+**Código nuevo a crear:**
+- `app/views/main_window.py::_volver()`: llamar a `self.dashboard_page.refrescar()` cuando la página de
+  destino sea `"dashboard"` (igual que ya hace `_ir_inicio()`), o refactorizar para que ambos métodos
+  compartan la misma lógica de "entrar al dashboard" sin duplicar la llamada a `refrescar()`. Ojo: no
+  refresques incondicionalmente en cada `_volver()` sin importar la página destino — sería una regresión de
+  rendimiento/comportamiento en las otras pantallas del historial de navegación.
+- `app/views/dashboard.py`: conectar un manejador al evento de resize del canvas/vista (ej. sobrescribir
+  `resizeEvent` en `DashboardView` o conectar a la señal de resize del `QWidget` contenedor) que vuelva a
+  llamar `self.figura_por_area.tight_layout()` + `self.canvas_por_area.draw_idle()` — sin re-consultar la
+  base de datos ni recalcular los datos, solo el layout de la figura ya dibujada. Cuidado con no crear un
+  bucle de resize-triggers-redibujo-triggers-resize; usar el patrón estándar de matplotlib para esto
+  (`figure.canvas.mpl_connect('resize_event', ...)` o el equivalente de Qt).
+- `app/views/dashboard.py::__init__`: agregar `self.tabla_por_area.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)`
+  a las 3 tablas (`tabla_por_area`, `tabla_alertas`, `tabla_actividad`), mismo patrón que
+  `configuracion.py`/`expediente_detalle.py`.
+- Tests nuevos en `tests/views/test_dashboard.py` y/o `tests/views/test_main_window.py`: uno que verifique
+  que `_volver()` hacia "dashboard" deja la gráfica con los colores del modo de tema activo (no el de la
+  última vez que se llamó `refrescar()` antes de cambiar de tema); uno que confirme que las 3 tablas del
+  Dashboard tienen `NoEditTriggers`. El caso de resize puede quedar como test manual/QA si no hay un patrón
+  ya establecido en el repo para testear resize de matplotlib embebido (revisar `tests/views/` antes de
+  decidir).
+
+**Alcance explícitamente excluido:**
+- No se propone ningún cambio a los diálogos `QDialog` sin botones de minimizar/maximizar (ej.
+  `HistorialParametroDialog`) — es un hallazgo distinto, en un archivo distinto (`configuracion.py`), y
+  potencialmente aplica a otros diálogos del proyecto además de Parámetros. Queda para un sprint aparte.
+- No se rediseña la gráfica (tipo de gráfico, tamaño, colores) — solo se corrige que refleje el tema activo
+  y que no se superponga al redimensionar.
+
+**Definición de Hecho:**
+- Cambiar el tema y volver al Dashboard con "Volver" deja la gráfica con los colores correctos, verificado
+  con un test (no solo con "Inicio", que ya funcionaba).
+- Redimensionar la ventana no dobla producir superposición de etiquetas en la gráfica (verificación manual
+  aceptable si no hay patrón de test para esto en el repo).
+- Ninguna celda de las 3 tablas del Dashboard es editable.
+- Suite completa en verde.
 
 ---
 
