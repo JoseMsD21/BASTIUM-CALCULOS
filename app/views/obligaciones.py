@@ -31,7 +31,7 @@ from app.core.constants import (
 )
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
-from app.views.form_utils import guardar_o_actualizar, set_row_visible
+from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable, set_row_visible
 from app.views.icons import icon
 from database.models import Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
 
@@ -66,6 +66,7 @@ class ObligacionFormDialog(QDialog):
         obligacion_id: int | None = None,
     ):
         super().__init__(parent)
+        hacer_redimensionable(self)
         self.setWindowTitle("Editar obligacion" if obligacion_id else "Agregar obligacion")
         self._expediente_id = expediente_id
         self._area = area

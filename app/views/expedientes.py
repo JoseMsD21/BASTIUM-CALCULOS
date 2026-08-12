@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
+from app.views.form_utils import hacer_redimensionable
 from app.views.icons import icon
 from database.models import AreaDerecho, Expediente
 
@@ -29,6 +30,7 @@ from database.models import AreaDerecho, Expediente
 class ExpedienteFormDialog(QDialog):
     def __init__(self, parent=None, expediente: Expediente | None = None):
         super().__init__(parent)
+        hacer_redimensionable(self)
         self._expediente_id = expediente.id if expediente else None
         self.setWindowTitle("Editar expediente" if expediente else "Nuevo expediente")
 

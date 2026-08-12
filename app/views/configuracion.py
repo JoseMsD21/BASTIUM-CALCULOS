@@ -35,13 +35,14 @@ from app.services.parametro_service import (
     historial,
     valor_vigente_hoy,
 )
-from app.views.form_utils import set_row_visible
+from app.views.form_utils import hacer_redimensionable, set_row_visible
 from app.views.icons import icon
 
 
 class ParametroFormDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        hacer_redimensionable(self)
         self.setWindowTitle("Agregar valor de parametro")
 
         self.combo_clave = QComboBox()
@@ -144,6 +145,7 @@ class ParametroFormDialog(QDialog):
 class HistorialParametroDialog(QDialog):
     def __init__(self, clave: str, parent=None):
         super().__init__(parent)
+        hacer_redimensionable(self)
         info = CATALOGO_PARAMETROS[clave]
         self.setWindowTitle(f"Historial: {info.descripcion}")
 

@@ -5,7 +5,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QComboBox, QDateEdit, QDialog, QFormLayout, QMessageBox, QPushButton
 
 import database.session as session_module
-from app.views.form_utils import guardar_o_actualizar, set_row_visible
+from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable, set_row_visible
 from app.views.icons import icon
 from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
 
@@ -13,6 +13,7 @@ from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
 class EventoLaboralFormDialog(QDialog):
     def __init__(self, obligacion_id: int, parent=None, evento_id: int | None = None):
         super().__init__(parent)
+        hacer_redimensionable(self)
         self._obligacion_id = obligacion_id
         self._evento_id = evento_id
         self.setWindowTitle(
