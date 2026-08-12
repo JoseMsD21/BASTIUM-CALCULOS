@@ -251,6 +251,123 @@ def test_aplicar_migraciones_pendientes_agrega_los_indices_de_rendimiento(tmp_pa
     assert "ix_obligaciones_expediente_id" in indices
 
 
+def test_migrar_parametros_area_unidad_agrega_columnas_y_completa_filas_legadas(tmp_path):
+    """Sprint 57: una bastium.db creada antes de este sprint no tiene las
+    columnas areas_derecho/unidad -- el script debe agregarlas (nullable, sin
+    DEFAULT unico posible porque el valor varia por clave) y completarlas para
+    cualquier fila ya sembrada, segun AREA_UNIDAD_POR_CLAVE."""
+    from app.services.areas_parametro import deserializar_areas
+    from database.models import AreaDerecho
+    from scripts.migrate_parametros_area_unidad import migrar
+
+    db_path = tmp_path / "sin_area_unidad.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE parametros_legales DROP COLUMN areas_derecho")
+    con.execute("ALTER TABLE parametros_legales DROP COLUMN unidad")
+    con.execute(
+        "INSERT INTO parametros_legales (clave, valor, vigente_desde, usuario, creado_en) "
+        "VALUES ('SMLMV', '1750905.00', '2026-01-01', 'test', '2026-01-01 00:00:00')"
+    )
+    con.execute(
+        "INSERT INTO parametros_legales (clave, valor, vigente_desde, usuario, creado_en) "
+        "VALUES ('USURA_MULTIPLICADOR', '1.5', '1990-01-01', 'test', '2026-01-01 00:00:00')"
+    )
+    con.commit()
+    con.close()
+
+    aplico = migrar(db_path)
+    assert aplico is True
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(parametros_legales)")}
+    assert "areas_derecho" in columnas
+    assert "unidad" in columnas
+
+    fila_smlmv = con.execute(
+        "SELECT areas_derecho, unidad FROM parametros_legales WHERE clave = 'SMLMV'"
+    ).fetchone()
+    fila_usura = con.execute(
+        "SELECT areas_derecho, unidad FROM parametros_legales WHERE clave = 'USURA_MULTIPLICADOR'"
+    ).fetchone()
+    con.close()
+
+    assert deserializar_areas(fila_smlmv[0]) == [
+        AreaDerecho.CIVIL_FAMILIA,
+        AreaDerecho.LABORAL,
+        AreaDerecho.SANCIONATORIO,
+        AreaDerecho.COMERCIAL,
+        AreaDerecho.HONORARIOS,
+    ]
+    assert fila_smlmv[1] == "COP"
+    assert deserializar_areas(fila_usura[0]) == [AreaDerecho.COMERCIAL]
+    assert fila_usura[1] == "veces"
+
+    # Idempotencia: correrla de nuevo no rompe ni vuelve a reportar cambios.
+    assert migrar(db_path) is False
+
+
+def test_migrar_parametros_area_unidad_no_toca_filas_ya_migradas(tmp_path):
+    """No debe sobrescribir una fila que ya tiene areas_derecho/unidad
+    asignados (aunque el valor guardado sea distinto del que la tabla
+    propondria hoy) -- solo completa filas todavia sin migrar."""
+    from scripts.migrate_parametros_area_unidad import migrar
+
+    db_path = tmp_path / "parcial.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute(
+        "INSERT INTO parametros_legales "
+        "(clave, valor, vigente_desde, usuario, creado_en, areas_derecho, unidad) "
+        "VALUES ('SMLMV', '1750905.00', '2026-01-01', 'test', '2026-01-01 00:00:00', "
+        "'[\"TRIBUTARIO\"]', 'personalizado')"
+    )
+    con.commit()
+    con.close()
+
+    migrar(db_path)
+
+    con = sqlite3.connect(db_path)
+    fila = con.execute(
+        "SELECT areas_derecho, unidad FROM parametros_legales WHERE clave = 'SMLMV'"
+    ).fetchone()
+    con.close()
+    assert fila == ('["TRIBUTARIO"]', "personalizado")
+
+
+def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tmp_path):
+    """Test de integracion (Task 4, Step 6): sobre una bastium.db nueva
+    completa, aplicar_migraciones_pendientes() debe sembrar las 683 filas
+    (migrar_parametros_legales) Y completar areas_derecho/unidad de todas
+    ellas en la misma pasada -- exige que la migracion nueva corra despues de
+    la siembra, no antes."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "nueva_area_unidad.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    total_filas = con.execute("SELECT COUNT(*) FROM parametros_legales").fetchone()[0]
+    total_sin_migrar = con.execute(
+        "SELECT COUNT(*) FROM parametros_legales WHERE areas_derecho IS NULL "
+        "OR areas_derecho = '' OR unidad IS NULL OR unidad = ''"
+    ).fetchone()[0]
+    con.close()
+
+    assert total_filas == 683
+    assert total_sin_migrar == 0
+
+
 def test_dashboard_no_falla_con_esquema_desactualizado_de_obligaciones(
     tmp_path, monkeypatch, qtbot
 ):

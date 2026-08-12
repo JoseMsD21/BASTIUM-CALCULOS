@@ -59,6 +59,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
         migrar as migrar_interes_capital_indexado,
     )
     from scripts.migrate_moneda_trm import migrar as migrar_moneda_trm
+    from scripts.migrate_parametros_area_unidad import migrar as migrar_parametros_area_unidad
     from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
     from scripts.migrate_reajuste_anual_familia import migrar as migrar_reajuste_anual_familia
     from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
@@ -77,3 +78,8 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     migrar_parametros_legales(ruta)
+    # Debe correr DESPUES de migrar_parametros_legales: en una bastium.db
+    # nueva, las filas que ese script acaba de sembrar todavia no tienen
+    # areas_derecho/unidad -- si esta migracion corriera antes, quedarian sin
+    # completar hasta el siguiente arranque (Sprint 57).
+    migrar_parametros_area_unidad(ruta)
