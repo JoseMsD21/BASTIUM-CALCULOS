@@ -143,7 +143,22 @@ class ParametroFormDialog(QDialog):
             self.casillas_area[AreaDerecho(codigo)] = casilla
             _layout_areas.addWidget(casilla)
 
-        self.campo_unidad = QLineEdit()
+        # "Unidad" es un desplegable con las unidades conocidas del catalogo
+        # mas un escape hatch "Otros..." para el resto (Sprint "Parametros:
+        # editar/eliminar de usuario", Task 5): antes era un QLineEdit libre,
+        # lo que permitia errores de tipeo (ej. "COP" vs "cop" vs "pesos")
+        # para el mismo significado. El campo de texto _campo_unidad_otros
+        # solo se revela cuando se elige "Otros..." (_actualizar_visibilidad_
+        # unidad_otros), y campo_unidad.findText(...) devuelve -1 para
+        # cualquier valor fuera de la lista fija -- usado tanto para
+        # preseleccionar segun la clave (_actualizar_area_unidad_sugeridas)
+        # como, en el futuro, para precargar una unidad guardada en modo
+        # edicion.
+        self.campo_unidad = QComboBox()
+        self.campo_unidad.addItems(["%", "COP", "meses", "índice", "veces", "puntos", "Otros..."])
+        self._campo_unidad_otros = QLineEdit()
+        self._campo_unidad_otros.setPlaceholderText("Escribe la unidad")
+        self.campo_unidad.currentTextChanged.connect(self._actualizar_visibilidad_unidad_otros)
 
         self.campo_usuario = QLineEdit()
         self.campo_usuario.setToolTip(
@@ -183,13 +198,24 @@ class ParametroFormDialog(QDialog):
         # (_actualizar_area_unidad_sugeridas), asi que el icono deja claro que es una
         # propuesta editable, no un valor fijo -- mismo patron que "Tasa efectiva
         # anual" en ObligacionFormDialog para un campo con valor por defecto.
+        # El contenedor agrupa el desplegable y el campo "Otros..." (oculto salvo
+        # que se elija esa opcion) para que ambos viajen juntos como un solo
+        # widget de fila (Task 5) -- agregar_ayuda no necesita saber que hay dos
+        # controles adentro, solo envuelve lo que se le pase.
+        _contenedor_unidad_y_otros = QWidget()
+        _layout_unidad_y_otros = QVBoxLayout(_contenedor_unidad_y_otros)
+        _layout_unidad_y_otros.setContentsMargins(0, 0, 0, 0)
+        _layout_unidad_y_otros.addWidget(self.campo_unidad)
+        _layout_unidad_y_otros.addWidget(self._campo_unidad_otros)
+        self._campo_unidad_otros.setVisible(False)
         self._contenedor_campo_unidad = agregar_ayuda(
             self._layout_formulario,
             "Unidad",
-            self.campo_unidad,
+            _contenedor_unidad_y_otros,
             tooltip=(
                 "Unidad de medida del valor, sugerida automaticamente segun la clave "
-                "elegida. No se puede editar despues de guardar."
+                "elegida. Si no aparece en la lista, elige 'Otros...' y escribela. No "
+                "se puede editar despues de guardar."
             ),
             ejemplo="%, COP, meses, índice",
         )
@@ -213,7 +239,14 @@ class ParametroFormDialog(QDialog):
         areas_sugeridas_set = set(areas_sugeridas)
         for area, casilla in self.casillas_area.items():
             casilla.setChecked(area in areas_sugeridas_set)
-        self.campo_unidad.setText(unidad_sugerida)
+        indice_unidad = self.campo_unidad.findText(unidad_sugerida)
+        self.campo_unidad.setCurrentIndex(indice_unidad if indice_unidad >= 0 else 0)
+
+    def _actualizar_visibilidad_unidad_otros(self, texto: str) -> None:
+        """Revela `_campo_unidad_otros` solo cuando se elige 'Otros...' en el
+        desplegable -- escape hatch para unidades fuera de la lista fija
+        (Task 5)."""
+        self._campo_unidad_otros.setVisible(texto == "Otros...")
 
     def _actualizar_visibilidad_vigente_hasta(self) -> None:
         """Nombre del método sin cambios (evita re-cablear sus 2 call sites:
@@ -269,7 +302,10 @@ class ParametroFormDialog(QDialog):
         areas_derecho = [
             area for area, casilla in self.casillas_area.items() if casilla.isChecked()
         ]
-        unidad = self.campo_unidad.text().strip()
+        if self.campo_unidad.currentText() == "Otros...":
+            unidad = self._campo_unidad_otros.text().strip()
+        else:
+            unidad = self.campo_unidad.currentText()
 
         return agregar_valor(
             clave=clave,

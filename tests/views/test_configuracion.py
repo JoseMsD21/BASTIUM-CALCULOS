@@ -354,7 +354,7 @@ def test_parametro_form_dialog_preselecciona_areas_segun_la_clave(qtbot):
     areas_esperadas_set = set(areas_esperadas)
     for area, casilla in dialogo.casillas_area.items():
         assert casilla.isChecked() == (area in areas_esperadas_set), area
-    assert dialogo.campo_unidad.text() == unidad_esperada
+    assert dialogo.campo_unidad.currentText() == unidad_esperada
 
 
 def test_parametro_form_dialog_cambiar_de_clave_actualiza_la_preseleccion(qtbot):
@@ -364,12 +364,12 @@ def test_parametro_form_dialog_cambiar_de_clave_actualiza_la_preseleccion(qtbot)
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
     assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is True
     assert dialogo.casillas_area[AreaDerecho.LABORAL].isChecked() is False
-    assert dialogo.campo_unidad.text() == "veces"
+    assert dialogo.campo_unidad.currentText() == "veces"
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("SS_PENSION_PCT"))
     assert dialogo.casillas_area[AreaDerecho.LABORAL].isChecked() is True
     assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is False
-    assert dialogo.campo_unidad.text() == "%"
+    assert dialogo.campo_unidad.currentText() == "%"
 
 
 def test_parametro_form_dialog_sin_ninguna_area_marcada_lanza_value_error(qtbot):
@@ -386,12 +386,16 @@ def test_parametro_form_dialog_sin_ninguna_area_marcada_lanza_value_error(qtbot)
 
 
 def test_parametro_form_dialog_unidad_vacia_lanza_value_error(qtbot):
+    """Con el desplegable (Task 5), la unica forma de dejar la unidad vacia es
+    elegir 'Otros...' y no escribir nada (o solo espacios) en el campo que se
+    revela -- las opciones fijas del combo nunca estan vacias."""
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
     dialogo.campo_valor.setText("1.5")
     dialogo.campo_usuario.setText("abogado1")
-    dialogo.campo_unidad.setText("   ")
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    dialogo._campo_unidad_otros.setText("   ")
 
     with pytest.raises(ValueError):
         dialogo.guardar()
@@ -420,7 +424,8 @@ def test_parametro_form_dialog_permite_ajustar_areas_y_unidad_antes_de_guardar(q
     dialogo.campo_usuario.setText("abogado1")
 
     dialogo.casillas_area[AreaDerecho.CIVIL_FAMILIA].setChecked(True)
-    dialogo.campo_unidad.setText("veces (ajustado)")
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    dialogo._campo_unidad_otros.setText("veces (ajustado)")
 
     dialogo.guardar()
 
@@ -430,6 +435,50 @@ def test_parametro_form_dialog_permite_ajustar_areas_y_unidad_antes_de_guardar(q
         AreaDerecho.CIVIL_FAMILIA,
     }
     assert filas[0].unidad == "veces (ajustado)"
+
+
+# --- Task 5: "Unidad" como QComboBox con opcion "Otros..." ---
+
+
+def test_parametro_form_dialog_unidad_es_combobox_con_opciones_conocidas(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    textos = [dialogo.campo_unidad.itemText(i) for i in range(dialogo.campo_unidad.count())]
+    assert textos == ["%", "COP", "meses", "índice", "veces", "puntos", "Otros..."]
+
+
+def test_parametro_form_dialog_unidad_preselecciona_segun_la_clave(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("SMLMV"))
+    assert dialogo.campo_unidad.currentText() == "COP"
+
+
+def test_parametro_form_dialog_unidad_otros_revela_campo_de_texto(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.show()
+
+    assert dialogo._campo_unidad_otros.isVisible() is False
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    assert dialogo._campo_unidad_otros.isVisible() is True
+
+
+def test_parametro_form_dialog_guarda_unidad_otros(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    dialogo._campo_unidad_otros.setText("fracciones")
+
+    dialogo.guardar()
+
+    fila = historial("USURA_MULTIPLICADOR")[0]
+    assert fila.unidad == "fracciones"
 
 
 def test_parametros_view_tabla_tiene_columnas_area_y_unidad(qtbot):
