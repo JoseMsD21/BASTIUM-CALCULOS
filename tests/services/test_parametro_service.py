@@ -791,3 +791,107 @@ def test_agregar_valor_marca_creado_por_sistema_false_aunque_usuario_diga_sistem
         unidad="veces",
     )
     assert fila.creado_por_sistema is False
+
+
+def test_editar_valor_actualiza_los_campos():
+    from app.services.parametro_service import agregar_valor, editar_valor, historial
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    fila_editada = editar_valor(
+        fila.id,
+        valor=Decimal("2.0"),
+        vigente_desde=date(1900, 1, 1),
+        usuario="abogado2",
+        areas_derecho=[AreaDerecho.COMERCIAL, AreaDerecho.TRIBUTARIO],
+        unidad="veces",
+        motivo="correccion",
+    )
+
+    assert fila_editada.valor == Decimal("2.0")
+    assert fila_editada.usuario == "abogado2"
+    assert fila_editada.motivo == "correccion"
+    assert len(historial("USURA_MULTIPLICADOR")) == 1  # UPDATE, no INSERT nuevo
+
+
+def test_editar_valor_de_fila_de_sistema_lanza_value_error():
+    from app.services.areas_parametro import serializar_areas
+    from app.services.parametro_service import editar_valor
+
+    session = session_module.get_session()
+    fila_sistema = ParametroLegal(
+        clave="USURA_MULTIPLICADOR",
+        valor=Decimal("1.5"),
+        vigente_desde=date(1900, 1, 1),
+        usuario="sistema",
+        creado_en=datetime.now(),
+        areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+        unidad="veces",
+        creado_por_sistema=True,
+    )
+    session.add(fila_sistema)
+    session.commit()
+    session.refresh(fila_sistema)
+    fila_id = fila_sistema.id
+    session.close()
+
+    with pytest.raises(ValueError, match="sistema"):
+        editar_valor(
+            fila_id,
+            valor=Decimal("2.0"),
+            vigente_desde=date(1900, 1, 1),
+            usuario="abogado1",
+            areas_derecho=[AreaDerecho.COMERCIAL],
+            unidad="veces",
+        )
+
+
+def test_eliminar_valor_borra_la_fila():
+    from app.services.parametro_service import agregar_valor, eliminar_valor, historial
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    eliminar_valor(fila.id)
+
+    assert historial("USURA_MULTIPLICADOR") == []
+
+
+def test_eliminar_valor_de_fila_de_sistema_lanza_value_error():
+    from app.services.areas_parametro import serializar_areas
+    from app.services.parametro_service import eliminar_valor, historial
+
+    session = session_module.get_session()
+    fila_sistema = ParametroLegal(
+        clave="USURA_MULTIPLICADOR",
+        valor=Decimal("1.5"),
+        vigente_desde=date(1900, 1, 1),
+        usuario="sistema",
+        creado_en=datetime.now(),
+        areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+        unidad="veces",
+        creado_por_sistema=True,
+    )
+    session.add(fila_sistema)
+    session.commit()
+    session.refresh(fila_sistema)
+    fila_id = fila_sistema.id
+    session.close()
+
+    with pytest.raises(ValueError, match="sistema"):
+        eliminar_valor(fila_id)
+
+    assert len(historial("USURA_MULTIPLICADOR")) == 1

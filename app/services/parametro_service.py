@@ -590,6 +590,73 @@ def agregar_valor(
         session.close()
 
 
+def editar_valor(
+    parametro_id: int,
+    valor: Decimal,
+    vigente_desde: date,
+    usuario: str,
+    areas_derecho: list[AreaDerecho],
+    unidad: str,
+    motivo: str | None = None,
+    vigente_hasta: date | None = None,
+) -> ParametroLegal:
+    """Actualiza en el sitio una fila existente creada por un usuario --
+    excepcion deliberada al append-only historico (ver docstring del modulo),
+    acotada a filas con creado_por_sistema=False. La clave (`clave`) NO es
+    editable -- no se recibe como parametro, se conserva la de la fila
+    existente; cambiar de clave equivaldria a borrar una fila y crear otra
+    distinta, decision tomada con el usuario al diseñar este sprint."""
+    session = session_module.get_session()
+    try:
+        fila = session.get(ParametroLegal, parametro_id)
+        if fila is None:
+            raise ValueError(f"No existe un parametro con id {parametro_id}.")
+        if fila.creado_por_sistema:
+            raise ValueError("No se puede editar un parametro creado por el sistema.")
+        _info, areas_derecho_json, unidad = _validar_y_preparar(
+            fila.clave,
+            valor,
+            vigente_desde,
+            areas_derecho,
+            unidad,
+            vigente_hasta,
+            session,
+            excluir_id=parametro_id,
+        )
+        fila.valor = valor
+        fila.vigente_desde = vigente_desde
+        fila.vigente_hasta = vigente_hasta
+        fila.usuario = usuario
+        fila.motivo = motivo
+        fila.areas_derecho = areas_derecho_json
+        fila.unidad = unidad
+        session.commit()
+        session.refresh(fila)
+        return fila
+    finally:
+        session.close()
+
+
+def eliminar_valor(parametro_id: int) -> None:
+    """Borra definitivamente una fila creada por un usuario -- excepcion
+    deliberada al append-only historico, acotada a creado_por_sistema=False.
+    Si `parametro_id` ya no existe (doble clic sobre una fila ya eliminada),
+    no hace nada -- mismo criterio defensivo que
+    ExpedienteDetallePage._eliminar_obligacion (Sprint 60, hotfix de
+    produccion 2026-08-12)."""
+    session = session_module.get_session()
+    try:
+        fila = session.get(ParametroLegal, parametro_id)
+        if fila is None:
+            return
+        if fila.creado_por_sistema:
+            raise ValueError("No se puede eliminar un parametro creado por el sistema.")
+        session.delete(fila)
+        session.commit()
+    finally:
+        session.close()
+
+
 def historial(clave: str) -> list[ParametroLegal]:
     """Todas las filas de una clave, mas reciente primero -- alimenta la vista
     de historial de la GUI."""
