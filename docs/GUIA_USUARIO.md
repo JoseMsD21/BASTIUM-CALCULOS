@@ -704,12 +704,15 @@ columnas:
 Si dejas el campo Usuario vacío, o escribes un valor que no es un número, el programa avisa "Datos
 inválidos" y no deja guardar.
 
-**Nada se edita ni se borra — solo se agrega:** cuando cambias un valor legal, no estás corrigiendo la
-fila anterior, estás agregando una fila nueva. La fila vieja se queda intacta para siempre, para que
-cualquier liquidación calculada en el pasado (ver [sección 5.13](#513-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada))
-se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
-Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
-vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
+**Los valores de fábrica nunca se editan ni se borran — solo se agregan:** cuando cambias un valor legal
+que trae la app de fábrica, no estás corrigiendo la fila anterior, estás agregando una fila nueva. La fila
+vieja se queda intacta para siempre, para que cualquier liquidación calculada en el pasado (ver
+[sección 5.13](#513-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada)) se pueda
+reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy. Los
+valores que tú mismo agregas sí puedes editarlos o eliminarlos después (ver más abajo) — la protección de
+"solo agregar" aplica exclusivamente a los valores de fábrica. Para ver el historial completo de un
+parámetro (todos los valores que ha tenido, con su fecha de vigencia, quién lo agregó y el motivo), haz
+**doble clic** sobre su fila en la tabla principal.
 
 **Caso especial: el índice IPC acumulado.** Es el único de los parámetros cuyo valor se calcula con una
 fórmula, a partir de la variación % anual del IPC (índice = índice del año anterior × (1 + variación
