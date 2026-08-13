@@ -226,8 +226,9 @@ class ParametroFormDialog(QDialog):
             self._contenedor_areas,
             tooltip=(
                 "Area(s) del derecho a las que aplica este valor (puede marcar varias). Se "
-                "preselecciona segun la clave elegida; no se puede editar despues de "
-                "guardar."
+                "preselecciona segun la clave elegida. Para un valor de fabrica no se puede "
+                "editar despues de guardar; para uno que agregues tu, si podras editarla "
+                "despues desde el historial (boton Editar)."
             ),
         )
         # "Unidad" recibe el icono (i) explicito (Sprint 59, helper compartido
@@ -251,8 +252,9 @@ class ParametroFormDialog(QDialog):
             _contenedor_unidad_y_otros,
             tooltip=(
                 "Unidad de medida del valor, sugerida automaticamente segun la clave "
-                "elegida. Si no aparece en la lista, elige 'Otros...' y escribela. No "
-                "se puede editar despues de guardar."
+                "elegida. Si no aparece en la lista, elige 'Otros...' y escribela. Para "
+                "un valor de fabrica no se puede editar despues de guardar; para uno que "
+                "agregues tu, si podras editarla despues desde el historial."
             ),
             ejemplo="%, COP, meses, índice",
         )
@@ -262,7 +264,9 @@ class ParametroFormDialog(QDialog):
             self.campo_usuario,
             tooltip=(
                 "Nombre de quien registra este valor, para la bitacora de auditoria del "
-                "parametro (no se puede editar ni borrar despues)."
+                "parametro. Los valores de fabrica quedan protegidos para siempre; un "
+                "valor que agregues tu si podras editarlo o eliminarlo despues desde el "
+                "historial."
             ),
         )
         self._contenedor_campo_motivo = agregar_ayuda(
