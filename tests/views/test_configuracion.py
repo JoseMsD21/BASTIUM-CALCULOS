@@ -761,3 +761,49 @@ def test_parametros_view_sin_enlace_ver_historial_con_una_sola_fila(qtbot):
 
     fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
     assert vista.tabla.item(fila_usura, 2).text() == "1.5"
+
+
+# --- Task 7: ParametroFormDialog en modo edicion (parametro_id) ---
+
+
+def test_parametro_form_dialog_modo_edicion_precarga_los_campos(qtbot):
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+        motivo="motivo original",
+    )
+
+    dialogo = ParametroFormDialog(parametro_id=fila.id)
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.windowTitle() == "Editar valor de parametro"
+    assert dialogo.combo_clave.currentData() == "USURA_MULTIPLICADOR"
+    assert dialogo.combo_clave.isEnabled() is False
+    assert dialogo.campo_valor.text() == "1.5"
+    assert dialogo.campo_usuario.text() == "abogado1"
+    assert dialogo.campo_motivo.text() == "motivo original"
+    assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is True
+
+
+def test_parametro_form_dialog_modo_edicion_guarda_actualiza_no_crea(qtbot):
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    dialogo = ParametroFormDialog(parametro_id=fila.id)
+    qtbot.addWidget(dialogo)
+    dialogo.campo_valor.setText("9.9")
+    dialogo.guardar()
+
+    filas = historial("USURA_MULTIPLICADOR")
+    assert len(filas) == 1
+    assert filas[0].valor == Decimal("9.9")

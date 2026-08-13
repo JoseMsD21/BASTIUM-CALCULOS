@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+import database.session as session_module
 from app.core.constants import AREAS_DERECHO
 from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
 from app.services.parametro_service import (
@@ -28,6 +29,7 @@ from app.services.parametro_service import (
     CLAVE_CRUDA_DE,
     ModoResolucion,
     agregar_valor,
+    editar_valor,
     historial,
     valor_vigente_hoy,
     vigencia_hasta_mostrar,
@@ -76,10 +78,19 @@ def _texto_areas(fila: ParametroLegal | None) -> str:
 
 
 class ParametroFormDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, parametro_id: int | None = None):
         super().__init__(parent)
         hacer_redimensionable(self)
-        self.setWindowTitle("Agregar valor de parametro")
+        # Task 7 (sprint "Parametros: editar/eliminar de usuario"): pasar
+        # `parametro_id` conmuta el dialogo a modo edicion -- precarga los
+        # campos de la fila existente (_precargar_desde_parametro, al final de
+        # este __init__) y hace que guardar() llame a editar_valor() en vez de
+        # agregar_valor(). None (por defecto) preserva el comportamiento de
+        # creacion de siempre.
+        self._parametro_id = parametro_id
+        self.setWindowTitle(
+            "Editar valor de parametro" if parametro_id else "Agregar valor de parametro"
+        )
 
         self.combo_clave = QComboBox()
         for clave, info in CATALOGO_PARAMETROS.items():
@@ -270,6 +281,52 @@ class ParametroFormDialog(QDialog):
         self._actualizar_visibilidad_vigente_hasta()
         self._actualizar_area_unidad_sugeridas()
 
+        if parametro_id is not None:
+            self._precargar_desde_parametro(parametro_id)
+
+    def _precargar_desde_parametro(self, parametro_id: int) -> None:
+        """Precarga todos los campos del formulario desde una `ParametroLegal`
+        ya guardada (Task 7) -- espejo, campo por campo, de lo que guardar()
+        ya lee del formulario para construir los kwargs de editar_valor().
+        Se llama una sola vez, al final de __init__, despues de que
+        _actualizar_area_unidad_sugeridas() ya corrio (disparada por el
+        combo_clave.setCurrentIndex() de abajo) para poder pisar su propuesta
+        automatica con los valores REALES ya guardados en la fila -- mismo
+        orden que usa ObligacionFormDialog._precargar_desde_obligacion. La
+        clave (`clave`) no es editable en modo edicion (editar_valor() no la
+        recibe), asi que combo_clave se deshabilita tras fijar su valor."""
+        session = session_module.get_session()
+        try:
+            fila = session.get(ParametroLegal, parametro_id)
+            clave, valor, vigente_desde = fila.clave, fila.valor, fila.vigente_desde
+            vigente_hasta, usuario, motivo = fila.vigente_hasta, fila.usuario, fila.motivo
+            unidad, areas = fila.unidad, deserializar_areas(fila.areas_derecho or "[]")
+        finally:
+            session.close()
+
+        self.combo_clave.setCurrentIndex(self.combo_clave.findData(clave))
+        self.combo_clave.setEnabled(False)
+        self.campo_valor.setText(str(valor))
+        self.campo_vigente_desde.setDate(
+            QDate(vigente_desde.year, vigente_desde.month, vigente_desde.day)
+        )
+        if vigente_hasta is not None:
+            self.campo_vigente_hasta.setDate(
+                QDate(vigente_hasta.year, vigente_hasta.month, vigente_hasta.day)
+            )
+        self.campo_usuario.setText(usuario)
+        self.campo_motivo.setText(motivo or "")
+        areas_set = set(areas)
+        for area, casilla in self.casillas_area.items():
+            casilla.setChecked(area in areas_set)
+        if unidad is not None:
+            indice_unidad = self.campo_unidad.findText(unidad)
+            if indice_unidad >= 0:
+                self.campo_unidad.setCurrentIndex(indice_unidad)
+            else:
+                self.campo_unidad.setCurrentText("Otros...")
+                self._campo_unidad_otros.setText(unidad)
+
     def _actualizar_area_unidad_sugeridas(self) -> None:
         """Preselecciona las casillas de area y pre-rellena la unidad segun
         AREA_UNIDAD_POR_CLAVE para la clave elegida -- el usuario puede
@@ -348,6 +405,17 @@ class ParametroFormDialog(QDialog):
         else:
             unidad = self.campo_unidad.currentText()
 
+        if self._parametro_id is not None:
+            return editar_valor(
+                self._parametro_id,
+                valor=valor,
+                vigente_desde=vigente_desde,
+                usuario=usuario,
+                areas_derecho=areas_derecho,
+                unidad=unidad,
+                motivo=motivo,
+                vigente_hasta=vigente_hasta,
+            )
         return agregar_valor(
             clave=clave,
             valor=valor,
