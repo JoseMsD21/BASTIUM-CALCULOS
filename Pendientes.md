@@ -4748,6 +4748,23 @@ revirtiendo el fix y confirmando que el test nuevo falla con el falso positivo e
 el código correcto. Suite completa en verde (1083 tests al cierre del sprint propio; ver Sprint 58 para el
 fix de integración final que llevó el total a 1086).
 
+**🔴 Segundo bug real en producción, encontrado y corregido (2026-08-12):** el usuario reportó
+`sqlalchemy.orm.exc.UnmappedInstanceError: Class 'builtins.NoneType' is not mapped` al pulsar "Eliminar"
+sobre un abono, repetido varias veces. Causa raíz: `_eliminar_obligacion` borra en cascada
+`abonos`/`eventos_laborales`/`descuentos_laborales` en la base de datos
+(`cascade="all, delete-orphan"`), pero solo llamaba `_refrescar_obligaciones()` — las otras 3 tablas se
+quedaban mostrando filas fantasma con botones "Editar"/"Eliminar" todavía conectados a ids ya inexistentes;
+un clic ahí hacía `session.get(...)` → `None` → `session.delete(None)` → crash. Ninguno de los 5 métodos
+de editar/eliminar de `expediente_detalle.py` verificaba que la fila siguiera existiendo antes de operar.
+El test que ya existía para esta cascada (`test_eliminar_obligacion_con_abonos_los_elimina_en_cascada`)
+solo verificaba el estado de la base de datos, nunca el estado de la tabla en pantalla — por eso pasó la
+revisión de spec/calidad/integración sin detectar el problema. Corregido: `_eliminar_obligacion` ahora
+refresca las 4 tablas relacionadas, no solo la propia; se agregó verificación defensiva (aviso amigable en
+vez de traceback) en los 5 métodos de editar/eliminar (`_eliminar_obligacion`, `_editar_abono`,
+`_eliminar_abono`, `_editar_evento_laboral`, `_eliminar_evento_laboral`). 5 tests de regresión nuevos,
+verificados fallando contra el código anterior con el mismo error exacto reportado. Suite completa en
+verde (1092 tests).
+
 ---
 
 ## Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión
