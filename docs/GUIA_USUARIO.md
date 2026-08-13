@@ -647,9 +647,10 @@ columnas:
   la Tasa de Usura (los únicos dos con un rango de vigencia guardado explícitamente) muestran su fecha
   real. El resto de parámetros, que no tienen fecha de cierre, muestran "Indefinido".
 - **Área**: el área o áreas del derecho a las que aplica ese parámetro (ej. "Civil / Familia,
-  Comercial"), asignadas al agregar el valor y no editables después.
+  Comercial"), asignadas al agregar el valor. Para los valores de fábrica no se pueden cambiar después;
+  para los que tú mismo agregaste, sí (ver "Editar y eliminar valores que tú mismo cargaste" más abajo).
 - **Unidad**: la unidad de medida del valor (ej. "%", "COP", "meses", "índice"), también asignada al
-  agregar el valor y no editable después.
+  agregar el valor, con la misma regla: fija para los valores de fábrica, editable para los tuyos.
 
 **Cómo agregar un valor nuevo:**
 
@@ -659,18 +660,20 @@ columnas:
    - **Valor**: el número nuevo (ej. `1.5` para el multiplicador de usura, o `1300000` para un SMLMV).
    - **Vigente desde**: la fecha a partir de la cual rige este valor (para SMLMV, IPC o UVT, lee la
      advertencia más abajo **antes** de guardar).
-   - **Vigente hasta**: **este campo solo aparece para dos parámetros** — el Interés Bancario Corriente
-     (IBC, línea Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores
-     históricos". Para todos los demás parámetros el campo está oculto y no aplica: el valor rige desde
-     "Vigente desde" hacia adelante, sin fecha de corte, hasta que se agregue un valor más nuevo.
+   - **Vigente hasta**: **solo aplica a dos parámetros** — el Interés Bancario Corriente (IBC, línea
+     Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores históricos". El
+     campo siempre está visible, pero para todos los demás parámetros aparece deshabilitado (en gris) con
+     una nota explicando por qué: el valor rige desde "Vigente desde" hacia adelante, sin fecha de corte,
+     hasta que se agregue un valor más nuevo.
    - **Área(s) del derecho**: una casilla de verificación por cada área (Civil / Familia, Comercial,
      Laboral, Sancionatorio, Honorarios / Litigio, Tributario) — marca una o varias, según a cuál(es)
      aplica este parámetro. El programa preselecciona la propuesta más probable en cuanto eliges el
-     parámetro en el campo de arriba; puedes ajustarla antes de guardar, pero **no se puede cambiar
-     después de guardado** — ni con doble clic ni de ninguna otra forma.
+     parámetro en el campo de arriba; puedes ajustarla antes de guardar. Para un valor que trae la app de
+     fábrica, ya no se puede cambiar después de guardado; para uno que agregaste tú, sí puedes editarla
+     después (ver "Editar y eliminar valores que tú mismo cargaste" más abajo).
    - **Unidad**: la unidad de medida del valor (ej. `%`, `COP`, `meses`, `índice`). Igual que el área, el
-     programa la pre-rellena según el parámetro elegido y se puede ajustar antes de guardar, pero **no
-     después**.
+     programa la pre-rellena según el parámetro elegido y se puede ajustar antes de guardar, con la misma
+     regla: fija para los valores de fábrica, editable después para los que agregaste tú.
    - **Usuario**: tu nombre o usuario, para que quede registrado quién hizo el cambio. Es obligatorio.
    - **Motivo (opcional)**: por qué se agrega este valor (ej. "Actualización SMLMV 2027, Decreto XXXX").
      No es obligatorio, pero se recomienda diligenciarlo — queda guardado para siempre junto con el valor.
@@ -704,12 +707,15 @@ columnas:
 Si dejas el campo Usuario vacío, o escribes un valor que no es un número, el programa avisa "Datos
 inválidos" y no deja guardar.
 
-**Nada se edita ni se borra — solo se agrega:** cuando cambias un valor legal, no estás corrigiendo la
-fila anterior, estás agregando una fila nueva. La fila vieja se queda intacta para siempre, para que
-cualquier liquidación calculada en el pasado (ver [sección 5.13](#513-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada))
-se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
-Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
-vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
+**Los valores de fábrica nunca se editan ni se borran — solo se agregan:** cuando cambias un valor legal
+que trae la app de fábrica, no estás corrigiendo la fila anterior, estás agregando una fila nueva. La fila
+vieja se queda intacta para siempre, para que cualquier liquidación calculada en el pasado (ver
+[sección 5.13](#513-ver-el-historial-de-auditoría-y-reconstruir-una-liquidación-pasada)) se pueda
+reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy. Los
+valores que tú mismo agregas sí puedes editarlos o eliminarlos después (ver más abajo) — la protección de
+"solo agregar" aplica exclusivamente a los valores de fábrica. Para ver el historial completo de un
+parámetro (todos los valores que ha tenido, con su fecha de vigencia, quién lo agregó y el motivo), haz
+**doble clic** sobre su fila en la tabla principal.
 
 **Caso especial: el índice IPC acumulado.** Es el único de los parámetros cuyo valor se calcula con una
 fórmula, a partir de la variación % anual del IPC (índice = índice del año anterior × (1 + variación
@@ -723,6 +729,20 @@ ya no vive en esta pantalla — se movió a la sección **"Apariencia"** de "⚙
 (incluida la gráfica del Dashboard, que recalcula sus colores para seguir siendo legible), o desmárcalo
 para volver al tema claro de siempre — el cambio se aplica de inmediato, sin reiniciar el programa, y
 queda recordado para la próxima vez que abras BASTIUM.
+
+**Editar y eliminar valores que tú mismo cargaste:** dentro del historial de una clave (doble clic sobre
+su fila en la tabla), cada valor que tú hayas agregado tiene sus propios botones "Editar" y "Eliminar" —
+los valores que trae la app de fábrica no los tienen, para que nunca se puedan tocar por accidente.
+Editar permite cambiar el valor, las fechas de vigencia, las áreas del derecho, la unidad, el usuario y el
+motivo (no la clave del parámetro); eliminar borra el valor definitivamente, sin papelera.
+
+**Vigente hasta / Indefinido:** al agregar un valor nuevo, el campo "Vigente hasta" ahora explica por qué
+está deshabilitado cuando no aplica — solo los parámetros de "rango cerrado" (ej. tramos históricos de
+IBC/usura) piden una fecha de fin real; el resto queda vigente indefinidamente hasta que cargues un valor
+nuevo.
+
+**Unidad:** ahora es un desplegable con las unidades ya usadas (%, COP, meses, índice, veces, puntos); si
+ninguna aplica, elige "Otros..." para escribir la que corresponda.
 
 ### 5.15. Agregar una obligación tributaria
 

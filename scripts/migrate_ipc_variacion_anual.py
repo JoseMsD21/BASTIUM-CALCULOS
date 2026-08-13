@@ -98,6 +98,7 @@ def _sembrar(session) -> int:
                     creado_en=datetime.now(),
                     areas_derecho=areas_json,
                     unidad=unidad,
+                    creado_por_sistema=True,
                 )
             )
         session.commit()

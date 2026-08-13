@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+import database.session as session_module
 from app.core.constants import AREAS_DERECHO
 from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
 from app.services.parametro_service import (
@@ -28,11 +29,13 @@ from app.services.parametro_service import (
     CLAVE_CRUDA_DE,
     ModoResolucion,
     agregar_valor,
+    editar_valor,
+    eliminar_valor,
     historial,
     valor_vigente_hoy,
     vigencia_hasta_mostrar,
 )
-from app.views.form_utils import agregar_ayuda, hacer_redimensionable, set_row_visible
+from app.views.form_utils import agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
 from database.models import AreaDerecho, ParametroLegal
 
@@ -76,37 +79,49 @@ def _texto_areas(fila: ParametroLegal | None) -> str:
 
 
 class ParametroFormDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, parametro_id: int | None = None):
         super().__init__(parent)
         hacer_redimensionable(self)
-        self.setWindowTitle("Agregar valor de parametro")
+        # Task 7 (sprint "Parametros: editar/eliminar de usuario"): pasar
+        # `parametro_id` conmuta el dialogo a modo edicion -- precarga los
+        # campos de la fila existente (_precargar_desde_parametro, al final de
+        # este __init__) y hace que guardar() llame a editar_valor() en vez de
+        # agregar_valor(). None (por defecto) preserva el comportamiento de
+        # creacion de siempre.
+        self._parametro_id = parametro_id
+        self.setWindowTitle(
+            "Editar valor de parametro" if parametro_id else "Agregar valor de parametro"
+        )
 
         self.combo_clave = QComboBox()
-        self.combo_clave.setToolTip(
-            "Clave del parametro legal a versionar; la descripcion entre parentesis "
-            "identifica que mide (ej. 'Tasa de interes civil legal anual "
-            "(CIVIL_ANNUAL_RATE)')."
-        )
         for clave, info in CATALOGO_PARAMETROS.items():
             self.combo_clave.addItem(f"{info.descripcion} ({clave})", userData=clave)
 
         self.campo_valor = QLineEdit()
-        self.campo_valor.setToolTip(
-            "Valor numerico vigente para la clave elegida, en la unidad indicada abajo. "
-            "Ejemplo: 6.00 para una tasa del 6%, o 1300000 para un SMLMV en pesos."
-        )
         self.campo_vigente_desde = QDateEdit(QDate.currentDate())
         self.campo_vigente_desde.setCalendarPopup(True)
-        self.campo_vigente_desde.setToolTip(
-            "Fecha desde la que este valor empieza a regir (normalmente la fecha del "
-            "decreto o resolucion). Ejemplo: 2024-01-01."
-        )
         self.campo_vigente_hasta = QDateEdit(QDate.currentDate())
         self.campo_vigente_hasta.setCalendarPopup(True)
         self.campo_vigente_hasta.setToolTip(
-            "Fecha hasta la que este valor rigio; solo aplica a parametros con un "
+            "Fecha hasta la que este valor rige; solo aplica a parametros con un "
             "rango de vigencia cerrado (ej. tramos historicos de tasas certificadas)."
         )
+        self.casilla_indefinido = QCheckBox("Indefinido")
+        self.casilla_indefinido.setToolTip(
+            "Este parametro requiere una fecha de fin (modo TRAMO_CERRADO) -- no puede "
+            "quedar indefinido."
+        )
+        self._nota_vigente_hasta = QLabel()
+        self._nota_vigente_hasta.setWordWrap(True)
+
+        _contenedor_vigente_hasta = QWidget()
+        _layout_vigente_hasta = QVBoxLayout(_contenedor_vigente_hasta)
+        _layout_vigente_hasta.setContentsMargins(0, 0, 0, 0)
+        _fila_fecha_e_indefinido = QHBoxLayout()
+        _fila_fecha_e_indefinido.addWidget(self.campo_vigente_hasta)
+        _fila_fecha_e_indefinido.addWidget(self.casilla_indefinido)
+        _layout_vigente_hasta.addLayout(_fila_fecha_e_indefinido)
+        _layout_vigente_hasta.addWidget(self._nota_vigente_hasta)
 
         # Casillas de area del derecho (Sprint 57): una por AreaDerecho,
         # preseleccionadas segun AREA_UNIDAD_POR_CLAVE cuando cambia la clave
@@ -116,10 +131,6 @@ class ParametroFormDialog(QDialog):
         # depender del orden de iteracion.
         self.casillas_area: dict[AreaDerecho, QCheckBox] = {}
         self._contenedor_areas = QWidget()
-        self._contenedor_areas.setToolTip(
-            "Area(s) del derecho a las que aplica este valor (puede marcar varias). Se "
-            "preselecciona segun la clave elegida; no se puede editar despues de guardar."
-        )
         _layout_areas = QVBoxLayout(self._contenedor_areas)
         _layout_areas.setContentsMargins(0, 0, 0, 0)
         for codigo, etiqueta, _habilitada in AREAS_DERECHO:
@@ -127,18 +138,25 @@ class ParametroFormDialog(QDialog):
             self.casillas_area[AreaDerecho(codigo)] = casilla
             _layout_areas.addWidget(casilla)
 
-        self.campo_unidad = QLineEdit()
+        # "Unidad" es un desplegable con las unidades conocidas del catalogo
+        # mas un escape hatch "Otros..." para el resto (Sprint "Parametros:
+        # editar/eliminar de usuario", Task 5): antes era un QLineEdit libre,
+        # lo que permitia errores de tipeo (ej. "COP" vs "cop" vs "pesos")
+        # para el mismo significado. El campo de texto _campo_unidad_otros
+        # solo se revela cuando se elige "Otros..." (_actualizar_visibilidad_
+        # unidad_otros), y campo_unidad.findText(...) devuelve -1 para
+        # cualquier valor fuera de la lista fija -- usado tanto para
+        # preseleccionar segun la clave (_actualizar_area_unidad_sugeridas)
+        # como, en el futuro, para precargar una unidad guardada en modo
+        # edicion.
+        self.campo_unidad = QComboBox()
+        self.campo_unidad.addItems(["%", "COP", "meses", "índice", "veces", "puntos", "Otros..."])
+        self._campo_unidad_otros = QLineEdit()
+        self._campo_unidad_otros.setPlaceholderText("Escribe la unidad")
+        self.campo_unidad.currentTextChanged.connect(self._actualizar_visibilidad_unidad_otros)
 
         self.campo_usuario = QLineEdit()
-        self.campo_usuario.setToolTip(
-            "Nombre de quien registra este valor, para la bitacora de auditoria del "
-            "parametro (no se puede editar ni borrar despues)."
-        )
         self.campo_motivo = QLineEdit()
-        self.campo_motivo.setToolTip(
-            "Justificacion o fuente del cambio, para dejar constancia del porque de "
-            "este valor. Ejemplo: 'Decreto 2613 de 2023, ajuste SMLMV 2024'."
-        )
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
@@ -154,33 +172,112 @@ class ParametroFormDialog(QDialog):
         self.atajo_guardar = QShortcut(QKeySequence("Ctrl+S"), self)
         self.atajo_guardar.activated.connect(self._guardar_y_cerrar)
 
-        # Guardado como atributo (en vez de variable local `layout`) para que
-        # _actualizar_visibilidad_vigente_hasta pueda ocultar la fila completa
-        # (etiqueta + campo) con set_row_visible (Sprint 39) en vez de solo el
-        # QDateEdit.
+        # Guardado como atributo (en vez de variable local `layout`) por si
+        # otros metodos de la clase necesitan referenciar filas del formulario.
         self._layout_formulario = QFormLayout()
-        self._layout_formulario.addRow("Parametro", self.combo_clave)
-        self._layout_formulario.addRow("Valor", self.campo_valor)
-        self._layout_formulario.addRow("Vigente desde", self.campo_vigente_desde)
-        self._layout_formulario.addRow("Vigente hasta", self.campo_vigente_hasta)
-        self._layout_formulario.addRow("Área(s) del derecho", self._contenedor_areas)
+        # Task 6 (sprint "Parametros: editar/eliminar de usuario"): homologa
+        # TODOS los campos del formulario a agregar_ayuda -- antes solo
+        # "Unidad" (Task 5) y, de sprints previos, "Área(s) del derecho"
+        # (envuelta abajo) usaban el icono (i); el resto tenia el tooltip
+        # puesto directamente en el widget via .setToolTip(), inconsistente
+        # con el resto. Cada .setToolTip() suelto sobre estos widgets se
+        # elimino arriba: el tooltip vive ahora solo en el icono devuelto por
+        # agregar_ayuda.
+        self._contenedor_combo_clave = agregar_ayuda(
+            self._layout_formulario,
+            "Parametro",
+            self.combo_clave,
+            tooltip=(
+                "Clave del parametro legal a versionar; la descripcion entre parentesis "
+                "identifica que mide (ej. 'Tasa de interes civil legal anual "
+                "(CIVIL_ANNUAL_RATE)')."
+            ),
+        )
+        self._contenedor_campo_valor = agregar_ayuda(
+            self._layout_formulario,
+            "Valor",
+            self.campo_valor,
+            tooltip=(
+                "Valor numerico vigente para la clave elegida, en la unidad indicada abajo. "
+                "Ejemplo: 6.00 para una tasa del 6%, o 1300000 para un SMLMV en pesos."
+            ),
+        )
+        self._contenedor_campo_vigente_desde = agregar_ayuda(
+            self._layout_formulario,
+            "Vigente desde",
+            self.campo_vigente_desde,
+            tooltip=(
+                "Fecha desde la que este valor empieza a regir (normalmente la fecha del "
+                "decreto o resolucion). Ejemplo: 2024-01-01."
+            ),
+        )
+        self._contenedor_vigente_hasta_con_ayuda = agregar_ayuda(
+            self._layout_formulario,
+            "Vigente hasta",
+            _contenedor_vigente_hasta,
+            tooltip=(
+                "Fecha hasta la que este valor rige; solo aplica a parametros con un "
+                "rango de vigencia cerrado (ej. tramos historicos de tasas certificadas)."
+            ),
+        )
+        self._contenedor_areas_con_ayuda = agregar_ayuda(
+            self._layout_formulario,
+            "Área(s) del derecho",
+            self._contenedor_areas,
+            tooltip=(
+                "Area(s) del derecho a las que aplica este valor (puede marcar varias). Se "
+                "preselecciona segun la clave elegida. Para un valor de fabrica no se puede "
+                "editar despues de guardar; para uno que agregues tu, si podras editarla "
+                "despues desde el historial (boton Editar)."
+            ),
+        )
         # "Unidad" recibe el icono (i) explicito (Sprint 59, helper compartido
         # agregar_ayuda): se pre-rellena segun la clave elegida
         # (_actualizar_area_unidad_sugeridas), asi que el icono deja claro que es una
         # propuesta editable, no un valor fijo -- mismo patron que "Tasa efectiva
         # anual" en ObligacionFormDialog para un campo con valor por defecto.
+        # El contenedor agrupa el desplegable y el campo "Otros..." (oculto salvo
+        # que se elija esa opcion) para que ambos viajen juntos como un solo
+        # widget de fila (Task 5) -- agregar_ayuda no necesita saber que hay dos
+        # controles adentro, solo envuelve lo que se le pase.
+        _contenedor_unidad_y_otros = QWidget()
+        _layout_unidad_y_otros = QVBoxLayout(_contenedor_unidad_y_otros)
+        _layout_unidad_y_otros.setContentsMargins(0, 0, 0, 0)
+        _layout_unidad_y_otros.addWidget(self.campo_unidad)
+        _layout_unidad_y_otros.addWidget(self._campo_unidad_otros)
+        self._campo_unidad_otros.setVisible(False)
         self._contenedor_campo_unidad = agregar_ayuda(
             self._layout_formulario,
             "Unidad",
-            self.campo_unidad,
+            _contenedor_unidad_y_otros,
             tooltip=(
                 "Unidad de medida del valor, sugerida automaticamente segun la clave "
-                "elegida. No se puede editar despues de guardar."
+                "elegida. Si no aparece en la lista, elige 'Otros...' y escribela. Para "
+                "un valor de fabrica no se puede editar despues de guardar; para uno que "
+                "agregues tu, si podras editarla despues desde el historial."
             ),
             ejemplo="%, COP, meses, índice",
         )
-        self._layout_formulario.addRow("Usuario", self.campo_usuario)
-        self._layout_formulario.addRow("Motivo (opcional)", self.campo_motivo)
+        self._contenedor_campo_usuario = agregar_ayuda(
+            self._layout_formulario,
+            "Usuario",
+            self.campo_usuario,
+            tooltip=(
+                "Nombre de quien registra este valor, para la bitacora de auditoria del "
+                "parametro. Los valores de fabrica quedan protegidos para siempre; un "
+                "valor que agregues tu si podras editarlo o eliminarlo despues desde el "
+                "historial."
+            ),
+        )
+        self._contenedor_campo_motivo = agregar_ayuda(
+            self._layout_formulario,
+            "Motivo (opcional)",
+            self.campo_motivo,
+            tooltip=(
+                "Justificacion o fuente del cambio, para dejar constancia del porque de "
+                "este valor. Ejemplo: 'Decreto 2613 de 2023, ajuste SMLMV 2024'."
+            ),
+        )
         self._layout_formulario.addRow(self.boton_guardar)
         self.setLayout(self._layout_formulario)
 
@@ -188,6 +285,55 @@ class ParametroFormDialog(QDialog):
         self.combo_clave.currentIndexChanged.connect(self._actualizar_area_unidad_sugeridas)
         self._actualizar_visibilidad_vigente_hasta()
         self._actualizar_area_unidad_sugeridas()
+
+        if parametro_id is not None:
+            self._precargar_desde_parametro(parametro_id)
+
+    def _precargar_desde_parametro(self, parametro_id: int) -> None:
+        """Precarga todos los campos del formulario desde una `ParametroLegal`
+        ya guardada (Task 7) -- espejo, campo por campo, de lo que guardar()
+        ya lee del formulario para construir los kwargs de editar_valor().
+        Se llama una sola vez, al final de __init__, despues de que
+        _actualizar_area_unidad_sugeridas() ya corrio (disparada por el
+        combo_clave.setCurrentIndex() de abajo) para poder pisar su propuesta
+        automatica con los valores REALES ya guardados en la fila -- mismo
+        orden de "override" que usa ObligacionFormDialog._precargar_desde_obligacion
+        (el manejo de la sesion en si difiere: aqui se extraen los campos y se
+        cierra la sesion antes de tocar los widgets, en vez de mantenerla
+        abierta mientras se pueblan). La clave (`clave`) no es editable en
+        modo edicion (editar_valor() no la recibe), asi que combo_clave se
+        deshabilita tras fijar su valor."""
+        session = session_module.get_session()
+        try:
+            fila = session.get(ParametroLegal, parametro_id)
+            clave, valor, vigente_desde = fila.clave, fila.valor, fila.vigente_desde
+            vigente_hasta, usuario, motivo = fila.vigente_hasta, fila.usuario, fila.motivo
+            unidad, areas = fila.unidad, deserializar_areas(fila.areas_derecho or "[]")
+        finally:
+            session.close()
+
+        self.combo_clave.setCurrentIndex(self.combo_clave.findData(clave))
+        self.combo_clave.setEnabled(False)
+        self.campo_valor.setText(str(valor))
+        self.campo_vigente_desde.setDate(
+            QDate(vigente_desde.year, vigente_desde.month, vigente_desde.day)
+        )
+        if vigente_hasta is not None:
+            self.campo_vigente_hasta.setDate(
+                QDate(vigente_hasta.year, vigente_hasta.month, vigente_hasta.day)
+            )
+        self.campo_usuario.setText(usuario)
+        self.campo_motivo.setText(motivo or "")
+        areas_set = set(areas)
+        for area, casilla in self.casillas_area.items():
+            casilla.setChecked(area in areas_set)
+        if unidad is not None:
+            indice_unidad = self.campo_unidad.findText(unidad)
+            if indice_unidad >= 0:
+                self.campo_unidad.setCurrentIndex(indice_unidad)
+            else:
+                self.campo_unidad.setCurrentText("Otros...")
+                self._campo_unidad_otros.setText(unidad)
 
     def _actualizar_area_unidad_sugeridas(self) -> None:
         """Preselecciona las casillas de area y pre-rellena la unidad segun
@@ -199,19 +345,40 @@ class ParametroFormDialog(QDialog):
         areas_sugeridas_set = set(areas_sugeridas)
         for area, casilla in self.casillas_area.items():
             casilla.setChecked(area in areas_sugeridas_set)
-        self.campo_unidad.setText(unidad_sugerida)
+        indice_unidad = self.campo_unidad.findText(unidad_sugerida)
+        self.campo_unidad.setCurrentIndex(indice_unidad if indice_unidad >= 0 else 0)
+
+    def _actualizar_visibilidad_unidad_otros(self, texto: str) -> None:
+        """Revela `_campo_unidad_otros` solo cuando se elige 'Otros...' en el
+        desplegable -- escape hatch para unidades fuera de la lista fija
+        (Task 5)."""
+        self._campo_unidad_otros.setVisible(texto == "Otros...")
 
     def _actualizar_visibilidad_vigente_hasta(self) -> None:
+        """Nombre del método sin cambios (evita re-cablear sus 2 call sites:
+        __init__ y combo_clave.currentIndexChanged), pero el comportamiento sí
+        cambió (Sprint "Parametros: editar/eliminar de usuario"): la fila
+        "Vigente hasta" ya NO se oculta según el modo -- se deshabilita, con
+        una nota explicando por qué,
+        para que el usuario entienda la regla en vez de ver el campo
+        desaparecer sin explicación. `casilla_indefinido` (TRAMO_CERRADO)
+        queda siempre deshabilitada porque ese modo siempre exige una fecha
+        real (agregar_valor la rechaza si falta) -- existe solo para que las
+        3 combinaciones de modo compartan un mismo patrón visual (campo +
+        nota), no porque hoy sea usable."""
         clave = self.combo_clave.currentData()
         info = CATALOGO_PARAMETROS[clave]
-        # set_row_visible (no campo_vigente_hasta.setVisible() suelto) para que la
-        # etiqueta "Vigente hasta" generada por addRow(str, widget) se oculte junto
-        # con el campo -- de lo contrario queda una fila huerfana (Sprint 39).
-        set_row_visible(
-            self._layout_formulario,
-            self.campo_vigente_hasta,
-            info.modo == ModoResolucion.TRAMO_CERRADO,
-        )
+        es_tramo_cerrado = info.modo == ModoResolucion.TRAMO_CERRADO
+        self.campo_vigente_hasta.setEnabled(es_tramo_cerrado)
+        self.casilla_indefinido.setEnabled(False)
+        if es_tramo_cerrado:
+            self._nota_vigente_hasta.setText("")
+        else:
+            self._nota_vigente_hasta.setText(
+                f"Este parámetro no vence en una fecha fija (modo {info.modo.value}) — "
+                "el valor rige indefinidamente hasta que se cargue uno nuevo con una "
+                "fecha 'Vigente desde' posterior."
+            )
 
     def guardar(self):
         clave = self.combo_clave.currentData()
@@ -241,8 +408,22 @@ class ParametroFormDialog(QDialog):
         areas_derecho = [
             area for area, casilla in self.casillas_area.items() if casilla.isChecked()
         ]
-        unidad = self.campo_unidad.text().strip()
+        if self.campo_unidad.currentText() == "Otros...":
+            unidad = self._campo_unidad_otros.text().strip()
+        else:
+            unidad = self.campo_unidad.currentText()
 
+        if self._parametro_id is not None:
+            return editar_valor(
+                self._parametro_id,
+                valor=valor,
+                vigente_desde=vigente_desde,
+                usuario=usuario,
+                areas_derecho=areas_derecho,
+                unidad=unidad,
+                motivo=motivo,
+                vigente_hasta=vigente_hasta,
+            )
         return agregar_valor(
             clave=clave,
             valor=valor,
@@ -299,31 +480,34 @@ class HistorialParametroDialog(QDialog):
         if clave_cruda is not None:
             etiqueta_columna_cruda, formula_texto = self._PRESENTACION_DATO_CRUDO[clave]
 
+        # Task 8 (sprint "Parametros: editar/eliminar de usuario"): 2 columnas
+        # finales, Editar/Eliminar, agregadas SIEMPRE despues de la columna
+        # opcional de dato crudo (si la clave la tiene) -- los indices se
+        # calculan una sola vez aqui (self._indice_columna_editar/eliminar) en
+        # vez de hardcodear 5/6 en _refrescar(), para que la posicion siga
+        # siendo correcta tanto para claves con dato crudo (6 columnas antes +
+        # estas 2 = indices 6/7) como sin el (5 columnas antes + estas 2 =
+        # indices 5/6).
         columnas = ["Valor", "Vigente desde", "Vigente hasta", "Usuario", "Motivo"]
         if etiqueta_columna_cruda is not None:
             columnas = [*columnas, etiqueta_columna_cruda]
+        columnas = [*columnas, "Editar", "Eliminar"]
+        self._indice_columna_editar = len(columnas) - 2
+        self._indice_columna_eliminar = len(columnas) - 1
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        filas = historial(clave)
-        variacion_por_anio: dict[int, str] = {}
+        self._clave = clave
+        self._info = info
+        self._clave_cruda = clave_cruda
+        self._variacion_por_anio: dict[int, str] = {}
         if clave_cruda is not None:
-            variacion_por_anio = {
+            self._variacion_por_anio = {
                 fila_cruda.vigente_desde.year: str(fila_cruda.valor)
                 for fila_cruda in historial(clave_cruda)
             }
-
-        self.tabla.setRowCount(len(filas))
-        for fila_idx, fila in enumerate(filas):
-            self.tabla.setItem(fila_idx, 0, QTableWidgetItem(str(fila.valor)))
-            self.tabla.setItem(fila_idx, 1, QTableWidgetItem(fila.vigente_desde.isoformat()))
-            self.tabla.setItem(fila_idx, 2, QTableWidgetItem(vigencia_hasta_mostrar(fila, info)))
-            self.tabla.setItem(fila_idx, 3, QTableWidgetItem(fila.usuario))
-            self.tabla.setItem(fila_idx, 4, QTableWidgetItem(fila.motivo or ""))
-            if clave_cruda is not None:
-                variacion = variacion_por_anio.get(fila.vigente_desde.year, "")
-                self.tabla.setItem(fila_idx, 5, QTableWidgetItem(variacion))
+        self._refrescar()
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabla)
@@ -332,6 +516,86 @@ class HistorialParametroDialog(QDialog):
             nota_formula.setWordWrap(True)
             layout.addWidget(nota_formula)
         self.setLayout(layout)
+
+    def _refrescar(self) -> None:
+        """Repuebla `self.tabla` desde cero (historial(self._clave)) --
+        extraido de __init__ (Task 8) para que _editar_valor/_eliminar_valor
+        puedan refrescar la tabla in place tras actuar sobre una fila, sin
+        cerrar y reabrir el dialogo."""
+        filas = historial(self._clave)
+        self.tabla.setRowCount(len(filas))
+        for fila_idx, fila in enumerate(filas):
+            self.tabla.setItem(fila_idx, 0, QTableWidgetItem(str(fila.valor)))
+            self.tabla.setItem(fila_idx, 1, QTableWidgetItem(fila.vigente_desde.isoformat()))
+            self.tabla.setItem(
+                fila_idx, 2, QTableWidgetItem(vigencia_hasta_mostrar(fila, self._info))
+            )
+            self.tabla.setItem(fila_idx, 3, QTableWidgetItem(fila.usuario))
+            self.tabla.setItem(fila_idx, 4, QTableWidgetItem(fila.motivo or ""))
+            if self._clave_cruda is not None:
+                variacion = self._variacion_por_anio.get(fila.vigente_desde.year, "")
+                self.tabla.setItem(fila_idx, 5, QTableWidgetItem(variacion))
+            # QTableWidget.setRowCount(N) con el mismo N que ya tenia NO limpia
+            # los cellWidget existentes de filas que conservan su indice --
+            # solo setCellWidget(nueva_widget) los reemplaza. historial()
+            # ordena por vigente_desde descendente, asi que editar la fecha de
+            # una fila de usuario puede cambiar su posicion relativa a otra
+            # fila (incluida una de sistema) entre dos llamadas a
+            # _refrescar(). Sin este removeCellWidget explicito, una fila de
+            # sistema que hereda el indice que antes ocupaba una fila de
+            # usuario con botones quedaria mostrando esos botones "fantasma"
+            # -- justo la fuga que el gate de abajo busca evitar. Se limpia
+            # incondicionalmente ANTES de decidir si esta fila (la actual en
+            # este indice) merece botones nuevos.
+            self.tabla.removeCellWidget(fila_idx, self._indice_columna_editar)
+            self.tabla.removeCellWidget(fila_idx, self._indice_columna_eliminar)
+            # REQUISITO DE SEGURIDAD (Task 8): esta condicion es la unica
+            # puerta que decide si una fila recibe los botones Editar/Eliminar
+            # -- una fila sembrada por el sistema (creado_por_sistema=True)
+            # jamas debe entrar aqui. Es defensa en profundidad sobre la
+            # verdadera barrera (editar_valor()/eliminar_valor() en
+            # parametro_service.py, Task 3, que rechazan tocar filas de
+            # sistema con ValueError incluso si esta condicion tuviera un
+            # bug) -- pero un usuario no deberia ni VER el boton junto a una
+            # fila de sistema.
+            if not fila.creado_por_sistema:
+                boton_editar = QPushButton("Editar")
+                boton_editar.setProperty("class", "secondary")
+                boton_editar.clicked.connect(
+                    lambda _checked=False, id_=fila.id: self._editar_valor(id_)
+                )
+                self.tabla.setCellWidget(fila_idx, self._indice_columna_editar, boton_editar)
+
+                boton_eliminar = QPushButton("Eliminar")
+                boton_eliminar.setIcon(icon("delete"))
+                boton_eliminar.setProperty("class", "destructive")
+                boton_eliminar.clicked.connect(
+                    lambda _checked=False, id_=fila.id: self._eliminar_valor(id_)
+                )
+                self.tabla.setCellWidget(fila_idx, self._indice_columna_eliminar, boton_eliminar)
+
+    def _editar_valor(self, parametro_id: int) -> None:
+        """Abre ParametroFormDialog en modo edicion (Task 7) para esta fila; si
+        el usuario guarda (exec() devuelve True/Accepted), refresca la tabla
+        para reflejar el cambio sin cerrar HistorialParametroDialog."""
+        dialogo = ParametroFormDialog(self, parametro_id=parametro_id)
+        if dialogo.exec():
+            self._refrescar()
+
+    def _eliminar_valor(self, parametro_id: int) -> None:
+        """Pide confirmacion (QMessageBox.question) antes de borrar -- accion
+        irreversible. eliminar_valor() (Task 3) ya rechaza filas de sistema
+        con ValueError, pero esta fila nunca deberia llegar aqui porque
+        _refrescar() no le crea el boton Eliminar en primer lugar."""
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar valor de parámetro",
+            "¿Eliminar este valor de parámetro? Esta acción no se puede deshacer.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+        eliminar_valor(parametro_id)
+        self._refrescar()
 
 
 class ParametrosView(QWidget):
@@ -350,6 +614,21 @@ class ParametrosView(QWidget):
         ]
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
+        # Task 6 (sprint "Parametros: editar/eliminar de usuario"): tooltip
+        # por columna, en el mismo orden que `columnas` arriba -- homologa la
+        # tabla resumen con los iconos (i) del formulario (agregar_ayuda).
+        _tooltips_columnas = [
+            "Grupo temático del parámetro (Topes legales, Plazos de prescripción y "
+            "caducidad, Indicadores históricos, Seguridad social).",
+            "Nombre del parámetro legal versionado.",
+            "Valor resuelto para la fecha de hoy, según el modo de resolución de la clave.",
+            "Fecha desde la que rige el valor vigente hoy.",
+            "Fecha hasta la que rige el valor vigente hoy (o 'Indefinido' si no aplica).",
+            "Área(s) del derecho a las que aplica este parámetro.",
+            "Unidad de medida del valor (%, COP, meses, índice, veces, puntos).",
+        ]
+        for indice, texto in enumerate(_tooltips_columnas):
+            self.tabla.horizontalHeaderItem(indice).setToolTip(texto)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla.cellDoubleClicked.connect(self._abrir_historial)
 
@@ -411,4 +690,10 @@ class ParametrosView(QWidget):
 
     def _abrir_historial(self, fila: int, _columna: int) -> None:
         clave = self._claves_por_fila[fila]
+        # Task 8: siempre refresca la tabla resumen al cerrar el historial --
+        # el dialogo pudo haber editado/eliminado filas de usuario mientras
+        # estuvo abierto (Editar/Eliminar por fila); refrescar
+        # incondicionalmente es lo mas simple y correcto (evita rastrear si
+        # algo cambio realmente adentro).
         HistorialParametroDialog(clave, self).exec()
+        self.refrescar()

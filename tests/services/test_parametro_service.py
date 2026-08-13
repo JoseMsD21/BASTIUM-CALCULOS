@@ -6,7 +6,7 @@ import pytest
 import database.session as session_module
 from app.core.exceptions import ParametroNoDisponibleError
 from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE
-from database.models import ParametroLegal
+from database.models import AreaDerecho, ParametroLegal
 
 
 def _area_unidad(clave):
@@ -178,7 +178,6 @@ def test_agregar_valor_areas_derecho_vacia_lanza_value_error():
 
 def test_agregar_valor_unidad_vacia_lanza_value_error():
     from app.services.parametro_service import agregar_valor
-    from database.models import AreaDerecho
 
     with pytest.raises(ValueError):
         agregar_valor(
@@ -194,7 +193,6 @@ def test_agregar_valor_unidad_vacia_lanza_value_error():
 def test_agregar_valor_guarda_areas_derecho_y_unidad_legibles():
     from app.services.areas_parametro import deserializar_areas
     from app.services.parametro_service import agregar_valor
-    from database.models import AreaDerecho
 
     fila = agregar_valor(
         "USURA_MULTIPLICADOR",
@@ -765,3 +763,184 @@ def test_resolver_fila_y_resolver_entre_filas_dan_el_mismo_resultado(clave, fech
         assert fila_memoria.valor == fila_sql.valor
         assert fila_memoria.vigente_desde == fila_sql.vigente_desde
         assert fila_memoria.creado_en == fila_sql.creado_en
+
+
+def test_agregar_valor_marca_creado_por_sistema_false():
+    from app.services.parametro_service import agregar_valor
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    assert fila.creado_por_sistema is False
+
+
+def test_agregar_valor_marca_creado_por_sistema_false_aunque_usuario_diga_sistema():
+    from app.services.parametro_service import agregar_valor
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "sistema",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    assert fila.creado_por_sistema is False
+
+
+def test_editar_valor_actualiza_los_campos():
+    from app.services.parametro_service import agregar_valor, editar_valor, historial
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    fila_editada = editar_valor(
+        fila.id,
+        valor=Decimal("2.0"),
+        vigente_desde=date(1900, 1, 1),
+        usuario="abogado2",
+        areas_derecho=[AreaDerecho.COMERCIAL, AreaDerecho.TRIBUTARIO],
+        unidad="veces",
+        motivo="correccion",
+    )
+
+    assert fila_editada.valor == Decimal("2.0")
+    assert fila_editada.usuario == "abogado2"
+    assert fila_editada.motivo == "correccion"
+    assert len(historial("USURA_MULTIPLICADOR")) == 1  # UPDATE, no INSERT nuevo
+
+
+def test_editar_valor_de_fila_de_sistema_lanza_value_error():
+    from app.services.areas_parametro import serializar_areas
+    from app.services.parametro_service import editar_valor
+
+    session = session_module.get_session()
+    fila_sistema = ParametroLegal(
+        clave="USURA_MULTIPLICADOR",
+        valor=Decimal("1.5"),
+        vigente_desde=date(1900, 1, 1),
+        usuario="sistema",
+        creado_en=datetime.now(),
+        areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+        unidad="veces",
+        creado_por_sistema=True,
+    )
+    session.add(fila_sistema)
+    session.commit()
+    session.refresh(fila_sistema)
+    fila_id = fila_sistema.id
+    session.close()
+
+    with pytest.raises(ValueError, match="sistema"):
+        editar_valor(
+            fila_id,
+            valor=Decimal("2.0"),
+            vigente_desde=date(1900, 1, 1),
+            usuario="abogado1",
+            areas_derecho=[AreaDerecho.COMERCIAL],
+            unidad="veces",
+        )
+
+
+def test_eliminar_valor_borra_la_fila():
+    from app.services.parametro_service import agregar_valor, eliminar_valor, historial
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    eliminar_valor(fila.id)
+
+    assert historial("USURA_MULTIPLICADOR") == []
+
+
+def test_eliminar_valor_de_fila_de_sistema_lanza_value_error():
+    from app.services.areas_parametro import serializar_areas
+    from app.services.parametro_service import eliminar_valor, historial
+
+    session = session_module.get_session()
+    fila_sistema = ParametroLegal(
+        clave="USURA_MULTIPLICADOR",
+        valor=Decimal("1.5"),
+        vigente_desde=date(1900, 1, 1),
+        usuario="sistema",
+        creado_en=datetime.now(),
+        areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+        unidad="veces",
+        creado_por_sistema=True,
+    )
+    session.add(fila_sistema)
+    session.commit()
+    session.refresh(fila_sistema)
+    fila_id = fila_sistema.id
+    session.close()
+
+    with pytest.raises(ValueError, match="sistema"):
+        eliminar_valor(fila_id)
+
+    assert len(historial("USURA_MULTIPLICADOR")) == 1
+
+
+def test_editar_valor_de_tramo_cerrado_sin_cambiar_fechas_no_se_solapa_consigo_misma():
+    """`editar_valor` pasa excluir_id=parametro_id a _validar_y_preparar
+    especificamente para este caso: editar una fila TRAMO_CERRADO sin cambiar
+    sus fechas no debe fallar por "solaparse" con ella misma. Sin excluir_id,
+    la consulta de solapamiento encontraria la propia fila (sus fechas caen
+    dentro de su propio rango) y lanzaria ValueError de forma espuria."""
+    from app.services.parametro_service import agregar_valor, editar_valor
+
+    fila = agregar_valor(
+        "IBC_CONSUMO_ORDINARIO",
+        Decimal("16.24"),
+        date(2026, 1, 1),
+        "abogado1",
+        vigente_hasta=date(2026, 1, 31),
+        **_area_unidad("IBC_CONSUMO_ORDINARIO"),
+    )
+
+    fila_editada = editar_valor(
+        fila.id,
+        valor=Decimal("17.00"),
+        vigente_desde=date(2026, 1, 1),
+        usuario="abogado2",
+        vigente_hasta=date(2026, 1, 31),
+        **_area_unidad("IBC_CONSUMO_ORDINARIO"),
+    )
+
+    assert fila_editada.valor == Decimal("17.00")
+
+
+def test_eliminar_valor_de_id_inexistente_no_hace_nada():
+    from app.services.parametro_service import eliminar_valor
+
+    eliminar_valor(999999)  # no debe lanzar -- fila ya no existe, no-op
+
+
+def test_editar_valor_de_id_inexistente_lanza_value_error():
+    from app.services.parametro_service import editar_valor
+
+    with pytest.raises(ValueError):
+        editar_valor(
+            999999,
+            valor=Decimal("2.0"),
+            vigente_desde=date(1900, 1, 1),
+            usuario="abogado1",
+            areas_derecho=[AreaDerecho.COMERCIAL],
+            unidad="veces",
+        )

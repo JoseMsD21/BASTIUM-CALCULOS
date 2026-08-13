@@ -6,8 +6,12 @@ from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import QDialog, QLabel
 
 import database.session as session_module
-from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
-from app.services.parametro_service import agregar_valor, historial
+from app.services.areas_parametro import (
+    AREA_UNIDAD_POR_CLAVE,
+    deserializar_areas,
+    serializar_areas,
+)
+from app.services.parametro_service import agregar_valor, editar_valor, historial
 from app.views.configuracion import (
     HistorialParametroDialog,
     ParametroFormDialog,
@@ -74,21 +78,38 @@ def test_parametros_view_muestra_el_valor_vigente_cuando_hay_dato(qtbot):
     assert vista.tabla.item(fila_usura, 2).text() == "1.5"
 
 
-def test_parametro_form_dialog_campos_no_autoexplicativos_tienen_tooltip(qtbot):
+def test_parametro_form_dialog_todos_los_campos_tienen_icono_informativo(qtbot):
+    """Task 6 (sprint "Parametros: editar/eliminar de usuario"): homologa el
+    icono (i) (agregar_ayuda) a TODOS los campos del formulario -- supera al
+    antiguo test_parametro_form_dialog_campos_no_autoexplicativos_tienen_tooltip,
+    que verificaba el tooltip directamente sobre el widget crudo (mecanismo
+    que dejo de aplicar una vez que agregar_ayuda mueve el tooltip al icono,
+    no al widget envuelto)."""
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
 
-    for nombre_campo in (
-        "combo_clave",
-        "campo_valor",
-        "campo_vigente_desde",
-        "campo_vigente_hasta",
-        "campo_usuario",
-        "campo_motivo",
-        "_contenedor_areas",
+    for nombre_contenedor in (
+        "_contenedor_combo_clave",
+        "_contenedor_campo_valor",
+        "_contenedor_campo_vigente_desde",
+        "_contenedor_vigente_hasta_con_ayuda",
+        "_contenedor_areas_con_ayuda",
+        "_contenedor_campo_unidad",
+        "_contenedor_campo_usuario",
+        "_contenedor_campo_motivo",
     ):
-        widget = getattr(dialogo, nombre_campo)
-        assert widget.toolTip() != "", f"{nombre_campo} deberia tener un tooltip"
+        contenedor = getattr(dialogo, nombre_contenedor)
+        iconos_info = [hijo for hijo in contenedor.findChildren(QLabel) if hijo.toolTip()]
+        assert len(iconos_info) == 1, f"{nombre_contenedor} deberia tener 1 icono (i)"
+
+
+def test_parametros_view_columnas_tienen_tooltip(qtbot):
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    for indice in range(vista.tabla.columnCount()):
+        item = vista.tabla.horizontalHeaderItem(indice)
+        assert item.toolTip() != "", f"Columna {indice} deberia tener tooltip"
 
 
 def test_parametro_form_dialog_unidad_muestra_icono_informativo(qtbot):
@@ -149,35 +170,40 @@ def test_parametro_form_dialog_usuario_vacio_lanza_value_error(qtbot):
         pass
 
 
-def test_parametro_form_dialog_muestra_vigente_hasta_solo_para_tramo_cerrado(qtbot):
+def test_parametro_form_dialog_vigente_hasta_deshabilitado_fuera_de_tramo_cerrado(qtbot):
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
     dialogo.show()
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
-    assert dialogo.campo_vigente_hasta.isVisible() is False
+    assert dialogo.campo_vigente_hasta.isVisible() is True
+    assert dialogo.campo_vigente_hasta.isEnabled() is False
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
     assert dialogo.campo_vigente_hasta.isVisible() is True
+    assert dialogo.campo_vigente_hasta.isEnabled() is True
 
 
-def test_parametro_form_dialog_label_vigente_hasta_no_queda_huerfana(qtbot):
-    """Sprint 39 (barrido de app/views/): la etiqueta "Vigente hasta" generada
-    por QFormLayout.addRow(str, campo_vigente_hasta) debe ocultarse junto con
-    el campo cuando el parametro no es de tramo cerrado -- si solo se oculta
-    el QDateEdit queda una fila huerfana."""
+def test_parametro_form_dialog_nota_vigente_hasta_cambia_segun_el_modo(qtbot):
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
     dialogo.show()
 
-    etiqueta_vigente_hasta = dialogo._layout_formulario.labelForField(dialogo.campo_vigente_hasta)
-    assert etiqueta_vigente_hasta is not None
-
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
-    assert etiqueta_vigente_hasta.isVisible() is False
+    assert "no vence en una fecha fija" in dialogo._nota_vigente_hasta.text()
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
-    assert etiqueta_vigente_hasta.isVisible() is True
+    assert dialogo._nota_vigente_hasta.text() == ""
+
+
+def test_parametro_form_dialog_checkbox_indefinido_siempre_deshabilitado(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.show()
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
+    assert dialogo.casilla_indefinido.isEnabled() is False
+    assert dialogo.casilla_indefinido.isChecked() is False
 
 
 def test_parametro_form_dialog_valor_no_finito_lanza_value_error(qtbot):
@@ -349,7 +375,7 @@ def test_parametro_form_dialog_preselecciona_areas_segun_la_clave(qtbot):
     areas_esperadas_set = set(areas_esperadas)
     for area, casilla in dialogo.casillas_area.items():
         assert casilla.isChecked() == (area in areas_esperadas_set), area
-    assert dialogo.campo_unidad.text() == unidad_esperada
+    assert dialogo.campo_unidad.currentText() == unidad_esperada
 
 
 def test_parametro_form_dialog_cambiar_de_clave_actualiza_la_preseleccion(qtbot):
@@ -359,12 +385,12 @@ def test_parametro_form_dialog_cambiar_de_clave_actualiza_la_preseleccion(qtbot)
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
     assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is True
     assert dialogo.casillas_area[AreaDerecho.LABORAL].isChecked() is False
-    assert dialogo.campo_unidad.text() == "veces"
+    assert dialogo.campo_unidad.currentText() == "veces"
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("SS_PENSION_PCT"))
     assert dialogo.casillas_area[AreaDerecho.LABORAL].isChecked() is True
     assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is False
-    assert dialogo.campo_unidad.text() == "%"
+    assert dialogo.campo_unidad.currentText() == "%"
 
 
 def test_parametro_form_dialog_sin_ninguna_area_marcada_lanza_value_error(qtbot):
@@ -381,12 +407,16 @@ def test_parametro_form_dialog_sin_ninguna_area_marcada_lanza_value_error(qtbot)
 
 
 def test_parametro_form_dialog_unidad_vacia_lanza_value_error(qtbot):
+    """Con el desplegable (Task 5), la unica forma de dejar la unidad vacia es
+    elegir 'Otros...' y no escribir nada (o solo espacios) en el campo que se
+    revela -- las opciones fijas del combo nunca estan vacias."""
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
     dialogo.campo_valor.setText("1.5")
     dialogo.campo_usuario.setText("abogado1")
-    dialogo.campo_unidad.setText("   ")
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    dialogo._campo_unidad_otros.setText("   ")
 
     with pytest.raises(ValueError):
         dialogo.guardar()
@@ -415,7 +445,8 @@ def test_parametro_form_dialog_permite_ajustar_areas_y_unidad_antes_de_guardar(q
     dialogo.campo_usuario.setText("abogado1")
 
     dialogo.casillas_area[AreaDerecho.CIVIL_FAMILIA].setChecked(True)
-    dialogo.campo_unidad.setText("veces (ajustado)")
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    dialogo._campo_unidad_otros.setText("veces (ajustado)")
 
     dialogo.guardar()
 
@@ -425,6 +456,50 @@ def test_parametro_form_dialog_permite_ajustar_areas_y_unidad_antes_de_guardar(q
         AreaDerecho.CIVIL_FAMILIA,
     }
     assert filas[0].unidad == "veces (ajustado)"
+
+
+# --- Task 5: "Unidad" como QComboBox con opcion "Otros..." ---
+
+
+def test_parametro_form_dialog_unidad_es_combobox_con_opciones_conocidas(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    textos = [dialogo.campo_unidad.itemText(i) for i in range(dialogo.campo_unidad.count())]
+    assert textos == ["%", "COP", "meses", "índice", "veces", "puntos", "Otros..."]
+
+
+def test_parametro_form_dialog_unidad_preselecciona_segun_la_clave(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("SMLMV"))
+    assert dialogo.campo_unidad.currentText() == "COP"
+
+
+def test_parametro_form_dialog_unidad_otros_revela_campo_de_texto(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.show()
+
+    assert dialogo._campo_unidad_otros.isVisible() is False
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    assert dialogo._campo_unidad_otros.isVisible() is True
+
+
+def test_parametro_form_dialog_guarda_unidad_otros(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
+    dialogo.campo_valor.setText("1.5")
+    dialogo.campo_usuario.setText("abogado1")
+    dialogo.campo_unidad.setCurrentText("Otros...")
+    dialogo._campo_unidad_otros.setText("fracciones")
+
+    dialogo.guardar()
+
+    fila = historial("USURA_MULTIPLICADOR")[0]
+    assert fila.unidad == "fracciones"
 
 
 def test_parametros_view_tabla_tiene_columnas_area_y_unidad(qtbot):
@@ -690,3 +765,175 @@ def test_parametros_view_sin_enlace_ver_historial_con_una_sola_fila(qtbot):
 
     fila_usura = vista._claves_por_fila.index("USURA_MULTIPLICADOR")
     assert vista.tabla.item(fila_usura, 2).text() == "1.5"
+
+
+# --- Task 7: ParametroFormDialog en modo edicion (parametro_id) ---
+
+
+def test_parametro_form_dialog_modo_edicion_precarga_los_campos(qtbot):
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+        motivo="motivo original",
+    )
+
+    dialogo = ParametroFormDialog(parametro_id=fila.id)
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.windowTitle() == "Editar valor de parametro"
+    assert dialogo.combo_clave.currentData() == "USURA_MULTIPLICADOR"
+    assert dialogo.combo_clave.isEnabled() is False
+    assert dialogo.campo_valor.text() == "1.5"
+    assert dialogo.campo_usuario.text() == "abogado1"
+    assert dialogo.campo_motivo.text() == "motivo original"
+    assert dialogo.casillas_area[AreaDerecho.COMERCIAL].isChecked() is True
+
+
+def test_parametro_form_dialog_modo_edicion_guarda_actualiza_no_crea(qtbot):
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    dialogo = ParametroFormDialog(parametro_id=fila.id)
+    qtbot.addWidget(dialogo)
+    dialogo.campo_valor.setText("9.9")
+    dialogo.guardar()
+
+    filas = historial("USURA_MULTIPLICADOR")
+    assert len(filas) == 1
+    assert filas[0].valor == Decimal("9.9")
+
+
+# --- Task 8: Editar/Eliminar por fila en HistorialParametroDialog ---
+
+
+def test_historial_parametro_dialog_fila_de_usuario_tiene_botones(qtbot):
+    agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.tabla.cellWidget(0, 5) is not None  # Editar
+    assert dialogo.tabla.cellWidget(0, 6) is not None  # Eliminar
+
+
+def test_historial_parametro_dialog_fila_de_sistema_no_tiene_botones(qtbot):
+    session = session_module.get_session()
+    session.add(
+        ParametroLegal(
+            clave="USURA_MULTIPLICADOR",
+            valor=Decimal("1.5"),
+            vigente_desde=date(1900, 1, 1),
+            usuario="sistema",
+            creado_en=datetime.now(),
+            areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+            unidad="veces",
+            creado_por_sistema=True,
+        )
+    )
+    session.commit()
+    session.close()
+
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.tabla.cellWidget(0, 5) is None
+    assert dialogo.tabla.cellWidget(0, 6) is None
+
+
+def test_historial_parametro_dialog_eliminar_borra_y_refresca(qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+
+    dialogo._eliminar_valor(fila.id)
+
+    assert dialogo.tabla.rowCount() == 0
+    assert historial("USURA_MULTIPLICADOR") == []
+
+
+def test_historial_parametro_dialog_reordenar_filas_no_deja_botones_fantasma(qtbot):
+    """Regresion (Task 8): historial() ordena por vigente_desde descendente,
+    asi que editar la fecha de una fila de usuario puede cambiarle el indice
+    de fila relativo a una fila de sistema entre dos llamadas a _refrescar().
+    QTableWidget.setRowCount(N) con el mismo N NO limpia los cellWidget de
+    filas que conservan su indice -- sin removeCellWidget() explicito en
+    _refrescar(), la fila de sistema que hereda el indice 0 (antes ocupado
+    por la fila de usuario con botones) quedaria mostrando esos botones
+    "fantasma"."""
+    session = session_module.get_session()
+    session.add(
+        ParametroLegal(
+            clave="USURA_MULTIPLICADOR",
+            valor=Decimal("2.0"),
+            vigente_desde=date(2020, 1, 1),
+            usuario="sistema",
+            creado_en=datetime.now(),
+            areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+            unidad="veces",
+            creado_por_sistema=True,
+        )
+    )
+    session.commit()
+    session.close()
+
+    fila_usuario = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(2025, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+    # Orden inicial (vigente_desde desc): fila_usuario (2025) en indice 0 con
+    # botones, sistema (2020) en indice 1 sin botones.
+    assert dialogo.tabla.cellWidget(0, 5) is not None
+    assert dialogo.tabla.cellWidget(1, 5) is None
+
+    # Editar la fila de usuario para que su vigente_desde quede ANTES que la
+    # de sistema -- invierte el orden: sistema pasa a indice 0.
+    editar_valor(
+        fila_usuario.id,
+        valor=Decimal("1.5"),
+        vigente_desde=date(2019, 1, 1),
+        usuario="abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    dialogo._refrescar()
+
+    assert dialogo.tabla.item(0, 0).text() == "2.0"  # ahora es la fila de sistema
+    assert dialogo.tabla.cellWidget(0, 5) is None
+    assert dialogo.tabla.cellWidget(0, 6) is None
+    assert dialogo.tabla.cellWidget(1, 5) is not None
+    assert dialogo.tabla.cellWidget(1, 6) is not None

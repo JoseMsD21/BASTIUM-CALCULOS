@@ -272,12 +272,14 @@ def test_migrar_parametros_area_unidad_agrega_columnas_y_completa_filas_legadas(
     con.execute("ALTER TABLE parametros_legales DROP COLUMN areas_derecho")
     con.execute("ALTER TABLE parametros_legales DROP COLUMN unidad")
     con.execute(
-        "INSERT INTO parametros_legales (clave, valor, vigente_desde, usuario, creado_en) "
-        "VALUES ('SMLMV', '1750905.00', '2026-01-01', 'test', '2026-01-01 00:00:00')"
+        "INSERT INTO parametros_legales "
+        "(clave, valor, vigente_desde, usuario, creado_en, creado_por_sistema) "
+        "VALUES ('SMLMV', '1750905.00', '2026-01-01', 'test', '2026-01-01 00:00:00', 0)"
     )
     con.execute(
-        "INSERT INTO parametros_legales (clave, valor, vigente_desde, usuario, creado_en) "
-        "VALUES ('USURA_MULTIPLICADOR', '1.5', '1990-01-01', 'test', '2026-01-01 00:00:00')"
+        "INSERT INTO parametros_legales "
+        "(clave, valor, vigente_desde, usuario, creado_en, creado_por_sistema) "
+        "VALUES ('USURA_MULTIPLICADOR', '1.5', '1990-01-01', 'test', '2026-01-01 00:00:00', 0)"
     )
     con.commit()
     con.close()
@@ -327,9 +329,10 @@ def test_migrar_parametros_area_unidad_no_toca_filas_ya_migradas(tmp_path):
     con = sqlite3.connect(db_path)
     con.execute(
         "INSERT INTO parametros_legales "
-        "(clave, valor, vigente_desde, usuario, creado_en, areas_derecho, unidad) "
+        "(clave, valor, vigente_desde, usuario, creado_en, areas_derecho, unidad, "
+        "creado_por_sistema) "
         "VALUES ('SMLMV', '1750905.00', '2026-01-01', 'test', '2026-01-01 00:00:00', "
-        "'[\"TRIBUTARIO\"]', 'personalizado')"
+        "'[\"TRIBUTARIO\"]', 'personalizado', 0)"
     )
     con.commit()
     con.close()
@@ -409,8 +412,10 @@ def test_aplicar_migraciones_pendientes_no_falla_sobre_bd_real_anterior_al_sprin
     con.execute("ALTER TABLE parametros_legales DROP COLUMN areas_derecho")
     con.execute("ALTER TABLE parametros_legales DROP COLUMN unidad")
     con.execute(
-        "INSERT INTO parametros_legales (clave, valor, vigente_desde, usuario, creado_en) "
-        "VALUES ('USURA_MULTIPLICADOR', '1.5', '1900-01-01', 'sistema', '2026-01-01 00:00:00')"
+        "INSERT INTO parametros_legales "
+        "(clave, valor, vigente_desde, usuario, creado_en, creado_por_sistema) "
+        "VALUES ('USURA_MULTIPLICADOR', '1.5', '1900-01-01', 'sistema', "
+        "'2026-01-01 00:00:00', 1)"
     )
     con.commit()
     con.close()

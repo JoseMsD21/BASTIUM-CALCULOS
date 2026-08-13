@@ -86,15 +86,23 @@ romper esa garantía de append-only (Sprint 23).
 y agregar, sin tocar código, los valores/tasas/topes que antes solo un desarrollador podía cambiar: el
 multiplicador de usura, los topes de cuota litis, los plazos de prescripción/caducidad, el descuento del
 interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC,
-IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — nunca se edita
-ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
-queda siempre disponible con doble clic. La tabla de Parámetros muestra también, por fila, el Área del
-derecho (una o varias) y la Unidad de medida del valor (ej. "%", "COP", "meses"), asignadas al agregar el
-valor y no editables después de creada la fila. Para SMLMV, IPC y UVT — que el gobierno fija año a
-año — la columna "Vigente hasta" calcula automáticamente el 31 de diciembre del año correspondiente en
-vez de mostrarse vacía; el resto de parámetros sin fecha de cierre real muestra "Indefinido". El índice
-IPC acumulado, el único parámetro calculado con fórmula, muestra en su historial la variación % anual
-cruda junto al índice ya calculado, con la fórmula explicada.
+IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — los valores
+que trae la app de fábrica nunca se editan ni se borran, solo se agregan valores nuevos, así que el
+historial completo de cada parámetro queda siempre disponible con doble clic; los valores que un usuario
+agrega sí puede editarlos o eliminarlos él mismo después, desde ese mismo historial. La tabla de Parámetros
+muestra también, por fila, el Área del derecho (una o varias) y la Unidad de medida del valor (ej. "%",
+"COP", "meses"), asignadas al agregar el valor — fijas para los valores de fábrica, editables después para
+los que agrega un usuario (ver el párrafo siguiente). Para SMLMV, IPC y
+UVT — que el gobierno fija año a año — la columna "Vigente hasta" calcula automáticamente el 31 de
+diciembre del año correspondiente en vez de mostrarse vacía; el resto de parámetros sin fecha de cierre
+real muestra "Indefinido". El índice IPC acumulado, el único parámetro calculado con fórmula, muestra en su
+historial la variación % anual cruda junto al índice ya calculado, con la fórmula explicada.
+
+✅ **Editar/eliminar de parámetros propios y desplegable de Unidad:** desde el historial de una clave en
+Configuraciones → Parámetros, cada valor que un usuario haya cargado tiene sus propios botones
+"Editar"/"Eliminar" (los del sistema quedan protegidos, sin esos botones); el campo "Unidad" del formulario
+de agregar valor es ahora un desplegable con las unidades ya usadas y una opción "Otros..." para escribir
+cualquier otra; y los formularios/columnas de Parámetros tienen tooltips ⓘ homologados en todos los campos.
 
 🚧 **En desarrollo:** varios módulos más también están pendientes. La indexación IPC solo está disponible
 en Civil/Familia — falta decidir con el despacho, área por área, si tiene sentido ofrecerla también en

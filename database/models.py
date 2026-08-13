@@ -283,3 +283,12 @@ class ParametroLegal(Base):
     # distinta entre versiones, esta asuncion habria que revisarla.
     areas_derecho: Mapped[str | None] = mapped_column(String(200), nullable=True)
     unidad: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    # creado_por_sistema (Sprint "Parametros: editar/eliminar de usuario"):
+    # True para las filas sembradas por scripts/migrate_parametros_legales.py
+    # y scripts/migrate_ipc_variacion_anual.py, False para cualquier fila
+    # creada desde ParametroFormDialog (la UI). Determina si la fila puede
+    # editarse/eliminarse (ver editar_valor/eliminar_valor en
+    # parametro_service.py) -- a diferencia de `usuario` (texto libre, solo
+    # auditoria), este es un flag real que ningun camino de la UI puede
+    # poner en True.
+    creado_por_sistema: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
