@@ -213,13 +213,13 @@ def test_click_en_inicio_regresa_al_dashboard_y_oculta_los_botones(qtbot):
     assert window.boton_inicio.isVisible() is False
 
 
-def test_boton_parametros_navega_a_la_pantalla_de_parametros(qtbot):
+def test_boton_configuraciones_navega_a_la_pantalla_de_configuraciones(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    window.boton_parametros.click()
+    window.boton_configuraciones.click()
 
-    assert window.stacked_widget.currentWidget() is window.parametros_page
+    assert window.stacked_widget.currentWidget() is window.configuraciones_page
 
 
 def test_ventana_principal_tiene_icono_de_aplicacion(qtbot):
@@ -235,7 +235,7 @@ def test_botones_de_navegacion_tienen_icono(qtbot):
 
     assert not window.boton_volver.icon().isNull()
     assert not window.boton_inicio.icon().isNull()
-    assert not window.boton_parametros.icon().isNull()
+    assert not window.boton_configuraciones.icon().isNull()
 
 
 def test_breadcrumb_muestra_expedientes_en_pagina_inicial(qtbot):
@@ -245,13 +245,23 @@ def test_breadcrumb_muestra_expedientes_en_pagina_inicial(qtbot):
     assert window.etiqueta_breadcrumb.text() == "Expedientes"
 
 
-def test_breadcrumb_muestra_parametros_en_la_pantalla_de_parametros(qtbot):
+def test_breadcrumb_muestra_configuraciones_parametros_en_la_pantalla_de_configuraciones(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    window.show_page("parametros")
+    window.show_page("configuraciones")
 
-    assert window.etiqueta_breadcrumb.text() == "Parámetros"
+    assert window.etiqueta_breadcrumb.text() == "Configuraciones › Parámetros"
+
+
+def test_breadcrumb_actualiza_al_cambiar_de_seccion_dentro_de_configuraciones(qtbot):
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.show_page("configuraciones")
+    window.configuraciones_page.mostrar_apariencia()
+
+    assert window.etiqueta_breadcrumb.text() == "Configuraciones › Apariencia"
 
 
 def test_breadcrumb_muestra_el_radicado_al_abrir_un_expediente(qtbot):
@@ -387,36 +397,36 @@ def test_ctrl_home_regresa_al_dashboard_y_limpia_el_historial(qtbot):
     assert window._history == []
 
 
-def test_boton_parametros_activo_en_la_pantalla_de_parametros(qtbot):
+def test_boton_configuraciones_activo_en_la_pantalla_de_configuraciones(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    window.show_page("parametros")
+    window.show_page("configuraciones")
 
-    assert window.boton_parametros.property("class") == "primary"
+    assert window.boton_configuraciones.property("class") == "primary"
 
 
-def test_boton_parametros_inactivo_en_otras_pantallas(qtbot):
+def test_boton_configuraciones_inactivo_en_otras_pantallas(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    assert window.boton_parametros.property("class") == "secondary"
+    assert window.boton_configuraciones.property("class") == "secondary"
 
     window.show_page("detalle")
 
-    assert window.boton_parametros.property("class") == "secondary"
+    assert window.boton_configuraciones.property("class") == "secondary"
 
 
-def test_boton_parametros_deja_de_estar_activo_al_salir_de_parametros(qtbot):
+def test_boton_configuraciones_deja_de_estar_activo_al_salir_de_configuraciones(qtbot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    window.show_page("parametros")
-    assert window.boton_parametros.property("class") == "primary"
+    window.show_page("configuraciones")
+    assert window.boton_configuraciones.property("class") == "primary"
 
     window._ir_inicio()
 
-    assert window.boton_parametros.property("class") == "secondary"
+    assert window.boton_configuraciones.property("class") == "secondary"
 
 
 def test_botones_volver_e_inicio_tienen_clase_secundaria(qtbot):
@@ -493,7 +503,7 @@ def test_sidebar_aloja_los_botones_de_navegacion_y_el_stacked_widget_sigue_visib
         ancestro_stacked = ancestro_stacked.parentWidget()
     assert ancestro_stacked is splitter
 
-    for boton in (window.boton_volver, window.boton_inicio, window.boton_parametros):
+    for boton in (window.boton_volver, window.boton_inicio, window.boton_configuraciones):
         # Cada boton de navegacion vive dentro del splitter (en el sidebar), pero
         # fuera del stacked_widget de paginas.
         assert not window.stacked_widget.isAncestorOf(boton)

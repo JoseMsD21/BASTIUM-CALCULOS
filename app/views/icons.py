@@ -14,7 +14,7 @@ _APP_ICON_PATH = Path(__file__).resolve().parents[2] / "resources" / "icon_app.s
 def icon(nombre: str) -> QIcon:
     """Carga uno de los iconos de navegacion/accion/estado del proyecto.
 
-    Nombres validos: "home" (Inicio), "back" (Volver), "settings" (Parametros),
+    Nombres validos: "home" (Inicio), "back" (Volver), "settings" (Configuraciones),
     "save" (Guardar), "cancel" (Cancelar -- provisionado, sin boton "Cancelar"
     existente todavia en el codigo), "delete" (Eliminar), "export" (Exportar) --
     los 7 del set minimo del Sprint 31 -- mas "info" (icono informativo junto a

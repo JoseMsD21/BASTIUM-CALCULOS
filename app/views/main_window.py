@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 
 import database.session as session_module
 from app.core.settings import crear_settings
-from app.views.configuracion import ParametrosView
+from app.views.configuraciones import ConfiguracionesView
 from app.views.dashboard import DashboardView
 from app.views.expediente_detalle import ExpedienteDetallePage
 from app.views.expedientes import ExpedientesListView
@@ -44,20 +44,20 @@ class MainWindow(QMainWindow):
         self.expedientes_page = ExpedientesListView(on_expediente_abierto=self._abrir_detalle)
         self.detalle_page = ExpedienteDetallePage(on_liquidado=self._mostrar_resultado)
         self.resultado_page = ResultadoLiquidacionView()
-        self.parametros_page = ParametrosView()
+        self.configuraciones_page = ConfiguracionesView()
 
         self.stacked_widget.addWidget(self.dashboard_page)
         self.stacked_widget.addWidget(self.expedientes_page)
         self.stacked_widget.addWidget(self.detalle_page)
         self.stacked_widget.addWidget(self.resultado_page)
-        self.stacked_widget.addWidget(self.parametros_page)
+        self.stacked_widget.addWidget(self.configuraciones_page)
 
         self._pages = {
             "dashboard": self.dashboard_page,
             "expedientes": self.expedientes_page,
             "detalle": self.detalle_page,
             "resultado": self.resultado_page,
-            "parametros": self.parametros_page,
+            "configuraciones": self.configuraciones_page,
         }
 
         self._history: list[str] = []
@@ -116,7 +116,7 @@ class MainWindow(QMainWindow):
         Sprint 32 (y su variante QAction del Sprint 49, ver `showEvent()` abajo)
         por un panel lateral dentro de un QSplitter horizontal junto al
         QStackedWidget de paginas -- mismos 3 botones + breadcrumb, mismos nombres
-        de atributo (`boton_volver`, `boton_inicio`, `boton_parametros`,
+        de atributo (`boton_volver`, `boton_inicio`, `boton_configuraciones`,
         `etiqueta_breadcrumb`) para no romper los tests existentes de
         tests/views/test_main_window.py. `_actualizar_botones_navegacion()`/
         `_actualizar_breadcrumb()`/`_actualizar_estado_activo_navegacion()` no
@@ -133,17 +133,17 @@ class MainWindow(QMainWindow):
         self.boton_volver.setProperty("class", "secondary")
         self.boton_volver.clicked.connect(self._volver)
 
-        self.boton_parametros = QPushButton(" Parametros")
-        self.boton_parametros.setIcon(icon("settings"))
-        self.boton_parametros.setProperty("class", "secondary")
-        self.boton_parametros.clicked.connect(self._ir_a_parametros)
+        self.boton_configuraciones = QPushButton(" Configuraciones")
+        self.boton_configuraciones.setIcon(icon("settings"))
+        self.boton_configuraciones.setProperty("class", "secondary")
+        self.boton_configuraciones.clicked.connect(self._ir_a_configuraciones)
 
         sidebar = QWidget()
         sidebar.setObjectName("sidebar_navegacion")
         layout_sidebar = QVBoxLayout(sidebar)
         layout_sidebar.addWidget(self.boton_inicio)
         layout_sidebar.addWidget(self.boton_volver)
-        layout_sidebar.addWidget(self.boton_parametros)
+        layout_sidebar.addWidget(self.boton_configuraciones)
         layout_sidebar.addStretch()
 
         self.etiqueta_breadcrumb = QLabel()
@@ -166,6 +166,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._splitter)
 
         self._actualizar_botones_navegacion()
+        self.configuraciones_page.seccion_cambiada.connect(
+            lambda _seccion: self._actualizar_breadcrumb()
+        )
 
     def show_page(self, name: str, add_to_history: bool = True) -> None:
         if add_to_history and self._current_page_name != name:
@@ -186,8 +189,8 @@ class MainWindow(QMainWindow):
         self.etiqueta_breadcrumb.setText(self._texto_breadcrumb())
 
     def _texto_breadcrumb(self) -> str:
-        if self._current_page_name == "parametros":
-            return "Parámetros"
+        if self._current_page_name == "configuraciones":
+            return f"Configuraciones › {self.configuraciones_page.etiqueta_seccion_actual()}"
         if self._current_page_name == "detalle":
             if self._radicado_actual:
                 return f"Expedientes › Radicado {self._radicado_actual}"
@@ -199,21 +202,21 @@ class MainWindow(QMainWindow):
         return "Expedientes"
 
     def _actualizar_estado_activo_navegacion(self) -> None:
-        # boton_parametros es el unico boton de la barra que representa una pantalla fija
-        # a la que el usuario puede "estar": Volver es una accion sin pantalla propia
+        # boton_configuraciones es el unico boton de la barra que representa una pantalla
+        # fija a la que el usuario puede "estar": Volver es una accion sin pantalla propia
         # (depende del historial) e Inicio se oculta justo cuando el usuario ya esta en
         # "expedientes" (nunca tendria sentido marcarlo "activo"). Se reutiliza la
         # convencion class="primary" del Sprint 31 (resources/theme.qss) para el estado
-        # activo; fuera de "parametros" vuelve a "secondary" (su estilo neutral de
+        # activo; fuera de "configuraciones" vuelve a "secondary" (su estilo neutral de
         # reposo, ver Sprint 36). A diferencia del Sprint 31 (que fijaba la propiedad
         # una sola vez en __init__, antes del primer show), aca el cambio ocurre en
         # tiempo de ejecucion despues de que la ventana ya se mostro, asi que hace falta
         # unpolish()/polish() manual para que Qt vuelva a evaluar el selector QSS.
-        self.boton_parametros.setProperty(
-            "class", "primary" if self._current_page_name == "parametros" else "secondary"
+        self.boton_configuraciones.setProperty(
+            "class", "primary" if self._current_page_name == "configuraciones" else "secondary"
         )
-        self.boton_parametros.style().unpolish(self.boton_parametros)
-        self.boton_parametros.style().polish(self.boton_parametros)
+        self.boton_configuraciones.style().unpolish(self.boton_configuraciones)
+        self.boton_configuraciones.style().polish(self.boton_configuraciones)
 
     def showEvent(self, event) -> None:
         # Historicamente (Sprint 32-49, mientras la navegacion vivia en un
@@ -237,10 +240,10 @@ class MainWindow(QMainWindow):
         # cambio de tema hecho en otra pantalla deja la grafica con los colores
         # del modo viejo al volver con "Volver" (a diferencia de "Inicio", que
         # siempre refresca). No se generaliza a un refrescar() incondicional
-        # para cualquier pagina destino: ni expedientes_page ni parametros_page
+        # para cualquier pagina destino: ni expedientes_page ni configuraciones_page
         # se refrescan aqui a proposito -- su refrescar() ya se dispara desde
         # los metodos que llevan a esas pantallas por primera vez
-        # (_ir_a_expedientes, _ir_a_parametros), y volver a llamarlo en cada
+        # (_ir_a_expedientes, _ir_a_configuraciones), y volver a llamarlo en cada
         # "Volver" seria trabajo repetido sin beneficio (esas pantallas no
         # dependen del tema como el dashboard).
         if pagina_anterior == "dashboard":
@@ -272,6 +275,6 @@ class MainWindow(QMainWindow):
         self.resultado_page.mostrar(resultado, expediente_id)
         self.show_page("resultado")
 
-    def _ir_a_parametros(self) -> None:
-        self.parametros_page.refrescar()
-        self.show_page("parametros")
+    def _ir_a_configuraciones(self) -> None:
+        self.configuraciones_page.mostrar_parametros()
+        self.show_page("configuraciones")
