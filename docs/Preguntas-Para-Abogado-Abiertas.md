@@ -86,7 +86,7 @@ sanciones, concurrencia intereses/actualización), que ya está archivada en su 
 respuesta real a la pregunta de este Sprint 13.**
 
 **Pregunta:** Si en el futuro alguien del despacho va a ser quien actualice los parámetros legales
-(tasas, topes, plazos) directamente desde la pantalla de "⚙ Parámetros" del software, ¿hace falta preparar
+(tasas, topes, plazos) directamente desde la sección "Parámetros" de "⚙ Configuraciones" del software, ¿hace falta preparar
 una guía de uso corta para esa persona?
 
 **Qué necesito exactamente:** Sí/no, y si es sí, quién sería esa persona (para adaptar el lenguaje de la
