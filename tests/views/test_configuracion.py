@@ -74,21 +74,38 @@ def test_parametros_view_muestra_el_valor_vigente_cuando_hay_dato(qtbot):
     assert vista.tabla.item(fila_usura, 2).text() == "1.5"
 
 
-def test_parametro_form_dialog_campos_no_autoexplicativos_tienen_tooltip(qtbot):
+def test_parametro_form_dialog_todos_los_campos_tienen_icono_informativo(qtbot):
+    """Task 6 (sprint "Parametros: editar/eliminar de usuario"): homologa el
+    icono (i) (agregar_ayuda) a TODOS los campos del formulario -- supera al
+    antiguo test_parametro_form_dialog_campos_no_autoexplicativos_tienen_tooltip,
+    que verificaba el tooltip directamente sobre el widget crudo (mecanismo
+    que dejo de aplicar una vez que agregar_ayuda mueve el tooltip al icono,
+    no al widget envuelto)."""
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
 
-    for nombre_campo in (
-        "combo_clave",
-        "campo_valor",
-        "campo_vigente_desde",
-        "campo_vigente_hasta",
-        "campo_usuario",
-        "campo_motivo",
-        "_contenedor_areas",
+    for nombre_contenedor in (
+        "_contenedor_combo_clave",
+        "_contenedor_campo_valor",
+        "_contenedor_campo_vigente_desde",
+        "_contenedor_vigente_hasta_con_ayuda",
+        "_contenedor_areas_con_ayuda",
+        "_contenedor_campo_unidad",
+        "_contenedor_campo_usuario",
+        "_contenedor_campo_motivo",
     ):
-        widget = getattr(dialogo, nombre_campo)
-        assert widget.toolTip() != "", f"{nombre_campo} deberia tener un tooltip"
+        contenedor = getattr(dialogo, nombre_contenedor)
+        iconos_info = [hijo for hijo in contenedor.findChildren(QLabel) if hijo.toolTip()]
+        assert len(iconos_info) == 1, f"{nombre_contenedor} deberia tener 1 icono (i)"
+
+
+def test_parametros_view_columnas_tienen_tooltip(qtbot):
+    vista = ParametrosView()
+    qtbot.addWidget(vista)
+
+    for indice in range(vista.tabla.columnCount()):
+        item = vista.tabla.horizontalHeaderItem(indice)
+        assert item.toolTip() != "", f"Columna {indice} deberia tener tooltip"
 
 
 def test_parametro_form_dialog_unidad_muestra_icono_informativo(qtbot):

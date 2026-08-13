@@ -82,25 +82,12 @@ class ParametroFormDialog(QDialog):
         self.setWindowTitle("Agregar valor de parametro")
 
         self.combo_clave = QComboBox()
-        self.combo_clave.setToolTip(
-            "Clave del parametro legal a versionar; la descripcion entre parentesis "
-            "identifica que mide (ej. 'Tasa de interes civil legal anual "
-            "(CIVIL_ANNUAL_RATE)')."
-        )
         for clave, info in CATALOGO_PARAMETROS.items():
             self.combo_clave.addItem(f"{info.descripcion} ({clave})", userData=clave)
 
         self.campo_valor = QLineEdit()
-        self.campo_valor.setToolTip(
-            "Valor numerico vigente para la clave elegida, en la unidad indicada abajo. "
-            "Ejemplo: 6.00 para una tasa del 6%, o 1300000 para un SMLMV en pesos."
-        )
         self.campo_vigente_desde = QDateEdit(QDate.currentDate())
         self.campo_vigente_desde.setCalendarPopup(True)
-        self.campo_vigente_desde.setToolTip(
-            "Fecha desde la que este valor empieza a regir (normalmente la fecha del "
-            "decreto o resolucion). Ejemplo: 2024-01-01."
-        )
         self.campo_vigente_hasta = QDateEdit(QDate.currentDate())
         self.campo_vigente_hasta.setCalendarPopup(True)
         self.campo_vigente_hasta.setToolTip(
@@ -132,10 +119,6 @@ class ParametroFormDialog(QDialog):
         # depender del orden de iteracion.
         self.casillas_area: dict[AreaDerecho, QCheckBox] = {}
         self._contenedor_areas = QWidget()
-        self._contenedor_areas.setToolTip(
-            "Area(s) del derecho a las que aplica este valor (puede marcar varias). Se "
-            "preselecciona segun la clave elegida; no se puede editar despues de guardar."
-        )
         _layout_areas = QVBoxLayout(self._contenedor_areas)
         _layout_areas.setContentsMargins(0, 0, 0, 0)
         for codigo, etiqueta, _habilitada in AREAS_DERECHO:
@@ -161,15 +144,7 @@ class ParametroFormDialog(QDialog):
         self.campo_unidad.currentTextChanged.connect(self._actualizar_visibilidad_unidad_otros)
 
         self.campo_usuario = QLineEdit()
-        self.campo_usuario.setToolTip(
-            "Nombre de quien registra este valor, para la bitacora de auditoria del "
-            "parametro (no se puede editar ni borrar despues)."
-        )
         self.campo_motivo = QLineEdit()
-        self.campo_motivo.setToolTip(
-            "Justificacion o fuente del cambio, para dejar constancia del porque de "
-            "este valor. Ejemplo: 'Decreto 2613 de 2023, ajuste SMLMV 2024'."
-        )
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
@@ -188,11 +163,61 @@ class ParametroFormDialog(QDialog):
         # Guardado como atributo (en vez de variable local `layout`) por si
         # otros metodos de la clase necesitan referenciar filas del formulario.
         self._layout_formulario = QFormLayout()
-        self._layout_formulario.addRow("Parametro", self.combo_clave)
-        self._layout_formulario.addRow("Valor", self.campo_valor)
-        self._layout_formulario.addRow("Vigente desde", self.campo_vigente_desde)
-        self._layout_formulario.addRow("Vigente hasta", _contenedor_vigente_hasta)
-        self._layout_formulario.addRow("Área(s) del derecho", self._contenedor_areas)
+        # Task 6 (sprint "Parametros: editar/eliminar de usuario"): homologa
+        # TODOS los campos del formulario a agregar_ayuda -- antes solo
+        # "Unidad" (Task 5) y, de sprints previos, "Área(s) del derecho"
+        # (envuelta abajo) usaban el icono (i); el resto tenia el tooltip
+        # puesto directamente en el widget via .setToolTip(), inconsistente
+        # con el resto. Cada .setToolTip() suelto sobre estos widgets se
+        # elimino arriba: el tooltip vive ahora solo en el icono devuelto por
+        # agregar_ayuda.
+        self._contenedor_combo_clave = agregar_ayuda(
+            self._layout_formulario,
+            "Parametro",
+            self.combo_clave,
+            tooltip=(
+                "Clave del parametro legal a versionar; la descripcion entre parentesis "
+                "identifica que mide (ej. 'Tasa de interes civil legal anual "
+                "(CIVIL_ANNUAL_RATE)')."
+            ),
+        )
+        self._contenedor_campo_valor = agregar_ayuda(
+            self._layout_formulario,
+            "Valor",
+            self.campo_valor,
+            tooltip=(
+                "Valor numerico vigente para la clave elegida, en la unidad indicada abajo. "
+                "Ejemplo: 6.00 para una tasa del 6%, o 1300000 para un SMLMV en pesos."
+            ),
+        )
+        self._contenedor_campo_vigente_desde = agregar_ayuda(
+            self._layout_formulario,
+            "Vigente desde",
+            self.campo_vigente_desde,
+            tooltip=(
+                "Fecha desde la que este valor empieza a regir (normalmente la fecha del "
+                "decreto o resolucion). Ejemplo: 2024-01-01."
+            ),
+        )
+        self._contenedor_vigente_hasta_con_ayuda = agregar_ayuda(
+            self._layout_formulario,
+            "Vigente hasta",
+            _contenedor_vigente_hasta,
+            tooltip=(
+                "Fecha hasta la que este valor rige; solo aplica a parametros con un "
+                "rango de vigencia cerrado (ej. tramos historicos de tasas certificadas)."
+            ),
+        )
+        self._contenedor_areas_con_ayuda = agregar_ayuda(
+            self._layout_formulario,
+            "Área(s) del derecho",
+            self._contenedor_areas,
+            tooltip=(
+                "Area(s) del derecho a las que aplica este valor (puede marcar varias). Se "
+                "preselecciona segun la clave elegida; no se puede editar despues de "
+                "guardar."
+            ),
+        )
         # "Unidad" recibe el icono (i) explicito (Sprint 59, helper compartido
         # agregar_ayuda): se pre-rellena segun la clave elegida
         # (_actualizar_area_unidad_sugeridas), asi que el icono deja claro que es una
@@ -219,8 +244,24 @@ class ParametroFormDialog(QDialog):
             ),
             ejemplo="%, COP, meses, índice",
         )
-        self._layout_formulario.addRow("Usuario", self.campo_usuario)
-        self._layout_formulario.addRow("Motivo (opcional)", self.campo_motivo)
+        self._contenedor_campo_usuario = agregar_ayuda(
+            self._layout_formulario,
+            "Usuario",
+            self.campo_usuario,
+            tooltip=(
+                "Nombre de quien registra este valor, para la bitacora de auditoria del "
+                "parametro (no se puede editar ni borrar despues)."
+            ),
+        )
+        self._contenedor_campo_motivo = agregar_ayuda(
+            self._layout_formulario,
+            "Motivo (opcional)",
+            self.campo_motivo,
+            tooltip=(
+                "Justificacion o fuente del cambio, para dejar constancia del porque de "
+                "este valor. Ejemplo: 'Decreto 2613 de 2023, ajuste SMLMV 2024'."
+            ),
+        )
         self._layout_formulario.addRow(self.boton_guardar)
         self.setLayout(self._layout_formulario)
 
@@ -414,6 +455,21 @@ class ParametrosView(QWidget):
         ]
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
+        # Task 6 (sprint "Parametros: editar/eliminar de usuario"): tooltip
+        # por columna, en el mismo orden que `columnas` arriba -- homologa la
+        # tabla resumen con los iconos (i) del formulario (agregar_ayuda).
+        _tooltips_columnas = [
+            "Grupo temático del parámetro (Topes legales, Plazos de prescripción y "
+            "caducidad, Indicadores históricos, Seguridad social).",
+            "Nombre del parámetro legal versionado.",
+            "Valor resuelto para la fecha de hoy, según el modo de resolución de la clave.",
+            "Fecha desde la que rige el valor vigente hoy.",
+            "Fecha hasta la que rige el valor vigente hoy (o 'Indefinido' si no aplica).",
+            "Área(s) del derecho a las que aplica este parámetro.",
+            "Unidad de medida del valor (%, COP, meses, índice, veces, puntos).",
+        ]
+        for indice, texto in enumerate(_tooltips_columnas):
+            self.tabla.horizontalHeaderItem(indice).setToolTip(texto)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla.cellDoubleClicked.connect(self._abrir_historial)
 
