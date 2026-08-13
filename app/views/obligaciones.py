@@ -31,7 +31,12 @@ from app.core.constants import (
 )
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
-from app.views.form_utils import guardar_o_actualizar, set_row_visible
+from app.views.form_utils import (
+    agregar_ayuda,
+    guardar_o_actualizar,
+    hacer_redimensionable,
+    set_row_visible,
+)
 from app.views.icons import icon
 from database.models import Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
 
@@ -66,6 +71,7 @@ class ObligacionFormDialog(QDialog):
         obligacion_id: int | None = None,
     ):
         super().__init__(parent)
+        hacer_redimensionable(self)
         self.setWindowTitle("Editar obligacion" if obligacion_id else "Agregar obligacion")
         self._expediente_id = expediente_id
         self._area = area
@@ -73,6 +79,11 @@ class ObligacionFormDialog(QDialog):
         self._iconos_advertencia: dict[QLineEdit, QLabel] = {}
 
         self.combo_tipo = QComboBox()
+        self.combo_tipo.setToolTip(
+            "Puntual: un solo hecho con fecha de origen (ej. una factura vencida). "
+            "Recurrente: pagos periodicos con fecha de inicio y dia de pago fijo "
+            "(ej. cuota alimentaria mensual)."
+        )
         self.combo_tipo.addItem("Puntual", userData="PUNTUAL")
         if self._area not in ("SANCIONATORIO", "HONORARIOS", "LABORAL", "TRIBUTARIO"):
             # Una multa, un cobro de honorarios o una liquidacion de contrato laboral
@@ -82,6 +93,11 @@ class ObligacionFormDialog(QDialog):
             self.combo_tipo.addItem("Recurrente", userData="RECURRENTE")
 
         self.combo_categoria = QComboBox()
+        self.combo_categoria.setToolTip(
+            "Categoria de la obligacion dentro del area elegida -- determina que reglas "
+            "de liquidacion aplican (ej. 'Daño emergente' en Civil/Familia, 'Sancion por "
+            "inexactitud' en Tributario)."
+        )
         categorias_por_area = {
             "COMERCIAL": CATEGORIAS_COMERCIAL,
             "SANCIONATORIO": CATEGORIAS_SANCIONATORIO,
@@ -108,12 +124,24 @@ class ObligacionFormDialog(QDialog):
 
         self.campo_fecha_origen = QDateEdit(QDate.currentDate())
         self.campo_fecha_origen.setCalendarPopup(True)
+        self.campo_fecha_origen.setToolTip(
+            "Fecha en que se causo la obligacion puntual (ej. la fecha de la factura o "
+            "del hecho dañoso). Los intereses se calculan desde este dia."
+        )
 
         self.campo_fecha_inicio = QDateEdit(QDate.currentDate())
         self.campo_fecha_inicio.setCalendarPopup(True)
+        self.campo_fecha_inicio.setToolTip(
+            "Fecha del primer pago periodico. Ejemplo: 2024-01-05 si la primera cuota "
+            "alimentaria vence ese dia."
+        )
         self.campo_dia_pago = QSpinBox()
         self.campo_dia_pago.setRange(1, 28)
         self.campo_dia_pago.setValue(5)
+        self.campo_dia_pago.setToolTip(
+            "Dia del mes en que vence cada cuota periodica, entre 1 y 28. Ejemplo: 5 si "
+            "la cuota alimentaria vence el dia 5 de cada mes."
+        )
 
         # Reajuste anual (Sprint 41): solo aplica a una obligacion RECURRENTE de
         # Civil/Familia (cuota alimentaria) -- ver _actualizar_campos_visibles.
@@ -139,6 +167,10 @@ class ObligacionFormDialog(QDialog):
         )
         self.campo_fecha_vencimiento = QDateEdit(QDate.currentDate())
         self.campo_fecha_vencimiento.setCalendarPopup(True)
+        self.campo_fecha_vencimiento.setToolTip(
+            "Fecha pactada de pago de la obligacion comercial; despues de esta fecha se "
+            "aplica la tasa moratoria en vez de la tasa efectiva anual pactada."
+        )
         self.campo_ibc_vigente = QLineEdit()
         self.campo_ibc_vigente.setToolTip(
             "Interes Bancario Corriente vigente certificado por la Superfinanciera, usado "
@@ -152,10 +184,22 @@ class ObligacionFormDialog(QDialog):
             "una demanda judicial en curso."
         )
         self.check_anatocismo_acuerdo = QCheckBox("¿Hay acuerdo posterior de capitalización?")
+        self.check_anatocismo_acuerdo.setToolTip(
+            "Marca si existe un acuerdo posterior a la demanda que autoriza capitalizar "
+            "intereses sobre intereses (anatocismo convencional, Art. 886 C.Co.)."
+        )
         self.campo_anatocismo_fecha_acuerdo = QDateEdit(QDate.currentDate())
         self.campo_anatocismo_fecha_acuerdo.setCalendarPopup(True)
+        self.campo_anatocismo_fecha_acuerdo.setToolTip(
+            "Fecha del acuerdo posterior que autoriza el anatocismo; desde esa fecha "
+            "empieza a capitalizarse el interes sobre interes."
+        )
 
         self.combo_moneda = QComboBox()
+        self.combo_moneda.setToolTip(
+            "Moneda en que esta pactada la obligacion. Si elige USD, debe indicar la TRM "
+            "aplicable para convertir a pesos."
+        )
         self.combo_moneda.addItem("COP (peso colombiano)", userData="COP")
         self.combo_moneda.addItem("USD (dolar)", userData="USD")
         self.campo_trm_aplicable = QLineEdit()
@@ -164,6 +208,10 @@ class ObligacionFormDialog(QDialog):
         )
         self.campo_trm_fecha_referencia = QDateEdit(QDate.currentDate())
         self.campo_trm_fecha_referencia.setCalendarPopup(True)
+        self.campo_trm_fecha_referencia.setToolTip(
+            "Fecha de la TRM certificada por el Banco de la Republica que se usa para la "
+            "conversion. Ejemplo: la fecha de origen de la obligacion."
+        )
 
         self.campo_cantidad_smlmv_uvt = QLineEdit()
         self.campo_cantidad_smlmv_uvt.setToolTip(
@@ -184,12 +232,21 @@ class ObligacionFormDialog(QDialog):
         )
 
         self.campo_honorarios_fijos = QLineEdit()
+        self.campo_honorarios_fijos.setToolTip(
+            "Valor fijo pactado por honorarios, adicional a (o en vez de) la cuota "
+            "litis. Ejemplo: $500.000 de anticipo de honorarios."
+        )
         self.campo_cuota_litis_pct = QLineEdit()
         self.campo_cuota_litis_pct.setToolTip(
             "Porcentaje del beneficio obtenido por el cliente pactado como honorarios "
             "(cuota litis), entre 0% y 100%."
         )
         self.campo_beneficio_obtenido = QLineEdit()
+        self.campo_beneficio_obtenido.setToolTip(
+            "Valor del beneficio economico obtenido por el cliente en el proceso, base "
+            "para calcular la cuota litis pactada. Ejemplo: $20.000.000 recuperados en "
+            "la sentencia."
+        )
         self.campo_costas_pct = QLineEdit()
         self.campo_costas_pct.setToolTip(
             "Porcentaje adicional por costas judiciales a cargo de la parte vencida, si se "
@@ -211,20 +268,55 @@ class ObligacionFormDialog(QDialog):
         )
 
         self.campo_base_sancion = QLineEdit()
+        self.campo_base_sancion.setToolTip(
+            "Valor del impuesto a cargo o de la diferencia detectada por la DIAN sobre "
+            "el que se calcula la sancion tributaria. Ejemplo: $2.000.000."
+        )
         self.campo_meses_extemporaneidad = QSpinBox()
         self.campo_meses_extemporaneidad.setRange(1, 120)
         self.campo_meses_extemporaneidad.setValue(1)
+        self.campo_meses_extemporaneidad.setToolTip(
+            "Meses o fraccion de mes de atraso en la presentacion de la declaracion "
+            "(Estatuto Tributario, art. 641). Ejemplo: 3 si se presento 2 meses y 10 "
+            "dias tarde (se cuenta como 3 meses)."
+        )
         self.check_sancion_agravada = QCheckBox(
             "Agravada (omision de activos o pasivos inexistentes)"
         )
+        self.check_sancion_agravada.setToolTip(
+            "Marca si la inexactitud incluyo activos o pasivos inexistentes, lo que "
+            "duplica el porcentaje de la sancion (Estatuto Tributario, art. 648, "
+            "paragrafo 1)."
+        )
         self.campo_ingresos_brutos = QLineEdit()
+        self.campo_ingresos_brutos.setToolTip(
+            "Ingresos brutos del periodo gravable, antes de devoluciones y "
+            "descuentos. Ejemplo: $80.000.000."
+        )
         self.campo_devoluciones = QLineEdit()
+        self.campo_devoluciones.setToolTip(
+            "Devoluciones, rebajas y descuentos sobre los ingresos brutos del "
+            "periodo. Ejemplo: $2.000.000."
+        )
         self.campo_costos = QLineEdit()
+        self.campo_costos.setToolTip(
+            "Costos asociados a la actividad generadora de renta. Ejemplo: $30.000.000."
+        )
         self.campo_deducciones = QLineEdit()
+        self.campo_deducciones.setToolTip(
+            "Deducciones fiscales aceptadas del periodo. Ejemplo: $5.000.000."
+        )
         self.campo_rentas_exentas = QLineEdit()
+        self.campo_rentas_exentas.setToolTip(
+            "Rentas exentas del periodo, si aplica. Ejemplo: $1.000.000."
+        )
 
         self.campo_fecha_fin = QDateEdit(QDate.currentDate())
         self.campo_fecha_fin.setCalendarPopup(True)
+        self.campo_fecha_fin.setToolTip(
+            "Fecha en que termino la relacion laboral; se usa para liquidar "
+            "prestaciones sociales hasta ese dia."
+        )
         # es_smmlv (Sprint 44, punto 1): cuando esta marcado, el salario base se
         # resuelve automaticamente desde el SMLMV vigente del año de inicio del
         # contrato (LaboralStrategy.liquidar) -- "Valor" deja de ser editable a
@@ -235,10 +327,22 @@ class ObligacionFormDialog(QDialog):
             "año de inicio del contrato, en vez del valor digitado a mano."
         )
         self.check_pagada = QCheckBox("Prestaciones pagadas")
+        self.check_pagada.setToolTip(
+            "Marca si el empleador ya pago las prestaciones sociales liquidadas; "
+            "habilita 'Fecha de pago real' para calcular intereses solo hasta esa fecha."
+        )
         self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
         self.campo_fecha_pago_total.setCalendarPopup(True)
+        self.campo_fecha_pago_total.setToolTip(
+            "Fecha en que el empleador realmente pago las prestaciones sociales "
+            "adeudadas (corta el calculo de intereses moratorios en esa fecha)."
+        )
         self.check_incluir_seguridad_social = QCheckBox(
             "Incluir cotizaciones de seguridad social no pagadas"
+        )
+        self.check_incluir_seguridad_social.setToolTip(
+            "Incluye el calculo de los aportes a seguridad social (pension, salud, "
+            "ARL) que el empleador no pago durante la relacion laboral."
         )
         self.combo_nivel_riesgo_arl = QComboBox()
         for nivel in ("I", "II", "III", "IV", "V"):
@@ -295,18 +399,23 @@ class ObligacionFormDialog(QDialog):
         layout_grupo_honorarios_costas.addWidget(contenido_honorarios_costas)
         self.grupo_honorarios_costas.toggled.connect(contenido_honorarios_costas.setVisible)
 
-        # Concepto/Valor/Tasa se envuelven con iconos de advertencia (y, para Tasa,
-        # tambien un icono informativo del valor por defecto) -- ver
+        # Concepto/Valor/Tasa se envuelven con un icono de advertencia -- ver
         # _envolver_campo_con_iconos. A partir de aqui, ocultar/mostrar la FILA de
         # Valor/Tasa segun el area debe apuntar al contenedor devuelto, no al
         # QLineEdit interno (que solo controla su propia visibilidad, no la del
         # icono que lo acompaña).
         self._contenedor_campo_concepto = self._envolver_campo_con_iconos(self.campo_concepto)
         self._contenedor_campo_valor = self._envolver_campo_con_iconos(self.campo_valor)
-        self._contenedor_campo_tasa = self._envolver_campo_con_iconos(
-            self.campo_tasa,
-            icono_info="info",
-            tooltip_info="Valor por defecto: interés civil legal, Art. 1617 C.C.",
+        # Tasa ademas recibe el icono informativo del valor por defecto (Sprint 34),
+        # ahora mediante el helper compartido `agregar_ayuda` (Sprint 59) en vez de un
+        # parametro propio de _envolver_campo_con_iconos -- agrega tambien la fila al
+        # layout, por eso no aparece un addRow("Tasa efectiva anual (%)", ...) separado
+        # mas abajo, junto a las demas filas de "Tasas e intereses".
+        self._contenedor_campo_tasa = agregar_ayuda(
+            self.layout_tasas_intereses,
+            "Tasa efectiva anual (%)",
+            self._envolver_campo_con_iconos(self.campo_tasa),
+            tooltip="Valor por defecto: interés civil legal, Art. 1617 C.C.",
         )
 
         self.layout_datos_basicos.addRow("Tipo", self.combo_tipo)
@@ -351,7 +460,6 @@ class ObligacionFormDialog(QDialog):
         self.layout_datos_basicos.addRow(self.check_incluir_seguridad_social)
         self.layout_datos_basicos.addRow("Nivel de riesgo ARL", self.combo_nivel_riesgo_arl)
 
-        self.layout_tasas_intereses.addRow("Tasa efectiva anual (%)", self._contenedor_campo_tasa)
         self.layout_tasas_intereses.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
         self.layout_tasas_intereses.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
         self.layout_tasas_intereses.addRow("IBC vigente aplicable (%)", self.campo_ibc_vigente)
@@ -888,28 +996,27 @@ class ObligacionFormDialog(QDialog):
                 f"del expediente ({expediente.fecha_corte_default.isoformat()})."
             )
 
-    def _envolver_campo_con_iconos(
-        self, campo: QLineEdit, *, icono_info: str | None = None, tooltip_info: str = ""
-    ) -> QWidget:
-        """Envuelve `campo` en un contenedor horizontal con, opcionalmente, un
-        icono de informacion fijo (explica de donde sale un valor por defecto,
-        Sprint 34) y siempre un icono de advertencia oculto por defecto que
-        `_marcar_campo_invalido` muestra cuando la validacion en tiempo real
-        detecta un error. QFormLayout no admite dos widgets de "campo" en la
-        misma fila sin este contenedor intermedio -- por eso las llamadas que
-        antes ocultaban `campo` directamente (para ocultar/mostrar toda la fila
-        segun el area) ahora deben apuntar al contenedor devuelto por este
-        metodo, no al QLineEdit interno (ver __init__).
+    def _envolver_campo_con_iconos(self, campo: QLineEdit) -> QWidget:
+        """Envuelve `campo` en un contenedor horizontal con un icono de
+        advertencia oculto por defecto que `_marcar_campo_invalido` muestra
+        cuando la validacion en tiempo real detecta un error. QFormLayout no
+        admite dos widgets de "campo" en la misma fila sin este contenedor
+        intermedio -- por eso las llamadas que antes ocultaban `campo`
+        directamente (para ocultar/mostrar toda la fila segun el area) ahora
+        deben apuntar al contenedor devuelto por este metodo, no al QLineEdit
+        interno (ver __init__).
+
+        El icono informativo de un valor por defecto (Sprint 34, antes tambien
+        construido aqui via `icono_info=`) se extrajo al helper compartido
+        `agregar_ayuda` (app/views/form_utils.py, Sprint 59) -- ver el call
+        site de "Tasa efectiva anual" en __init__, que envuelve el contenedor
+        que devuelve este metodo con `agregar_ayuda` para agregar ese icono
+        y la fila al layout.
         """
         contenedor = QWidget()
         layout_fila = QHBoxLayout(contenedor)
         layout_fila.setContentsMargins(0, 0, 0, 0)
         layout_fila.addWidget(campo)
-        if icono_info is not None:
-            etiqueta_info = QLabel()
-            etiqueta_info.setPixmap(icon(icono_info).pixmap(16, 16))
-            etiqueta_info.setToolTip(tooltip_info)
-            layout_fila.addWidget(etiqueta_info)
         etiqueta_advertencia = QLabel()
         etiqueta_advertencia.setPixmap(icon("warning").pixmap(16, 16))
         etiqueta_advertencia.setVisible(False)

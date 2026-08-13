@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
+from app.views.form_utils import hacer_redimensionable
 from app.views.icons import icon
 from database.models import DescuentoLaboral
 
@@ -28,6 +29,7 @@ class DescuentoLaboralFormDialog(QDialog):
 
     def __init__(self, obligacion_id: int, parent=None):
         super().__init__(parent)
+        hacer_redimensionable(self)
         self.setWindowTitle("Agregar descuento del empleador")
         self._obligacion_id = obligacion_id
 

@@ -26,7 +26,8 @@ from typing import NamedTuple
 
 import database.session as session_module
 from app.core.exceptions import ParametroNoDisponibleError
-from database.models import ParametroLegal
+from app.services.areas_parametro import serializar_areas
+from database.models import AreaDerecho, ParametroLegal
 
 
 class ModoResolucion(enum.Enum):
@@ -286,7 +287,42 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "Ley 797/2003, art. 8",
         ModoResolucion.ABIERTO,
     ),
+    # Sprint 58: dato CRUDO del que se deriva IPC_INDICE_ACUMULADO --
+    # indice = indice_anterior * (1 + variacion_anual / 100), ver
+    # app/engine/indexation/historical_index.py::_construir_indice_ipc_acumulado.
+    # NO se usa en ningun calculo de liquidacion (solo IPC_INDICE_ACUMULADO se
+    # consulta desde get_ipc_for_date) -- existe solo para que
+    # HistorialParametroDialog pueda mostrarla junto al indice ya calculado,
+    # via CLAVE_CRUDA_DE (abajo). Sembrada por
+    # scripts/migrate_ipc_variacion_anual.py.
+    "IPC_VARIACION_ANUAL": InfoParametro(
+        "Variacion porcentual anual del IPC (dato crudo, antes de acumular)",
+        "Indicadores historicos",
+        "PDF pagina 62",
+        ModoResolucion.ANUAL_EXACTO,
+    ),
 }
+
+# Sprint 58: clave calculada -> clave cruda de la que se deriva, para que
+# HistorialParametroDialog pueda mostrar el dato crudo junto al calculado sin
+# hardcodear "si clave == IPC_INDICE_ACUMULADO" en la UI. Mecanismo generico,
+# extensible si en el futuro aparece otro parametro con formula -- confirmado
+# con el usuario que por ahora solo IPC_INDICE_ACUMULADO aplica (de los otros
+# 4 "indicadores historicos" -- SMLMV, UVT, IBC, USURA -- ninguno se deriva de
+# otra clave, son tablas planas transcritas directo).
+CLAVE_CRUDA_DE: dict[str, str] = {"IPC_INDICE_ACUMULADO": "IPC_VARIACION_ANUAL"}
+
+# Revision final de integracion (Sprints 56-60): agregar_valor() exige
+# 'valor > 0' para las claves normales (topes, tasas, plazos -- ver el bloque
+# de abajo), pero IPC_VARIACION_ANUAL (Sprint 58) es la unica excepcion: es la
+# variacion % anual CRUDA del IPC, un dato historico real que legitimamente
+# puede ser 0% o negativa en un año de deflacion -- no es un error de captura.
+# La migracion (scripts/migrate_ipc_variacion_anual.py) siembra los 59 valores
+# historicos saltandose agregar_valor() (inserta directo por ORM), pero un
+# usuario agregando un valor nuevo desde ParametroFormDialog si pasa por aqui.
+# Set en vez de un campo nuevo en InfoParametro: hoy es un caso unico: si
+# aparecen mas claves con la misma necesidad, generalizar a ese punto.
+CLAVES_VALOR_PUEDE_SER_NO_POSITIVO: frozenset[str] = frozenset({"IPC_VARIACION_ANUAL"})
 
 
 def _validar_clave(clave: str) -> InfoParametro:
@@ -457,20 +493,38 @@ def agregar_valor(
     valor: Decimal,
     vigente_desde: date,
     usuario: str,
+    areas_derecho: list[AreaDerecho],
+    unidad: str,
     motivo: str | None = None,
     vigente_hasta: date | None = None,
 ) -> ParametroLegal:
     """Inserta una fila nueva (append-only: nunca modifica ni borra filas
-    existentes). Usada por la GUI (app/views/configuracion.py)."""
+    existentes). Usada por la GUI (app/views/configuracion.py).
+
+    areas_derecho/unidad (Sprint 57): obligatorias para toda fila creada por
+    esta funcion -- se guardan por fila (no como metadato fijo en Python) y
+    nunca se editan despues de creadas (decision del usuario, ver spec). El
+    modelo las deja nullable a nivel de columna SQLite (ver database/models.py)
+    precisamente para que esa obligatoriedad la exija esta funcion, no un
+    CHECK/NOT NULL de la base de datos.
+
+    `valor` debe ser positivo salvo para las claves listadas en
+    CLAVES_VALOR_PUEDE_SER_NO_POSITIVO (hoy solo IPC_VARIACION_ANUAL, que
+    puede ser 0 o negativa en un año de deflacion -- ver el comentario junto a
+    esa constante)."""
     info = _validar_clave(clave)
     if info.modo == ModoResolucion.TRAMO_CERRADO and vigente_hasta is None:
         raise ValueError(f"'{clave}' requiere 'vigente_hasta' (modo TRAMO_CERRADO).")
     if info.modo != ModoResolucion.TRAMO_CERRADO and vigente_hasta is not None:
         raise ValueError(f"'{clave}' no admite 'vigente_hasta' (modo {info.modo.value}).")
-    if valor <= Decimal("0"):
+    if valor <= Decimal("0") and clave not in CLAVES_VALOR_PUEDE_SER_NO_POSITIVO:
         raise ValueError("El valor debe ser positivo.")
     if vigente_hasta is not None and vigente_hasta < vigente_desde:
         raise ValueError("'vigente_hasta' no puede ser anterior a 'vigente_desde'.")
+    areas_derecho_json = serializar_areas(areas_derecho)
+    unidad = unidad.strip()
+    if not unidad:
+        raise ValueError("La unidad es obligatoria.")
 
     session = session_module.get_session()
     try:
@@ -498,6 +552,8 @@ def agregar_valor(
             usuario=usuario,
             motivo=motivo,
             creado_en=datetime.now(),
+            areas_derecho=areas_derecho_json,
+            unidad=unidad,
         )
         session.add(fila)
         session.commit()
@@ -521,6 +577,33 @@ def historial(clave: str) -> list[ParametroLegal]:
         )
     finally:
         session.close()
+
+
+def vigencia_hasta_mostrar(fila: ParametroLegal, info: InfoParametro) -> str:
+    """Texto de PRESENTACION para la columna "Vigente hasta" de la GUI
+    (ParametrosView.tabla, HistorialParametroDialog.tabla) -- Sprint 58.
+    Regla de presentacion pura: no modifica `fila` ni ningun dato guardado, y
+    no participa de get_parametro()/_resolver_fila() (el calculo real de
+    liquidacion sigue exactamente igual).
+
+    - Si `fila.vigente_hasta` ya esta guardado (modo TRAMO_CERRADO), se
+      muestra tal cual, en ISO.
+    - Si el modo de la clave es ANUAL_EXACTO y no hay `vigente_hasta` (el
+      gobierno fija un valor nuevo cada año -- SMLMV, IPC_INDICE_ACUMULADO,
+      UVT -- pero la fila nunca guarda una fecha de cierre explicita, solo
+      `vigente_desde`), se calcula "31 de diciembre del año de
+      vigente_desde": el mismo año calendario que ya usa
+      _resolver_fila/_resolver_entre_filas para resolver ese modo
+      (vigente_desde == date(fecha.year, 1, 1)), asi que el texto nunca
+      contradice lo que get_parametro() realmente resuelve.
+    - En cualquier otro caso (modo ABIERTO -- ej. USURA_MULTIPLICADOR, que
+      estructuralmente no tiene fecha de fin -- sin `vigente_hasta`), se
+      muestra "Indefinido" en vez de dejar la celda vacia."""
+    if fila.vigente_hasta is not None:
+        return fila.vigente_hasta.isoformat()
+    if info.modo == ModoResolucion.ANUAL_EXACTO:
+        return f"{date(fila.vigente_desde.year, 12, 31).isoformat()} (calculado)"
+    return "Indefinido"
 
 
 def valor_vigente_hoy(clave: str) -> ParametroLegal | None:

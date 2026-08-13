@@ -15,7 +15,10 @@ en vez de invocar `widget.setVisible(...)` directamente sobre un widget que
 vive en un `QFormLayout`.
 """
 
-from PySide6.QtWidgets import QFormLayout, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QLabel, QWidget
+
+from app.views.icons import icon
 
 
 def guardar_o_actualizar(session, modelo_cls, id_existente: int | None, **campos) -> int:
@@ -67,3 +70,53 @@ def set_row_visible(layout: QFormLayout, widget: QWidget, visible: bool) -> None
     etiqueta = layout.labelForField(widget)
     if etiqueta is not None:
         etiqueta.setVisible(visible)
+
+
+def agregar_ayuda(
+    layout: QFormLayout,
+    etiqueta: str,
+    campo: QWidget,
+    *,
+    tooltip: str,
+    ejemplo: str | None = None,
+) -> QWidget:
+    """Agrega una fila a `layout` con `campo` y un icono (i) al lado, con
+    tooltip explicativo (mas un ejemplo concreto si se da) -- Sprint 59.
+
+    Extraido de `ObligacionFormDialog._envolver_campo_con_iconos` (Sprint 34),
+    que originalmente solo agregaba este icono informativo junto a "Tasa
+    efectiva anual". Se generaliza aqui como funcion compartida para que los
+    4 formularios principales de captura (Parametros, Expediente, Obligacion,
+    Abono) lo usen en vez de reimplementar el mismo patron cada uno.
+
+    Si se da `ejemplo`, se concatena al tooltip como una segunda linea
+    ("{tooltip}\\nEjemplo: {ejemplo}") -- mismo formato que ya usaba el
+    unico call site en produccion cuando el texto ya incluia el ejemplo en
+    una sola frase (ese caso sigue funcionando igual pasando solo `tooltip`,
+    sin `ejemplo`).
+
+    Retorna el contenedor (fila + icono) para que el caller lo use como el
+    widget de la fila si necesita ocultarlo despues con `set_row_visible`.
+    """
+    contenedor = QWidget()
+    layout_fila = QHBoxLayout(contenedor)
+    layout_fila.setContentsMargins(0, 0, 0, 0)
+    layout_fila.addWidget(campo)
+    etiqueta_info = QLabel()
+    etiqueta_info.setPixmap(icon("info").pixmap(16, 16))
+    texto_tooltip = tooltip if ejemplo is None else f"{tooltip}\nEjemplo: {ejemplo}"
+    etiqueta_info.setToolTip(texto_tooltip)
+    layout_fila.addWidget(etiqueta_info)
+    layout.addRow(etiqueta, contenedor)
+    return contenedor
+
+
+def hacer_redimensionable(dialog: QDialog) -> None:
+    """Agrega minimizar/maximizar y redimensionado a un QDialog -- Qt no los
+    incluye por defecto en Windows (Sprint 56). Llamar una vez en __init__,
+    justo despues de super().__init__(parent)."""
+    dialog.setWindowFlags(
+        dialog.windowFlags()
+        | Qt.WindowType.WindowMinimizeButtonHint
+        | Qt.WindowType.WindowMaximizeButtonHint
+    )

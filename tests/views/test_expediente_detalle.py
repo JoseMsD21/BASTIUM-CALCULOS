@@ -1493,3 +1493,239 @@ def test_flujo_completo_crear_obligacion_recurrente_generar_cuotas_y_abonar_una_
     abonos_del_padre = session.query(Abono).filter_by(obligacion_id=obligacion_padre_id).count()
     session.close()
     assert abonos_del_padre == 0
+
+
+# --- Sprint 60 ---------------------------------------------------------------
+
+
+def test_eliminar_obligacion_simple_la_quita_de_la_tabla_y_la_base(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_obligaciones.rowCount() == 1
+    obligacion_id = page._obligacion_ids_por_fila[0]
+
+    page._eliminar_obligacion(obligacion_id)
+
+    assert page.tabla_obligaciones.rowCount() == 0
+    session = session_module.get_session()
+    assert session.query(Obligacion).count() == 0
+    session.close()
+
+
+def test_eliminar_obligacion_cancelada_no_la_elimina(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.No,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    obligacion_id = page._obligacion_ids_por_fila[0]
+
+    page._eliminar_obligacion(obligacion_id)
+
+    assert page.tabla_obligaciones.rowCount() == 1
+    session = session_module.get_session()
+    assert session.query(Obligacion).count() == 1
+    session.close()
+
+
+def test_eliminar_obligacion_con_abonos_los_elimina_en_cascada(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    session.add(
+        Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    )
+    session.add(
+        Abono(obligacion_id=obligacion.id, fecha=date(2026, 2, 10), monto=Decimal("30000.00"))
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._eliminar_obligacion(obligacion_id)
+
+    session = session_module.get_session()
+    assert session.query(Obligacion).count() == 0
+    assert session.query(Abono).count() == 0
+    session.close()
+
+
+def test_eliminar_obligacion_recurrente_con_cuotas_hijas_las_elimina_todas(qtbot, monkeypatch):
+    """Caso especial del Sprint 60: obligacion_padre_id NO es una relationship()
+    de SQLAlchemy (ver comentario en database/models.py cerca de esa columna),
+    asi que las cuotas hijas generadas por generar_cuotas_mensuales (Sprint 41)
+    no se borran por cascada del ORM -- _eliminar_obligacion debe consultarlas
+    y borrarlas explicitamente. Este test genera cuotas REALES (mismo fixture
+    y flujo que los tests de "Generar cuotas" de arriba), no un mock."""
+    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_con_reajuste(
+        monkeypatch
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    fila = page._obligacion_ids_por_fila.index(obligacion_id)
+    page.tabla_obligaciones.setCurrentCell(fila, 0)
+    page._generar_cuotas()
+    assert page.tabla_obligaciones.rowCount() == 6  # obligacion padre + 5 cuotas
+
+    session = session_module.get_session()
+    total_cuotas = (
+        session.query(Obligacion).filter(Obligacion.obligacion_padre_id == obligacion_id).count()
+    )
+    session.close()
+    assert total_cuotas == 5  # confirma que las cuotas realmente se generaron
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page._eliminar_obligacion(obligacion_id)
+
+    assert page.tabla_obligaciones.rowCount() == 0
+    session = session_module.get_session()
+    # Ni la obligacion padre ni ninguna de sus 5 cuotas hijas sobreviven.
+    assert session.query(Obligacion).count() == 0
+    session.close()
+
+
+def test_tabla_obligaciones_tiene_columna_eliminar(qtbot):
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+
+    assert page.tabla_obligaciones.columnCount() == 5
+    encabezados = [
+        page.tabla_obligaciones.horizontalHeaderItem(i).text() for i in range(5)
+    ]
+    assert encabezados == ["Concepto", "Tipo", "Valor", "Editar", "Eliminar"]
+
+
+def test_editar_abono_abre_el_dialogo_con_el_id_y_refresca(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    abono = Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    session.add(abono)
+    session.commit()
+    abono_id = abono.id
+    session.close()
+
+    ids_recibidos = {}
+
+    def _simular_edicion_y_guardado(self):
+        ids_recibidos["abono_id"] = self._abono_id
+        self.campo_referencia.setText("Editado")
+        self.guardar()
+        return True
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.AbonoFormDialog.exec",
+        _simular_edicion_y_guardado,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._editar_abono(abono_id)
+
+    assert ids_recibidos["abono_id"] == abono_id
+    session = session_module.get_session()
+    assert session.query(Abono).count() == 1  # no se creo uno nuevo
+    guardado = session.query(Abono).filter_by(id=abono_id).one()
+    assert guardado.referencia == "Editado"
+    session.close()
+
+
+def test_eliminar_abono_lo_quita_de_la_tabla_y_la_base(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    abono = Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    session.add(abono)
+    session.commit()
+    abono_id = abono.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_abonos.rowCount() == 1
+
+    page._eliminar_abono(abono_id)
+
+    assert page.tabla_abonos.rowCount() == 0
+    session = session_module.get_session()
+    assert session.query(Abono).count() == 0
+    session.close()
+
+
+def test_eliminar_abono_cancelado_no_lo_elimina(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    abono = Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    session.add(abono)
+    session.commit()
+    abono_id = abono.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.No,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._eliminar_abono(abono_id)
+
+    session = session_module.get_session()
+    assert session.query(Abono).count() == 1
+    session.close()
+
+
+def test_tabla_abonos_tiene_columnas_editar_y_eliminar(qtbot):
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+
+    assert page.tabla_abonos.columnCount() == 5
+    encabezados = [page.tabla_abonos.horizontalHeaderItem(i).text() for i in range(5)]
+    assert encabezados == ["Fecha", "Monto", "Referencia", "Editar", "Eliminar"]

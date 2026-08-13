@@ -266,3 +266,20 @@ class ParametroLegal(Base):
     usuario: Mapped[str] = mapped_column(String(200))
     motivo: Mapped[str | None] = mapped_column(String(500), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime)
+    # areas_derecho/unidad (Sprint 57): lista JSON de codigos AreaDerecho y
+    # unidad de medida (ej. "COP"/"%"/"meses"), obligatorias para toda fila
+    # nueva creada desde agregar_valor()/la GUI (validado ahi, no aqui) pero
+    # nullable a nivel de columna SQLite -- las 683 filas legadas quedan NULL
+    # hasta que scripts/migrate_parametros_area_unidad.py las completa (mismo
+    # patron que otras columnas agregadas por ALTER TABLE sin DEFAULT viable,
+    # ver docstring de ese script), y decenas de tests/scripts no relacionados
+    # con este sprint siguen construyendo ParametroLegal directamente sin
+    # estos dos campos. Se guardan por FILA (no como metadato fijo de la
+    # clave), pero en la practica se asume que no varian entre versiones
+    # historicas de una misma clave -- son propiedades de la clave, no del
+    # valor puntual -- por eso ni ParametrosView ni HistorialParametroDialog
+    # necesitan mostrarlas fila por fila en el historial (Sprint 60): basta
+    # con la fila vigente. Si algun dia una clave necesitara area/unidad
+    # distinta entre versiones, esta asuncion habria que revisarla.
+    areas_derecho: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    unidad: Mapped[str | None] = mapped_column(String(30), nullable=True)

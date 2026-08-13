@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QLabel, QMessageBox
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -18,6 +18,44 @@ def _sesion_en_memoria(monkeypatch):
     monkeypatch.setattr(
         session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
     )
+
+
+def test_campos_no_autoexplicativos_tienen_tooltip(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    for nombre_campo in (
+        "campo_radicado",
+        "campo_demandante",
+        "campo_demandado",
+        "campo_juzgado",
+        "campo_fecha_corte",
+        "combo_area",
+    ):
+        widget = getattr(dialog, nombre_campo)
+        assert widget.toolTip() != "", f"{nombre_campo} deberia tener un tooltip"
+
+
+def test_fecha_de_corte_muestra_icono_informativo(qtbot, monkeypatch):
+    """Sprint 59: 'Fecha de corte' es el campo con mayor impacto no obvio en la
+    liquidacion (fija el limite por defecto de calculo de intereses) -- recibe el
+    icono (i) explicito, mismo patron que 'Tasa efectiva anual' en
+    ObligacionFormDialog (Sprint 34/59)."""
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    iconos_info = [
+        hijo
+        for hijo in dialog._contenedor_campo_fecha_corte.findChildren(QLabel)
+        if hijo.toolTip().startswith(
+            "Fecha hasta la que se calculan los intereses por defecto"
+        )
+    ]
+    assert len(iconos_info) == 1
 
 
 def test_lista_muestra_expedientes_existentes(qtbot, monkeypatch):

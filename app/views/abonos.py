@@ -6,20 +6,34 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QDateEdit, QDialog, QFormLayout, QLineEdit, QMessageBox, QPushButton
 
 import database.session as session_module
+from app.views.form_utils import agregar_ayuda, guardar_o_actualizar, hacer_redimensionable
 from app.views.icons import icon
 from database.models import Abono, Obligacion
 
 
 class AbonoFormDialog(QDialog):
-    def __init__(self, obligacion_id: int, parent=None):
+    def __init__(self, obligacion_id: int, parent=None, abono_id: int | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Agregar abono")
+        hacer_redimensionable(self)
+        self.setWindowTitle("Editar abono" if abono_id else "Agregar abono")
         self._obligacion_id = obligacion_id
+        self._abono_id = abono_id
 
         self.campo_fecha = QDateEdit(QDate.currentDate())
         self.campo_fecha.setCalendarPopup(True)
+        self.campo_fecha.setToolTip(
+            "Fecha en que se realizo el pago. Ejemplo: si el abono se hizo el "
+            "15/03/2024, seleccione esa fecha aunque se registre despues."
+        )
         self.campo_monto = QLineEdit()
+        self.campo_monto.setToolTip(
+            "Valor efectivamente pagado por el cliente o deudor en la fecha indicada."
+        )
         self.campo_referencia = QLineEdit()
+        self.campo_referencia.setToolTip(
+            "Referencia de pago opcional (ej. numero de consignacion, cheque o "
+            "transaccion)."
+        )
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
@@ -37,10 +51,41 @@ class AbonoFormDialog(QDialog):
 
         layout = QFormLayout()
         layout.addRow("Fecha", self.campo_fecha)
-        layout.addRow("Monto", self.campo_monto)
+        # "Monto" recibe ademas el icono (i) explicito (Sprint 59, helper compartido
+        # agregar_ayuda): es el campo con efecto no obvio -- interactua con la
+        # heuristica de sobrepago que compara la suma de abonos contra el valor de la
+        # obligacion (ver guardar()).
+        self._contenedor_campo_monto = agregar_ayuda(
+            layout,
+            "Monto",
+            self.campo_monto,
+            tooltip=(
+                "Valor efectivamente pagado por el cliente o deudor; se resta al "
+                "saldo pendiente al liquidar."
+            ),
+            ejemplo="$500.000 si el deudor abono esa suma en la fecha indicada.",
+        )
         layout.addRow("Referencia", self.campo_referencia)
         layout.addRow(self.boton_guardar)
         self.setLayout(layout)
+
+        if abono_id is not None:
+            self._precargar_desde_abono(abono_id)
+
+    def _precargar_desde_abono(self, abono_id: int) -> None:
+        """Precarga los campos del formulario desde un `Abono` ya guardado
+        (Sprint 60) -- mismo patron que `_precargar_desde_evento`
+        (app/views/eventos_laborales.py) y `_precargar_desde_obligacion`
+        (app/views/obligaciones.py): espejo, campo por campo, de lo que
+        `guardar()` lee del formulario."""
+        session = session_module.get_session()
+        try:
+            abono = session.get(Abono, abono_id)
+            self.campo_fecha.setDate(QDate(abono.fecha.year, abono.fecha.month, abono.fecha.day))
+            self.campo_monto.setText(str(abono.monto))
+            self.campo_referencia.setText(abono.referencia or "")
+        finally:
+            session.close()
 
     def guardar(self) -> int:
         try:
@@ -56,7 +101,13 @@ class AbonoFormDialog(QDialog):
 
         session = session_module.get_session()
         obligacion = session.get(Obligacion, self._obligacion_id)
-        abonos_previos = sum((a.monto for a in obligacion.abonos), Decimal("0.00"))
+        # Al editar (self._abono_id no es None), excluye el propio abono de la
+        # suma -- de lo contrario su valor anterior se contaria dos veces (una
+        # vez como parte de `obligacion.abonos` ya guardado, otra vez en
+        # `monto`, el valor nuevo que lo va a reemplazar).
+        abonos_previos = sum(
+            (a.monto for a in obligacion.abonos if a.id != self._abono_id), Decimal("0.00")
+        )
         if abonos_previos + monto > obligacion.valor:
             # Heuristica no bloqueante: compara solo capital contra abonos, sin
             # recalcular intereses/indexacion (eso requeriria correr el motor de
@@ -71,15 +122,15 @@ class AbonoFormDialog(QDialog):
                 "el excedente quedará reflejado como saldo a favor al liquidar.",
             )
 
-        abono = Abono(
+        abono_id = guardar_o_actualizar(
+            session,
+            Abono,
+            self._abono_id,
             obligacion_id=self._obligacion_id,
             fecha=fecha,
             monto=monto,
             referencia=self.campo_referencia.text().strip() or None,
         )
-        session.add(abono)
-        session.commit()
-        abono_id = abono.id
         session.close()
         return abono_id
 

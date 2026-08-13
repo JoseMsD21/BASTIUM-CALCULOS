@@ -40,7 +40,7 @@ from app.views.eventos_laborales import EventoLaboralFormDialog
 from app.views.icons import icon
 from app.views.obligaciones import ObligacionFormDialog
 from app.views.toast import mostrar_toast
-from database.models import AreaDerecho, EventoLaboral, Expediente, Obligacion
+from database.models import Abono, AreaDerecho, EventoLaboral, Expediente, Obligacion
 
 
 def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
@@ -90,12 +90,15 @@ class ExpedienteDetallePage(QWidget):
         self._expediente_id = None
         self._obligacion_ids_por_fila = []
 
-        # Columna "Editar" (Sprint 44, punto 2): mismo patron de boton por fila
-        # que ya usa ExpedientesListView (app/views/expedientes.py) para
-        # Expediente -- un QPushButton "secondary" por celda, conectado con un
+        # Columnas "Editar"/"Eliminar" (Sprint 44, punto 2; "Eliminar" agregada en
+        # el Sprint 60): mismo patron de boton por fila que ya usa
+        # ExpedientesListView (app/views/expedientes.py) para Expediente -- un
+        # QPushButton "secondary"/"destructive" por celda, conectado con un
         # lambda que captura el id de esa fila.
-        self.tabla_obligaciones = QTableWidget(0, 4)
-        self.tabla_obligaciones.setHorizontalHeaderLabels(["Concepto", "Tipo", "Valor", "Editar"])
+        self.tabla_obligaciones = QTableWidget(0, 5)
+        self.tabla_obligaciones.setHorizontalHeaderLabels(
+            ["Concepto", "Tipo", "Valor", "Editar", "Eliminar"]
+        )
         self.boton_agregar_obligacion = QPushButton("Agregar obligacion")
         self.boton_agregar_obligacion.setProperty("class", "secondary")
         self.boton_agregar_obligacion.clicked.connect(self._abrir_dialogo_obligacion)
@@ -116,8 +119,12 @@ class ExpedienteDetallePage(QWidget):
         layout_obligaciones.addWidget(self.tabla_obligaciones)
         grupo_obligaciones.setLayout(layout_obligaciones)
 
-        self.tabla_abonos = QTableWidget(0, 3)
-        self.tabla_abonos.setHorizontalHeaderLabels(["Fecha", "Monto", "Referencia"])
+        # Columnas "Editar"/"Eliminar" (Sprint 60): mismo patron que
+        # tabla_obligaciones/tabla_eventos_laborales de arriba.
+        self.tabla_abonos = QTableWidget(0, 5)
+        self.tabla_abonos.setHorizontalHeaderLabels(
+            ["Fecha", "Monto", "Referencia", "Editar", "Eliminar"]
+        )
         self.boton_agregar_abono = QPushButton("Agregar abono")
         self.boton_agregar_abono.setProperty("class", "secondary")
         self.boton_agregar_abono.clicked.connect(self._abrir_dialogo_abono)
@@ -250,6 +257,14 @@ class ExpedienteDetallePage(QWidget):
             )
             self.tabla_obligaciones.setCellWidget(fila, 3, boton_editar)
 
+            boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.setIcon(icon("delete"))
+            boton_eliminar.setProperty("class", "destructive")
+            boton_eliminar.clicked.connect(
+                lambda _checked=False, id_=obligacion.id: self._eliminar_obligacion(id_)
+            )
+            self.tabla_obligaciones.setCellWidget(fila, 4, boton_eliminar)
+
             self._obligacion_ids_por_fila.append(obligacion.id)
         session.close()
 
@@ -263,6 +278,21 @@ class ExpedienteDetallePage(QWidget):
             self.tabla_abonos.setItem(fila, 0, QTableWidgetItem(abono.fecha.isoformat()))
             self.tabla_abonos.setItem(fila, 1, QTableWidgetItem(str(abono.monto)))
             self.tabla_abonos.setItem(fila, 2, QTableWidgetItem(abono.referencia or ""))
+
+            boton_editar = QPushButton("Editar")
+            boton_editar.setProperty("class", "secondary")
+            boton_editar.clicked.connect(
+                lambda _checked=False, id_=abono.id: self._editar_abono(id_)
+            )
+            self.tabla_abonos.setCellWidget(fila, 3, boton_editar)
+
+            boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.setIcon(icon("delete"))
+            boton_eliminar.setProperty("class", "destructive")
+            boton_eliminar.clicked.connect(
+                lambda _checked=False, id_=abono.id: self._eliminar_abono(id_)
+            )
+            self.tabla_abonos.setCellWidget(fila, 4, boton_eliminar)
         session.close()
 
     def _refrescar_eventos_laborales(self) -> None:
@@ -376,6 +406,40 @@ class ExpedienteDetallePage(QWidget):
         if dialogo.exec():
             self._refrescar_obligaciones()
 
+    def _eliminar_obligacion(self, obligacion_id: int) -> None:
+        """Sprint 60: elimina una Obligacion y confirma antes con el usuario.
+        `abonos`/`eventos_laborales`/`descuentos_laborales` se eliminan solos
+        via `cascade="all, delete-orphan"` (database/models.py:178-186).
+
+        Caso especial: si esta obligacion es RECURRENTE con reajuste anual y
+        ya genero cuotas hijas (`obligacion_padre_id` apuntando a ella, Sprint
+        41), esa relacion NO es un `relationship()` de SQLAlchemy -- ver el
+        comentario en database/models.py junto a `obligacion_padre_id` sobre
+        por que se omitio deliberadamente el ForeignKey -- asi que las cuotas
+        hijas no se borran por cascada del ORM y hay que consultarlas y
+        borrarlas explicitamente, en la misma transaccion, antes del padre."""
+        session = session_module.get_session()
+        hijas = (
+            session.query(Obligacion)
+            .filter(Obligacion.obligacion_padre_id == obligacion_id)
+            .all()
+        )
+        mensaje = "¿Eliminar esta obligación? Esta acción no se puede deshacer."
+        if hijas:
+            mensaje += f" Esto también eliminará sus {len(hijas)} cuota(s) generada(s)."
+        respuesta = QMessageBox.question(self, "Eliminar obligación", mensaje)
+        if respuesta != QMessageBox.StandardButton.Yes:
+            session.close()
+            return
+
+        for hija in hijas:
+            session.delete(hija)
+        obligacion = session.get(Obligacion, obligacion_id)
+        session.delete(obligacion)
+        session.commit()
+        session.close()
+        self._refrescar_obligaciones()
+
     def _abrir_dialogo_abono(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
@@ -388,6 +452,32 @@ class ExpedienteDetallePage(QWidget):
         dialogo = AbonoFormDialog(obligacion_id=obligacion_id, parent=self)
         if dialogo.exec():
             self._refrescar_abonos()
+
+    def _editar_abono(self, abono_id: int) -> None:
+        session = session_module.get_session()
+        abono = session.get(Abono, abono_id)
+        obligacion_id = abono.obligacion_id
+        session.close()
+
+        dialogo = AbonoFormDialog(obligacion_id=obligacion_id, parent=self, abono_id=abono_id)
+        if dialogo.exec():
+            self._refrescar_abonos()
+
+    def _eliminar_abono(self, abono_id: int) -> None:
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar abono",
+            "¿Eliminar este abono? Esta acción no se puede deshacer.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+
+        session = session_module.get_session()
+        abono = session.get(Abono, abono_id)
+        session.delete(abono)
+        session.commit()
+        session.close()
+        self._refrescar_abonos()
 
     def _generar_cuotas(self) -> None:
         """Sprint 41: genera y persiste las cuotas mensuales reales de la obligacion

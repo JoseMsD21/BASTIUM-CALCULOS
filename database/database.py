@@ -58,7 +58,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_interes_sobre_capital_indexado import (
         migrar as migrar_interes_capital_indexado,
     )
+    from scripts.migrate_ipc_variacion_anual import migrar as migrar_ipc_variacion_anual
     from scripts.migrate_moneda_trm import migrar as migrar_moneda_trm
+    from scripts.migrate_parametros_area_unidad import migrar as migrar_parametros_area_unidad
     from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
     from scripts.migrate_reajuste_anual_familia import migrar as migrar_reajuste_anual_familia
     from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
@@ -77,3 +79,14 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     migrar_parametros_legales(ruta)
+    # Debe correr DESPUES de migrar_parametros_legales: en una bastium.db
+    # nueva, las filas que ese script acaba de sembrar todavia no tienen
+    # areas_derecho/unidad -- si esta migracion corriera antes, quedarian sin
+    # completar hasta el siguiente arranque (Sprint 57).
+    migrar_parametros_area_unidad(ruta)
+    # Orden narrativo (Sprint 58 despues de Sprint 57) -- no hay dependencia
+    # real de datos: migrar_ipc_variacion_anual siembra sus propias filas ya
+    # con areas_derecho/unidad completos (lee AREA_UNIDAD_POR_CLAVE
+    # directamente), asi que correria igual de bien antes o despues de
+    # migrar_parametros_area_unidad.
+    migrar_ipc_variacion_anual(ruta)

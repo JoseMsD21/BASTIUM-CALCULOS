@@ -1405,6 +1405,48 @@ def test_campo_tasa_muestra_icono_informativo_del_valor_por_defecto(qtbot, monke
     assert len(etiquetas_info) == 1
 
 
+def test_campos_no_autoexplicativos_tienen_tooltip(qtbot, monkeypatch):
+    """Sprint 59: cada campo del formulario que captura un dato juridico o
+    financiero no obvio (tasas, fechas de corte, unidades, tipos) debe tener
+    un tooltip explicativo -- excluye campos autoexplicativos como
+    "Concepto" (texto libre) que ya se verifican en otros tests."""
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+
+    campos_con_tooltip_esperado = [
+        "combo_tipo",
+        "combo_categoria",
+        "campo_fecha_origen",
+        "campo_fecha_inicio",
+        "campo_dia_pago",
+        "combo_tipo_reajuste_anual",
+        "campo_base_sancion",
+        "campo_meses_extemporaneidad",
+        "check_sancion_agravada",
+        "campo_ingresos_brutos",
+        "campo_devoluciones",
+        "campo_costos",
+        "campo_deducciones",
+        "campo_rentas_exentas",
+        "campo_fecha_fin",
+        "check_pagada",
+        "campo_fecha_pago_total",
+        "check_incluir_seguridad_social",
+        "campo_fecha_vencimiento",
+        "check_anatocismo_acuerdo",
+        "campo_anatocismo_fecha_acuerdo",
+        "combo_moneda",
+        "campo_trm_fecha_referencia",
+        "campo_honorarios_fijos",
+        "campo_beneficio_obtenido",
+    ]
+    for nombre_campo in campos_con_tooltip_esperado:
+        widget = getattr(dialog, nombre_campo)
+        assert widget.toolTip() != "", f"{nombre_campo} deberia tener un tooltip"
+
+
 def test_concepto_vacio_se_marca_invalido_en_tiempo_real(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch)
 
