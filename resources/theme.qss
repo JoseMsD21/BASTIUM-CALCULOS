@@ -25,7 +25,7 @@
  * mostrar el widget -- Qt aplica el stylesheet la primera vez que el widget
  * se pinta, asi que no hace falta un unpolish()/polish() manual en ese caso
  * (salvo que la clase cambie en caliente con el widget ya visible, como hace
- * `boton_parametros` en `MainWindow` -- ver el comentario junto a ese codigo).
+ * `boton_configuraciones` en `MainWindow` -- ver el comentario junto a ese codigo).
  *
  * Riesgo conocido (Pendientes.md Sprint 31): selectores demasiado genericos
  * pueden romper widgets nativos que dependen del estilo del SO, como el
