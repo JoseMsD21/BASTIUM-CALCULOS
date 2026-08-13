@@ -149,35 +149,40 @@ def test_parametro_form_dialog_usuario_vacio_lanza_value_error(qtbot):
         pass
 
 
-def test_parametro_form_dialog_muestra_vigente_hasta_solo_para_tramo_cerrado(qtbot):
+def test_parametro_form_dialog_vigente_hasta_deshabilitado_fuera_de_tramo_cerrado(qtbot):
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
     dialogo.show()
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
-    assert dialogo.campo_vigente_hasta.isVisible() is False
+    assert dialogo.campo_vigente_hasta.isVisible() is True
+    assert dialogo.campo_vigente_hasta.isEnabled() is False
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
     assert dialogo.campo_vigente_hasta.isVisible() is True
+    assert dialogo.campo_vigente_hasta.isEnabled() is True
 
 
-def test_parametro_form_dialog_label_vigente_hasta_no_queda_huerfana(qtbot):
-    """Sprint 39 (barrido de app/views/): la etiqueta "Vigente hasta" generada
-    por QFormLayout.addRow(str, campo_vigente_hasta) debe ocultarse junto con
-    el campo cuando el parametro no es de tramo cerrado -- si solo se oculta
-    el QDateEdit queda una fila huerfana."""
+def test_parametro_form_dialog_nota_vigente_hasta_cambia_segun_el_modo(qtbot):
     dialogo = ParametroFormDialog()
     qtbot.addWidget(dialogo)
     dialogo.show()
 
-    etiqueta_vigente_hasta = dialogo._layout_formulario.labelForField(dialogo.campo_vigente_hasta)
-    assert etiqueta_vigente_hasta is not None
-
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("USURA_MULTIPLICADOR"))
-    assert etiqueta_vigente_hasta.isVisible() is False
+    assert "no vence en una fecha fija" in dialogo._nota_vigente_hasta.text()
 
     dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
-    assert etiqueta_vigente_hasta.isVisible() is True
+    assert dialogo._nota_vigente_hasta.text() == ""
+
+
+def test_parametro_form_dialog_checkbox_indefinido_siempre_deshabilitado(qtbot):
+    dialogo = ParametroFormDialog()
+    qtbot.addWidget(dialogo)
+    dialogo.show()
+
+    dialogo.combo_clave.setCurrentIndex(dialogo.combo_clave.findData("IBC_CONSUMO_ORDINARIO"))
+    assert dialogo.casilla_indefinido.isEnabled() is False
+    assert dialogo.casilla_indefinido.isChecked() is False
 
 
 def test_parametro_form_dialog_valor_no_finito_lanza_value_error(qtbot):

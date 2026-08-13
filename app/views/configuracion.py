@@ -32,7 +32,7 @@ from app.services.parametro_service import (
     valor_vigente_hoy,
     vigencia_hasta_mostrar,
 )
-from app.views.form_utils import agregar_ayuda, hacer_redimensionable, set_row_visible
+from app.views.form_utils import agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
 from database.models import AreaDerecho, ParametroLegal
 
@@ -104,9 +104,25 @@ class ParametroFormDialog(QDialog):
         self.campo_vigente_hasta = QDateEdit(QDate.currentDate())
         self.campo_vigente_hasta.setCalendarPopup(True)
         self.campo_vigente_hasta.setToolTip(
-            "Fecha hasta la que este valor rigio; solo aplica a parametros con un "
+            "Fecha hasta la que este valor rige; solo aplica a parametros con un "
             "rango de vigencia cerrado (ej. tramos historicos de tasas certificadas)."
         )
+        self.casilla_indefinido = QCheckBox("Indefinido")
+        self.casilla_indefinido.setToolTip(
+            "Este parametro requiere una fecha de fin (modo TRAMO_CERRADO) -- no puede "
+            "quedar indefinido."
+        )
+        self._nota_vigente_hasta = QLabel()
+        self._nota_vigente_hasta.setWordWrap(True)
+
+        _contenedor_vigente_hasta = QWidget()
+        _layout_vigente_hasta = QVBoxLayout(_contenedor_vigente_hasta)
+        _layout_vigente_hasta.setContentsMargins(0, 0, 0, 0)
+        _fila_fecha_e_indefinido = QHBoxLayout()
+        _fila_fecha_e_indefinido.addWidget(self.campo_vigente_hasta)
+        _fila_fecha_e_indefinido.addWidget(self.casilla_indefinido)
+        _layout_vigente_hasta.addLayout(_fila_fecha_e_indefinido)
+        _layout_vigente_hasta.addWidget(self._nota_vigente_hasta)
 
         # Casillas de area del derecho (Sprint 57): una por AreaDerecho,
         # preseleccionadas segun AREA_UNIDAD_POR_CLAVE cuando cambia la clave
@@ -154,15 +170,13 @@ class ParametroFormDialog(QDialog):
         self.atajo_guardar = QShortcut(QKeySequence("Ctrl+S"), self)
         self.atajo_guardar.activated.connect(self._guardar_y_cerrar)
 
-        # Guardado como atributo (en vez de variable local `layout`) para que
-        # _actualizar_visibilidad_vigente_hasta pueda ocultar la fila completa
-        # (etiqueta + campo) con set_row_visible (Sprint 39) en vez de solo el
-        # QDateEdit.
+        # Guardado como atributo (en vez de variable local `layout`) por si
+        # otros metodos de la clase necesitan referenciar filas del formulario.
         self._layout_formulario = QFormLayout()
         self._layout_formulario.addRow("Parametro", self.combo_clave)
         self._layout_formulario.addRow("Valor", self.campo_valor)
         self._layout_formulario.addRow("Vigente desde", self.campo_vigente_desde)
-        self._layout_formulario.addRow("Vigente hasta", self.campo_vigente_hasta)
+        self._layout_formulario.addRow("Vigente hasta", _contenedor_vigente_hasta)
         self._layout_formulario.addRow("Área(s) del derecho", self._contenedor_areas)
         # "Unidad" recibe el icono (i) explicito (Sprint 59, helper compartido
         # agregar_ayuda): se pre-rellena segun la clave elegida
@@ -202,16 +216,30 @@ class ParametroFormDialog(QDialog):
         self.campo_unidad.setText(unidad_sugerida)
 
     def _actualizar_visibilidad_vigente_hasta(self) -> None:
+        """Nombre del método sin cambios (evita re-cablear sus 2 call sites:
+        __init__ y combo_clave.currentIndexChanged), pero el comportamiento sí
+        cambió (Sprint "Parametros: editar/eliminar de usuario"): la fila
+        "Vigente hasta" ya NO se oculta según el modo -- se deshabilita, con
+        una nota explicando por qué,
+        para que el usuario entienda la regla en vez de ver el campo
+        desaparecer sin explicación. `casilla_indefinido` (TRAMO_CERRADO)
+        queda siempre deshabilitada porque ese modo siempre exige una fecha
+        real (agregar_valor la rechaza si falta) -- existe solo para que las
+        3 combinaciones de modo compartan un mismo patrón visual (campo +
+        nota), no porque hoy sea usable."""
         clave = self.combo_clave.currentData()
         info = CATALOGO_PARAMETROS[clave]
-        # set_row_visible (no campo_vigente_hasta.setVisible() suelto) para que la
-        # etiqueta "Vigente hasta" generada por addRow(str, widget) se oculte junto
-        # con el campo -- de lo contrario queda una fila huerfana (Sprint 39).
-        set_row_visible(
-            self._layout_formulario,
-            self.campo_vigente_hasta,
-            info.modo == ModoResolucion.TRAMO_CERRADO,
-        )
+        es_tramo_cerrado = info.modo == ModoResolucion.TRAMO_CERRADO
+        self.campo_vigente_hasta.setEnabled(es_tramo_cerrado)
+        self.casilla_indefinido.setEnabled(False)
+        if es_tramo_cerrado:
+            self._nota_vigente_hasta.setText("")
+        else:
+            self._nota_vigente_hasta.setText(
+                f"Este parámetro no vence en una fecha fija (modo {info.modo.value}) — "
+                "el valor rige indefinidamente hasta que se cargue uno nuevo con una "
+                "fecha 'Vigente desde' posterior."
+            )
 
     def guardar(self):
         clave = self.combo_clave.currentData()
