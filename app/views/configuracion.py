@@ -30,6 +30,7 @@ from app.services.parametro_service import (
     ModoResolucion,
     agregar_valor,
     editar_valor,
+    eliminar_valor,
     historial,
     valor_vigente_hoy,
     vigencia_hasta_mostrar,
@@ -475,31 +476,34 @@ class HistorialParametroDialog(QDialog):
         if clave_cruda is not None:
             etiqueta_columna_cruda, formula_texto = self._PRESENTACION_DATO_CRUDO[clave]
 
+        # Task 8 (sprint "Parametros: editar/eliminar de usuario"): 2 columnas
+        # finales, Editar/Eliminar, agregadas SIEMPRE despues de la columna
+        # opcional de dato crudo (si la clave la tiene) -- los indices se
+        # calculan una sola vez aqui (self._indice_columna_editar/eliminar) en
+        # vez de hardcodear 5/6 en _refrescar(), para que la posicion siga
+        # siendo correcta tanto para claves con dato crudo (6 columnas antes +
+        # estas 2 = indices 6/7) como sin el (5 columnas antes + estas 2 =
+        # indices 5/6).
         columnas = ["Valor", "Vigente desde", "Vigente hasta", "Usuario", "Motivo"]
         if etiqueta_columna_cruda is not None:
             columnas = [*columnas, etiqueta_columna_cruda]
+        columnas = [*columnas, "Editar", "Eliminar"]
+        self._indice_columna_editar = len(columnas) - 2
+        self._indice_columna_eliminar = len(columnas) - 1
         self.tabla = QTableWidget(0, len(columnas))
         self.tabla.setHorizontalHeaderLabels(columnas)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        filas = historial(clave)
-        variacion_por_anio: dict[int, str] = {}
+        self._clave = clave
+        self._info = info
+        self._clave_cruda = clave_cruda
+        self._variacion_por_anio: dict[int, str] = {}
         if clave_cruda is not None:
-            variacion_por_anio = {
+            self._variacion_por_anio = {
                 fila_cruda.vigente_desde.year: str(fila_cruda.valor)
                 for fila_cruda in historial(clave_cruda)
             }
-
-        self.tabla.setRowCount(len(filas))
-        for fila_idx, fila in enumerate(filas):
-            self.tabla.setItem(fila_idx, 0, QTableWidgetItem(str(fila.valor)))
-            self.tabla.setItem(fila_idx, 1, QTableWidgetItem(fila.vigente_desde.isoformat()))
-            self.tabla.setItem(fila_idx, 2, QTableWidgetItem(vigencia_hasta_mostrar(fila, info)))
-            self.tabla.setItem(fila_idx, 3, QTableWidgetItem(fila.usuario))
-            self.tabla.setItem(fila_idx, 4, QTableWidgetItem(fila.motivo or ""))
-            if clave_cruda is not None:
-                variacion = variacion_por_anio.get(fila.vigente_desde.year, "")
-                self.tabla.setItem(fila_idx, 5, QTableWidgetItem(variacion))
+        self._refrescar()
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabla)
@@ -508,6 +512,86 @@ class HistorialParametroDialog(QDialog):
             nota_formula.setWordWrap(True)
             layout.addWidget(nota_formula)
         self.setLayout(layout)
+
+    def _refrescar(self) -> None:
+        """Repuebla `self.tabla` desde cero (historial(self._clave)) --
+        extraido de __init__ (Task 8) para que _editar_valor/_eliminar_valor
+        puedan refrescar la tabla in place tras actuar sobre una fila, sin
+        cerrar y reabrir el dialogo."""
+        filas = historial(self._clave)
+        self.tabla.setRowCount(len(filas))
+        for fila_idx, fila in enumerate(filas):
+            self.tabla.setItem(fila_idx, 0, QTableWidgetItem(str(fila.valor)))
+            self.tabla.setItem(fila_idx, 1, QTableWidgetItem(fila.vigente_desde.isoformat()))
+            self.tabla.setItem(
+                fila_idx, 2, QTableWidgetItem(vigencia_hasta_mostrar(fila, self._info))
+            )
+            self.tabla.setItem(fila_idx, 3, QTableWidgetItem(fila.usuario))
+            self.tabla.setItem(fila_idx, 4, QTableWidgetItem(fila.motivo or ""))
+            if self._clave_cruda is not None:
+                variacion = self._variacion_por_anio.get(fila.vigente_desde.year, "")
+                self.tabla.setItem(fila_idx, 5, QTableWidgetItem(variacion))
+            # QTableWidget.setRowCount(N) con el mismo N que ya tenia NO limpia
+            # los cellWidget existentes de filas que conservan su indice --
+            # solo setCellWidget(nueva_widget) los reemplaza. historial()
+            # ordena por vigente_desde descendente, asi que editar la fecha de
+            # una fila de usuario puede cambiar su posicion relativa a otra
+            # fila (incluida una de sistema) entre dos llamadas a
+            # _refrescar(). Sin este removeCellWidget explicito, una fila de
+            # sistema que hereda el indice que antes ocupaba una fila de
+            # usuario con botones quedaria mostrando esos botones "fantasma"
+            # -- justo la fuga que el gate de abajo busca evitar. Se limpia
+            # incondicionalmente ANTES de decidir si esta fila (la actual en
+            # este indice) merece botones nuevos.
+            self.tabla.removeCellWidget(fila_idx, self._indice_columna_editar)
+            self.tabla.removeCellWidget(fila_idx, self._indice_columna_eliminar)
+            # REQUISITO DE SEGURIDAD (Task 8): esta condicion es la unica
+            # puerta que decide si una fila recibe los botones Editar/Eliminar
+            # -- una fila sembrada por el sistema (creado_por_sistema=True)
+            # jamas debe entrar aqui. Es defensa en profundidad sobre la
+            # verdadera barrera (editar_valor()/eliminar_valor() en
+            # parametro_service.py, Task 3, que rechazan tocar filas de
+            # sistema con ValueError incluso si esta condicion tuviera un
+            # bug) -- pero un usuario no deberia ni VER el boton junto a una
+            # fila de sistema.
+            if not fila.creado_por_sistema:
+                boton_editar = QPushButton("Editar")
+                boton_editar.setProperty("class", "secondary")
+                boton_editar.clicked.connect(
+                    lambda _checked=False, id_=fila.id: self._editar_valor(id_)
+                )
+                self.tabla.setCellWidget(fila_idx, self._indice_columna_editar, boton_editar)
+
+                boton_eliminar = QPushButton("Eliminar")
+                boton_eliminar.setIcon(icon("delete"))
+                boton_eliminar.setProperty("class", "destructive")
+                boton_eliminar.clicked.connect(
+                    lambda _checked=False, id_=fila.id: self._eliminar_valor(id_)
+                )
+                self.tabla.setCellWidget(fila_idx, self._indice_columna_eliminar, boton_eliminar)
+
+    def _editar_valor(self, parametro_id: int) -> None:
+        """Abre ParametroFormDialog en modo edicion (Task 7) para esta fila; si
+        el usuario guarda (exec() devuelve True/Accepted), refresca la tabla
+        para reflejar el cambio sin cerrar HistorialParametroDialog."""
+        dialogo = ParametroFormDialog(self, parametro_id=parametro_id)
+        if dialogo.exec():
+            self._refrescar()
+
+    def _eliminar_valor(self, parametro_id: int) -> None:
+        """Pide confirmacion (QMessageBox.question) antes de borrar -- accion
+        irreversible. eliminar_valor() (Task 3) ya rechaza filas de sistema
+        con ValueError, pero esta fila nunca deberia llegar aqui porque
+        _refrescar() no le crea el boton Eliminar en primer lugar."""
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar valor de parámetro",
+            "¿Eliminar este valor de parámetro? Esta acción no se puede deshacer.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+        eliminar_valor(parametro_id)
+        self._refrescar()
 
 
 class ParametrosView(QWidget):
@@ -602,4 +686,10 @@ class ParametrosView(QWidget):
 
     def _abrir_historial(self, fila: int, _columna: int) -> None:
         clave = self._claves_por_fila[fila]
+        # Task 8: siempre refresca la tabla resumen al cerrar el historial --
+        # el dialogo pudo haber editado/eliminado filas de usuario mientras
+        # estuvo abierto (Editar/Eliminar por fila); refrescar
+        # incondicionalmente es lo mas simple y correcto (evita rastrear si
+        # algo cambio realmente adentro).
         HistorialParametroDialog(clave, self).exec()
+        self.refrescar()

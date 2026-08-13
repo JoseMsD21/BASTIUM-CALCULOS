@@ -6,8 +6,12 @@ from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import QDialog, QLabel
 
 import database.session as session_module
-from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
-from app.services.parametro_service import agregar_valor, historial
+from app.services.areas_parametro import (
+    AREA_UNIDAD_POR_CLAVE,
+    deserializar_areas,
+    serializar_areas,
+)
+from app.services.parametro_service import agregar_valor, editar_valor, historial
 from app.views.configuracion import (
     HistorialParametroDialog,
     ParametroFormDialog,
@@ -807,3 +811,129 @@ def test_parametro_form_dialog_modo_edicion_guarda_actualiza_no_crea(qtbot):
     filas = historial("USURA_MULTIPLICADOR")
     assert len(filas) == 1
     assert filas[0].valor == Decimal("9.9")
+
+
+# --- Task 8: Editar/Eliminar por fila en HistorialParametroDialog ---
+
+
+def test_historial_parametro_dialog_fila_de_usuario_tiene_botones(qtbot):
+    agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.tabla.cellWidget(0, 5) is not None  # Editar
+    assert dialogo.tabla.cellWidget(0, 6) is not None  # Eliminar
+
+
+def test_historial_parametro_dialog_fila_de_sistema_no_tiene_botones(qtbot):
+    session = session_module.get_session()
+    session.add(
+        ParametroLegal(
+            clave="USURA_MULTIPLICADOR",
+            valor=Decimal("1.5"),
+            vigente_desde=date(1900, 1, 1),
+            usuario="sistema",
+            creado_en=datetime.now(),
+            areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+            unidad="veces",
+            creado_por_sistema=True,
+        )
+    )
+    session.commit()
+    session.close()
+
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+
+    assert dialogo.tabla.cellWidget(0, 5) is None
+    assert dialogo.tabla.cellWidget(0, 6) is None
+
+
+def test_historial_parametro_dialog_eliminar_borra_y_refresca(qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+
+    dialogo._eliminar_valor(fila.id)
+
+    assert dialogo.tabla.rowCount() == 0
+    assert historial("USURA_MULTIPLICADOR") == []
+
+
+def test_historial_parametro_dialog_reordenar_filas_no_deja_botones_fantasma(qtbot):
+    """Regresion (Task 8): historial() ordena por vigente_desde descendente,
+    asi que editar la fecha de una fila de usuario puede cambiarle el indice
+    de fila relativo a una fila de sistema entre dos llamadas a _refrescar().
+    QTableWidget.setRowCount(N) con el mismo N NO limpia los cellWidget de
+    filas que conservan su indice -- sin removeCellWidget() explicito en
+    _refrescar(), la fila de sistema que hereda el indice 0 (antes ocupado
+    por la fila de usuario con botones) quedaria mostrando esos botones
+    "fantasma"."""
+    session = session_module.get_session()
+    session.add(
+        ParametroLegal(
+            clave="USURA_MULTIPLICADOR",
+            valor=Decimal("2.0"),
+            vigente_desde=date(2020, 1, 1),
+            usuario="sistema",
+            creado_en=datetime.now(),
+            areas_derecho=serializar_areas([AreaDerecho.COMERCIAL]),
+            unidad="veces",
+            creado_por_sistema=True,
+        )
+    )
+    session.commit()
+    session.close()
+
+    fila_usuario = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(2025, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+
+    dialogo = HistorialParametroDialog("USURA_MULTIPLICADOR")
+    qtbot.addWidget(dialogo)
+    # Orden inicial (vigente_desde desc): fila_usuario (2025) en indice 0 con
+    # botones, sistema (2020) en indice 1 sin botones.
+    assert dialogo.tabla.cellWidget(0, 5) is not None
+    assert dialogo.tabla.cellWidget(1, 5) is None
+
+    # Editar la fila de usuario para que su vigente_desde quede ANTES que la
+    # de sistema -- invierte el orden: sistema pasa a indice 0.
+    editar_valor(
+        fila_usuario.id,
+        valor=Decimal("1.5"),
+        vigente_desde=date(2019, 1, 1),
+        usuario="abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    dialogo._refrescar()
+
+    assert dialogo.tabla.item(0, 0).text() == "2.0"  # ahora es la fila de sistema
+    assert dialogo.tabla.cellWidget(0, 5) is None
+    assert dialogo.tabla.cellWidget(0, 6) is None
+    assert dialogo.tabla.cellWidget(1, 5) is not None
+    assert dialogo.tabla.cellWidget(1, 6) is not None
