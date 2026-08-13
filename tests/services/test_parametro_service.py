@@ -178,7 +178,6 @@ def test_agregar_valor_areas_derecho_vacia_lanza_value_error():
 
 def test_agregar_valor_unidad_vacia_lanza_value_error():
     from app.services.parametro_service import agregar_valor
-    from database.models import AreaDerecho
 
     with pytest.raises(ValueError):
         agregar_valor(
@@ -194,7 +193,6 @@ def test_agregar_valor_unidad_vacia_lanza_value_error():
 def test_agregar_valor_guarda_areas_derecho_y_unidad_legibles():
     from app.services.areas_parametro import deserializar_areas
     from app.services.parametro_service import agregar_valor
-    from database.models import AreaDerecho
 
     fila = agregar_valor(
         "USURA_MULTIPLICADOR",
