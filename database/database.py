@@ -95,6 +95,13 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # unidad en las filas que ese script sí llegue a sembrar de nuevo (bastium.db
     # completamente nueva) -- migrar_parametros_area_unidad es idempotente,
     # llamarla dos veces es gratis (Sprint 57/58).
+    # migrar_creado_por_sistema debe correr antes que las dos migraciones de
+    # siembra por la misma clase de bug descrita arriba: ambos scripts hacen
+    # `session.add(ParametroLegal(..., creado_por_sistema=True))` via el ORM,
+    # que igual que session.query() siempre incluye TODAS las columnas
+    # mapeadas del modelo actual -- en una bastium.db que todavia no tiene la
+    # columna fisica creado_por_sistema, sembrar antes de esta migracion
+    # lanzaria sqlite3.OperationalError: no such column: parametros_legales.creado_por_sistema.
     migrar_creado_por_sistema(ruta)
     migrar_parametros_area_unidad(ruta)
     migrar_parametros_legales(ruta)
