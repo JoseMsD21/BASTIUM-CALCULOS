@@ -91,7 +91,8 @@ que trae la app de fábrica nunca se editan ni se borran, solo se agregan valore
 historial completo de cada parámetro queda siempre disponible con doble clic; los valores que un usuario
 agrega sí puede editarlos o eliminarlos él mismo después, desde ese mismo historial. La tabla de Parámetros
 muestra también, por fila, el Área del derecho (una o varias) y la Unidad de medida del valor (ej. "%",
-"COP", "meses"), asignadas al agregar el valor y no editables después de creada la fila. Para SMLMV, IPC y
+"COP", "meses"), asignadas al agregar el valor — fijas para los valores de fábrica, editables después para
+los que agrega un usuario (ver el párrafo siguiente). Para SMLMV, IPC y
 UVT — que el gobierno fija año a año — la columna "Vigente hasta" calcula automáticamente el 31 de
 diciembre del año correspondiente en vez de mostrarse vacía; el resto de parámetros sin fecha de cierre
 real muestra "Indefinido". El índice IPC acumulado, el único parámetro calculado con fórmula, muestra en su

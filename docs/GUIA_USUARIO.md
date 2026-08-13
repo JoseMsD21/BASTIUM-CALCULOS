@@ -647,9 +647,10 @@ columnas:
   la Tasa de Usura (los únicos dos con un rango de vigencia guardado explícitamente) muestran su fecha
   real. El resto de parámetros, que no tienen fecha de cierre, muestran "Indefinido".
 - **Área**: el área o áreas del derecho a las que aplica ese parámetro (ej. "Civil / Familia,
-  Comercial"), asignadas al agregar el valor y no editables después.
+  Comercial"), asignadas al agregar el valor. Para los valores de fábrica no se pueden cambiar después;
+  para los que tú mismo agregaste, sí (ver "Editar y eliminar valores que tú mismo cargaste" más abajo).
 - **Unidad**: la unidad de medida del valor (ej. "%", "COP", "meses", "índice"), también asignada al
-  agregar el valor y no editable después.
+  agregar el valor, con la misma regla: fija para los valores de fábrica, editable para los tuyos.
 
 **Cómo agregar un valor nuevo:**
 
@@ -659,18 +660,20 @@ columnas:
    - **Valor**: el número nuevo (ej. `1.5` para el multiplicador de usura, o `1300000` para un SMLMV).
    - **Vigente desde**: la fecha a partir de la cual rige este valor (para SMLMV, IPC o UVT, lee la
      advertencia más abajo **antes** de guardar).
-   - **Vigente hasta**: **este campo solo aparece para dos parámetros** — el Interés Bancario Corriente
-     (IBC, línea Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores
-     históricos". Para todos los demás parámetros el campo está oculto y no aplica: el valor rige desde
-     "Vigente desde" hacia adelante, sin fecha de corte, hasta que se agregue un valor más nuevo.
+   - **Vigente hasta**: **solo aplica a dos parámetros** — el Interés Bancario Corriente (IBC, línea
+     Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores históricos". El
+     campo siempre está visible, pero para todos los demás parámetros aparece deshabilitado (en gris) con
+     una nota explicando por qué: el valor rige desde "Vigente desde" hacia adelante, sin fecha de corte,
+     hasta que se agregue un valor más nuevo.
    - **Área(s) del derecho**: una casilla de verificación por cada área (Civil / Familia, Comercial,
      Laboral, Sancionatorio, Honorarios / Litigio, Tributario) — marca una o varias, según a cuál(es)
      aplica este parámetro. El programa preselecciona la propuesta más probable en cuanto eliges el
-     parámetro en el campo de arriba; puedes ajustarla antes de guardar, pero **no se puede cambiar
-     después de guardado** — ni con doble clic ni de ninguna otra forma.
+     parámetro en el campo de arriba; puedes ajustarla antes de guardar. Para un valor que trae la app de
+     fábrica, ya no se puede cambiar después de guardado; para uno que agregaste tú, sí puedes editarla
+     después (ver "Editar y eliminar valores que tú mismo cargaste" más abajo).
    - **Unidad**: la unidad de medida del valor (ej. `%`, `COP`, `meses`, `índice`). Igual que el área, el
-     programa la pre-rellena según el parámetro elegido y se puede ajustar antes de guardar, pero **no
-     después**.
+     programa la pre-rellena según el parámetro elegido y se puede ajustar antes de guardar, con la misma
+     regla: fija para los valores de fábrica, editable después para los que agregaste tú.
    - **Usuario**: tu nombre o usuario, para que quede registrado quién hizo el cambio. Es obligatorio.
    - **Motivo (opcional)**: por qué se agrega este valor (ej. "Actualización SMLMV 2027, Decreto XXXX").
      No es obligatorio, pero se recomienda diligenciarlo — queda guardado para siempre junto con el valor.
