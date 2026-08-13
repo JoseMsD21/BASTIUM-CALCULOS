@@ -100,6 +100,7 @@ def _fila(
         usuario=USUARIO_MIGRACION,
         motivo=MOTIVO_MIGRACION,
         creado_en=datetime.now(),
+        creado_por_sistema=True,
     )
 
 

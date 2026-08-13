@@ -54,6 +54,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_anatocismo_comercial import migrar as migrar_anatocismo
     from scripts.migrate_aplica_indexacion_ipc import migrar as migrar_indexacion_ipc
     from scripts.migrate_costas_tipo_proceso import migrar as migrar_costas
+    from scripts.migrate_creado_por_sistema import migrar as migrar_creado_por_sistema
     from scripts.migrate_es_smmlv_laboral import migrar as migrar_es_smmlv
     from scripts.migrate_interes_sobre_capital_indexado import (
         migrar as migrar_interes_capital_indexado,
@@ -94,6 +95,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # unidad en las filas que ese script sí llegue a sembrar de nuevo (bastium.db
     # completamente nueva) -- migrar_parametros_area_unidad es idempotente,
     # llamarla dos veces es gratis (Sprint 57/58).
+    migrar_creado_por_sistema(ruta)
     migrar_parametros_area_unidad(ruta)
     migrar_parametros_legales(ruta)
     # Debe correr DESPUES de migrar_parametros_legales tambien: en una bastium.db
