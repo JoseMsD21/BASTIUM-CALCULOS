@@ -724,6 +724,20 @@ ya no vive en esta pantalla — se movió a la sección **"Apariencia"** de "⚙
 para volver al tema claro de siempre — el cambio se aplica de inmediato, sin reiniciar el programa, y
 queda recordado para la próxima vez que abras BASTIUM.
 
+**Editar y eliminar valores que tú mismo cargaste:** dentro del historial de una clave (doble clic sobre
+su fila en la tabla), cada valor que tú hayas agregado tiene sus propios botones "Editar" y "Eliminar" —
+los valores que trae la app de fábrica no los tienen, para que nunca se puedan tocar por accidente.
+Editar permite cambiar el valor, las fechas de vigencia, las áreas del derecho, la unidad, el usuario y el
+motivo (no la clave del parámetro); eliminar borra el valor definitivamente, sin papelera.
+
+**Vigente hasta / Indefinido:** al agregar un valor nuevo, el campo "Vigente hasta" ahora explica por qué
+está deshabilitado cuando no aplica — solo los parámetros de "rango cerrado" (ej. tramos históricos de
+IBC/usura) piden una fecha de fin real; el resto queda vigente indefinidamente hasta que cargues un valor
+nuevo.
+
+**Unidad:** ahora es un desplegable con las unidades ya usadas (%, COP, meses, índice, veces, puntos); si
+ninguna aplica, elige "Otros..." para escribir la que corresponda.
+
 ### 5.15. Agregar una obligación tributaria
 
 Cuando el expediente tiene **Área del derecho = Tributario**, el formulario de "Agregar obligación"

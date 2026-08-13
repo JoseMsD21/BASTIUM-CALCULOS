@@ -103,6 +103,10 @@ de modo oscuro/claro se muda de Parámetros a la nueva sección Apariencia.
   columna/índice que una `bastium.db` existente todavía no tenga y siembra `parametros_legales` si está
   vacía. Ya no hace falta ningún paso manual de migración, ni para una base existente de un sprint
   anterior ni para un clon nuevo del repositorio.
+- Editar y eliminar valores de parámetro creados por un usuario (los del sistema quedan protegidos),
+  desde el historial de cada clave en Configuraciones → Parámetros.
+- Campo "Unidad" como desplegable (con opción "Otros...") al agregar un valor de parámetro.
+- Tooltips ⓘ en todos los campos del formulario de parámetros y en las columnas de la tabla.
 
 ### Fixed
 - `aplicar_migraciones_pendientes()` fallaba con `sqlite3.OperationalError: no such column:
@@ -169,6 +173,8 @@ de modo oscuro/claro se muda de Parámetros a la nueva sección Apariencia.
   Dashboard, afirmaban que prescripción/caducidad seguía sin conectarse (ya lo estaba desde el Sprint 42),
   y que la UVT seguía sin cargar (cargada desde los Sprints 5/14). `CONTRIBUTING.md` actualizado con los
   prefijos de commit realmente usados en el repo (`merge:`, `refactor:`, `perf:`, `style:`, `build:`).
+- El campo "Vigente hasta" ahora explica en la propia UI por qué está deshabilitado cuando el parámetro
+  no usa fecha de fin, en vez de desaparecer sin explicación.
 
 ## [0.1.0] - 2026-08-04
 
