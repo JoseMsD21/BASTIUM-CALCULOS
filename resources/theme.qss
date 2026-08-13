@@ -200,6 +200,49 @@ QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled, QSpinBox:disabled {
     color: #A69C92;
 }
 
+/* --- Checkbox (indicador visible en ambos temas: ver comentario de la
+ * paleta arriba). El estado "marcado" se muestra con relleno de color solido
+ * (sin glifo de tilde dibujado encima) -- una vez que QSS define
+ * background-color/border en QCheckBox::indicator, Qt deja de dibujar el
+ * check nativo del estilo Fusion, asi que el relleno solido es la señal
+ * visual de "marcado" en vez de un tilde. --- */
+
+QCheckBox {
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid #D8CDBB;
+    border-radius: 3px;
+    background-color: #FFFFFF;
+}
+
+QCheckBox::indicator:hover {
+    border: 1.5px solid #AE1C21;
+}
+
+QCheckBox::indicator:checked {
+    border: 1.5px solid #AE1C21;
+    background-color: #AE1C21;
+}
+
+QCheckBox::indicator:checked:hover {
+    border: 1.5px solid #931116;
+    background-color: #931116;
+}
+
+QCheckBox::indicator:disabled {
+    border: 1.5px solid #D8CDBB;
+    background-color: #F5F1E9;
+}
+
+QCheckBox::indicator:checked:disabled {
+    border: 1.5px solid #D8CDBB;
+    background-color: #A69C92;
+}
+
 /* --- Tablas (misma identidad de encabezado que los PDF de app/reports/pdf.py) --- */
 
 QTableWidget {

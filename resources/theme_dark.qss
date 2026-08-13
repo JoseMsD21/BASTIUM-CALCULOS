@@ -177,6 +177,45 @@ QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled, QSpinBox:disabled {
     color: #6B5F57;
 }
 
+/* --- Checkbox (ver resources/theme.qss para el detalle completo del
+ * criterio de diseño -- mismo esquema, colores del modo oscuro). --- */
+
+QCheckBox {
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid #4A4039;
+    border-radius: 3px;
+    background-color: #2A2422;
+}
+
+QCheckBox::indicator:hover {
+    border: 1.5px solid #D9484D;
+}
+
+QCheckBox::indicator:checked {
+    border: 1.5px solid #D9484D;
+    background-color: #D9484D;
+}
+
+QCheckBox::indicator:checked:hover {
+    border: 1.5px solid #C93338;
+    background-color: #C93338;
+}
+
+QCheckBox::indicator:disabled {
+    border: 1.5px solid #4A4039;
+    background-color: #332C29;
+}
+
+QCheckBox::indicator:checked:disabled {
+    border: 1.5px solid #4A4039;
+    background-color: #6B5F57;
+}
+
 /* --- Tablas (misma identidad de encabezado que el modo claro) --- */
 
 QTableWidget {
