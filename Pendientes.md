@@ -204,11 +204,11 @@ botón real que los dispare).
 - [Sprint 53 — Rendimiento: patrón N+1 de consultas en el Dashboard ✅ Completado](#sprint-53--rendimiento-patrón-n1-de-consultas-en-el-dashboard--completado)
 - [Sprint 54 — Corrección de documentación desactualizada tras los Sprints 41, 42, 50 y 51 ✅ Completado](#sprint-54--corrección-de-documentación-desactualizada-tras-los-sprints-41-42-50-y-51--completado)
 - [Sprint 55 — 3 bugs de UI en el Dashboard: gráfica con colores viejos, etiquetas apretadas y tabla editable ✅ Completado](#sprint-55--3-bugs-de-ui-en-el-dashboard-gráfica-con-colores-viejos-etiquetas-apretadas-y-tabla-editable--completado)
-- [Sprint 56 — Diálogos redimensionables/maximizables (los 7 QDialog del proyecto) 📋 Pendiente](#sprint-56--diálogos-redimensionablesmaximizables-los-7-qdialog-del-proyecto--pendiente)
-- [Sprint 57 — Parámetros: columnas Área y Unidad por fila 📋 Pendiente](#sprint-57--parámetros-columnas-área-y-unidad-por-fila--pendiente)
-- [Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) 📋 Pendiente](#sprint-58--parámetros-presentación-inteligente-vigencia-ipc-crudo-vs-calculado-historial--pendiente)
-- [Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales 📋 Pendiente](#sprint-59--tooltips-de-ayuda-en-los-4-formularios-principales--pendiente)
-- [Sprint 60 — Editar/eliminar Obligaciones y Abonos 📋 Pendiente](#sprint-60--editareliminar-obligaciones-y-abonos--pendiente)
+- [Sprint 56 — Diálogos redimensionables/maximizables (los 7 QDialog del proyecto) ✅ Completado](#sprint-56--diálogos-redimensionablesmaximizables-los-7-qdialog-del-proyecto--completado)
+- [Sprint 57 — Parámetros: columnas Área y Unidad por fila ✅ Completado](#sprint-57--parámetros-columnas-área-y-unidad-por-fila--completado)
+- [Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) ✅ Completado](#sprint-58--parámetros-presentación-inteligente-vigencia-ipc-crudo-vs-calculado-historial--completado)
+- [Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales ✅ Completado](#sprint-59--tooltips-de-ayuda-en-los-4-formularios-principales--completado)
+- [Sprint 60 — Editar/eliminar Obligaciones y Abonos ✅ Completado](#sprint-60--editareliminar-obligaciones-y-abonos--completado)
 - [Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión](#sprint-61--conectar-los-parámetros-de-prescripcióncaducidad-sin-wiring-a-pantallas-reales--bloqueado--pendiente-de-decisión)
 
 ---
@@ -4506,7 +4506,7 @@ pasa contra la nueva). Suite completa en verde (1010 tests tras este sprint).
 
 ---
 
-## Sprint 56 — Diálogos redimensionables/maximizables (los 7 QDialog del proyecto) 📋 Pendiente
+## Sprint 56 — Diálogos redimensionables/maximizables (los 7 QDialog del proyecto) ✅ Completado
 
 **Prioridad sugerida:** Media — no bloquea ningún flujo, pero `HistorialParametroDialog` puede mostrar
 cientos de filas (IPC: 683) sin ninguna forma cómoda de agrandar la ventana.
@@ -4532,9 +4532,16 @@ diálogos.
 - Los 7 `QDialog` tienen los flags de minimizar/maximizar activos, verificado con test.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-12):** Completado, vía Subagent-Driven Development sobre un worktree
+aislado. Helper `hacer_redimensionable(dialog)` en `app/views/form_utils.py` (`|=` sobre los flags
+existentes, no los reemplaza), aplicado justo después de `super().__init__(parent)` en los 7 diálogos.
+Test parametrizado nuevo (`tests/views/test_dialogos_redimensionables.py`) verificado con prueba de
+mutación (comentar la llamada en un diálogo hace fallar solo su caso). Suite completa en verde (1018
+tests tras este sprint).
+
 ---
 
-## Sprint 57 — Parámetros: columnas Área y Unidad por fila 📋 Pendiente
+## Sprint 57 — Parámetros: columnas Área y Unidad por fila ✅ Completado
 
 **Prioridad sugerida:** Media-alta — el usuario no puede saber hoy a qué área del derecho corresponde
 cada uno de los 39 parámetros legales, ni la unidad del valor que está viendo.
@@ -4578,9 +4585,22 @@ para no desincronizar dos copias de la misma tabla:
 - La tabla de Parámetros muestra las 2 columnas nuevas.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-12):** Completado. Las columnas `areas_derecho`/`unidad` de
+`ParametroLegal` quedaron **nullable a nivel SQLite** (contra el snippet literal del plan, pero siguiendo
+el criterio que el propio plan ya anticipaba para la migración): la obligatoriedad real la exige
+`agregar_valor()`, no una restricción `NOT NULL` de la columna — verificado que `NOT NULL` real rompía
+172 casos en 17 archivos de test preexistentes que construyen `ParametroLegal` sin estos campos, y que
+`aplicar_migraciones_pendientes()` siempre corre la siembra y el backfill en la misma llamada, así que
+una fila nunca queda huérfana en producción. `AREA_UNIDAD_POR_CLAVE` (`app/services/areas_parametro.py`)
+tiene un test que compara su conjunto de claves contra `CATALOGO_PARAMETROS` para que no puedan
+desincronizarse en silencio. Tras una ronda de revisión, se agregó manejo defensivo en
+`_texto_areas()` (degrada a "?" por celda en vez de tumbar toda la pantalla si algún día hay datos
+corruptos) y `resizeColumnsToContents()` en la tabla. Suite completa en verde (1043 tests tras este
+sprint).
+
 ---
 
-## Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) 📋 Pendiente
+## Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) ✅ Completado
 
 **Prioridad sugerida:** Media.
 
@@ -4613,9 +4633,24 @@ para el código exacto de `vigencia_hasta_mostrar()`, la siembra de `IPC_VARIACI
 - Cualquier clave con más de 1 fila tiene una acción visible para ver su historial.
 - Suite completa en verde, sin cambios de resultado en ninguna liquidación.
 
+**Cierre de implementación (2026-08-12):** Completado. `vigencia_hasta_mostrar()` aplicada tanto en
+`HistorialParametroDialog` como en `ParametrosView.tabla` — esta última ganó una columna "Vigente hasta"
+que no existía antes del sprint (el plan lo pedía así; confirmado con el usuario que es la interpretación
+correcta). `IPC_VARIACION_ANUAL` sembrada (59 filas, script propio
+`scripts/migrate_ipc_variacion_anual.py`) como la 40ª clave del catálogo — mecanismo `CLAVE_CRUDA_DE`
+inicialmente genérico solo en el dato, no en la presentación (etiqueta/fórmula fijas de IPC en la UI); se
+generalizó tras revisión a `_PRESENTACION_DATO_CRUDO` indexado por clave, con indexación directa que falla
+ruidosamente (`KeyError`) si se agrega una clave cruda sin su presentación correspondiente. **Hallazgo de
+la revisión final de integración de los 5 sprints**: `agregar_valor()` rechazaba `valor <= 0` para
+`IPC_VARIACION_ANUAL`, que legítimamente puede ser 0% o negativa en un año de deflación — corregido con
+`CLAVES_VALOR_PUEDE_SER_NO_POSITIVO`, un set explícito de excepción (hoy solo esa clave), sin tocar la
+validación de las demás 39. Confirmado sin cambios de resultado en ninguna liquidación
+(`tests/family/`+`tests/engine/` en verde). Suite completa en verde (1060 tests al cierre del sprint
+propio, 1086 tras el fix de integración final).
+
 ---
 
-## Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales 📋 Pendiente
+## Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales ✅ Completado
 
 **Prioridad sugerida:** Media.
 
@@ -4641,9 +4676,18 @@ campos no autoexplicativos de `ObligacionFormDialog`, y a los 3 formularios rest
 - Cada campo no autoexplicativo de los 4 formularios tiene tooltip con ejemplo.
 - Suite completa en verde.
 
+**Cierre de implementación (2026-08-12):** Completado. Al leer el código real se confirmó que la premisa
+del hallazgo estaba parcialmente desactualizada: 16 de ~24 campos de `ObligacionFormDialog` (y 6 de
+`ExpedienteFormDialog`) ya tenían `setToolTip()` simple de los Sprints 34/44 — solo "Tasa efectiva anual"
+tenía el ícono ⓘ visible. Se aplicaron tooltips nuevos solo a los campos que genuinamente no tenían
+ninguno, dejando cobertura completa en los 4 formularios. `_envolver_campo_con_iconos` (que mezclaba el
+ícono de ayuda con el de advertencia de validación) se separó en responsabilidades limpias; el ícono de
+advertencia sigue funcionando sin importar el anidamiento porque su lookup es por widget, no por
+jerarquía de contenedores. Suite completa en verde (1070 tests tras este sprint).
+
 ---
 
-## Sprint 60 — Editar/eliminar Obligaciones y Abonos 📋 Pendiente
+## Sprint 60 — Editar/eliminar Obligaciones y Abonos ✅ Completado
 
 **Prioridad sugerida:** Alta — gap funcional real: hoy no hay forma de corregir un error de captura sin
 recrear el expediente.
@@ -4672,6 +4716,18 @@ con la obligación padre, sin bloquear la operación.
   elimina a todas en la misma operación, verificado con test.
 - `tabla_abonos` tiene "Editar" y "Eliminar" por fila.
 - Suite completa en verde.
+
+**Cierre de implementación (2026-08-12):** Completado. `_eliminar_obligacion` sigue el código de
+referencia del plan al pie de la letra: consulta y borra las cuotas hijas (`obligacion_padre_id`) antes
+del padre, en la misma sesión/transacción; verificado con un test de integración real que genera cuotas
+de verdad vía `generar_cuotas_mensuales` (Sprint 41) y confirma 0 filas residuales tras eliminar (padre +
+5 cuotas + abonos + eventos laborales). Al agregar `abono_id` opcional a `AbonoFormDialog` se encontró y
+corrigió un bug real independiente: la heurística de detección de sobrepago contaba doble el valor del
+abono en edición (sumaba el monto viejo Y el nuevo). El primer test de este fix no ejercitaba el caso real
+del bug (montos muy por debajo del límite) — corregido con un test que sí lo reproduce, verificado
+revirtiendo el fix y confirmando que el test nuevo falla con el falso positivo exacto antes de restaurar
+el código correcto. Suite completa en verde (1083 tests al cierre del sprint propio; ver Sprint 58 para el
+fix de integración final que llevó el total a 1086).
 
 ---
 

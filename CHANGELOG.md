@@ -24,10 +24,29 @@ una ruta de base de datos explícita (Sprint 52), patrón N+1 de consultas elimi
 (Sprint 53), y documentación desactualizada corregida en `docs/GUIA_USUARIO.md` y 2 specs de motores
 (Sprint 54). Sprint 55 (reportado por el usuario): 3 bugs de UI en el Dashboard (gráfica con colores del
 tema anterior, etiquetas superpuestas al redimensionar, tabla "Expedientes por área" editable sin razón).
-Ningún cambio de saldo final ya calculado en ningún sprint — solo el desglose de interés por
-fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de total.
+Sprints 56-60 (brainstorming completo con el usuario, 2026-08-11): diálogos redimensionables/maximizables
+(Sprint 56); columnas de Área y Unidad por fila en Parámetros, no editables tras crearse, con migración de
+las 683 filas existentes (Sprint 57); vigencia "inteligente" para parámetros anuales de gobierno, IPC con
+su variación % cruda visible junto al índice calculado, y enlace a "Ver historial" (Sprint 58); tooltips ⓘ
+de ayuda extendidos a los 4 formularios principales de captura (Sprint 59); Obligaciones y Abonos ganan
+"Eliminar"/"Editar" completo, mismo patrón que ya tenía Eventos Laborales (Sprint 60). Ningún cambio de
+saldo final ya calculado en ningún sprint — solo el desglose de interés por fila del Sprint 40 y el
+desglose por cuota del Sprint 41 cambian de forma, no de total.
 
 ### Added
+- Área(s) del derecho y unidad de medida por valor de parámetro legal (Sprint 57): nuevas columnas
+  `areas_derecho`/`unidad` en `parametros_legales`, capturables al agregar un valor nuevo desde
+  Parámetros y no editables después — migración aplica la clasificación a las 683 filas existentes.
+- Presentación inteligente en Parámetros (Sprint 58): "Vigente hasta" calculado automáticamente para
+  parámetros que el gobierno fija año a año (SMLMV, IPC, UVT) en vez de mostrarse vacío; variación % anual
+  cruda del IPC visible junto al índice ya calculado, con la fórmula explicada; enlace para ver el
+  historial completo de cualquier parámetro con más de un valor.
+- Tooltips ⓘ de ayuda en los 4 formularios principales de captura — Obligación, Expediente, Abono y
+  Parámetro (Sprint 59): antes solo 1 de ~15 campos de `ObligacionFormDialog` tenía el ícono visible.
+- Editar y eliminar Obligaciones y Abonos (Sprint 60): mismo patrón ya usado en Eventos Laborales;
+  eliminar una obligación con cuotas generadas por reajuste anual (Sprint 41) las elimina también.
+- Diálogos redimensionables y maximizables (Sprint 56): los 7 `QDialog` del proyecto ganan botones de
+  minimizar/maximizar, antes solo tenían cerrar.
 - Modo oscuro/claro, sidebar de navegación y gráfica del Dashboard (Sprint 50): tema oscuro completo
   (`app/core/theme_colors_dark.py`, `resources/theme_dark.qss`) alternable en caliente desde Parámetros y
   persistido vía `QSettings`; `QToolBar` superior reemplazado por un sidebar lateral (mismos nombres de
@@ -83,6 +102,9 @@ fila del Sprint 40 y el desglose por cuota del Sprint 41 cambian de forma, no de
   anterior ni para un clon nuevo del repositorio.
 
 ### Fixed
+- Al editar un abono, la detección de sobrepago contaba doble su propio valor anterior (Sprint 60):
+  sumaba el monto viejo y el nuevo del mismo abono, disparando una advertencia de sobrepago falsa en
+  casos donde el total real seguía dentro del valor de la obligación.
 - 3 bugs de UI en el Dashboard (Sprint 55): la gráfica de expedientes por área se quedaba con los colores
   del tema anterior al volver a la pantalla con el botón "Volver" (solo "Inicio" la refrescaba); las
   etiquetas de la gráfica se superponían al redimensionar la ventana (el layout no se recalculaba); y las
