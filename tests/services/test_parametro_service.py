@@ -6,7 +6,7 @@ import pytest
 import database.session as session_module
 from app.core.exceptions import ParametroNoDisponibleError
 from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE
-from database.models import ParametroLegal
+from database.models import AreaDerecho, ParametroLegal
 
 
 def _area_unidad(clave):
@@ -765,3 +765,31 @@ def test_resolver_fila_y_resolver_entre_filas_dan_el_mismo_resultado(clave, fech
         assert fila_memoria.valor == fila_sql.valor
         assert fila_memoria.vigente_desde == fila_sql.vigente_desde
         assert fila_memoria.creado_en == fila_sql.creado_en
+
+
+def test_agregar_valor_marca_creado_por_sistema_false():
+    from app.services.parametro_service import agregar_valor
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "abogado1",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    assert fila.creado_por_sistema is False
+
+
+def test_agregar_valor_marca_creado_por_sistema_false_aunque_usuario_diga_sistema():
+    from app.services.parametro_service import agregar_valor
+
+    fila = agregar_valor(
+        "USURA_MULTIPLICADOR",
+        Decimal("1.5"),
+        date(1900, 1, 1),
+        "sistema",
+        areas_derecho=[AreaDerecho.COMERCIAL],
+        unidad="veces",
+    )
+    assert fila.creado_por_sistema is False

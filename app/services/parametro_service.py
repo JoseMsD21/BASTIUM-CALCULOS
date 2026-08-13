@@ -9,10 +9,14 @@ tocar Python ni redesplegar.
 Ver docs/superpowers/specs/2026-07-20-parametros-legales-versionados-design.md
 para el diseno completo, en particular la Adenda de modos de resolucion.
 
-Tabla append-only: nunca se edita ni se borra una fila existente. Una
-correccion o un cambio de vigencia se hace agregando una fila nueva -- las
-columnas usuario/motivo/creado_en de cada fila son, en conjunto, la bitacora
-completa (no depende de AuditLog, que exige un expediente_id).
+Tabla append-only para las filas de sistema (sembradas por
+scripts/migrate_parametros_legales.py / scripts/migrate_ipc_variacion_anual.py,
+creado_por_sistema=True): nunca se editan ni se borran. Las filas creadas por
+un usuario desde la GUI (creado_por_sistema=False) SI se pueden editar/borrar
+-- ver editar_valor()/eliminar_valor() mas abajo -- excepcion deliberada,
+acotada por ese flag. Las columnas usuario/motivo/creado_en de cada fila
+siguen siendo la bitacora, ahora con la salvedad de que las filas de usuario
+pueden cambiar de estado tras crearse.
 """
 
 from __future__ import annotations
@@ -488,30 +492,23 @@ def get_parametro(clave: str, fecha: date) -> Decimal:
     return fila.valor
 
 
-def agregar_valor(
+def _validar_y_preparar(
     clave: str,
     valor: Decimal,
     vigente_desde: date,
-    usuario: str,
     areas_derecho: list[AreaDerecho],
     unidad: str,
-    motivo: str | None = None,
-    vigente_hasta: date | None = None,
-) -> ParametroLegal:
-    """Inserta una fila nueva (append-only: nunca modifica ni borra filas
-    existentes). Usada por la GUI (app/views/configuracion.py).
-
-    areas_derecho/unidad (Sprint 57): obligatorias para toda fila creada por
-    esta funcion -- se guardan por fila (no como metadato fijo en Python) y
-    nunca se editan despues de creadas (decision del usuario, ver spec). El
-    modelo las deja nullable a nivel de columna SQLite (ver database/models.py)
-    precisamente para que esa obligatoriedad la exija esta funcion, no un
-    CHECK/NOT NULL de la base de datos.
-
-    `valor` debe ser positivo salvo para las claves listadas en
-    CLAVES_VALOR_PUEDE_SER_NO_POSITIVO (hoy solo IPC_VARIACION_ANUAL, que
-    puede ser 0 o negativa en un año de deflacion -- ver el comentario junto a
-    esa constante)."""
+    vigente_hasta: date | None,
+    session,
+    excluir_id: int | None = None,
+) -> tuple[InfoParametro, str, str]:
+    """Validacion compartida por `agregar_valor` y `editar_valor`: reglas de
+    modo/vigente_hasta, valor positivo, unidad no vacia y solapamiento de
+    tramos TRAMO_CERRADO. `excluir_id` (usado solo por `editar_valor`) excluye
+    la propia fila de la consulta de solapamiento -- si no se excluyera, una
+    fila TRAMO_CERRADO siempre "se solaparia consigo misma" al editarla sin
+    cambiar sus fechas. Retorna (info, areas_derecho_json, unidad_normalizada)
+    listos para construir/actualizar la fila."""
     info = _validar_clave(clave)
     if info.modo == ModoResolucion.TRAMO_CERRADO and vigente_hasta is None:
         raise ValueError(f"'{clave}' requiere 'vigente_hasta' (modo TRAMO_CERRADO).")
@@ -526,24 +523,53 @@ def agregar_valor(
     if not unidad:
         raise ValueError("La unidad es obligatoria.")
 
+    if info.modo == ModoResolucion.TRAMO_CERRADO:
+        query = session.query(ParametroLegal).filter(
+            ParametroLegal.clave == clave,
+            ParametroLegal.vigente_desde <= vigente_hasta,
+            ParametroLegal.vigente_hasta >= vigente_desde,
+        )
+        if excluir_id is not None:
+            query = query.filter(ParametroLegal.id != excluir_id)
+        tramo_solapado = query.first()
+        if tramo_solapado is not None:
+            raise ValueError(
+                f"El tramo {vigente_desde} a {vigente_hasta} se solapa con un tramo "
+                f"existente de '{clave}' ({tramo_solapado.vigente_desde} a "
+                f"{tramo_solapado.vigente_hasta})."
+            )
+    return info, areas_derecho_json, unidad
+
+
+def agregar_valor(
+    clave: str,
+    valor: Decimal,
+    vigente_desde: date,
+    usuario: str,
+    areas_derecho: list[AreaDerecho],
+    unidad: str,
+    motivo: str | None = None,
+    vigente_hasta: date | None = None,
+) -> ParametroLegal:
+    """Inserta una fila nueva creada por un usuario (creado_por_sistema=False
+    siempre, sin importar lo que diga `usuario` -- ver docstring del modulo).
+    Usada por la GUI (app/views/configuracion.py).
+
+    areas_derecho/unidad (Sprint 57): obligatorias para toda fila creada por
+    esta funcion -- se guardan por fila (no como metadato fijo en Python). El
+    modelo las deja nullable a nivel de columna SQLite (ver database/models.py)
+    precisamente para que esa obligatoriedad la exija esta funcion, no un
+    CHECK/NOT NULL de la base de datos.
+
+    `valor` debe ser positivo salvo para las claves listadas en
+    CLAVES_VALOR_PUEDE_SER_NO_POSITIVO (hoy solo IPC_VARIACION_ANUAL, que
+    puede ser 0 o negativa en un año de deflacion -- ver el comentario junto a
+    esa constante)."""
     session = session_module.get_session()
     try:
-        if info.modo == ModoResolucion.TRAMO_CERRADO:
-            tramo_solapado = (
-                session.query(ParametroLegal)
-                .filter(
-                    ParametroLegal.clave == clave,
-                    ParametroLegal.vigente_desde <= vigente_hasta,
-                    ParametroLegal.vigente_hasta >= vigente_desde,
-                )
-                .first()
-            )
-            if tramo_solapado is not None:
-                raise ValueError(
-                    f"El tramo {vigente_desde} a {vigente_hasta} se solapa con un tramo "
-                    f"existente de '{clave}' ({tramo_solapado.vigente_desde} a "
-                    f"{tramo_solapado.vigente_hasta})."
-                )
+        info, areas_derecho_json, unidad = _validar_y_preparar(
+            clave, valor, vigente_desde, areas_derecho, unidad, vigente_hasta, session
+        )
         fila = ParametroLegal(
             clave=clave,
             valor=valor,
@@ -554,6 +580,7 @@ def agregar_valor(
             creado_en=datetime.now(),
             areas_derecho=areas_derecho_json,
             unidad=unidad,
+            creado_por_sistema=False,
         )
         session.add(fila)
         session.commit()
