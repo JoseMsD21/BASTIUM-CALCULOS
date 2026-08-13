@@ -14,8 +14,8 @@
 > Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. También
 > incluye las columnas Área y Unidad de la tabla de Parámetros, la vigencia "inteligente" y el desglose
 > crudo-vs-calculado del IPC, los tooltips ⓘ de ayuda de los 4 formularios principales de captura, el
-> redimensionado/minimizado/maximizado de todos los diálogos del programa, y la edición/eliminación de
-> Obligaciones y Abonos desde el Detalle de un expediente. Cada vez
+> redimensionado/minimizado/maximizado de los 7 diálogos de formulario del programa, y la
+> edición/eliminación de Obligaciones y Abonos desde el Detalle de un expediente. Cada vez
 > que se complete un sprint nuevo de
 > [`Pendientes.md`](Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
 > respecto al programa real.
@@ -230,9 +230,11 @@ Agregar valor de parámetro): **Ctrl+S** guarda y cierra el formulario (equivale
 Los 4 formularios principales de captura — **Agregar obligación**, **Nuevo expediente**, **Agregar
 abono** y **Agregar valor de parámetro** (pantalla "⚙ Parámetros") — muestran un ícono **ⓘ** junto a cada
 campo que no se explica solo; pasa el mouse por encima para ver una explicación corta, con un ejemplo
-concreto cuando aplica. Además, todos los diálogos del programa (estos 4 formularios, los de edición, y
-las ventanas de confirmación) se pueden minimizar, maximizar y redimensionar arrastrando sus bordes,
-igual que cualquier otra ventana de Windows — no quedan fijos a un tamaño único.
+concreto cuando aplica. Además, los 7 diálogos de formulario del programa (agregar/editar Obligación,
+Expediente, Abono, Parámetro, Evento contractual, Descuento laboral, y el historial de un Parámetro) se
+pueden minimizar, maximizar y redimensionar arrastrando sus bordes, igual que cualquier otra ventana de
+Windows — no quedan fijos a un tamaño único. Las ventanas de confirmación (ej. "¿Eliminar esta
+obligación?") son mensajes simples y no tienen esos controles.
 
 ---
 

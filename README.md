@@ -65,9 +65,11 @@ corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble cl
 
 La interfaz tiene navegación por panel lateral fijo, modo oscuro/claro alternable desde "⚙ Parámetros"
 (persistido entre sesiones), notificaciones no bloqueantes tipo toast para confirmaciones de bajo riesgo,
-y una gráfica de expedientes por área en el Dashboard de inicio. Todos los diálogos del proyecto
-(formularios y ventanas de confirmación) se pueden minimizar, maximizar y redimensionar arrastrando sus
-bordes, y los 4 formularios principales de captura (Obligación, Expediente, Abono, Parámetro) tienen
+y una gráfica de expedientes por área en el Dashboard de inicio. Los 7 diálogos de formulario del
+proyecto (agregar/editar Obligación, Expediente, Abono, Parámetro, Evento contractual, Descuento laboral,
+y el historial de un Parámetro) se pueden minimizar, maximizar y redimensionar arrastrando sus bordes —
+las ventanas de confirmación (ej. "¿Eliminar esta obligación?") no tienen esa capacidad, son mensajes
+simples. Los 4 formularios principales de captura (Obligación, Expediente, Abono, Parámetro) tienen
 tooltips ⓘ de ayuda en los campos que no se explican solos, con un ejemplo concreto. Desde el Detalle de
 un expediente también se pueden editar y eliminar Obligaciones y Abonos ya guardados (con confirmación
 antes de borrar, y borrado en cascada de las cuotas mensuales generadas por reajuste anual si aplica),
