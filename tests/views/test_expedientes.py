@@ -109,7 +109,7 @@ def test_dialogo_habilita_todas_las_areas(qtbot, monkeypatch):
     modelo = dialog.combo_area.model()
     assert modelo.rowCount() == len(AREAS_DERECHO)
     # Las 5 areas del derecho estan habilitadas desde el Sprint 3 (Laboral
-    # fue la ultima en habilitarse) -- ver Pendientes.md.
+    # fue la ultima en habilitarse) -- ver docs/Pendientes.md.
     for indice in range(modelo.rowCount()):
         assert modelo.item(indice).isEnabled() is True
 

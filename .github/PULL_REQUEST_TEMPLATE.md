@@ -20,4 +20,4 @@ Describe cómo verificaste el cambio (comandos de `pytest` corridos, pasos manua
 - [ ] `python -m ruff check .` no agrega errores nuevos en los archivos que toqué.
 - [ ] Si el cambio afecta un cálculo legal, cité la norma/artículo relevante en la descripción o en
       comentarios del código.
-- [ ] Actualicé `Pendientes.md`/`CHANGELOG.md` si aplica.
+- [ ] Actualicé `docs/Pendientes.md`/`CHANGELOG.md` si aplica.

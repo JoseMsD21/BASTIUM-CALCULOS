@@ -37,7 +37,7 @@ qué hacer sin tener que leer el cuerpo completo:
   las 17 tareas están marcadas `✅ COMPLETADA` con notas de ejecución real (bugs encontrados y cómo se
   resolvieron).
 - `docs/specifications/01_motor_temporal.md` … `07_motor_juridico_familia.md` — qué hace cada motor hoy.
-- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf` (raíz del repo) — documento maestro de
+- `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf` (en `docs/`) — documento maestro de
   requisitos de TODO el sistema jurídico previsto (todas las áreas, motor de reglas **EFDJ** —
   **E**specificación **F**uncional del **D**ominio **J**urídico, el nombre que el propio PDF usa en su
   página 63 para el catálogo de reglas versionadas —, datos históricos, tributario, auditoría). El MVP
@@ -3222,7 +3222,7 @@ aunque lo parezca por estar en GitHub.
   comercialmente sin restricción; GPL lo dificulta bastante más.
 - ¿Le importa al usuario que alguien tome el motor de cálculo y lo use dentro de un producto cerrado sin
   aportar nada a cambio? Si le importa, GPL encaja mejor que MIT/Apache; si no, MIT es más simple.
-- El PDF fuente (`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, raíz del repo) y cualquier
+- El PDF fuente (`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, en `docs/`) y cualquier
   dato jurídico derivado de él pueden tener restricciones de autor propias, independientes de la licencia
   del código — confirmar que licenciar el código no implica licenciar el contenido de ese documento.
 

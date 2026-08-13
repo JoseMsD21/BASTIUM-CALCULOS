@@ -2,7 +2,7 @@
 la tabla obligaciones. Idempotente -- verifica con PRAGMA table_info antes de
 alterar, para poder correrse mas de una vez (ej. en otra maquina de desarrollo
 o en CI) sin fallar. No usa Alembic porque el proyecto todavia no tiene
-migraciones formales (ver Pendientes.md, Sprint 8 design doc)."""
+migraciones formales (ver docs/Pendientes.md, Sprint 8 design doc)."""
 
 import sqlite3
 from pathlib import Path

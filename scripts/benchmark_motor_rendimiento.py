@@ -4,7 +4,7 @@ hallazgos 1 y 3 del audit de rendimiento (scan lineal de MemoryRateProvider,
 reconsulta de get_parametro por cuota). No es una prueba automatizada -- se
 corre a mano con `python scripts/benchmark_motor_rendimiento.py` antes y
 despues de aplicar los cambios de este sprint, y los dos numeros impresos se
-registran en Pendientes.md al cerrar el sprint (ver Task 6 del plan)."""
+registran en docs/Pendientes.md al cerrar el sprint (ver Task 6 del plan)."""
 
 import sys
 from pathlib import Path

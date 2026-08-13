@@ -4,7 +4,7 @@ Gracias por tu interés en contribuir a BASTIUM. Esta guía explica cómo levant
 desarrollo, correr las pruebas, la convención de commits del repositorio y cómo proponer un sprint
 nuevo.
 
-> Antes de contribuir código, lee el aviso legal en [SECURITY.md](SECURITY.md) y en la parte
+> Antes de contribuir código, lee el aviso legal en [SECURITY.md](docs/SECURITY.md) y en la parte
 > superior de este [README](README.md): BASTIUM calcula montos con efectos jurídicos reales.
 
 ## Levantar el entorno
@@ -76,7 +76,7 @@ Ejemplo: `fix: corregir redondeo de intereses moratorios en liquidacion laboral`
 
 ## Cómo proponer un sprint nuevo
 
-El trabajo del proyecto se organiza en "sprints" documentados en [`Pendientes.md`](Pendientes.md).
+El trabajo del proyecto se organiza en "sprints" documentados en [`Pendientes.md`](docs/Pendientes.md).
 Para proponer uno nuevo, agrega una sección al final del archivo siguiendo el mismo formato que los
 sprints existentes:
 

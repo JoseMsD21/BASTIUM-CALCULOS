@@ -7,7 +7,7 @@
 > ⚠️ **Aviso legal:** BASTIUM es una herramienta de apoyo para el cálculo de liquidaciones — **no
 > sustituye la asesoría de un abogado colegiado ni garantiza exactitud jurídica**. Verifica los
 > resultados contra la norma vigente antes de usarlos en un proceso real. Ver
-> [SECURITY.md](SECURITY.md#aviso-legal) para el detalle.
+> [SECURITY.md](docs/SECURITY.md#aviso-legal) para el detalle.
 
 BASTIUM es una aplicación de escritorio para abogados y despachos jurídicos en Colombia. Permite
 registrar un expediente, cargar las obligaciones (deudas) y los abonos (pagos) asociados, y calcular
@@ -96,7 +96,7 @@ Civil/Familia (Sprint 8) y al reajuste anual de cuota alimentaria en Familia (Sp
 conectada a la conversión SMLMV→UVT del área Sancionatorio (Sprint 14) y al piso legal de 10 UVT de las
 sanciones tributarias (Sprint 15); SMLMV ya se usa en el reajuste anual de Familia y en el checkbox
 "salario = SMMLV" de Laboral (Sprint 44). El plan completo, sprint por sprint, está en
-**[Pendientes.md](Pendientes.md)**.
+**[Pendientes.md](docs/Pendientes.md)**.
 
 ## Instalación rápida
 
@@ -148,8 +148,8 @@ docs/
   specifications/         Documentación técnica de cada motor interno
   superpowers/specs/      Documento de diseño del MVP
   superpowers/plans/      Plan de implementación tarea por tarea (histórico)
-Pendientes.md            Backlog de trabajo futuro, organizado en sprints
-REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf
+  Pendientes.md           Backlog de trabajo futuro, organizado en sprints
+  REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf
                           Documento maestro de requisitos jurídicos (alcance completo del producto)
 ```
 
@@ -172,6 +172,6 @@ pruebas y falla si hay alguna violación.
 
 ## Mantenimiento de esta documentación
 
-Cada vez que se completa un sprint de `Pendientes.md` y un módulo pasa de "🚧 en desarrollo" a
+Cada vez que se completa un sprint de `docs/Pendientes.md` y un módulo pasa de "🚧 en desarrollo" a
 funcional, este README y la [Guía de Usuario](docs/GUIA_USUARIO.md) deben actualizarse para reflejarlo.
 No deben quedar desactualizados respecto al código real.

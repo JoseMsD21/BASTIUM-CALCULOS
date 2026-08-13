@@ -120,7 +120,7 @@ def fecha_interrupcion_efectiva(fecha_radicacion: date, fecha_notificacion: date
             f"fecha_radicacion ({fecha_radicacion})."
         )
     # Sprint 30 (corregido 2026-08-03): "un año" NO son 365 días matemáticos
-    # -- confirmación del despacho (Preguntas-Para-Abogado-Respondidas.md,
+    # -- confirmación del despacho (docs/Preguntas-Para-Abogado-Respondidas.md,
     # Sprint 30). Reutiliza CalendarUtils.vencimiento_calendario (Sprint 6/7,
     # ya usado por calcular_prescripcion en este mismo archivo) para el
     # vencimiento fecha-a-fecha real: suma 1 año calendario desde la

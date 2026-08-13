@@ -125,7 +125,7 @@ class CalendarUtils:
         colombiana de año de 360 días (12 meses de 30 días), conteo inclusivo
         (el primer día cuenta) -- confirmado por el despacho para prestaciones
         sociales (cesantías/prima), Sprint 30/Sprint 3:
-        `Preguntas-Para-Abogado-Respondidas.md`, "Dias_Trabajados =
+        `docs/Preguntas-Para-Abogado-Respondidas.md`, "Dias_Trabajados =
         (Fecha_Fin - Fecha_Inicio) + 1... bajo la premisa de meses de 30
         días". El día 31 de cualquier mes se topa a "día 30" (no existe en un
         mes comercial de 30 días); los meses de 28/29 días (febrero) NO se

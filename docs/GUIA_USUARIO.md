@@ -13,7 +13,7 @@
 > legales versionados, la prescripción/caducidad conectada al cálculo real de la liquidación, y el
 > Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. Cada vez
 > que se complete un sprint nuevo de
-> [`Pendientes.md`](../Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
+> [`Pendientes.md`](Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
 > respecto al programa real.
 
 ## Índice
@@ -958,7 +958,7 @@ distintas, con propósitos y momentos diferentes.
 
 Estas funciones están planeadas pero **todavía no existen o no están conectadas**. El detalle técnico
 completo de cada una (qué construir, qué documentos consultar, en qué orden) está en
-[`Pendientes.md`](../Pendientes.md), organizado en sprints. Aquí un resumen en lenguaje simple:
+[`Pendientes.md`](Pendientes.md), organizado en sprints. Aquí un resumen en lenguaje simple:
 
 - ✅ **Seguridad social, incapacidades y suspensiones en el área Laboral** — cotizaciones de pensión,
   salud, ARL y FSP, más incapacidades (común/laboral) y suspensiones contractuales, ya calculan como
@@ -1075,4 +1075,4 @@ No. Todo el cálculo y almacenamiento ocurre en tu computador.
 
 Para entender la arquitectura del código, empezar por `docs/specifications/` (un archivo por motor interno) y
 `docs/superpowers/specs/2026-07-14-mvp-captura-liquidacion-civil-familia-design.md` (diseño del MVP). El
-trabajo futuro está en [`Pendientes.md`](../Pendientes.md), organizado en sprints autocontenidos.
+trabajo futuro está en [`Pendientes.md`](Pendientes.md), organizado en sprints autocontenidos.

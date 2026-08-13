@@ -422,7 +422,7 @@ class ComercialStrategy(AreaStrategy):
     Area Comercial (Art. 884 C.Co.). Cada obligacion debe traer su propia tasa
     remuneratoria (tasa_efectiva_anual), tasa moratoria (tasa_moratoria_anual),
     fecha de vencimiento y el IBC vigente aplicable (ibc_vigente_anual) -- no hay
-    fallback automatico a un IBC de referencia en este sprint (ver Pendientes.md,
+    fallback automatico a un IBC de referencia en este sprint (ver docs/Pendientes.md,
     Sprint 2 y Sprint 5).
 
     Split real de tasa remuneratoria (antes del vencimiento) / moratoria (despues)
@@ -795,7 +795,7 @@ class LaboralStrategy(AreaStrategy):
 
     Seguridad social (cotizaciones IBC, pension, salud, ARL, FSP) es opt-in
     via el flag `incluir_seguridad_social` de la obligacion (requiere ademas
-    `nivel_riesgo_arl`, I-V) -- ver Pendientes.md, Sprint 16, y
+    `nivel_riesgo_arl`, I-V) -- ver docs/Pendientes.md, Sprint 16, y
     docs/superpowers/specs/2026-07-18-area-laboral-design.md.
     """
 
@@ -831,7 +831,7 @@ class LaboralStrategy(AreaStrategy):
         # dias_trabajados_prestaciones (Sprint 30, corregido 2026-08-03):
         # conteo inclusivo (+1) sobre base comercial de 360 dias (12 meses de
         # 30 dias) -- confirmado por el despacho para cesantias/intereses/
-        # prima/vacaciones (Preguntas-Para-Abogado-Respondidas.md, Sprint 3).
+        # prima/vacaciones (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 3).
         # NO es el mismo valor que dias_trabajados de arriba.
         dias_trabajados_prestaciones = CalendarUtils.dias_comerciales_360(
             obligacion.fecha_inicio, obligacion.fecha_fin

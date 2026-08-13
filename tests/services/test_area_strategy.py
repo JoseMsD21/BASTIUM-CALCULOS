@@ -2684,7 +2684,7 @@ class TestTributarioStrategy:
         # Comercial/CivilFamilia desde el Sprint 21, ver _liquidar_por_obligacion) -- es la
         # unica forma de darle 0% de interes a una sancion con mora > 3 anios mientras el
         # impuesto sigue acumulando el interes E.T. 635. Efecto secundario aceptado y
-        # documentado (Pendientes.md, Sprint 15): un abono ya no se imputa automaticamente
+        # documentado (docs/Pendientes.md, Sprint 15): un abono ya no se imputa automaticamente
         # contra el saldo combinado del expediente (sanciones primero, impuesto despues) --
         # cada abono debe indicar explicitamente, via `obligacion_id`, cual obligacion paga,
         # igual que en las demas areas desde el Sprint 21. Dentro de CADA obligacion, el

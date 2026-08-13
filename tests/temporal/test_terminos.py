@@ -11,7 +11,7 @@ from app.engine.temporal.terminos import (
 )
 
 # Fechas elegidas deliberadamente fuera de la vacancia judicial de fin de año
-# (20 dic - 11 ene) y de la Semana Santa extendida (Sprint 6, Pendientes.md) --
+# (20 dic - 11 ene) y de la Semana Santa extendida (Sprint 6, docs/Pendientes.md) --
 # esas exclusiones de calendario ya se prueban directamente en
 # tests/temporal/test_calendar.py; aquí solo se ejercita la máquina de estados
 # (interrupción/suspensión/reanudación), que es agnóstica a qué fechas exactas

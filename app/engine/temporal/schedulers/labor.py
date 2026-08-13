@@ -37,7 +37,7 @@ class LaborScheduler(Scheduler):
         # 2. Intereses a las cesantias: 12% anual sobre el saldo de cesantias,
         # prorrateado por los dias trabajados (formula verificada contra
         # REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf, pag. 51:
-        # (Cesantias x 0.12 x dias) / 360 -- no habia bug aqui, Pendientes.md
+        # (Cesantias x 0.12 x dias) / 360 -- no habia bug aqui, docs/Pendientes.md
         # sospechaba uno pero la propia cita del PDF ya coincidia con esto).
         monto_intereses = Rounding.money(
             (monto_cesantias * self.dias * Decimal("0.12")) / self.base_anual

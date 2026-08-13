@@ -69,4 +69,4 @@ AREAS_DERECHO = [
     ("TRIBUTARIO", "Tributario", True),
 ]
 # El tercer valor de cada tupla indica si el area esta habilitada para calcular
-# en este sprint. Ver Pendientes.md para el orden de habilitacion de las demas.
+# en este sprint. Ver docs/Pendientes.md para el orden de habilitacion de las demas.
