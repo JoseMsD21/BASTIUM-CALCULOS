@@ -210,6 +210,10 @@ botón real que los dispare).
 - [Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales ✅ Completado](#sprint-59--tooltips-de-ayuda-en-los-4-formularios-principales--completado)
 - [Sprint 60 — Editar/eliminar Obligaciones y Abonos ✅ Completado](#sprint-60--editareliminar-obligaciones-y-abonos--completado)
 - [Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión](#sprint-61--conectar-los-parámetros-de-prescripcióncaducidad-sin-wiring-a-pantallas-reales--bloqueado--pendiente-de-decisión)
+- [Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ 📋 Pendiente](#sprint-62--corregir-referencias-rotas-tras-mover-pendientespreguntas-para-abogadosecuritypdf-a-docs--pendiente)
+- [Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 📋 Pendiente](#sprint-63--documentar-en-readmeguia_usuario-las-funciones-de-los-sprints-52-60--pendiente)
+- [Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ 📋 Pendiente](#sprint-64--reorganizar-los-backups-de-bastiumdb-en-una-carpeta-backups--pendiente)
+- [Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" 📋 Pendiente](#sprint-65--lanzador-de-doble-clic-iniciar-bastiumbat--pendiente)
 
 ---
 
@@ -4789,6 +4793,146 @@ inferir solo del código, a diferencia del etiquetado informativo del Sprint 57)
 
 **Definición de Hecho:** no aplica todavía — este sprint se cierra dividiéndose en sprints concretos el
 día que se retome.
+
+---
+
+## Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ 📋 Pendiente
+
+**Prioridad sugerida:** Alta — hay ~130 archivos que citan la ruta vieja de estos 5 documentos; varios son
+documentación viva que el usuario final (README, Guía de Usuario) o un colaborador (CONTRIBUTING, plantilla
+de PR) sí llega a leer.
+
+**Depende de:** Nada — el usuario ya movió los 5 archivos físicamente (`Pendientes.md`,
+`Preguntas-Para-Abogado-Abiertas.md`, `Preguntas-Para-Abogado-Respondidas.md`, `SECURITY.md`,
+`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`, todos ahora en `docs/`). Este sprint solo
+corrige las referencias que ese movimiento dejó rotas.
+
+**Contexto:** grep exhaustivo confirmó referencias a las rutas viejas (raíz del repo) en:
+`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/GUIA_USUARIO.md`, `docs/local/GUIA_PRESENTACION.md`,
+`.github/PULL_REQUEST_TEMPLATE.md`, los 7 `docs/specifications/*.md`, y ~30 archivos `.py` (comentarios
+que citan estos documentos como referencia de contexto, ej. `app/core/constants.py`,
+`app/services/area_strategy.py`, varios `app/engine/*`, y sus tests).
+
+**Alcance explícitamente excluido:**
+- `docs/superpowers/plans/*.md` y `docs/superpowers/specs/*.md` (~90 archivos): son actas históricas de
+  planeación de cada sprint ya cerrado, no documentación viva — decisión ya tomada en el Sprint 54
+  ("no se re-audita el resto de plans/specs... más allá de lo ya encontrado"), se mantiene aquí. Corregir
+  esas ~90 referencias reescribiría historia que debe quedar tal como se escribió en su momento.
+
+**Código nuevo a crear:** ninguno — son ediciones de texto (rutas). Reemplazar, en los archivos listados
+arriba (documentación viva + `.py`), toda referencia a `Pendientes.md`/`Preguntas-Para-Abogado-*.md`/
+`SECURITY.md`/`REQUERIMIENTOS DE CALCULO...pdf` en la raíz por la ruta `docs/...` correspondiente. Cuidado
+con no duplicar el prefijo si algún archivo ya dice `docs/Pendientes.md` correctamente en algún lado.
+
+**Definición de Hecho:**
+- `grep` de las rutas viejas sobre los archivos en alcance (excluyendo `docs/superpowers/`) no devuelve
+  ningún resultado.
+- Los enlaces relativos desde `docs/GUIA_USUARIO.md`/`docs/local/GUIA_PRESENTACION.md` a los archivos
+  movidos (ahora hermanos en el mismo `docs/`) usan rutas relativas correctas, no `docs/docs/...`.
+- Suite completa en verde (no debería haber tests que dependan de estas rutas de documentación, pero se
+  verifica).
+
+---
+
+## Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 📋 Pendiente
+
+**Prioridad sugerida:** Alta — viola la regla obligatoria que el propio `Pendientes.md` se puso al cerrar
+cualquier sprint ("hay que actualizar README.md y docs/GUIA_USUARIO.md... nunca deben quedar
+desactualizados"). Confirmado con grep que ninguna de estas funciones aparece documentada hoy.
+
+**Depende de:** Nada.
+
+**Contexto:** los Sprints 52-60 (auditoría técnica + Parámetros/diálogos/CRUD, 2026-08-10 a 2026-08-12)
+agregaron funcionalidad real que el usuario final puede usar hoy, pero nunca se documentó:
+- Columnas Área y Unidad en Parámetros, no editables tras crearse (Sprint 57).
+- Vigencia "inteligente" e IPC con variación % cruda visible (Sprint 58).
+- Tooltips ⓘ de ayuda en los 4 formularios principales de captura (Sprint 59).
+- Editar/eliminar Obligaciones y Abonos, con cascada de cuotas hijas (Sprint 60).
+- Los 7 diálogos del proyecto se pueden minimizar/maximizar/redimensionar (Sprint 56).
+- Migración automática de esquema corregida para bases anteriores al Sprint 57, y refresco de tablas
+  corregido al eliminar una obligación (2 bugs de producción encontrados y corregidos el 2026-08-12/13,
+  ya documentados en `docs/Pendientes.md` Sprints 57/60 pero no en `CHANGELOG.md`).
+
+**Código nuevo a crear:** ninguno — ediciones de texto en `README.md`, `docs/GUIA_USUARIO.md` y
+`CHANGELOG.md`. En `GUIA_USUARIO.md`, seguir el estilo y nivel de detalle ya usado para funciones
+similares (ej. la sección de Parámetros existente, la sección de navegación) — no reescribir el
+documento completo, solo agregar/actualizar las secciones afectadas. En `CHANGELOG.md`, agregar entradas
+`### Fixed` para los 2 bugs de producción del 2026-08-12/13 (`aplicar_migraciones_pendientes` fallaba en
+bases anteriores al Sprint 57; eliminar una obligación no refrescaba abonos/eventos laborales), mismo
+estilo que las entradas `Fixed` ya existentes.
+
+**Alcance explícitamente excluido:**
+- No se documenta el Sprint 61 (bloqueado, sin implementar todavía).
+- No se tocan los `docs/specifications/*.md` (esos son specs técnicas de motores, no guía de usuario —
+  fuera de alcance de este sprint específico).
+
+**Definición de Hecho:**
+- `README.md` y `docs/GUIA_USUARIO.md` mencionan las 5 funciones nuevas listadas arriba.
+- `CHANGELOG.md` tiene entradas `Fixed` para los 2 bugs de producción.
+- Suite completa en verde.
+
+---
+
+## Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ 📋 Pendiente
+
+**Prioridad sugerida:** Media — housekeeping puro, no afecta comportamiento de la app.
+
+**Depende de:** Nada.
+
+**Contexto:** 6 archivos `bastium.db.bak-*` acumulados en la raíz del repo desde julio (respaldos
+manuales hechos antes de aplicar migraciones riesgosas, incluidos los 2 hotfixes del 2026-08-12). Ya están
+en `.gitignore` (`*.db.bak-*`), así que no son un problema de control de versiones, pero sí de orden visual
+en la raíz. Decisión tomada (sin preguntar, por ser no-destructiva y reversible): **no se borra ninguno**
+— son la red de seguridad del usuario ante una migración que salga mal — se organizan en una carpeta
+nueva.
+
+**Código nuevo a crear:** ninguno — mover los 6 archivos `bastium.db.bak-*` (no `bastium.db` en sí, esa
+sigue en la raíz, es la base activa) a una carpeta nueva `backups/` en la raíz del repo. Agregar
+`backups/` a `.gitignore` (mismo patrón que `.venv/`/`.worktrees/`). Si `database/database.py` o algún
+script tiene lógica que genera backups automáticos apuntando a la raíz, actualizarla para que apunte a
+`backups/` (revisar primero si existe tal lógica automática, o si los 6 backups existentes son todos
+manuales — en cuyo caso no hay código que tocar, solo mover archivos).
+
+**Definición de Hecho:**
+- Los 6 `bastium.db.bak-*` existentes viven en `backups/`, con su contenido intacto (mismo tamaño/hash).
+- `bastium.db` (la base activa) sigue en la raíz, sin tocar.
+- `backups/` está en `.gitignore`.
+- Si existía lógica de backup automático, ahora escribe en `backups/`.
+
+---
+
+## Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" 📋 Pendiente
+
+**Prioridad sugerida:** Media-alta — el usuario (abogado, sin experiencia en terminal) reportó que
+`.venv\Scripts\python.exe main.py` en una terminal no es intuitivo para el público real de la app.
+
+**Depende de:** Nada.
+
+**Contexto:** hoy la única forma documentada de abrir BASTIUM es abrir una terminal, navegar a la carpeta
+del proyecto, y escribir la ruta completa del intérprete + `main.py`. Decisión tomada: en vez de un
+"comando más fácil" para escribir en terminal (lo que el usuario sugirió textualmente), un archivo
+`.bat` de doble clic es más simple todavía para el público real (un abogado) — no requiere abrir ninguna
+terminal. Se puede seguir invocando desde una terminal también si se prefiere (un `.bat` acepta ambos
+usos).
+
+**Código nuevo a crear:**
+- `Iniciar BASTIUM.bat` en la raíz del repo: cambia al directorio del script (`cd /d %~dp0`, para que
+  funcione sin importar desde dónde se haga doble clic), corre `.venv\Scripts\python.exe main.py`, y si
+  el proceso termina con código de error (ej. `.venv` no existe todavía, o una excepción no capturada),
+  deja la ventana abierta con un mensaje (`pause`) en vez de cerrarse de inmediato — para que el usuario
+  pueda leer el error y reportarlo, en vez de ver un parpadeo de consola vacío.
+- Actualizar `README.md` y `docs/GUIA_USUARIO.md` (sección de cómo abrir la app) para mencionar el doble
+  clic en `Iniciar BASTIUM.bat` como la forma recomendada, dejando el comando de terminal como alternativa
+  para quien lo prefiera.
+
+**Alcance explícitamente excluido:**
+- No se empaqueta la app como un `.exe` standalone (ej. con PyInstaller) — eso es un cambio mucho más
+  grande (empaquetado, firma, distribución) que no se pidió y no está en el alcance de este sprint.
+
+**Definición de Hecho:**
+- Doble clic en `Iniciar BASTIUM.bat` abre la app igual que el comando de terminal actual.
+- Si el `.venv` no existe o `main.py` falla, la ventana de consola no se cierra sola — muestra el error.
+- README/GUIA_USUARIO documentan el doble clic como forma recomendada de abrir la app.
 
 ---
 
