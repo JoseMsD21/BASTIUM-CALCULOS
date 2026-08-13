@@ -102,6 +102,21 @@ desglose por cuota del Sprint 41 cambian de forma, no de total.
   anterior ni para un clon nuevo del repositorio.
 
 ### Fixed
+- `aplicar_migraciones_pendientes()` fallaba con `sqlite3.OperationalError: no such column:
+  parametros_legales.areas_derecho` en cualquier `bastium.db` real sembrada antes del Sprint 57: como
+  `migrar_parametros_legales()` corría antes que `migrar_parametros_area_unidad()` (quien agrega esas
+  columnas), y el modelo ORM ya las declaraba como mapeadas, la primera consulta a `ParametroLegal` las
+  seleccionaba sin importar que la migración que las crea todavía no hubiera corrido. Corregido llamando
+  `migrar_parametros_area_unidad()` también antes de `migrar_parametros_legales()` (además de la llamada ya
+  existente después, necesaria para completar filas recién sembradas) — es idempotente, llamarla dos veces
+  es gratis.
+- Eliminar una Obligación no refrescaba las tablas de Abonos/Eventos Laborales en pantalla:
+  `_eliminar_obligacion` ya borraba en cascada sus abonos/eventos/descuentos laborales en la base de
+  datos, pero solo refrescaba `tabla_obligaciones` — las otras 3 tablas quedaban mostrando filas fantasma
+  con botones Editar/Eliminar conectados a ids ya inexistentes; un clic ahí disparaba `session.delete(None)` y
+  `sqlalchemy.orm.exc.UnmappedInstanceError`. Corregido refrescando las 4 tablas relacionadas tras eliminar,
+  y agregando verificación defensiva (aviso amigable en vez de traceback) en los 5 métodos de
+  editar/eliminar de `expediente_detalle.py`.
 - Al editar un abono, la detección de sobrepago contaba doble su propio valor anterior (Sprint 60):
   sumaba el monto viejo y el nuevo del mismo abono, disparando una advertencia de sobrepago falsa en
   casos donde el total real seguía dentro del valor de la obligación.

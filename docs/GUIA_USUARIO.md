@@ -5,13 +5,17 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-09 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> **Última actualización:** 2026-08-13 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, el panel de
 > navegación lateral fijo (sidebar) con los botones Volver/Inicio/Parámetros con íconos y estado activo,
 > el modo oscuro/claro alternable desde Parámetros, el breadcrumb de contexto y los atajos de teclado de
 > navegación y de los formularios, la edición/eliminación de expediente, la pantalla de parámetros
 > legales versionados, la prescripción/caducidad conectada al cálculo real de la liquidación, y el
-> Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. Cada vez
+> Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. También
+> incluye las columnas Área y Unidad de la tabla de Parámetros, la vigencia "inteligente" y el desglose
+> crudo-vs-calculado del IPC, los tooltips ⓘ de ayuda de los 4 formularios principales de captura, el
+> redimensionado/minimizado/maximizado de todos los diálogos del programa, y la edición/eliminación de
+> Obligaciones y Abonos desde el Detalle de un expediente. Cada vez
 > que se complete un sprint nuevo de
 > [`Pendientes.md`](Pendientes.md), esta guía se actualiza para que nunca quede desactualizada
 > respecto al programa real.
@@ -189,8 +193,9 @@ izquierda de la ventana:
 
 3. **Detalle de Expediente** — se abre al hacer doble clic en un expediente de la lista o de la tabla de
    alertas del Dashboard. Aquí ves dos tablas lado a lado: **Obligaciones** (las deudas del expediente) y
-   **Abonos** (los pagos hechos), cada una con su botón de "Agregar". Abajo hay un botón grande
-   **"Liquidar"**.
+   **Abonos** (los pagos hechos), cada una con su botón de "Agregar" y, por fila, botones **Editar** y
+   **Eliminar** (ver [sección 5.16](#516-editar-o-eliminar-una-obligación-o-un-abono)). Abajo hay un botón
+   grande **"Liquidar"**.
 
 4. **Resultado de Liquidación** — se abre automáticamente después de presionar "Liquidar". Muestra una
    tabla con el detalle día por día de cómo se acumuló el interés, y al final tres totales: interés
@@ -221,6 +226,13 @@ qué expediente y pantalla estás parado en cada momento (por ejemplo, "Expedien
 En los formularios (Nuevo expediente, Agregar obligación, Agregar abono, Agregar evento contractual,
 Agregar valor de parámetro): **Ctrl+S** guarda y cierra el formulario (equivale a hacer clic en
 "Guardar"), y **Esc** lo cierra sin guardar nada.
+
+Los 4 formularios principales de captura — **Agregar obligación**, **Nuevo expediente**, **Agregar
+abono** y **Agregar valor de parámetro** (pantalla "⚙ Parámetros") — muestran un ícono **ⓘ** junto a cada
+campo que no se explica solo; pasa el mouse por encima para ver una explicación corta, con un ejemplo
+concreto cuando aplica. Además, todos los diálogos del programa (estos 4 formularios, los de edición, y
+las ventanas de confirmación) se pueden minimizar, maximizar y redimensionar arrastrando sus bordes,
+igual que cualquier otra ventana de Windows — no quedan fijos a un tamaño único.
 
 ---
 
@@ -598,7 +610,7 @@ la pantalla **"⚙ Parámetros"** cualquier abogado puede consultar y agregar es
 siempre visible, sin importar en qué pantalla estés (Lista de Expedientes, Detalle de Expediente o
 Resultado de Liquidación).
 
-**Qué muestra la tabla principal:** una fila por cada parámetro que el programa sabe manejar, con cuatro
+**Qué muestra la tabla principal:** una fila por cada parámetro que el programa sabe manejar, con siete
 columnas:
 
 - **Categoría**: agrupa los parámetros en "Topes legales", "Plazos de prescripción y caducidad" o
@@ -607,8 +619,19 @@ columnas:
   Mínimo Legal Mensual Vigente").
 - **Valor vigente hoy**: el valor que el programa usaría si liquidara algo hoy mismo. Si dice
   "(sin dato)", es que todavía no se ha cargado ningún valor para ese parámetro (o ninguno aplica a la
-  fecha de hoy).
+  fecha de hoy). Si el parámetro tiene más de un valor histórico cargado, esta columna lo indica
+  directamente con el texto "— Ver N valores históricos", para que sepas que hay más detrás del valor
+  actual sin tener que adivinar que el doble clic (ver más abajo) existe.
 - **Vigente desde**: la fecha desde la que rige ese valor vigente.
+- **Vigente hasta**: la fecha hasta la que rige. Para el SMLMV, el índice IPC acumulado y la UVT — los
+  tres parámetros que el gobierno fija año a año — esta columna calcula automáticamente el 31 de
+  diciembre del año de "Vigente desde" y lo marca como "(calculado)", en vez de dejarla vacía. El IBC y
+  la Tasa de Usura (los únicos dos con un rango de vigencia guardado explícitamente) muestran su fecha
+  real. El resto de parámetros, que no tienen fecha de cierre, muestran "Indefinido".
+- **Área**: el área o áreas del derecho a las que aplica ese parámetro (ej. "Civil / Familia,
+  Comercial"), asignadas al agregar el valor y no editables después.
+- **Unidad**: la unidad de medida del valor (ej. "%", "COP", "meses", "índice"), también asignada al
+  agregar el valor y no editable después.
 
 **Cómo agregar un valor nuevo:**
 
@@ -622,6 +645,14 @@ columnas:
      (IBC, línea Consumo y Ordinario) y la Tasa de Usura de esa misma línea, dentro de "Indicadores
      históricos". Para todos los demás parámetros el campo está oculto y no aplica: el valor rige desde
      "Vigente desde" hacia adelante, sin fecha de corte, hasta que se agregue un valor más nuevo.
+   - **Área(s) del derecho**: una casilla de verificación por cada área (Civil / Familia, Comercial,
+     Laboral, Sancionatorio, Honorarios / Litigio, Tributario) — marca una o varias, según a cuál(es)
+     aplica este parámetro. El programa preselecciona la propuesta más probable en cuanto eliges el
+     parámetro en el campo de arriba; puedes ajustarla antes de guardar, pero **no se puede cambiar
+     después de guardado** — ni con doble clic ni de ninguna otra forma.
+   - **Unidad**: la unidad de medida del valor (ej. `%`, `COP`, `meses`, `índice`). Igual que el área, el
+     programa la pre-rellena según el parámetro elegido y se puede ajustar antes de guardar, pero **no
+     después**.
    - **Usuario**: tu nombre o usuario, para que quede registrado quién hizo el cambio. Es obligatorio.
    - **Motivo (opcional)**: por qué se agrega este valor (ej. "Actualización SMLMV 2027, Decreto XXXX").
      No es obligatorio, pero se recomienda diligenciarlo — queda guardado para siempre junto con el valor.
@@ -661,6 +692,12 @@ cualquier liquidación calculada en el pasado (ver [sección 5.13](#513-ver-el-h
 se pueda reconstruir exactamente con el valor que estaba vigente en ese momento, no con el valor de hoy.
 Para ver el historial completo de un parámetro (todos los valores que ha tenido, con su fecha de
 vigencia, quién lo agregó y el motivo), haz **doble clic** sobre su fila en la tabla principal.
+
+**Caso especial: el índice IPC acumulado.** Es el único de los parámetros cuyo valor se calcula con una
+fórmula, a partir de la variación % anual del IPC (índice = índice del año anterior × (1 + variación
+anual / 100)). Al abrir su historial con doble clic, la tabla muestra una columna extra, **"Variación
+anual (%)"**, con el dato crudo de cada año junto al índice ya calculado, más una nota al pie con la
+fórmula completa y su fuente.
 
 **Modo oscuro / claro (Sprint 50):** en la misma pantalla "⚙ Parámetros", junto al botón "+ Agregar valor
 nuevo", hay una casilla **"Modo oscuro"**. Márcala para cambiar toda la aplicación a un tema oscuro
@@ -733,6 +770,37 @@ haces clic en "Agregar abono", igual que en las demás áreas) y solo se aplica 
 existe un orden automático de "primero sanciones, luego intereses, luego impuesto" que reparta un mismo
 abono entre varias obligaciones — si quieres pagar tanto una sanción como el impuesto, registra un abono
 para cada una desde su propia fila.
+
+### 5.16. Editar o eliminar una obligación o un abono
+
+Dentro del Detalle de un expediente, tanto la tabla de **Obligaciones** como la de **Abonos** tienen
+columnas **Editar** y **Eliminar** por fila — el mismo patrón que ya usaban los Eventos contractuales del
+área Laboral.
+
+**Editar una obligación:**
+
+1. Haz clic en el botón **"Editar"** de la fila de la obligación.
+2. Se abre el mismo formulario que al agregarla (ver las secciones 5.3, 5.4, 5.7, 5.9, 5.10, 5.11 o 5.15
+   según el área del expediente), ya lleno con los datos actuales.
+3. Cambia lo que necesites y haz clic en **"Guardar"**.
+
+**Eliminar una obligación:**
+
+1. Haz clic en **"Eliminar"** en la fila de la obligación.
+2. El programa pide confirmación: "¿Eliminar esta obligación? Esta acción no se puede deshacer." Si la
+   obligación es una Recurrente con reajuste anual que ya generó cuotas mensuales (ver
+   [sección 5.4](#54-agregar-una-obligación-recurrente-una-cuota-que-se-repite-cada-mes)), el mensaje
+   además avisa cuántas cuotas se eliminarán junto con ella.
+3. Al confirmar, se elimina la obligación (y sus cuotas hijas, si las tenía) junto con todos sus abonos y
+   eventos laborales asociados, de forma permanente.
+
+**Editar o eliminar un abono:** igual que con las obligaciones — la tabla de Abonos tiene sus propios
+botones **"Editar"** y **"Eliminar"** por fila. Eliminar pide confirmación ("¿Eliminar este abono? Esta
+acción no se puede deshacer.") antes de borrar.
+
+> Si haces clic en "Editar" o "Eliminar" sobre una fila que ya no existe (por ejemplo, porque acabas de
+> eliminar la obligación a la que pertenecía y la tabla todavía no se había refrescado), el programa
+> muestra el aviso "Registro ya no existe" en vez de un error técnico, y actualiza la tabla sola.
 
 ---
 

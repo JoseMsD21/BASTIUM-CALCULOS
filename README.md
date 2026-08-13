@@ -65,7 +65,13 @@ corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble cl
 
 La interfaz tiene navegación por panel lateral fijo, modo oscuro/claro alternable desde "⚙ Parámetros"
 (persistido entre sesiones), notificaciones no bloqueantes tipo toast para confirmaciones de bajo riesgo,
-y una gráfica de expedientes por área en el Dashboard de inicio.
+y una gráfica de expedientes por área en el Dashboard de inicio. Todos los diálogos del proyecto
+(formularios y ventanas de confirmación) se pueden minimizar, maximizar y redimensionar arrastrando sus
+bordes, y los 4 formularios principales de captura (Obligación, Expediente, Abono, Parámetro) tienen
+tooltips ⓘ de ayuda en los campos que no se explican solos, con un ejemplo concreto. Desde el Detalle de
+un expediente también se pueden editar y eliminar Obligaciones y Abonos ya guardados (con confirmación
+antes de borrar, y borrado en cascada de las cuotas mensuales generadas por reajuste anual si aplica),
+además de los Eventos contractuales laborales que ya lo permitían.
 
 ℹ️ **Nota sobre auditorías históricas:** las liquidaciones auditadas antes de que el campo
 `rate_source` se agregara al motor (posterior al Sprint 9) se reconstruyen con `rate_source="N/A"`
@@ -79,7 +85,13 @@ multiplicador de usura, los topes de cuota litis, los plazos de prescripción/ca
 interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC,
 IBC/Tasa de Usura y UVT. Cada valor queda con su fecha de vigencia, quién lo agregó y por qué — nunca se edita
 ni se borra una fila, solo se agregan valores nuevos, así que el historial completo de cada parámetro
-queda siempre disponible con doble clic.
+queda siempre disponible con doble clic. La tabla de Parámetros muestra también, por fila, el Área del
+derecho (una o varias) y la Unidad de medida del valor (ej. "%", "COP", "meses"), asignadas al agregar el
+valor y no editables después de creada la fila. Para SMLMV, IPC y UVT — que el gobierno fija año a
+año — la columna "Vigente hasta" calcula automáticamente el 31 de diciembre del año correspondiente en
+vez de mostrarse vacía; el resto de parámetros sin fecha de cierre real muestra "Indefinido". El índice
+IPC acumulado, el único parámetro calculado con fórmula, muestra en su historial la variación % anual
+cruda junto al índice ya calculado, con la fórmula explicada.
 
 🚧 **En desarrollo:** varios módulos más también están pendientes. La indexación IPC solo está disponible
 en Civil/Familia — falta decidir con el despacho, área por área, si tiene sentido ofrecerla también en
