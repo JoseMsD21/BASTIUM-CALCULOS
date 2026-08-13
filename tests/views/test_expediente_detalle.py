@@ -1574,6 +1574,126 @@ def test_eliminar_obligacion_con_abonos_los_elimina_en_cascada(qtbot, monkeypatc
     session.close()
 
 
+def test_eliminar_obligacion_con_abonos_refresca_la_tabla_de_abonos(qtbot, monkeypatch):
+    """Regresion directa de un bug reportado en produccion (2026-08-12):
+    eliminar una obligacion borraba sus abonos en cascada en la base de
+    datos, pero _eliminar_obligacion solo llamaba _refrescar_obligaciones()
+    -- tabla_abonos se quedaba mostrando la fila fantasma del abono ya
+    borrado, con su boton "Eliminar" todavia conectado a un abono_id que ya
+    no existia. Un clic ahi disparaba session.delete(None) ->
+    UnmappedInstanceError (traceback crudo, reportado por el usuario)."""
+    from database.models import Abono
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    session.add(
+        Abono(obligacion_id=obligacion.id, fecha=date(2026, 1, 10), monto=Decimal("50000.00"))
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_abonos.rowCount() == 1
+
+    page._eliminar_obligacion(obligacion_id)
+
+    assert page.tabla_obligaciones.rowCount() == 0
+    assert page.tabla_abonos.rowCount() == 0
+
+
+def test_eliminar_abono_con_id_inexistente_no_crashea(qtbot, monkeypatch):
+    """El caso puntual que reprodujo el traceback real: llamar
+    _eliminar_abono con un id que ya no existe (fila fantasma tras un
+    refresco que no llego a tiempo, o dos ventanas/clics compitiendo) debe
+    avisar y refrescar, no lanzar UnmappedInstanceError."""
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.information",
+        lambda *a, **k: avisos.append(a) or QMessageBox.StandardButton.Ok,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._eliminar_abono(999999)  # id que nunca existio
+
+    assert len(avisos) == 1
+
+
+def test_editar_abono_con_id_inexistente_no_crashea(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.information",
+        lambda *a, **k: avisos.append(a) or QMessageBox.StandardButton.Ok,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._editar_abono(999999)
+
+    assert len(avisos) == 1
+
+
+def test_eliminar_evento_laboral_con_id_inexistente_no_crashea(qtbot, monkeypatch):
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.information",
+        lambda *a, **k: avisos.append(a) or QMessageBox.StandardButton.Ok,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._eliminar_evento_laboral(999999)
+
+    assert len(avisos) == 1
+
+
+def test_eliminar_obligacion_con_id_inexistente_no_crashea(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.information",
+        lambda *a, **k: avisos.append(a) or QMessageBox.StandardButton.Ok,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._eliminar_obligacion(999999)
+
+    assert len(avisos) == 1
+
+
 def test_eliminar_obligacion_recurrente_con_cuotas_hijas_las_elimina_todas(qtbot, monkeypatch):
     """Caso especial del Sprint 60: obligacion_padre_id NO es una relationship()
     de SQLAlchemy (ver comentario en database/models.py cerca de esa columna),

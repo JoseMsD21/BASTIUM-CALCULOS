@@ -391,6 +391,19 @@ class ExpedienteDetallePage(QWidget):
         if dialogo.exec():
             self._refrescar_obligaciones()
 
+    def _avisar_registro_ya_no_existe(self) -> None:
+        """Mensaje compartido para cuando un boton Editar/Eliminar de una fila
+        ya eliminada (obligacion/abono/evento laboral borrado en cascada o
+        por otra accion, tabla todavia no refrescada) se alcanza a pulsar --
+        evita que session.delete(None)/`None.campo` revienten con un
+        traceback crudo (bug real reportado en produccion, 2026-08-12)."""
+        QMessageBox.information(
+            self,
+            "Registro ya no existe",
+            "Este registro ya no existe (probablemente se eliminó junto con la obligación "
+            "a la que pertenecía). La vista se actualizó.",
+        )
+
     def _editar_obligacion(self, obligacion_id: int) -> None:
         session = session_module.get_session()
         expediente = session.get(Expediente, self._expediente_id)
@@ -419,6 +432,15 @@ class ExpedienteDetallePage(QWidget):
         hijas no se borran por cascada del ORM y hay que consultarlas y
         borrarlas explicitamente, en la misma transaccion, antes del padre."""
         session = session_module.get_session()
+        obligacion = session.get(Obligacion, obligacion_id)
+        if obligacion is None:
+            # Ya se habia eliminado (ej. doble clic antes de que la tabla se
+            # refrescara) -- evita repetir el mismo UnmappedInstanceError que
+            # motivo esta proteccion en _eliminar_abono/_eliminar_evento_laboral.
+            session.close()
+            self._avisar_registro_ya_no_existe()
+            self._refrescar_obligaciones()
+            return
         hijas = (
             session.query(Obligacion)
             .filter(Obligacion.obligacion_padre_id == obligacion_id)
@@ -434,11 +456,22 @@ class ExpedienteDetallePage(QWidget):
 
         for hija in hijas:
             session.delete(hija)
-        obligacion = session.get(Obligacion, obligacion_id)
         session.delete(obligacion)
         session.commit()
         session.close()
+        # Bug real reportado en produccion (2026-08-12): abonos/eventos_laborales/
+        # descuentos_laborales de esta obligacion ya se borraron en cascada en la
+        # base de datos (cascade="all, delete-orphan"), pero si solo se refresca
+        # tabla_obligaciones, esas otras 3 tablas quedan con filas fantasma cuyos
+        # botones Editar/Eliminar todavia apuntan a ids que ya no existen -- un
+        # clic ahi disparaba session.delete(None) -> UnmappedInstanceError. Se
+        # refrescan las 4 siempre (barato, y las 2 de Laboral ya estan ocultas
+        # via setVisible() para expedientes no laborales, asi que no hay nada
+        # que mostrar de mas).
         self._refrescar_obligaciones()
+        self._refrescar_abonos()
+        self._refrescar_eventos_laborales()
+        self._refrescar_descuentos_laborales()
 
     def _abrir_dialogo_abono(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
@@ -456,6 +489,11 @@ class ExpedienteDetallePage(QWidget):
     def _editar_abono(self, abono_id: int) -> None:
         session = session_module.get_session()
         abono = session.get(Abono, abono_id)
+        if abono is None:
+            session.close()
+            self._avisar_registro_ya_no_existe()
+            self._refrescar_abonos()
+            return
         obligacion_id = abono.obligacion_id
         session.close()
 
@@ -474,6 +512,14 @@ class ExpedienteDetallePage(QWidget):
 
         session = session_module.get_session()
         abono = session.get(Abono, abono_id)
+        if abono is None:
+            # Ya se habia eliminado (ej. la obligacion padre se elimino en
+            # cascada, o dos ventanas/clics compitieron) -- refresca la tabla
+            # en vez de session.delete(None), que lanza UnmappedInstanceError.
+            session.close()
+            self._avisar_registro_ya_no_existe()
+            self._refrescar_abonos()
+            return
         session.delete(abono)
         session.commit()
         session.close()
@@ -528,6 +574,11 @@ class ExpedienteDetallePage(QWidget):
     def _editar_evento_laboral(self, evento_id: int) -> None:
         session = session_module.get_session()
         evento = session.get(EventoLaboral, evento_id)
+        if evento is None:
+            session.close()
+            self._avisar_registro_ya_no_existe()
+            self._refrescar_eventos_laborales()
+            return
         obligacion_id = evento.obligacion_id
         session.close()
 
@@ -548,6 +599,11 @@ class ExpedienteDetallePage(QWidget):
 
         session = session_module.get_session()
         evento = session.get(EventoLaboral, evento_id)
+        if evento is None:
+            session.close()
+            self._avisar_registro_ya_no_existe()
+            self._refrescar_eventos_laborales()
+            return
         session.delete(evento)
         session.commit()
         session.close()
