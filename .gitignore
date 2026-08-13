@@ -7,6 +7,11 @@ __pycache__/
 *.db.bak-*
 *.sqlite3
 
+# Respaldos manuales de bastium.db, organizados aca desde el Sprint 64
+# (ya cubiertos por *.db.bak-* de arriba independientemente de la carpeta,
+# pero se declara explicito para que la convencion quede documentada)
+backups/
+
 # Salidas generadas por corridas de ejemplo (main.py)
 /Liquidacion_Bastium.pdf
 /distribucion.png
