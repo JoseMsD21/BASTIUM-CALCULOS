@@ -53,4 +53,4 @@ desde `ExpedienteFormDialog` (`app/views/expedientes.py`).
   `semanas_minimas_requeridas`) a una `PensionalStrategy`/pantalla de GUI — hoy no es una de las 6 areas
   operables listadas arriba.
 - Costas judiciales con tabla real de rangos (hoy se ingresan como porcentaje manual en Honorarios) — ver
-  `Pendientes.md`, Sprint 18.
+  `docs/Pendientes.md`, Sprint 18.

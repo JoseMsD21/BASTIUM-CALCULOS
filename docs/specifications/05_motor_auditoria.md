@@ -47,4 +47,4 @@ historica tambien preserva que tasa/fuente se uso en cada tramo.
 
 - No hay sistema de usuarios/roles: `usuario` es el usuario del sistema
   operativo, no un login de la aplicacion (decision de alcance, ver
-  `Pendientes.md`, Sprint 9).
+  `docs/Pendientes.md`, Sprint 9).

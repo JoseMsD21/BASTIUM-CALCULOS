@@ -41,8 +41,8 @@ de tipo `RECURRENTE` en eventos mensuales antes de pasarlos al motor de liquidac
 
 ## Pendiente (no implementado aun)
 - Wiring del modulo pensional (`app/engine/labor/ibl.py`) a una `PensionalStrategy`/pantalla de GUI —
-  hoy solo es invocable como funciones puras (`Pendientes.md`, Sprint 17, nota de alcance).
+  hoy solo es invocable como funciones puras (`docs/Pendientes.md`, Sprint 17, nota de alcance).
 - `EstadoTermino`/`terminos.py` todavia no esta conectado a ninguna pantalla de la GUI — hoy sirve como base
   interna para el motor de prescripcion y caducidad.
 
-Ver `Pendientes.md` para el orden de implementacion.
+Ver `docs/Pendientes.md` para el orden de implementacion.

@@ -24,4 +24,4 @@ cronologicamente con los eventos de causacion antes de procesarse.
 - Reglas de imputacion alternativas por regimen (ej. tributario: sanciones -> intereses -> impuesto).
 - Compensacion, novacion, remision, confusion.
 
-Ver `Pendientes.md`.
+Ver `docs/Pendientes.md`.

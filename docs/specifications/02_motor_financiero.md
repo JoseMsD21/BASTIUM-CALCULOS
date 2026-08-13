@@ -53,4 +53,4 @@ Cada `AreaStrategy` construye un `MemoryRateProvider` con la(s) tasa(s) efectiva
   anatocismo comercial (arriba) se resolvio con eventos de capitalizacion periodica en vez de esta
   formula cerrada de una sola pasada.
 
-Ver `Pendientes.md`.
+Ver `docs/Pendientes.md`.

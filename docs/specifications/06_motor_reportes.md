@@ -21,9 +21,9 @@ pantalla, con botones **"Exportar a PDF"** y **"Exportar a Word"** que generan e
 mismas filas, incluida la de indexacion (bucket usado por Civil/Familia y por las sanciones tributarias).
 
 ## Pendiente (no implementado aun)
-- Rendimiento del motor de tasas, indices e historial para reportes grandes — ver `Pendientes.md`,
+- Rendimiento del motor de tasas, indices e historial para reportes grandes — ver `docs/Pendientes.md`,
   Sprint 25.
-- Responsividad de la UI al exportar (liquidar/exportar sin congelar la interfaz) — ver `Pendientes.md`,
+- Responsividad de la UI al exportar (liquidar/exportar sin congelar la interfaz) — ver `docs/Pendientes.md`,
   Sprint 26.
 
-Ver `Pendientes.md`.
+Ver `docs/Pendientes.md`.
