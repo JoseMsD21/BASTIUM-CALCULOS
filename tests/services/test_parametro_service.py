@@ -317,6 +317,62 @@ def test_agregar_valor_rechaza_valor_cero():
         )
 
 
+def test_agregar_valor_ipc_variacion_anual_admite_valor_negativo():
+    """Revision final de integracion (Sprints 56-60): IPC_VARIACION_ANUAL es la
+    variacion % anual CRUDA del IPC (Sprint 58) -- un año de deflacion es un
+    dato historico real, no un error de captura, y agregar_valor() no debe
+    rechazarlo con 'El valor debe ser positivo.' como hace con el resto de
+    las claves (ver CLAVES_VALOR_PUEDE_SER_NO_POSITIVO en parametro_service.py)."""
+    from app.services.parametro_service import agregar_valor, get_parametro
+
+    fila = agregar_valor(
+        "IPC_VARIACION_ANUAL",
+        Decimal("-2.5"),
+        date(2026, 1, 1),
+        "abogado1",
+        **_area_unidad("IPC_VARIACION_ANUAL"),
+    )
+    assert fila.valor == Decimal("-2.5")
+    assert get_parametro("IPC_VARIACION_ANUAL", date(2026, 6, 1)) == Decimal("-2.5")
+
+
+def test_agregar_valor_ipc_variacion_anual_admite_valor_cero():
+    from app.services.parametro_service import agregar_valor
+
+    fila = agregar_valor(
+        "IPC_VARIACION_ANUAL",
+        Decimal("0"),
+        date(2026, 1, 1),
+        "abogado1",
+        **_area_unidad("IPC_VARIACION_ANUAL"),
+    )
+    assert fila.valor == Decimal("0")
+
+
+def test_agregar_valor_otras_claves_siguen_rechazando_valor_no_positivo():
+    """La excepcion de positividad es especifica de IPC_VARIACION_ANUAL --
+    confirma que SMLMV (y por extension el resto de las 39 claves normales)
+    sigue exigiendo valor > 0 como antes."""
+    from app.services.parametro_service import agregar_valor
+
+    with pytest.raises(ValueError):
+        agregar_valor(
+            "SMLMV",
+            Decimal("0"),
+            date(2026, 1, 1),
+            "abogado1",
+            **_area_unidad("SMLMV"),
+        )
+    with pytest.raises(ValueError):
+        agregar_valor(
+            "SMLMV",
+            Decimal("-1900000.00"),
+            date(2026, 1, 1),
+            "abogado1",
+            **_area_unidad("SMLMV"),
+        )
+
+
 def test_agregar_valor_rechaza_vigente_hasta_anterior_a_vigente_desde():
     from app.services.parametro_service import agregar_valor
 

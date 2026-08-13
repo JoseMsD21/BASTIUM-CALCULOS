@@ -312,6 +312,18 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
 # otra clave, son tablas planas transcritas directo).
 CLAVE_CRUDA_DE: dict[str, str] = {"IPC_INDICE_ACUMULADO": "IPC_VARIACION_ANUAL"}
 
+# Revision final de integracion (Sprints 56-60): agregar_valor() exige
+# 'valor > 0' para las claves normales (topes, tasas, plazos -- ver el bloque
+# de abajo), pero IPC_VARIACION_ANUAL (Sprint 58) es la unica excepcion: es la
+# variacion % anual CRUDA del IPC, un dato historico real que legitimamente
+# puede ser 0% o negativa en un año de deflacion -- no es un error de captura.
+# La migracion (scripts/migrate_ipc_variacion_anual.py) siembra los 59 valores
+# historicos saltandose agregar_valor() (inserta directo por ORM), pero un
+# usuario agregando un valor nuevo desde ParametroFormDialog si pasa por aqui.
+# Set en vez de un campo nuevo en InfoParametro: hoy es un caso unico: si
+# aparecen mas claves con la misma necesidad, generalizar a ese punto.
+CLAVES_VALOR_PUEDE_SER_NO_POSITIVO: frozenset[str] = frozenset({"IPC_VARIACION_ANUAL"})
+
 
 def _validar_clave(clave: str) -> InfoParametro:
     info = CATALOGO_PARAMETROS.get(clave)
@@ -494,13 +506,18 @@ def agregar_valor(
     nunca se editan despues de creadas (decision del usuario, ver spec). El
     modelo las deja nullable a nivel de columna SQLite (ver database/models.py)
     precisamente para que esa obligatoriedad la exija esta funcion, no un
-    CHECK/NOT NULL de la base de datos."""
+    CHECK/NOT NULL de la base de datos.
+
+    `valor` debe ser positivo salvo para las claves listadas en
+    CLAVES_VALOR_PUEDE_SER_NO_POSITIVO (hoy solo IPC_VARIACION_ANUAL, que
+    puede ser 0 o negativa en un año de deflacion -- ver el comentario junto a
+    esa constante)."""
     info = _validar_clave(clave)
     if info.modo == ModoResolucion.TRAMO_CERRADO and vigente_hasta is None:
         raise ValueError(f"'{clave}' requiere 'vigente_hasta' (modo TRAMO_CERRADO).")
     if info.modo != ModoResolucion.TRAMO_CERRADO and vigente_hasta is not None:
         raise ValueError(f"'{clave}' no admite 'vigente_hasta' (modo {info.modo.value}).")
-    if valor <= Decimal("0"):
+    if valor <= Decimal("0") and clave not in CLAVES_VALOR_PUEDE_SER_NO_POSITIVO:
         raise ValueError("El valor debe ser positivo.")
     if vigente_hasta is not None and vigente_hasta < vigente_desde:
         raise ValueError("'vigente_hasta' no puede ser anterior a 'vigente_desde'.")

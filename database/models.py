@@ -274,6 +274,12 @@ class ParametroLegal(Base):
     # patron que otras columnas agregadas por ALTER TABLE sin DEFAULT viable,
     # ver docstring de ese script), y decenas de tests/scripts no relacionados
     # con este sprint siguen construyendo ParametroLegal directamente sin
-    # estos dos campos.
+    # estos dos campos. Se guardan por FILA (no como metadato fijo de la
+    # clave), pero en la practica se asume que no varian entre versiones
+    # historicas de una misma clave -- son propiedades de la clave, no del
+    # valor puntual -- por eso ni ParametrosView ni HistorialParametroDialog
+    # necesitan mostrarlas fila por fila en el historial (Sprint 60): basta
+    # con la fila vigente. Si algun dia una clave necesitara area/unidad
+    # distinta entre versiones, esta asuncion habria que revisarla.
     areas_derecho: Mapped[str | None] = mapped_column(String(200), nullable=True)
     unidad: Mapped[str | None] = mapped_column(String(30), nullable=True)
