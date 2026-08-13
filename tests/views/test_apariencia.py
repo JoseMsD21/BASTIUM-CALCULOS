@@ -1,7 +1,7 @@
 import re
 
 from PySide6.QtGui import QPalette
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 
 from app.core import theme_colors as colores
 from app.core import theme_colors_dark as colores_oscuro
@@ -13,6 +13,7 @@ from app.core.apariencia import (
     construir_paleta,
     guardar_modo_tema,
 )
+from app.views.apariencia import AparienciaView
 
 
 def test_construir_paleta_usa_los_colores_de_marca(qtbot):
@@ -104,3 +105,53 @@ def test_las_3_clases_de_boton_son_visualmente_distinguibles(qtbot):
         "Las 3 clases de boton deben tener colores de fondo distintos entre si: "
         f"primary={color_primary} secondary={color_secondary} destructive={color_destructive}"
     )
+
+
+# Tests para AparienciaView (Sprint 66)
+def test_apariencia_view_casilla_modo_oscuro_arranca_desmarcada_por_defecto(qtbot):
+    # Sin QSettings previo (tmp_path vacio por test) el modo por defecto es "claro".
+    vista = AparienciaView()
+    qtbot.addWidget(vista)
+
+    assert vista.casilla_modo_oscuro.isChecked() is False
+
+
+def test_apariencia_view_casilla_modo_oscuro_refleja_el_modo_persistido(qtbot):
+    guardar_modo_tema(MODO_OSCURO)
+
+    vista = AparienciaView()
+    qtbot.addWidget(vista)
+
+    assert vista.casilla_modo_oscuro.isChecked() is True
+
+
+def test_marcar_casilla_modo_oscuro_aplica_el_tema_en_caliente(qtbot):
+    vista = AparienciaView()
+    qtbot.addWidget(vista)
+
+    vista.casilla_modo_oscuro.setChecked(True)
+
+    assert "#1E1A18" in QApplication.instance().styleSheet()
+    # Vuelve al modo claro para no filtrar estado hacia otros tests.
+    vista.casilla_modo_oscuro.setChecked(False)
+
+
+def test_marcar_casilla_modo_oscuro_persiste_la_eleccion(qtbot):
+    vista = AparienciaView()
+    qtbot.addWidget(vista)
+
+    vista.casilla_modo_oscuro.setChecked(True)
+
+    assert cargar_modo_tema() == MODO_OSCURO
+
+    vista.casilla_modo_oscuro.setChecked(False)
+
+    assert cargar_modo_tema() == MODO_CLARO
+
+
+def test_apariencia_view_muestra_descripcion_del_interruptor(qtbot):
+    vista = AparienciaView()
+    qtbot.addWidget(vista)
+
+    etiquetas = [hijo for hijo in vista.findChildren(QLabel)]
+    assert any("tema" in etiqueta.text().lower() for etiqueta in etiquetas)
