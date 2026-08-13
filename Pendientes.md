@@ -4598,6 +4598,25 @@ desincronizarse en silencio. Tras una ronda de revisión, se agregó manejo defe
 corruptos) y `resizeColumnsToContents()` en la tabla. Suite completa en verde (1043 tests tras este
 sprint).
 
+**🔴 Bug real en producción, encontrado y corregido (2026-08-12):** tras fusionar los Sprints 56-60, el
+usuario reportó que `python main.py` crasheaba con `sqlite3.OperationalError: no such column:
+parametros_legales.areas_derecho` — su `bastium.db` real ya tenía `parametros_legales` sembrada (Sprint
+51) pero nunca había corrido la migración de este sprint. Causa raíz: `migrar_parametros_legales()`
+verifica si una clave ya está sembrada vía `session.query(ParametroLegal)` (ORM), y el modelo ya declara
+`areas_derecho`/`unidad` como columnas mapeadas — SQLAlchemy siempre selecciona esas columnas sin importar
+qué migración "lógica" esté corriendo. Como `migrar_parametros_legales()` corría ANTES que
+`migrar_parametros_area_unidad()` (quien agrega esas columnas), cualquier `bastium.db` sembrada antes de
+este sprint crasheaba al arrancar. **Este es exactamente el mismo tipo de bug de desincronización esquema/
+ORM que motivó el Sprint 51 — y ninguna de las revisiones de spec/calidad/integración de los Sprints 56-60
+lo detectó porque todos los tests construían el esquema desde cero con `Base.metadata.create_all()` (que
+ya incluye las columnas nuevas), nunca simulando una base real que ya tenía datos sembrados por el código
+ANTERIOR a este sprint.** Corregido llamando `migrar_parametros_area_unidad()` también ANTES de
+`migrar_parametros_legales()` (además de la llamada ya existente después, necesaria para completar filas
+recién sembradas en una `bastium.db` nueva) — es idempotente, llamarla dos veces es gratis. Test de
+regresión agregado que reproduce el escenario exacto (esquema viejo + fila ya sembrada a mano) y confirma
+que no crashea; verificado que falla contra el código anterior al fix. `bastium.db` real del usuario
+migrada (backup previo `bastium.db.bak-20260812221510`), datos existentes verificados intactos.
+
 ---
 
 ## Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) ✅ Completado
