@@ -18,7 +18,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-08-09)
+## Estado actual (2026-08-13)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
