@@ -292,9 +292,12 @@ class ParametroFormDialog(QDialog):
         _actualizar_area_unidad_sugeridas() ya corrio (disparada por el
         combo_clave.setCurrentIndex() de abajo) para poder pisar su propuesta
         automatica con los valores REALES ya guardados en la fila -- mismo
-        orden que usa ObligacionFormDialog._precargar_desde_obligacion. La
-        clave (`clave`) no es editable en modo edicion (editar_valor() no la
-        recibe), asi que combo_clave se deshabilita tras fijar su valor."""
+        orden de "override" que usa ObligacionFormDialog._precargar_desde_obligacion
+        (el manejo de la sesion en si difiere: aqui se extraen los campos y se
+        cierra la sesion antes de tocar los widgets, en vez de mantenerla
+        abierta mientras se pueblan). La clave (`clave`) no es editable en
+        modo edicion (editar_valor() no la recibe), asi que combo_clave se
+        deshabilita tras fijar su valor."""
         session = session_module.get_session()
         try:
             fila = session.get(ParametroLegal, parametro_id)
