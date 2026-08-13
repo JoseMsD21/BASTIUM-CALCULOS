@@ -375,6 +375,66 @@ def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tm
     assert total_sin_migrar == 0
 
 
+def test_aplicar_migraciones_pendientes_no_falla_sobre_bd_real_anterior_al_sprint_57(tmp_path):
+    """Regresion directa de un bug reportado en produccion (2026-08-12):
+    `python main.py` crasheaba con `sqlite3.OperationalError: no such
+    column: parametros_legales.areas_derecho` en una `bastium.db` real que
+    ya tenia `parametros_legales` sembrada (Sprint 51) pero que nunca habia
+    corrido la migracion del Sprint 57 (le faltan fisicamente las columnas
+    areas_derecho/unidad).
+
+    Causa raiz: `scripts/migrate_parametros_legales.py`/
+    `scripts/migrate_ipc_variacion_anual.py` verifican si una clave ya esta
+    sembrada via `session.query(ParametroLegal)...` (ORM) -- y el modelo
+    `ParametroLegal` (database/models.py) ya declara areas_derecho/unidad
+    como columnas mapeadas desde el Sprint 57, asi que SQLAlchemy siempre
+    intenta seleccionar esas 2 columnas sin importar cual migracion "logica"
+    este corriendo. Si `migrar_parametros_legales(ruta)` corre ANTES de que
+    `migrar_parametros_area_unidad(ruta)` haya agregado esas columnas via
+    `ALTER TABLE`, la consulta ORM revienta apenas la app arranca.
+
+    Reproduce el escenario real: esquema completo, columnas nuevas quitadas
+    (como una bastium.db anterior al Sprint 57), Y una fila de
+    parametros_legales ya insertada a mano via sqlite3 crudo (simulando que
+    la siembra del Sprint 51 ya habia corrido antes, sin pasar nunca por el
+    ORM con las columnas nuevas)."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "bd_real_pre_sprint_57.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE parametros_legales DROP COLUMN areas_derecho")
+    con.execute("ALTER TABLE parametros_legales DROP COLUMN unidad")
+    con.execute(
+        "INSERT INTO parametros_legales (clave, valor, vigente_desde, usuario, creado_en) "
+        "VALUES ('USURA_MULTIPLICADOR', '1.5', '1900-01-01', 'sistema', '2026-01-01 00:00:00')"
+    )
+    con.commit()
+    con.close()
+
+    # No debe lanzar ninguna excepcion -- antes del fix, esto reproducia el
+    # sqlite3.OperationalError exacto reportado por el usuario.
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    fila = con.execute(
+        "SELECT areas_derecho, unidad FROM parametros_legales WHERE clave = 'USURA_MULTIPLICADOR'"
+    ).fetchone()
+    total_sin_migrar = con.execute(
+        "SELECT COUNT(*) FROM parametros_legales WHERE areas_derecho IS NULL "
+        "OR areas_derecho = '' OR unidad IS NULL OR unidad = ''"
+    ).fetchone()[0]
+    con.close()
+
+    # La fila preexistente (insertada antes de que existieran las columnas)
+    # queda completada, no solo sin crashear.
+    assert fila == ('["COMERCIAL"]', "veces")
+    assert total_sin_migrar == 0
+
+
 def test_dashboard_no_falla_con_esquema_desactualizado_de_obligaciones(
     tmp_path, monkeypatch, qtbot
 ):

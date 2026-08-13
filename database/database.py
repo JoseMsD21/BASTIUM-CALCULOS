@@ -78,8 +78,25 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     migrar_reajuste_anual_familia(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
+    # Se llama ANTES de migrar_parametros_legales/migrar_ipc_variacion_anual
+    # (bug real encontrado en produccion, 2026-08-12): ambos scripts hacen
+    # `session.query(ParametroLegal)` via el ORM, y el modelo ParametroLegal
+    # (database/models.py) ya declara areas_derecho/unidad como columnas
+    # mapeadas desde el Sprint 57 -- SQLAlchemy siempre selecciona TODAS las
+    # columnas del modelo actual, sin importar que migracion "logica" este
+    # corriendo. En una bastium.db real anterior al Sprint 57 (con las 683
+    # filas de parametros_legales ya sembradas pero sin estas 2 columnas
+    # fisicas todavia), correr migrar_parametros_legales primero lanzaba
+    # sqlite3.OperationalError: no such column: parametros_legales.areas_derecho
+    # apenas Python arrancaba, porque el ALTER TABLE que agrega esas columnas
+    # no habia corrido todavia. Se mantiene ademas la llamada de mas abajo,
+    # despues de migrar_parametros_legales, para completar areas_derecho/
+    # unidad en las filas que ese script sí llegue a sembrar de nuevo (bastium.db
+    # completamente nueva) -- migrar_parametros_area_unidad es idempotente,
+    # llamarla dos veces es gratis (Sprint 57/58).
+    migrar_parametros_area_unidad(ruta)
     migrar_parametros_legales(ruta)
-    # Debe correr DESPUES de migrar_parametros_legales: en una bastium.db
+    # Debe correr DESPUES de migrar_parametros_legales tambien: en una bastium.db
     # nueva, las filas que ese script acaba de sembrar todavia no tienen
     # areas_derecho/unidad -- si esta migracion corriera antes, quedarian sin
     # completar hasta el siguiente arranque (Sprint 57).
