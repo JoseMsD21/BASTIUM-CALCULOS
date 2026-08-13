@@ -214,6 +214,7 @@ botón real que los dispare).
 - [Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 📋 Pendiente](#sprint-63--documentar-en-readmeguia_usuario-las-funciones-de-los-sprints-52-60--pendiente)
 - [Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ ✅ Completado](#sprint-64--reorganizar-los-backups-de-bastiumdb-en-una-carpeta-backups--completado)
 - [Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" ✅ Completado](#sprint-65--lanzador-de-doble-clic-iniciar-bastiumbat--completado)
+- [Sprint 66 — Reorganizar "Parametros" en "Configuraciones" con submenú Parámetros/Apariencia ✅ Completado](#sprint-66--reorganizar-parametros-en-configuraciones-con-submenú-parámetrosapariencia--completado)
 
 ---
 
@@ -4950,6 +4951,64 @@ guiado hacia la sección de instalación si falta), corre `main.py`, y usa `paus
 sin que el usuario alcance a leer el error. README.md (sección "Instalación rápida") y
 `docs/GUIA_USUARIO.md` (sección 3, "Cómo iniciar el programa") documentan el doble clic como forma
 recomendada, dejando el comando de terminal como alternativa.
+
+---
+
+## Sprint 66 — Reorganizar "Parametros" en "Configuraciones" con submenú Parámetros/Apariencia ✅ Completado
+
+**Prioridad sugerida:** Media — mejora de organización de la navegación; no bloquea uso actual (la tabla
+de parámetros y el interruptor de tema ya funcionaban, solo cambian de ubicación).
+
+**Depende de:** Nada.
+
+**Contexto:** el botón lateral "Parametros" (ícono de engranaje) navegaba directo a la tabla de parámetros
+legales, que además alojaba el interruptor de modo oscuro/claro desde el Sprint 50 — el propio código
+señalaba (comentario en `app/views/configuracion.py`) que esa ubicación era temporal, a la espera de que
+el sidebar se reorganizara. El usuario pidió, mediante brainstorming con companion visual: renombrar el
+botón a "Configuraciones", convertir esa pantalla en un contenedor con submenú lateral estilo Ajustes
+(Parámetros, Apariencia, con espacio para más secciones futuras), y mover el interruptor de tema a la
+nueva sección "Apariencia". Diseño completo en
+`docs/superpowers/specs/2026-08-13-configuraciones-apariencia-design.md`, plan de implementación en
+`docs/superpowers/plans/2026-08-13-configuraciones-apariencia.md`, ejecutado con
+superpowers:subagent-driven-development en un worktree dedicado.
+
+**Código nuevo a crear:**
+- `app/views/apariencia.py` (nuevo): `AparienciaView`, con el `QCheckBox` "Modo oscuro" movido desde
+  `ParametrosView`.
+- `app/views/configuraciones.py` (nuevo): `ConfiguracionesView`, submenú lateral + panel de contenido que
+  alterna entre `ParametrosView` (existente, sin el checkbox) y `AparienciaView`.
+- `app/views/configuracion.py`: se quita el checkbox de tema y `_alternar_modo_tema` de `ParametrosView`.
+- `app/views/main_window.py`: `boton_parametros`/`parametros_page` se renombran a
+  `boton_configuraciones`/`configuraciones_page` ("Configuraciones", mismo ícono de engranaje), navegan a
+  `ConfiguracionesView`, y el breadcrumb pasa a "Configuraciones › Parámetros"/"Configuraciones ›
+  Apariencia" según la sección activa dentro de esa pantalla.
+- Tests nuevos/actualizados: `tests/views/test_apariencia.py`, `tests/views/test_configuraciones.py`,
+  `tests/views/test_configuracion.py`, `tests/views/test_main_window.py`.
+- Documentación: `README.md`, `docs/GUIA_USUARIO.md`, `CHANGELOG.md`.
+
+**Definición de Hecho:**
+- El sidebar principal muestra "Configuraciones" (no "Parametros"), mismo ícono de engranaje.
+- Entrar a Configuraciones muestra por defecto la sección Parámetros con la tabla de parámetros legales
+  intacta (mismo comportamiento de siempre).
+- La sección Apariencia tiene el interruptor "Modo oscuro" funcionando igual que antes (aplica el tema en
+  caliente y lo persiste).
+- El submenú permite alternar entre ambas secciones sin perder el resto de la navegación (Volver/Inicio/
+  breadcrumb siguen funcionando).
+- README.md y docs/GUIA_USUARIO.md ya no describen "Parámetros" como el punto de entrada del sidebar,
+  sino "Configuraciones".
+- Suite completa en verde.
+
+**Cierre de implementación (2026-08-13):** Completado. Suite completa: 1103 passed, 0 failed
+(`pytest -q`, `QT_QPA_PLATFORM=offscreen`). Las 4 tareas de implementación (Tasks 1-4 del plan) se
+ejecutaron con 4 despachos separados de subagent-driven-development, cada uno superando una revisión en
+dos etapas (cumplimiento de spec + calidad de código) antes de aceptarse; las Tasks 1 y 2 se despacharon
+en paralelo por tocar archivos disjuntos (sin conflictos). Hallazgos de las revisiones que vale la pena
+dejar registrados: el implementador de la Task 1 dejó inicialmente 2 imports a mitad de archivo (ruff
+E402), corregido en una ronda de seguimiento antes de aprobarse; el implementador de la Task 4 corrigió
+además un comentario obsoleto en `MainWindow._volver()` que todavía citaba los nombres viejos
+`parametros_page`/`_ir_a_parametros` — el texto literal del plan no lo señalaba explícitamente, pero
+quedó huérfano por el mismo rename y se corrigió de una vez, igual que la nota de cierre del Sprint 64
+señala sus propios hallazgos de alcance. `ruff check .` queda limpio al final ("All checks passed!").
 
 ---
 

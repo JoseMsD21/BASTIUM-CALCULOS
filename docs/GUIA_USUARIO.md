@@ -7,8 +7,9 @@
 >
 > **Última actualización:** 2026-08-13 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, el panel de
-> navegación lateral fijo (sidebar) con los botones Volver/Inicio/Parámetros con íconos y estado activo,
-> el modo oscuro/claro alternable desde Parámetros, el breadcrumb de contexto y los atajos de teclado de
+> navegación lateral fijo (sidebar) con los botones Volver/Inicio/Configuraciones con íconos y estado
+> activo, la pantalla "Configuraciones" con submenú Parámetros/Apariencia (el modo oscuro/claro se movió a
+> Apariencia en el Sprint 66), el breadcrumb de contexto y los atajos de teclado de
 > navegación y de los formularios, la edición/eliminación de expediente, la pantalla de parámetros
 > legales versionados, la prescripción/caducidad conectada al cálculo real de la liquidación, y el
 > Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. También
@@ -183,7 +184,7 @@ sube a internet ni se comparte con nadie).
 ## 4. Tour de la aplicación
 
 BASTIUM tiene **5 pantallas**. Te mueves entre la mayoría automáticamente según lo que hagas; a la de
-Parámetros se entra con un botón del panel lateral de navegación (sidebar), siempre visible a la
+Configuraciones se entra con un botón del panel lateral de navegación (sidebar), siempre visible a la
 izquierda de la ventana:
 
 1. **Dashboard (Inicio)** — la pantalla con la que arranca el programa (Sprint 33). Muestra el total de
@@ -209,16 +210,18 @@ izquierda de la ventana:
    tabla con el detalle día por día de cómo se acumuló el interés, y al final tres totales: interés
    acumulado, pagos aplicados y saldo final.
 
-5. **⚙ Parámetros** — la pantalla de parámetros legales versionados (tasas, topes, plazos e indicadores
-   históricos). Se abre desde el botón **"⚙ Parámetros"** del panel lateral de navegación, disponible
-   siempre, sin importar en qué otra pantalla estés. Ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)
-   para el detalle completo.
+5. **⚙ Configuraciones** — pantalla con dos secciones, elegibles desde un submenú lateral propio:
+   **Parámetros** (tasas, topes, plazos e indicadores históricos legales) y **Apariencia** (el interruptor
+   de modo oscuro/claro). Se abre desde el botón **"⚙ Configuraciones"** del panel lateral de navegación,
+   disponible siempre, sin importar en qué otra pantalla estés, y entra mostrando Parámetros por defecto.
+   Ver [sección 5.14](#514-editar-tasas-y-topes-legales-configuraciones--parámetros) para el detalle
+   completo de Parámetros.
 
 A la izquierda de la ventana hay un panel lateral de navegación fijo (sidebar, Sprint 50 — reemplazó la
 barra superior de versiones anteriores del programa) con tres botones, dentro de un divisor que deja el
 resto del espacio para la pantalla actual; encima de esa pantalla, un texto de "breadcrumb" muestra en
 qué expediente y pantalla estás parado en cada momento (por ejemplo, "Expedientes › Radicado
-2026-00123 › Liquidación"):
+2026-00123 › Liquidación", o "Configuraciones › Apariencia"):
 
 - **Volver** — regresa a la pantalla anterior (por ejemplo, de Resultado de Liquidación a Detalle de
   Expediente, y de ahí al Dashboard o a la Lista de Expedientes, según por dónde hayas entrado). Recuerda
@@ -227,16 +230,19 @@ qué expediente y pantalla estás parado en cada momento (por ejemplo, "Expedien
   **Retroceso (Backspace)**.
 - **Inicio** — regresa directo al Dashboard sin importar en qué pantalla estés, y refresca sus datos.
   Está oculto cuando ya estás en el Dashboard. Atajo de teclado: **Ctrl+Inicio**.
-- **Parámetros** — siempre visible, en cualquier pantalla; te lleva a la pantalla de parámetros legales
-  versionados (ver punto 5 arriba). Se resalta con el color de marca de BASTIUM mientras estás dentro de
-  esa pantalla, para que sea evidente cuál tienes abierta.
+- **Configuraciones** (Sprint 66 — antes se llamaba "Parámetros") — siempre visible, en cualquier
+  pantalla; te lleva a la pantalla de Configuraciones (ver punto 5 arriba), que abre mostrando la sección
+  Parámetros. Un submenú propio, dentro de esa misma pantalla, permite cambiar a la sección Apariencia sin
+  volver a pasar por este botón. Se resalta con el color de marca de BASTIUM mientras estás dentro de esa
+  pantalla, para que sea evidente cuál tienes abierta.
 
 En los formularios (Nuevo expediente, Agregar obligación, Agregar abono, Agregar evento contractual,
 Agregar valor de parámetro): **Ctrl+S** guarda y cierra el formulario (equivale a hacer clic en
 "Guardar"), y **Esc** lo cierra sin guardar nada.
 
 Los 4 formularios principales de captura — **Agregar obligación**, **Nuevo expediente**, **Agregar
-abono** y **Agregar valor de parámetro** (pantalla "⚙ Parámetros") — muestran un ícono **ⓘ** junto a cada
+abono** y **Agregar valor de parámetro** (sección "Parámetros" de "⚙ Configuraciones") — muestran un ícono
+**ⓘ** junto a cada
 campo que no se explica solo; pasa el mouse por encima para ver una explicación corta, con un ejemplo
 concreto cuando aplica. Además, los 7 diálogos de formulario del programa (agregar/editar Obligación,
 Expediente, Abono, Parámetro, Evento contractual, Descuento laboral, y el historial de un Parámetro) se
@@ -610,15 +616,17 @@ El historial de auditoría es de solo lectura: no se puede editar ni borrar
 una fila individualmente (solo desaparece si se elimina el expediente
 completo, ver [sección 5.12](#512-editar-o-eliminar-un-expediente)).
 
-### 5.14. Editar tasas y topes legales (pantalla "⚙ Parámetros")
+### 5.14. Editar tasas y topes legales (Configuraciones → Parámetros)
 
 Antes, si el multiplicador de usura, un tope de cuota litis, un plazo de prescripción o el valor del
 SMLMV de un año nuevo cambiaban, había que pedirle a un programador que editara el código. Ya no: desde
-la pantalla **"⚙ Parámetros"** cualquier abogado puede consultar y agregar esos valores directamente.
+la sección **"Parámetros"** de la pantalla **"⚙ Configuraciones"** cualquier abogado puede consultar y
+agregar esos valores directamente.
 
-**Dónde está:** haz clic en el botón **"⚙ Parámetros"** del panel lateral de navegación (sidebar) — está
-siempre visible, sin importar en qué pantalla estés (Lista de Expedientes, Detalle de Expediente o
-Resultado de Liquidación).
+**Dónde está:** haz clic en el botón **"⚙ Configuraciones"** del panel lateral de navegación (sidebar) —
+está siempre visible, sin importar en qué pantalla estés (Lista de Expedientes, Detalle de Expediente o
+Resultado de Liquidación), y entra mostrando la sección "Parámetros" por defecto. Si estás viendo la
+sección "Apariencia", haz clic en **"Parámetros"** en el submenú de la izquierda.
 
 **Qué muestra la tabla principal:** una fila por cada parámetro que el programa sabe manejar, con siete
 columnas:
@@ -709,11 +717,12 @@ anual / 100)). Al abrir su historial con doble clic, la tabla muestra una column
 anual (%)"**, con el dato crudo de cada año junto al índice ya calculado, más una nota al pie con la
 fórmula completa y su fuente.
 
-**Modo oscuro / claro (Sprint 50):** en la misma pantalla "⚙ Parámetros", junto al botón "+ Agregar valor
-nuevo", hay una casilla **"Modo oscuro"**. Márcala para cambiar toda la aplicación a un tema oscuro
-(incluida la gráfica del Dashboard, que recalcula sus colores para seguir siendo legible), o desmárcala
+**Modo oscuro / claro (Sprint 50, movido a Apariencia en el Sprint 66):** el interruptor **"Modo oscuro"**
+ya no vive en esta pantalla — se movió a la sección **"Apariencia"** de "⚙ Configuraciones" (haz clic en
+**"Apariencia"** en el submenú de la izquierda). Márcalo para cambiar toda la aplicación a un tema oscuro
+(incluida la gráfica del Dashboard, que recalcula sus colores para seguir siendo legible), o desmárcalo
 para volver al tema claro de siempre — el cambio se aplica de inmediato, sin reiniciar el programa, y
-queda recordado para la próxima vez que lo abras.
+queda recordado para la próxima vez que abras BASTIUM.
 
 ### 5.15. Agregar una obligación tributaria
 
@@ -843,7 +852,8 @@ exactamente dónde encontrarlos y qué significa cada uno.
 **Nota:** varios de los valores descritos abajo (el multiplicador de usura, los topes de cuota litis, los
 plazos de prescripción/caducidad, la tasa civil legal, el descuento del interés moratorio tributario, y
 las series de SMLMV/IPC/IBC-Usura) ya no requieren tocar código para cambiarse — se administran desde la
-pantalla **"⚙ Parámetros"**, ver [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros).
+sección "Parámetros" de la pantalla **"⚙ Configuraciones"**, ver
+[sección 5.14](#514-editar-tasas-y-topes-legales-configuraciones--parámetros).
 Lo que sigue documenta además dónde vive cada valor por dentro, para quien programa.
 
 ### 7.1. Tasa de interés civil (6% anual, Art. 1617 C.C.)
@@ -907,8 +917,8 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   `resolver_base_sancion`. Se invoca automáticamente al liquidar (`SancionatorioStrategy.liquidar()` en
   `app/services/area_strategy.py`). Los valores de SMLMV y de UVT por año están en
   `app/engine/indexation/historical_index.py` (funciones `get_smlmv_for_year` y `get_uvt_for_year`), y
-  también se pueden consultar o corregir desde la pantalla "⚙ Parámetros" (claves `SMLMV` y `UVT`, ver
-  [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)).
+  también se pueden consultar o corregir desde la sección "Parámetros" de "⚙ Configuraciones" (claves
+  `SMLMV` y `UVT`, ver [sección 5.14](#514-editar-tasas-y-topes-legales-configuraciones--parámetros)).
 - **Qué pasa si el hecho es posterior al 2020-01-01**: la ley pasó de expresar estas multas en SMLMV a
   expresarlas en UVT a partir de esa fecha; el programa ya tiene cargada la tabla histórica de UVT
   (2006-2026, ver `Pendientes.md`, Sprint 14) y convierte automáticamente. Solo lanza el error "UVT no
@@ -923,8 +933,8 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
 - **Dónde vive la lógica en el código**: `app/services/area_strategy.py`, clase `HonorariosStrategy`,
   método `_validar_obligacion_honorarios`. El tope ya no es una constante fija en el código — desde el
   Sprint 13 se lee como parámetro legal versionado (`get_parametro("HONORARIOS_TOTAL_PCT", ...)`),
-  consultable y editable desde la pantalla "⚙ Parámetros" (ver
-  [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros)) sin tocar código.
+  consultable y editable desde la sección "Parámetros" de "⚙ Configuraciones" (ver
+  [sección 5.14](#514-editar-tasas-y-topes-legales-configuraciones--parámetros)) sin tocar código.
   **Corregido en el Sprint 4 (2026-08-01)** tras confirmación del despacho: no existen dos topes en
   cascada (30% individual + 50% total) — el único tope legal es el 50% acumulado de honorarios fijos +
   cuota litis sobre el beneficio obtenido. Una cuota litis alta por sí sola ya no bloquea nada si el
@@ -1090,10 +1100,10 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   por expediente).
 - ✅ **TRM y obligaciones en moneda extranjera** ya está conectada al área Comercial (Sprint 12) — ver
   [sección 7.8](#78-trm-y-obligaciones-en-moneda-extranjera).
-- ✅ **Parámetros legales versionados** (pantalla "⚙ Parámetros") — el Sprint 13, planeado originalmente
-  como un motor de reglas configurable de alcance mucho mayor, se reemplazó por este dominio más acotado:
-  tasas, topes, plazos e indicadores históricos editables desde la GUI, con historial completo. Ver
-  [sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros).
+- ✅ **Parámetros legales versionados** (sección "Parámetros" de "⚙ Configuraciones") — el Sprint 13,
+  planeado originalmente como un motor de reglas configurable de alcance mucho mayor, se reemplazó por
+  este dominio más acotado: tasas, topes, plazos e indicadores históricos editables desde la GUI, con
+  historial completo. Ver [sección 5.14](#514-editar-tasas-y-topes-legales-configuraciones--parámetros).
 
 ---
 
@@ -1115,16 +1125,17 @@ liquidar" con otro texto, anota el mensaje exacto — puede ser una validación 
 Desde el Sprint 14, esto solo ocurre si la "Fecha de origen" de la multa cae en un año para el que la
 DIAN todavía no ha publicado la UVT (por ejemplo, un año futuro sin resolución vigente) — la tabla
 histórica cubre 2006-2026. Revisa la fecha de origen, o agrega el valor de UVT del año faltante desde la
-pantalla "⚙ Parámetros" en cuanto la DIAN lo publique (ver
+sección "Parámetros" de "⚙ Configuraciones" en cuanto la DIAN lo publique (ver
 [sección 7.5](#75-conversión-smlmvuvt-para-multas-sancionatorias)).
 
 **"Cargué el SMLMV/IPC nuevo pero la liquidación sigue usando el valor del año pasado."**
 Casi siempre es un problema de fecha, no del programa: el SMLMV y el índice IPC acumulado solo se
 reconocen como vigentes si "Vigente desde" quedó en **exactamente el 1 de enero** del año que querías
 cargar (ej. `01/01/2027`, no el `15/01/2027` ni el `01/01/2026`). El programa guarda el valor igual, sin
-avisar del error — ábrelo con doble clic en la tabla de "⚙ Parámetros" para revisar la fecha exacta con
-la que quedó, y si está mal, agrega un valor nuevo con la fecha correcta. Ver la advertencia completa en
-[sección 5.14](#514-editar-tasas-y-topes-legales-pantalla--parámetros).
+avisar del error — ábrelo con doble clic en la tabla de la sección "Parámetros" (dentro de "⚙
+Configuraciones") para revisar la fecha exacta con la que quedó, y si está mal, agrega un valor nuevo con
+la fecha correcta. Ver la advertencia completa en
+[sección 5.14](#514-editar-tasas-y-topes-legales-configuraciones--parámetros).
 
 **"¿Dónde quedan guardados mis expedientes si cierro el programa?"**
 En el archivo `bastium.db` dentro de la carpeta del proyecto. No lo borres si quieres conservar la

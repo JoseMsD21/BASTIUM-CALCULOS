@@ -63,8 +63,9 @@ del deudor cuando un pago superó la deuda. Cada liquidación ejecutada
 queda registrada en un historial de auditoría por expediente (quién, cuándo, con qué área y fecha de
 corte), con reconstrucción exacta de un cálculo pasado con solo hacer doble clic sobre su fila.
 
-La interfaz tiene navegación por panel lateral fijo, modo oscuro/claro alternable desde "⚙ Parámetros"
-(persistido entre sesiones), notificaciones no bloqueantes tipo toast para confirmaciones de bajo riesgo,
+La interfaz tiene navegación por panel lateral fijo, modo oscuro/claro alternable desde "⚙ Configuraciones
+→ Apariencia" (persistido entre sesiones), notificaciones no bloqueantes tipo toast para confirmaciones de
+bajo riesgo,
 y una gráfica de expedientes por área en el Dashboard de inicio. Los 7 diálogos de formulario del
 proyecto (agregar/editar Obligación, Expediente, Abono, Parámetro, Evento contractual, Descuento laboral,
 y el historial de un Parámetro) se pueden minimizar, maximizar y redimensionar arrastrando sus bordes —
@@ -81,7 +82,7 @@ en vez de fallar — `AuditLog.resultado_json` es append-only por diseño, esas 
 reescriben, así que no existe (ni se planea) un script de backfill que edite el JSON histórico sin
 romper esa garantía de append-only (Sprint 23).
 
-✅ **Parámetros legales versionados:** desde la pantalla "⚙ Parámetros" cualquier abogado puede consultar
+✅ **Parámetros legales versionados:** desde "⚙ Configuraciones → Parámetros" cualquier abogado puede consultar
 y agregar, sin tocar código, los valores/tasas/topes que antes solo un desarrollador podía cambiar: el
 multiplicador de usura, los topes de cuota litis, los plazos de prescripción/caducidad, el descuento del
 interés moratorio tributario (E.T. art. 635), la tasa civil legal, y las series históricas de SMLMV, IPC,

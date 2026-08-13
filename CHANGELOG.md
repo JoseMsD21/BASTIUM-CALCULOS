@@ -32,6 +32,9 @@ de ayuda extendidos a los 4 formularios principales de captura (Sprint 59); Obli
 "Eliminar"/"Editar" completo, mismo patrón que ya tenía Eventos Laborales (Sprint 60). Ningún cambio de
 saldo final ya calculado en ningún sprint — solo el desglose de interés por fila del Sprint 40 y el
 desglose por cuota del Sprint 41 cambian de forma, no de total.
+Sprint 66: el botón "Parametros" del sidebar se renombra a "Configuraciones" y se convierte en una
+pantalla con submenú lateral (Parámetros/Apariencia, con espacio para futuras secciones); el interruptor
+de modo oscuro/claro se muda de Parámetros a la nueva sección Apariencia.
 
 ### Added
 - Área(s) del derecho y unidad de medida por valor de parámetro legal (Sprint 57): nuevas columnas
@@ -153,6 +156,11 @@ desglose por cuota del Sprint 41 cambian de forma, no de total.
   Sprint 50.
 
 ### Changed
+- Navegación de "Parametros" reorganizada en "Configuraciones" (Sprint 66): el botón del sidebar pasa a
+  llamarse "Configuraciones" y abre una pantalla con submenú lateral (Parámetros/Apariencia, con espacio
+  para futuras secciones); el interruptor de modo oscuro/claro, antes alojado en Parámetros, se mueve a la
+  nueva sección Apariencia. Sin cambios de comportamiento en la tabla de parámetros legales ni en la
+  lógica de tema — solo de ubicación.
 - Deuda técnica de `ruff` eliminada por completo (Sprint 48): 447 errores preexistentes (mayoritariamente
   líneas demasiado largas) limpiados sin cambiar comportamiento; `ruff check .` agregado como paso
   obligatorio del pipeline de CI (`.github/workflows/ci.yml`), antes de la suite de tests.
