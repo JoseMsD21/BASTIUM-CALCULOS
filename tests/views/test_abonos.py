@@ -255,6 +255,42 @@ def test_enter_guarda_y_cierra_el_dialogo(qtbot, monkeypatch):
 # --- Sprint 60: editar abono (abono_id opcional) ----------------------------
 
 
+def _obligacion_con_valor(monkeypatch, valor: Decimal) -> int:
+    """Igual que `_obligacion_de_prueba` pero con un `valor` a medida -- lo
+    necesita `test_editar_abono_no_cuenta_su_propio_valor_anterior_como_sobrepago`
+    para reproducir el escenario exacto donde el bug original se manifestaba."""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-021",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=valor,
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+    return obligacion_id
+
+
 def test_abono_id_none_crea_titulo_y_estado_de_creacion(qtbot, monkeypatch):
     obligacion_id = _obligacion_de_prueba(monkeypatch)
 
@@ -305,4 +341,43 @@ def test_abono_id_actualiza_la_fila_existente_en_vez_de_crear_una_nueva(qtbot, m
     guardado = session.query(Abono).filter_by(id=abono_id).one()
     assert guardado.monto == Decimal("250000.00")
     assert guardado.referencia == "Editado"
+    session.close()
+
+
+def test_editar_abono_no_cuenta_su_propio_valor_anterior_como_sobrepago(qtbot, monkeypatch):
+    """Reproduce el escenario donde el bug original se manifestaba: obligacion de
+    $100.000 con un abono existente de $90.000, editado a $95.000. El calculo
+    viejo (sin excluir el abono en edicion de `abonos_previos`) habria sumado
+    90.000 (valor viejo, todavia en `obligacion.abonos`) + 95.000 (valor nuevo)
+    = 185.000 > 100.000 -> falso sobrepago. El calculo correcto excluye el
+    abono en edicion: 0 + 95.000 = 95.000 <= 100.000 -> sin advertencia. Nota:
+    95.000 por si solo NO supera 100.000, asi que este caso solo lo detecta un
+    codigo que efectivamente excluye el valor viejo -- a diferencia de
+    `test_abono_id_actualiza_la_fila_existente_en_vez_de_crear_una_nueva`
+    (100.000 -> 250.000 sobre una obligacion de 427.900), que pasa igual con o
+    sin el fix porque nunca se acerca al limite de sobrepago."""
+    obligacion_id = _obligacion_con_valor(monkeypatch, Decimal("100000.00"))
+
+    monkeypatch.setattr("app.views.abonos.QMessageBox.warning", lambda *a, **k: None)
+    primer_dialog = AbonoFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(primer_dialog)
+    primer_dialog.campo_monto.setText("90000.00")
+    primer_dialog.campo_fecha.setDate(date(2026, 1, 15))
+    abono_id = primer_dialog.guardar()
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.abonos.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+    dialog = AbonoFormDialog(obligacion_id=obligacion_id, abono_id=abono_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_monto.setText("95000.00")
+
+    dialog.guardar()
+
+    assert avisos == []
+    session = session_module.get_session()
+    guardado = session.query(Abono).filter_by(id=abono_id).one()
+    assert guardado.monto == Decimal("95000.00")
     session.close()
