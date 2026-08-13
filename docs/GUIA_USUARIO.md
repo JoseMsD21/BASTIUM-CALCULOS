@@ -156,14 +156,22 @@ la primera vez que instalas BASTIUM en ese computador.
 
 ## 3. Cómo iniciar el programa
 
-Con la terminal abierta en la carpeta del proyecto, escribe:
+La forma más simple es haciendo **doble clic en `Iniciar BASTIUM.bat`**, en la carpeta raíz del
+proyecto — no necesitas abrir ninguna terminal. Si el programa no puede abrir (por ejemplo, porque
+todavía no instalaste las dependencias del [paso 2](#2-instalación-paso-a-paso)), la ventana no se
+cierra sola: se queda abierta mostrando el mensaje de error para que lo puedas leer y, si hace falta,
+compartirlo con la persona encargada de soporte.
+
+Si prefieres usar la terminal (por ejemplo, para ver los mensajes mientras trabajas en el código),
+con la terminal abierta en la carpeta del proyecto escribe:
 
 ```
 .venv\Scripts\python.exe main.py
 ```
 
-Se abrirá una ventana titulada **"BASTIUM - Ecosistema de Liquidacion Forense"**. Esa es la aplicación.
-Para cerrarla, simplemente cierra la ventana como cualquier programa de Windows.
+Cualquiera de las dos formas abre la misma ventana, titulada **"BASTIUM - Ecosistema de Liquidacion
+Forense"**. Esa es la aplicación. Para cerrarla, simplemente cierra la ventana como cualquier programa
+de Windows.
 
 La primera vez que la abras, el programa crea automáticamente un archivo llamado `bastium.db` dentro de
 la carpeta del proyecto — ahí es donde se guardan **todos** los expedientes, obligaciones y abonos que

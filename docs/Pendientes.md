@@ -212,8 +212,8 @@ botón real que los dispare).
 - [Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión](#sprint-61--conectar-los-parámetros-de-prescripcióncaducidad-sin-wiring-a-pantallas-reales--bloqueado--pendiente-de-decisión)
 - [Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ 📋 Pendiente](#sprint-62--corregir-referencias-rotas-tras-mover-pendientespreguntas-para-abogadosecuritypdf-a-docs--pendiente)
 - [Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 📋 Pendiente](#sprint-63--documentar-en-readmeguia_usuario-las-funciones-de-los-sprints-52-60--pendiente)
-- [Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ 📋 Pendiente](#sprint-64--reorganizar-los-backups-de-bastiumdb-en-una-carpeta-backups--pendiente)
-- [Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" 📋 Pendiente](#sprint-65--lanzador-de-doble-clic-iniciar-bastiumbat--pendiente)
+- [Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ ✅ Completado](#sprint-64--reorganizar-los-backups-de-bastiumdb-en-una-carpeta-backups--completado)
+- [Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" ✅ Completado](#sprint-65--lanzador-de-doble-clic-iniciar-bastiumbat--completado)
 
 ---
 
@@ -4873,7 +4873,7 @@ estilo que las entradas `Fixed` ya existentes.
 
 ---
 
-## Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ 📋 Pendiente
+## Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ ✅ Completado
 
 **Prioridad sugerida:** Media — housekeeping puro, no afecta comportamiento de la app.
 
@@ -4899,9 +4899,18 @@ manuales — en cuyo caso no hay código que tocar, solo mover archivos).
 - `backups/` está en `.gitignore`.
 - Si existía lógica de backup automático, ahora escribe en `backups/`.
 
+**Cierre de implementación (2026-08-13):** Completado. Solo había 5 `bastium.db.bak-*` en la raíz (no 6
+— el conteo original incluía uno que ya no existía), todos manuales: no se encontró ninguna lógica de
+backup automático en el código (`grep` sobre `*.py` sin resultados para `.bak-`/`db.bak`/`shutil.copy`
+de `bastium.db`), así que no hubo código que actualizar. Los 5 archivos se movieron a `backups/` con
+verificación de hash MD5 antes/después de cada uno (los 5 coinciden); `bastium.db` no se tocó. El
+movimiento físico se hizo fuera de este worktree, directo en la raíz del repo principal, porque estos
+archivos no están versionados y no existen en ninguna copia de git (ver commit de la convención en
+`.gitignore`, hecho antes dentro de este worktree).
+
 ---
 
-## Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" 📋 Pendiente
+## Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" ✅ Completado
 
 **Prioridad sugerida:** Media-alta — el usuario (abogado, sin experiencia en terminal) reportó que
 `.venv\Scripts\python.exe main.py` en una terminal no es intuitivo para el público real de la app.
@@ -4933,6 +4942,14 @@ usos).
 - Doble clic en `Iniciar BASTIUM.bat` abre la app igual que el comando de terminal actual.
 - Si el `.venv` no existe o `main.py` falla, la ventana de consola no se cierra sola — muestra el error.
 - README/GUIA_USUARIO documentan el doble clic como forma recomendada de abrir la app.
+
+**Cierre de implementación (2026-08-13):** Completado. `Iniciar BASTIUM.bat` cambia al directorio del
+script con `cd /d %~dp0`, valida que `.venv\Scripts\python.exe` exista antes de intentar nada (mensaje
+guiado hacia la sección de instalación si falta), corre `main.py`, y usa `pause` tanto en el caso de
+`.venv` faltante como en el de un `errorlevel` distinto de 0 al salir — la ventana nunca se cierra sola
+sin que el usuario alcance a leer el error. README.md (sección "Instalación rápida") y
+`docs/GUIA_USUARIO.md` (sección 3, "Cómo iniciar el programa") documentan el doble clic como forma
+recomendada, dejando el comando de terminal como alternativa.
 
 ---
 

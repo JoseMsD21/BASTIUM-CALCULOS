@@ -122,6 +122,10 @@ python main.py
 Para el paso a paso completo (incluyendo un problema conocido de Windows con rutas largas y cómo
 resolverlo), ver la [Guía de Usuario](docs/GUIA_USUARIO.md#2-instalación-paso-a-paso).
 
+Una vez instalado, la forma más simple de abrir el programa es haciendo **doble clic en
+`Iniciar BASTIUM.bat`** (en la raíz del repo) — no requiere abrir ninguna terminal. El comando
+`python main.py` de arriba sigue funcionando igual si prefieres la terminal.
+
 **No hace falta ningún paso manual de migración.** `main.py` corre `aplicar_migraciones_pendientes()`
 automáticamente en cada arranque (Sprint 51) — agrega cualquier columna/índice que un `bastium.db` viejo
 todavía no tenga y siembra `parametros_legales` si está vacía, comparando el esquema real contra el
