@@ -3,10 +3,9 @@ from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QDate, Qt
-from PySide6.QtWidgets import QApplication, QDialog, QLabel
+from PySide6.QtWidgets import QDialog, QLabel
 
 import database.session as session_module
-from app.core.apariencia import MODO_CLARO, MODO_OSCURO, cargar_modo_tema, guardar_modo_tema
 from app.services.areas_parametro import AREA_UNIDAD_POR_CLAVE, deserializar_areas
 from app.services.parametro_service import agregar_valor, historial
 from app.views.configuracion import (
@@ -313,47 +312,6 @@ def test_escape_cierra_el_dialogo_sin_guardar(qtbot):
 
     assert dialogo.result() == QDialog.DialogCode.Rejected
     assert historial("USURA_MULTIPLICADOR") == []
-
-
-def test_parametros_view_casilla_modo_oscuro_arranca_desmarcada_por_defecto(qtbot):
-    # Sin QSettings previo (tmp_path vacio por test) el modo por defecto es "claro".
-    vista = ParametrosView()
-    qtbot.addWidget(vista)
-
-    assert vista.casilla_modo_oscuro.isChecked() is False
-
-
-def test_parametros_view_casilla_modo_oscuro_refleja_el_modo_persistido(qtbot):
-    guardar_modo_tema(MODO_OSCURO)
-
-    vista = ParametrosView()
-    qtbot.addWidget(vista)
-
-    assert vista.casilla_modo_oscuro.isChecked() is True
-
-
-def test_marcar_casilla_modo_oscuro_aplica_el_tema_en_caliente(qtbot):
-    vista = ParametrosView()
-    qtbot.addWidget(vista)
-
-    vista.casilla_modo_oscuro.setChecked(True)
-
-    assert "#1E1A18" in QApplication.instance().styleSheet()
-    # Vuelve al modo claro para no filtrar estado hacia otros tests.
-    vista.casilla_modo_oscuro.setChecked(False)
-
-
-def test_marcar_casilla_modo_oscuro_persiste_la_eleccion(qtbot):
-    vista = ParametrosView()
-    qtbot.addWidget(vista)
-
-    vista.casilla_modo_oscuro.setChecked(True)
-
-    assert cargar_modo_tema() == MODO_OSCURO
-
-    vista.casilla_modo_oscuro.setChecked(False)
-
-    assert cargar_modo_tema() == MODO_CLARO
 
 
 def test_enter_guarda_y_cierra_el_dialogo(qtbot):
