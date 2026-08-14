@@ -104,6 +104,13 @@ Configuraciones → Parámetros, cada valor que un usuario haya cargado tiene su
 de agregar valor es ahora un desplegable con las unidades ya usadas y una opción "Otros..." para escribir
 cualquier otra; y los formularios/columnas de Parámetros tienen tooltips ⓘ homologados en todos los campos.
 
+✅ **Restablecer datos de fábrica:** desde "⚙ Configuraciones → Restablecer" cualquier abogado puede borrar,
+con un solo botón, todos los expedientes (y sus obligaciones/abonos/eventos/descuentos en cascada) y los
+parámetros legales que él mismo haya cargado — los parámetros de sistema quedan intactos y el tema visual
+vuelve a claro. Antes de borrar se crea automáticamente un backup de la base de datos en `backups/`, y hay
+que escribir "RESTABLECER" para habilitar la confirmación; no hay papelera ni deshacer más allá de
+restaurar ese backup a mano.
+
 🚧 **En desarrollo:** varios módulos más también están pendientes. La indexación IPC solo está disponible
 en Civil/Familia — falta decidir con el despacho, área por área, si tiene sentido ofrecerla también en
 Comercial/Laboral/Honorarios/Sancionatorio/Tributario sin duplicar el mecanismo propio que ya tienen

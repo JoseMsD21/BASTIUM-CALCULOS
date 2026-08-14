@@ -37,6 +37,9 @@ pantalla con submenú lateral (Parámetros/Apariencia, con espacio para futuras 
 de modo oscuro/claro se muda de Parámetros a la nueva sección Apariencia.
 
 ### Added
+- Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
+  creados por el usuario (deja los de sistema intactos), con backup automático previo y confirmación
+  escrita.
 - Área(s) del derecho y unidad de medida por valor de parámetro legal (Sprint 57): nuevas columnas
   `areas_derecho`/`unidad` en `parametros_legales`, capturables al agregar un valor nuevo desde
   Parámetros y no editables después — migración aplica la clasificación a las 683 filas existentes.
