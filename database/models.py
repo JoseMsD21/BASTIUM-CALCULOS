@@ -85,6 +85,35 @@ class MotivoSuspension(enum.Enum):
     DISCIPLINARIA = "DISCIPLINARIA"
 
 
+class EstadoProcesal(enum.Enum):
+    """Estado procesal de un Expediente (Sprint 47) -- no existia ningun campo
+    de estado procesal en el modelo antes de este sprint. Se agrega como
+    columna aditiva minima con los 3 valores que exige el protocolo de
+    recalculo historico del despacho (docs/Preguntas-Para-Abogado-Respondidas.md,
+    Sprint 47): EN_TRAMITE dispara recalculo obligatorio + "Memorial de
+    Actualizacion/Correccion"; PRESENTADO_JUZGADO_CPACA dispara recalculo +
+    memorial de correccion de error aritmetico (Art. 151 CPACA);
+    COSA_JUZGADA bloquea el recalculo automatico (se mantiene el valor por
+    seguridad juridica). Ver app/services/recalculo_historico.py.
+
+    Default EN_TRAMITE para expedientes existentes/nuevos: es la opcion mas
+    conservadora frente a la instruccion "es obligatorio recalcular" del
+    despacho (dispara el protocolo de recalculo+memorial en vez de omitirlo
+    por silencio) -- PERO debe revisarse manualmente expediente por
+    expediente antes de una corrida masiva del script de recalculo
+    (scripts/recalcular_historicas_sprint30.py), en particular para marcar
+    correctamente los que ya estan en cosa juzgada y no deben tocarse. No hay
+    UI de edicion para este campo todavia (fuera de alcance de este sprint,
+    que se confino a database/models.py + scripts/ + app/services/ +
+    app/engine/reports/ sin tocar app/views/expedientes.py) -- se ajusta
+    directo en BD o via un script puntual hasta que un sprint de UI lo
+    exponga."""
+
+    EN_TRAMITE = "EN_TRAMITE"
+    PRESENTADO_JUZGADO_CPACA = "PRESENTADO_JUZGADO_CPACA"
+    COSA_JUZGADA = "COSA_JUZGADA"
+
+
 class Expediente(Base):
     __tablename__ = "expedientes"
 
@@ -95,6 +124,18 @@ class Expediente(Base):
     area_derecho: Mapped[AreaDerecho] = mapped_column(SAEnum(AreaDerecho))
     juzgado: Mapped[str | None] = mapped_column(String(200), nullable=True)
     fecha_corte_default: Mapped[date] = mapped_column(Date)
+    # estado_procesal (Sprint 47): ver docstring de EstadoProcesal arriba para
+    # el porque del default EN_TRAMITE y la advertencia de revision manual.
+    # server_default (ademas de default de Python) porque hay codigo/tests
+    # existentes que insertan filas en `expedientes` via SQL crudo, sin pasar
+    # por el ORM -- sin un DEFAULT a nivel de DDL, SQLite rechazaria esos
+    # INSERT con "NOT NULL constraint failed" en cuanto esta columna existe.
+    estado_procesal: Mapped[EstadoProcesal] = mapped_column(
+        SAEnum(EstadoProcesal),
+        nullable=False,
+        default=EstadoProcesal.EN_TRAMITE,
+        server_default=EstadoProcesal.EN_TRAMITE.value,
+    )
 
     obligaciones: Mapped[list[Obligacion]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
@@ -251,6 +292,40 @@ class AuditLog(Base):
     fecha_corte: Mapped[date] = mapped_column(Date)
     area_derecho: Mapped[str] = mapped_column(String(50))
     resultado_json: Mapped[str] = mapped_column(Text)
+    # Sprint 47 (recalculo historico post-Sprint-30) -- las 3 columnas de abajo
+    # son append-only/aditivas, no cambian el significado de ninguna fila
+    # existente (todas nacen en False/NULL para filas legadas via el script de
+    # migracion, ver scripts/migrate_sprint47_recalculo_historico.py).
+    #
+    # obsoleto_requiere_recalculo: flag literal "OBSOLETO - REQUIERE RECALCULO"
+    # exigido por el despacho -- True cuando esta fila se genero antes del
+    # cierre del Sprint 30 (commit 5c4cc9a, 2026-08-04) y por lo tanto pudo
+    # calcularse con la logica defectuosa de fecha_interrupcion_efectiva/
+    # dias_trabajados. Puesto por
+    # app.services.recalculo_historico.marcar_obsoletas -- NUNCA se
+    # sobrescribe el resultado_json de la fila marcada (append-only, ver
+    # liquidacion_anterior_id).
+    obsoleto_requiere_recalculo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    # liquidacion_anterior_id: mecanismo tecnico ya decidido con el usuario
+    # (ver docs/Pendientes.md, Sprint 47) -- una liquidacion recalculada NUNCA
+    # sobrescribe la fila obsoleta, se guarda como una fila AuditLog nueva que
+    # apunta a la anterior via este campo (misma AuditLog, auto-referencial).
+    # Deliberadamente SIN sqlalchemy.ForeignKey(): mismo motivo documentado en
+    # Obligacion.obligacion_padre_id de arriba -- SQLite no permite
+    # "ALTER TABLE ... DROP COLUMN" sobre una columna que participa en una FK
+    # de tabla, lo que bloquearia migraciones futuras que necesiten recrear
+    # esta columna; la app tampoco activa PRAGMA foreign_keys=ON. La relacion
+    # logica se resuelve en Python (session.get(AuditLog, ...)), no via
+    # relationship() de SQLAlchemy.
+    liquidacion_anterior_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # motivo_recalculo: texto libre -- en la fila VIEJA marcada obsoleta
+    # siempre es el flag literal exigido por el despacho
+    # ("OBSOLETO - REQUIERE RECALCULO"); en la fila NUEVA que la recalcula
+    # describe de que recalculo se trata y cual fila reemplaza (referencia
+    # legible, ademas de liquidacion_anterior_id).
+    motivo_recalculo: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     expediente: Mapped[Expediente] = relationship(back_populates="audit_logs")
 

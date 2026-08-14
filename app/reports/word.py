@@ -48,6 +48,8 @@ class WordReportGenerator:
         table_data: list,
         encabezado: dict | None = None,
         renta_liquida: dict | None = None,
+        diferencia_recalculo: dict | None = None,
+        cuerpo_legal: str | None = None,
     ) -> None:
         documento = Document()
 
@@ -88,6 +90,13 @@ class WordReportGenerator:
                 documento.add_paragraph(f"Juzgado: {encabezado['juzgado']}")
 
         documento.add_paragraph()
+
+        # Sprint 47: parrafo de fundamento legal para los memoriales de
+        # recalculo historico (Art. 53 C.P. / Art. 151 CPACA) -- mismo patron
+        # aditivo que diferencia_recalculo/renta_liquida.
+        if cuerpo_legal:
+            documento.add_paragraph(cuerpo_legal)
+            documento.add_paragraph()
 
         filas_resumen = [
             ("Total Abonos Aplicados", summary["total_abonos"]),
@@ -208,5 +217,44 @@ class WordReportGenerator:
                 celdas_fila_rl = tabla_renta_liquida.add_row().cells
                 celdas_fila_rl[0].text = etiqueta
                 celdas_fila_rl[1].text = valor
+
+        # Sprint 47: log de diferencias del recalculo historico post-Sprint-30
+        # (memoriales de actualizacion/correccion y de correccion de error
+        # aritmetico Art. 151 CPACA, ver app/engine/reports/memoriales.py) --
+        # mismo patron aditivo que renta_liquida arriba (Sprint 15).
+        if diferencia_recalculo is not None:
+            documento.add_paragraph()
+            parrafo_diferencia = documento.add_paragraph()
+            run_diferencia = parrafo_diferencia.add_run(
+                "Log de Diferencias — Recálculo Histórico (Sprint 30)"
+            )
+            run_diferencia.bold = True
+            run_diferencia.font.color.rgb = self.c_burgundy
+
+            filas_diferencia = [
+                ("Liquidación Anterior", diferencia_recalculo["audit_log_anterior"]),
+                (
+                    "Valor Anterior (Sprint 30, pre-corrección)",
+                    diferencia_recalculo["monto_anterior"],
+                ),
+                ("Valor Recalculado", diferencia_recalculo["monto_recalculado"]),
+                ("Diferencia Recuperada", diferencia_recalculo["diferencia_monto"]),
+                (
+                    "Días Cubiertos (Anterior → Recalculado)",
+                    f"{diferencia_recalculo['dias_cubiertos_anterior']} → "
+                    f"{diferencia_recalculo['dias_cubiertos_recalculado']}",
+                ),
+            ]
+            tabla_diferencia = documento.add_table(rows=1, cols=2)
+            tabla_diferencia.style = "Table Grid"
+            celdas_encabezado_diferencia = tabla_diferencia.rows[0].cells
+            celdas_encabezado_diferencia[0].text = "Rubro"
+            celdas_encabezado_diferencia[1].text = "Valor"
+            for etiqueta, valor in filas_diferencia:
+                celdas_fila_diferencia = tabla_diferencia.add_row().cells
+                celdas_fila_diferencia[0].text = etiqueta
+                celdas_fila_diferencia[1].text = valor
+
+            documento.add_paragraph(diferencia_recalculo["resumen"])
 
         documento.save(self.output_path)

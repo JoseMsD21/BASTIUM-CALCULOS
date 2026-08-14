@@ -65,6 +65,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
     from scripts.migrate_reajuste_anual_familia import migrar as migrar_reajuste_anual_familia
     from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
+    from scripts.migrate_sprint47_recalculo_historico import (
+        migrar as migrar_recalculo_historico_sprint47,
+    )
     from scripts.migrate_tributario import migrar as migrar_tributario
 
     ruta = db_path if db_path is not None else _resolve_db_path()
@@ -116,3 +119,8 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # directamente), asi que correria igual de bien antes o despues de
     # migrar_parametros_area_unidad.
     migrar_ipc_variacion_anual(ruta)
+    # Sprint 47: agrega expedientes.estado_procesal y las 3 columnas de
+    # recalculo historico en audit_logs -- sin dependencia de orden con las
+    # migraciones de arriba (columnas nuevas en tablas ya existentes, no
+    # siembra de datos via ORM).
+    migrar_recalculo_historico_sprint47(ruta)

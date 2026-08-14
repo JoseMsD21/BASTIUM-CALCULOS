@@ -120,6 +120,38 @@ def test_aplicar_migraciones_pendientes_agrega_es_smmlv(tmp_path):
     assert "es_smmlv" in columnas
 
 
+def test_aplicar_migraciones_pendientes_agrega_columnas_del_sprint_47(tmp_path):
+    """Sprint 47 (recalculo historico post-Sprint-30): una bastium.db creada
+    antes de este sprint no tiene expedientes.estado_procesal ni las 3
+    columnas nuevas de audit_logs -- aplicar_migraciones_pendientes() debe
+    agregarlas, mismo criterio que es_smmlv arriba."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_sprint47.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE expedientes DROP COLUMN estado_procesal")
+    con.execute("ALTER TABLE audit_logs DROP COLUMN obsoleto_requiere_recalculo")
+    con.execute("ALTER TABLE audit_logs DROP COLUMN liquidacion_anterior_id")
+    con.execute("ALTER TABLE audit_logs DROP COLUMN motivo_recalculo")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas_expedientes = {fila[1] for fila in con.execute("PRAGMA table_info(expedientes)")}
+    columnas_audit_logs = {fila[1] for fila in con.execute("PRAGMA table_info(audit_logs)")}
+    con.close()
+    assert "estado_procesal" in columnas_expedientes
+    assert "obsoleto_requiere_recalculo" in columnas_audit_logs
+    assert "liquidacion_anterior_id" in columnas_audit_logs
+    assert "motivo_recalculo" in columnas_audit_logs
+
+
 def test_migracion_reajuste_anual_agrega_columnas_con_default_ninguno_y_null(tmp_path):
     """Task 1 del Sprint 41: una fila de obligaciones ya existente (creada bajo el
     esquema viejo, sin tipo_reajuste_anual/obligacion_padre_id) debe quedar con
