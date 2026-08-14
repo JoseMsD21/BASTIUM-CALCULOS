@@ -8,8 +8,9 @@
 > **Última actualización:** 2026-08-13 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, el panel de
 > navegación lateral fijo (sidebar) con los botones Volver/Inicio/Configuraciones con íconos y estado
-> activo, la pantalla "Configuraciones" con submenú Parámetros/Apariencia (el modo oscuro/claro se movió a
-> Apariencia en el Sprint 66), el breadcrumb de contexto y los atajos de teclado de
+> activo, la pantalla "Configuraciones" con tres secciones — Parámetros, Apariencia (el modo oscuro/claro
+> se movió ahí en el Sprint 66) y Restablecer (borra expedientes y parámetros legales propios, con backup
+> automático) —, el breadcrumb de contexto y los atajos de teclado de
 > navegación y de los formularios, la edición/eliminación de expediente, la pantalla de parámetros
 > legales versionados, la prescripción/caducidad conectada al cálculo real de la liquidación, y el
 > Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. También
@@ -210,10 +211,12 @@ izquierda de la ventana:
    tabla con el detalle día por día de cómo se acumuló el interés, y al final tres totales: interés
    acumulado, pagos aplicados y saldo final.
 
-5. **⚙ Configuraciones** — pantalla con dos secciones, elegibles desde un submenú lateral propio:
-   **Parámetros** (tasas, topes, plazos e indicadores históricos legales) y **Apariencia** (el interruptor
-   de modo oscuro/claro). Se abre desde el botón **"⚙ Configuraciones"** del panel lateral de navegación,
-   disponible siempre, sin importar en qué otra pantalla estés, y entra mostrando Parámetros por defecto.
+5. **⚙ Configuraciones** — pantalla con tres secciones, elegibles desde un submenú lateral propio:
+   **Parámetros** (tasas, topes, plazos e indicadores históricos legales), **Apariencia** (el interruptor
+   de modo oscuro/claro) y **Restablecer** (borra todos los expedientes y los parámetros legales que hayas
+   cargado tú mismo, con backup automático previo). Se abre desde el botón **"⚙ Configuraciones"** del
+   panel lateral de navegación, disponible siempre, sin importar en qué otra pantalla estés, y entra
+   mostrando Parámetros por defecto.
    Ver [sección 5.14](#514-editar-tasas-y-topes-legales-configuraciones--parámetros) para el detalle
    completo de Parámetros.
 
@@ -232,9 +235,9 @@ qué expediente y pantalla estás parado en cada momento (por ejemplo, "Expedien
   Está oculto cuando ya estás en el Dashboard. Atajo de teclado: **Ctrl+Inicio**.
 - **Configuraciones** (Sprint 66 — antes se llamaba "Parámetros") — siempre visible, en cualquier
   pantalla; te lleva a la pantalla de Configuraciones (ver punto 5 arriba), que abre mostrando la sección
-  Parámetros. Un submenú propio, dentro de esa misma pantalla, permite cambiar a la sección Apariencia sin
-  volver a pasar por este botón. Se resalta con el color de marca de BASTIUM mientras estás dentro de esa
-  pantalla, para que sea evidente cuál tienes abierta.
+  Parámetros. Un submenú propio, dentro de esa misma pantalla, permite cambiar a las secciones Apariencia o
+  Restablecer sin volver a pasar por este botón. Se resalta con el color de marca de BASTIUM mientras estás
+  dentro de esa pantalla, para que sea evidente cuál tienes abierta.
 
 En los formularios (Nuevo expediente, Agregar obligación, Agregar abono, Agregar evento contractual,
 Agregar valor de parámetro): **Ctrl+S** guarda y cierra el formulario (equivale a hacer clic en
@@ -729,6 +732,12 @@ ya no vive en esta pantalla — se movió a la sección **"Apariencia"** de "⚙
 (incluida la gráfica del Dashboard, que recalcula sus colores para seguir siendo legible), o desmárcalo
 para volver al tema claro de siempre — el cambio se aplica de inmediato, sin reiniciar el programa, y
 queda recordado para la próxima vez que abras BASTIUM.
+
+**Restablecer datos de fábrica (Configuraciones → Restablecer):** borra TODOS los expedientes,
+obligaciones, abonos, eventos, descuentos y los parámetros legales que hayas cargado tú mismo — los
+parámetros de sistema no se tocan y el tema vuelve a claro. Antes de borrar se crea automáticamente una
+copia de seguridad en la carpeta `backups/`. Pide escribir "RESTABLECER" para confirmar; no hay papelera
+ni deshacer, solo restaurar el backup manualmente si te equivocas.
 
 **Editar y eliminar valores que tú mismo cargaste:** dentro del historial de una clave (doble clic sobre
 su fila en la tabla), cada valor que tú hayas agregado tiene sus propios botones "Editar" y "Eliminar" —
