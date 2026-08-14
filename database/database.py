@@ -56,6 +56,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_costas_tipo_proceso import migrar as migrar_costas
     from scripts.migrate_creado_por_sistema import migrar as migrar_creado_por_sistema
     from scripts.migrate_es_smmlv_laboral import migrar as migrar_es_smmlv
+    from scripts.migrate_fecha_providencia_costas import (
+        migrar as migrar_fecha_providencia_costas,
+    )
     from scripts.migrate_interes_sobre_capital_indexado import (
         migrar as migrar_interes_capital_indexado,
     )
@@ -75,6 +78,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     migrar_tributario(ruta)
     migrar_anatocismo(ruta)
     migrar_costas(ruta)
+    migrar_fecha_providencia_costas(ruta)
     migrar_interes_capital_indexado(ruta)
     migrar_reajuste_anual_familia(ruta)
     migrar_indices(ruta)

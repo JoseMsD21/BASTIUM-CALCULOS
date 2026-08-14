@@ -41,7 +41,7 @@ class ManualTRMProvider(TRMProvider):
 class SFCTRMProvider(TRMProvider):
     """
     Proveedor de TRM en vivo (Sprint 12, correccion 2026-08-01): respuesta del
-    despacho (Preguntas-Para-Abogado.md) exige "consumir la TRM de la API de la
+    despacho (docs/Preguntas-Para-Abogado-Respondidas.md) exige "consumir la TRM de la API de la
     Superintendencia Financiera correspondiente a la Fecha_de_Pago" en vez de
     una TRM fija digitada por el abogado -- reemplaza a ManualTRMProvider como
     proveedor por defecto de ComercialStrategy.

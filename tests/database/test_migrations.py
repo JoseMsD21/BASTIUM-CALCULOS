@@ -96,6 +96,30 @@ def test_aplicar_migraciones_pendientes_agrega_las_columnas_faltantes_de_obligac
         assert columna in columnas
 
 
+def test_aplicar_migraciones_pendientes_agrega_fecha_providencia_costas(tmp_path):
+    """Sprint 18 (ultraactividad CPC->CGP): una bastium.db creada antes de este
+    sprint no tiene la columna fecha_providencia_costas -- mismo criterio que
+    las columnas de costas_tipo_proceso/costas_instancia arriba."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_fecha_providencia_costas.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fecha_providencia_costas")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "fecha_providencia_costas" in columnas
+
+
 def test_aplicar_migraciones_pendientes_agrega_es_smmlv(tmp_path):
     """Sprint 44, punto 1: una bastium.db creada antes de este sprint no tiene
     la columna es_smmlv -- aplicar_migraciones_pendientes() debe agregarla,

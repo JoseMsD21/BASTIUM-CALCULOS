@@ -56,9 +56,14 @@ def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> 
     judicial real ya fijo un porcentaje, ese manda, pero desde la correccion
     del Sprint 18 (2026-08-01) ese porcentaje manual se valida contra el rango
     permitido por cuantia (respuesta del despacho) y se RECHAZA (no se trunca)
-    si esta fuera de rango -- ver validar_costas_pct_manual. Retorna None si la
-    obligacion no tiene ninguno de los dos mecanismos activado (comportamiento
-    identico al de antes de este sprint)."""
+    si esta fuera de rango -- ver validar_costas_pct_manual. En la rama
+    automatica se propaga obligacion.fecha_providencia_costas (campo aditivo,
+    Sprint 18 ultraactividad CPC->CGP): si esta definida y es anterior al
+    1/1/2016, calcular_agencias_en_derecho lanza TarifaPreCGPNoDisponibleError
+    en vez de aplicar la tabla granular del CGP; si es None (no capturada, el
+    caso normal hoy) el comportamiento es identico al de antes de este sprint.
+    Retorna None si la obligacion no tiene ninguno de los dos mecanismos
+    activado (comportamiento identico al de antes de este sprint)."""
     if obligacion.costas_pct_manual is not None:
         validar_costas_pct_manual(
             obligacion.costas_pct_manual,
@@ -72,6 +77,7 @@ def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> 
             instancia=Instancia(obligacion.costas_instancia),
             pretensiones_reconocidas=pretensiones_reconocidas,
             fecha_radicacion=obligacion.fecha_origen,
+            fecha_providencia_costas=obligacion.fecha_providencia_costas,
         )
     else:
         return None
@@ -500,7 +506,7 @@ class ComercialStrategy(AreaStrategy):
         return resultado
 
     def _calcular_sancion_usura(self, obligacion, abonos: list, fecha_corte: date) -> dict | None:
-        """Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): una tasa
+        """Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 2): una tasa
         pactada por encima de la usura NO se rechaza ni se recorta silenciosamente.
         Se liquida con la tasa realmente pactada y, aparte, se calcula:
           Intereses_Cobrados_En_Exceso = Intereses_Cobrados - Intereses_Cobrados_Con_Tasa_Usura
@@ -615,7 +621,7 @@ class ComercialStrategy(AreaStrategy):
             )
 
         # Una tasa pactada por encima del tope de usura ya NO se rechaza aqui (ver
-        # respuesta del despacho, Preguntas-Para-Abogado.md Sprint 2): se liquida
+        # respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 2): se liquida
         # igual y la sancion legal (perdida del exceso, doblado) se calcula y resta
         # del saldo en liquidar() -> _calcular_sancion_usura/_aplicar_sanciones_usura.
 
@@ -1148,7 +1154,7 @@ class HonorariosStrategy(AreaStrategy):
     `costas_tipo_proceso`/`costas_instancia`.
 
     Tope de cuota litis (un solo tope, no dos en cascada -- corregido Sprint 4, ver
-    respuesta del despacho en Preguntas-Para-Abogado.md: el PDF trae un 50% en una
+    respuesta del despacho en docs/Preguntas-Para-Abogado-Respondidas.md: el PDF trae un 50% en una
     seccion y un 30% en otra, pero el tope legal absoluto y definitivo es el 50%
     acumulado, no ambos a la vez):
     - honorarios fijos + cuota litis <= 50% del beneficio obtenido. Si se excede,

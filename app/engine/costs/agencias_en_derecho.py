@@ -14,7 +14,11 @@ from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
-from app.core.exceptions import CostasFueraDeRangoError, TarifaNoDisponibleError
+from app.core.exceptions import (
+    CostasFueraDeRangoError,
+    TarifaNoDisponibleError,
+    TarifaPreCGPNoDisponibleError,
+)
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 
@@ -72,6 +76,32 @@ UMBRAL_MENOR_CUANTIA_SMLMV = Decimal("150")  # CGP art. 25: 40 < pretensiones <=
 TOPE_MAXIMO_SMLMV = Decimal("20")  # Acuerdo PSAA16-10554, Paragrafo 3 art. 3
 
 
+FECHA_VIGENCIA_CGP = date(2016, 1, 1)  # Art. 627 CGP: entrada en vigencia nacional general
+
+
+def validar_ultraactividad_cgp(fecha_providencia: date) -> None:
+    """Art. 624 CGP, regla de aplicacion inmediata: si la providencia que impone
+    costas es anterior a la entrada en vigencia del CGP (1 de enero de 2016), rige
+    la ultraactividad de la ley procesal anterior (CPC) y no la tabla granular de
+    este modulo (Acuerdo PSAA16-10554, vigente solo desde el CGP). El sistema no
+    tiene cargada ninguna tabla de tarifas pre-CGP (era CPC) -- ni el PDF de
+    requisitos ni ninguna respuesta del despacho la trajo nunca -- asi que se lanza
+    TarifaPreCGPNoDisponibleError en vez de aproximar o bloquear silenciosamente.
+
+    NOTA: la gradualidad de entrada en vigencia del CGP por distrito judicial (el
+    despacho la menciono sin dar fechas por distrito, docs/Preguntas-Para-Abogado-Respondidas.md
+    Sprint 18) NO esta modelada -- se usa unicamente la fecha general de vigencia
+    nacional (2016-01-01), una limitacion conocida y documentada, no un descuido."""
+    if fecha_providencia < FECHA_VIGENCIA_CGP:
+        raise TarifaPreCGPNoDisponibleError(
+            f"La providencia que impone costas es del {fecha_providencia.isoformat()}, "
+            "anterior a la entrada en vigencia del CGP (1 de enero de 2016, Art. 627 CGP). "
+            "Por ultraactividad (Art. 624 CGP) rige la tarifa de costas del CPC anterior, "
+            "pero el sistema solo tiene cargada la tabla del Acuerdo PSAA16-10554 (CGP, "
+            "vigente desde 2016) -- no hay ninguna tabla de tarifas pre-CGP disponible."
+        )
+
+
 def resolver_cuantia_tier(
     pretensiones_reconocidas: Decimal, smlmv_vigente: Decimal
 ) -> CuantiaTier:
@@ -84,12 +114,12 @@ def resolver_cuantia_tier(
 
 
 # Rango simple de validacion para el porcentaje MANUAL de costas (costas_pct_manual),
-# respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 18, 2026-08-01) -- distinto
-# (mas simple, y con numeros propios) de la tabla granular por tipo de proceso de
-# TARIFAS_AGENCIAS_EN_DERECHO arriba. Se usa solo para RECHAZAR un porcentaje manual
-# fuera de rango, nunca para calcular un monto automatico -- si de verdad reemplaza (en
-# vez de complementar) la tabla granular es una pregunta de seguimiento abierta en
-# Preguntas-Para-Abogado.md, sin asumir.
+# respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 18,
+# 2026-08-01) -- distinto (mas simple, y con numeros propios) de la tabla granular por
+# tipo de proceso de TARIFAS_AGENCIAS_EN_DERECHO arriba. Se usa solo para RECHAZAR un
+# porcentaje manual fuera de rango, nunca para calcular un monto automatico -- si de
+# verdad reemplaza (en vez de complementar) la tabla granular es una pregunta de
+# seguimiento abierta en docs/Preguntas-Para-Abogado-Respondidas.md, sin asumir.
 RANGO_COSTAS_MANUAL_POR_TIER: dict[CuantiaTier, RangoTarifa] = {
     CuantiaTier.MINIMA: RangoTarifa(Decimal("0"), Decimal("10"), UnidadTarifa.PORCENTAJE),
     CuantiaTier.MENOR: RangoTarifa(Decimal("3"), Decimal("7"), UnidadTarifa.PORCENTAJE),
@@ -339,15 +369,25 @@ def calcular_agencias_en_derecho(
     pretensiones_reconocidas: Decimal,
     fecha_radicacion: date,
     tiene_pretension_pecuniaria: bool = True,
+    fecha_providencia_costas: date | None = None,
 ) -> Decimal:
     """Calcula agencias en derecho segun el Acuerdo PSAA16-10554. Busca primero
     la tarifa especifica del tier de cuantia resuelto; si la categoria no
     distingue por cuantia (la mayoria de segundas instancias, recursos,
     incidentes, y varias categorias de liquidacion), cae al registro sin tier.
     Lanza TarifaNoDisponibleError si ninguna de las dos claves esta registrada
-    -- nunca inventa un rango."""
+    -- nunca inventa un rango.
+
+    fecha_providencia_costas es opcional (Sprint 18, ultraactividad CPC->CGP): si
+    se pasa, se valida primero contra validar_ultraactividad_cgp -- una providencia
+    anterior al 1 de enero de 2016 lanza TarifaPreCGPNoDisponibleError en vez de
+    calcular con la tabla granular (que solo rige desde el CGP). Si es None (no
+    capturada), el comportamiento es identico al de antes de este sprint."""
     if pretensiones_reconocidas is None or pretensiones_reconocidas <= Decimal("0.00"):
         raise ValueError("pretensiones_reconocidas debe ser mayor que cero.")
+
+    if fecha_providencia_costas is not None:
+        validar_ultraactividad_cgp(fecha_providencia_costas)
 
     smlmv_vigente = get_smlmv_for_year(fecha_radicacion.year)
     tier = (

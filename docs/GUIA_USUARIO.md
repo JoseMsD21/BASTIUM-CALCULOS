@@ -638,6 +638,26 @@ completo, ver [sección 5.12](#512-editar-o-eliminar-un-expediente)).
 
 ### 5.14. Editar tasas y topes legales (Configuraciones → Parámetros)
 
+> **Esta sección está escrita para ti si eres abogado junior o estudiante de Consultorio Jurídico y nunca
+> has tocado esta pantalla.** No necesitas saber programar ni entender cómo está hecho el software por
+> dentro. Lo único que necesitas es poder leer un título ejecutivo, una sentencia o una norma y saber
+> **en qué fila de la tabla se traduce ese dato**. Eso es lo que te enseña esta sección: a convertir un
+> "hecho del caso" (una fecha, una tasa, un plazo que aparece en el expediente o en la ley) en el "campo
+> del software" correcto, sin adivinar.
+>
+> **⚠️ Por qué esto no es un detalle menor:** BASTIUM usa estos valores para calcular intereses, topes de
+> usura, prescripciones y honorarios en la liquidación que después firma un abogado y se presenta ante un
+> juez, un cliente o la contraparte. Si cargas un valor equivocado — una tasa que no corresponde, una fecha
+> de vigencia mal escrita, un plazo de prescripción tomado de la norma incorrecta — el programa **no tiene
+> forma de saber que te equivocaste**: va a calcular en silencio con el dato malo y va a entregar una
+> liquidación incorrecta como si fuera correcta. Esa liquidación mal calculada no es solo "un error
+> técnico" — es un error que firma el abogado responsable del caso, y puede generar **responsabilidad
+> disciplinaria** frente al cliente, la contraparte o el juez. Por eso, cada vez que vayas a agregar o
+> cambiar un valor en esta pantalla, dedica un minuto a confirmar contra la norma o el documento del
+> expediente que el número, la fecha y la unidad son exactamente los correctos **antes** de hacer clic en
+> "Guardar" — y si tienes dudas, pídele a un abogado con más experiencia que lo revise contigo antes de
+> guardarlo.
+
 Antes, si el multiplicador de usura, un tope de cuota litis, un plazo de prescripción o el valor del
 SMLMV de un año nuevo cambiaban, había que pedirle a un programador que editara el código. Ya no: desde
 la sección **"Parámetros"** de la pantalla **"⚙ Configuraciones"** cualquier abogado puede consultar y
@@ -671,6 +691,60 @@ columnas:
   para los que tú mismo agregaste, sí (ver "Editar y eliminar valores que tú mismo cargaste" más abajo).
 - **Unidad**: la unidad de medida del valor (ej. "%", "COP", "meses", "índice"), también asignada al
   agregar el valor, con la misma regla: fija para los valores de fábrica, editable para los tuyos.
+
+**Cómo traducir un "hecho del caso" a una fila de esta tabla:** lo primero que hay que entender es que
+cada fila de la tabla **no es una variable de programación** — es la respuesta a una pregunta jurídica
+concreta que tú, como abogado, ya sabes resolver leyendo el expediente o la norma. La tabla solo agrupa
+esas respuestas en dos categorías que vas a usar constantemente:
+
+- **"Topes legales"**: responde preguntas del tipo *"¿hasta qué tasa o qué porcentaje puedo cobrar sin
+  incurrir en usura, sin superar el tope de cuota litis, sin exceder el interés civil legal?"*. Ejemplos
+  reales de filas en esta categoría: "Multiplicador del tope de usura sobre el IBC" (Ley 45/1990, art. 72),
+  "Tope de honorarios fijos + cuota litis (% del beneficio obtenido)" (Art. 35 Num. 4 Ley 1123/2007) y
+  "Tasa de interés civil legal anual" (Art. 1617 Código Civil).
+- **"Plazos de prescripción y caducidad"**: responde preguntas del tipo *"¿cuánto tiempo tiene el
+  acreedor para cobrar esta obligación antes de que prescriba o caduque la acción?"*. Ejemplos reales:
+  "Plazo de prescripción de la acción ejecutiva (meses)", "Plazo de prescripción de la acción ordinaria
+  (meses)", "Plazo de prescripción de honorarios profesionales (meses)" y varias filas de prescripción y
+  caducidad cambiaria (cheques, letras, pagarés — Arts. 789/790/791 C.Co.).
+
+**Ejemplo completo — de la lectura del título ejecutivo al campo del software:** supón que estás
+revisando un pagaré para cobro ejecutivo y necesitas saber si la acción ya prescribió. En el expediente
+o en la norma encuentras el **hecho**: "la acción ejecutiva derivada de un título valor prescribe en 5
+años" (el software la mide en meses: 60). Ese hecho jurídico **no se escribe en ningún campo de texto
+libre** — se traduce así:
+
+1. Vas a la tabla principal de esta pantalla y ubicas la fila cuya columna "Parámetro" dice
+   **"Plazo de prescripción de la acción ejecutiva (meses)"**, dentro de la categoría "Plazos de
+   prescripción y caducidad".
+2. Si el valor que trae el sistema ya corresponde a lo que dice la norma vigente (60 meses), no tienes
+   que hacer nada — el software ya lo aplica solo, tomando como referencia el campo **"Fecha de origen"**
+   que tú cargaste al crear la obligación (ver [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez)),
+   es decir, el hecho de cuándo nació la deuda en el mundo real (la fecha de la factura, del pagaré o del
+   hecho que la originó).
+3. Si una reforma legal cambia ese plazo, o detectas que el valor cargado no corresponde a la norma
+   aplicable a tu caso, ahí es donde usas **"+ Agregar valor nuevo"** (ver el paso a paso más abajo):
+   eliges ese mismo parámetro en el desplegable, escribes el número correcto de meses en "Valor", y en
+   "Vigente desde" la fecha desde la que rige ese plazo — nunca la fecha de tu obligación puntual, sino la
+   fecha desde la que la norma nueva empezó a regir.
+
+La misma lógica aplica para "Topes legales": si el título ejecutivo dice que se pactó una tasa de
+interés (el hecho del caso que cargas en el campo **"Tasa efectiva anual (%)"** al crear la obligación,
+ver [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez)) y necesitas confirmar
+que no es usuraria, esa tasa pactada no se compara a ojo — se valida contra la fila **"Multiplicador del
+tope de usura sobre el IBC"** de esta pantalla, que el programa combina automáticamente con el Interés
+Bancario Corriente vigente en la fecha de origen de la obligación para calcular el tope real en ese
+momento.
+
+> **⚠️ Antes de guardar cualquier valor nuevo, verifica tres cosas contra la fuente (la ley, el decreto o
+> la certificación oficial), no de memoria:** (1) que elegiste la fila correcta — dos parámetros de
+> prescripción cambiaria se parecen mucho en el nombre pero aplican a hechos distintos (prescripción
+> cambiaria "directa" contra el obligado principal, no es lo mismo que "de regreso" del tenedor contra los
+> endosantes); (2) que el número y la unidad son los que dice la norma (meses, no años; porcentaje, no
+> veces); y (3) que la fecha de "Vigente desde" es la fecha real en la que ese valor empezó a regir, no la
+> fecha en la que tú lo estás cargando en el sistema. Un solo dato mal cargado aquí no genera un error
+> visible en pantalla — se propaga en silencio a **todas** las liquidaciones que se calculen después con
+> ese parámetro, y es el abogado que firma la liquidación, no el software, quien responde por ese error.
 
 **Cómo agregar un valor nuevo:**
 

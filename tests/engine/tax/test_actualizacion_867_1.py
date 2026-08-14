@@ -16,7 +16,7 @@ from app.engine.tax.moratory_interest import calcular_interes_moratorio_tributar
 def _parametros_legales_reales_en_memoria():
     # Usa la siembra real (scripts/migrate_parametros_legales.migrar()) en vez
     # de una fixture con datos de prueba: el caso de ejemplo del despacho
-    # (Preguntas-Para-Abogado.md, Sprint 15) cae dentro del rango historico
+    # (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 15) cae dentro del rango historico
     # real de IPC/IBC-usura (1997-2026 / 1967-2025), asi que se verifica
     # contra los datos reales del sistema, no contra datos inventados. El
     # engine en memoria y los parches de database_module.engine /
@@ -41,7 +41,7 @@ def test_no_aplica_867_1_mora_menor_a_3_anios():
 
 
 def test_caso_de_ejemplo_del_despacho_indexacion_topada_al_limite_de_usura():
-    # Caso real del despacho (Preguntas-Para-Abogado.md, Sprint 15): impuesto de
+    # Caso real del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 15): impuesto de
     # $100.000.000 vencido el 2018-05-10, pagado el 2023-05-10 (5 anios de mora).
     capital = Decimal("100000000.00")
     fecha_origen = date(2018, 5, 10)

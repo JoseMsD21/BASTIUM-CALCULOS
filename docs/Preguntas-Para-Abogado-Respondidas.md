@@ -24,10 +24,16 @@ la corrección ya quedó programada, busca ese mismo número de sprint allá.
 - [Sprint 8 — Indexación IPC Civil/Familia](#sprint-8--indexación-ipc-civilfamilia)
 - [Sprint 11 — Derecho Tributario (DIAN)](#sprint-11--derecho-tributario-dian)
 - [Sprint 12 — TRM y moneda extranjera](#sprint-12--trm-y-moneda-extranjera)
+- [Sprint 13 — Guía de uso de "Parámetros" para el despacho](#sprint-13--guía-de-uso-de-parámetros-para-el-despacho)
 - [Sprint 15 — Tributario: sanciones e imputación](#sprint-15--tributario-sanciones-e-imputación)
 - [Sprint 16 — Seguridad social e incapacidades laborales](#sprint-16--seguridad-social-e-incapacidades-laborales)
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, semanas)](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-semanas)
+- [Sprint 18 — Costas judiciales: tabla simple de rangos vs. tabla granular del Acuerdo PSAA16-10554](#sprint-18--costas-judiciales-tabla-simple-de-rangos-vs-tabla-granular-del-acuerdo-psaa16-10554)
 - [Sprint 30 — Posible error de un día](#sprint-30--posible-error-de-un-día)
+- [Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard](#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard)
+- [Sprint 41 — Fórmula de reajuste anual de la cuota alimentaria](#sprint-41--fórmula-de-reajuste-anual-de-la-cuota-alimentaria)
+- [Sprint 43 — Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario](#sprint-43--indexación-ipc-en-comercial-laboral-honorarios-sancionatorio-y-tributario)
+- [Sprint 47 — Recalcular liquidaciones históricas con las correcciones del Sprint 30](#sprint-47--recalcular-liquidaciones-históricas-con-las-correcciones-del-sprint-30)
 
 ---
 
@@ -250,6 +256,35 @@ respuesta — ver la pregunta de seguimiento en
 [`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-8-seguimiento--fuente-del-ipc-mensual-del-dane)
 y `Pendientes.md`, Sprint 8.
 
+**Respuesta a la pregunta de seguimiento (fuente del IPC mensual del DANE):**
+El motor debe operar siempre sobre el Número Índice (no variación porcentual) para evitar errores de
+redondeo acumulado en liquidaciones de larga duración.
+
+Instrucciones de Desarrollo:
+- Gestión de bases históricas (empalme): el DANE maneja bases distintas. El sistema debe soportar
+  múltiples bases y aplicar un Factor de Enlace (FE) para que la serie sea matemáticamente continua.
+- Bases a configurar: Base Actual (diciembre 2018 = 100) y Base Anterior (diciembre 2008 = 100).
+- Fórmula de conversión: `Índice_Base2018 = Índice_Base2008 × FE`. El FE se calcula como el cociente entre
+  el índice nuevo y el antiguo en el mes de traslape (diciembre 2018).
+- Estructura de base de datos: crear tabla `sys_ipc_indices` con campos `periodo_mes` (Date),
+  `base_referencia` (String/Enum), `valor_indice` (Decimal).
+- Motor de cálculo: `ValorActual = ValorOriginal × (IPC_Final / IPC_Inicial)`; si la fecha de cálculo no es
+  cierre de mes, aplicar interpolación lineal de días entre los dos índices mensuales adyacentes.
+
+**Fecha:** (no especificada por el despacho al copiar la respuesta)
+
+**Estado en el código (actualizado 2026-08-13):** el despacho confirmó la metodología exacta (Número
+Índice, no variación %; doble base 2008/2018 con Factor de Enlace), pero **todavía no aportó la tabla real
+de datos** — el índice mensual certificado por el DANE mes a mes sigue sin llegar. Sigue siendo la misma
+solicitud de información del Sprint 8 (seguimiento), ahora con el diseño técnico ya confirmado. Falta: (1)
+extender `historical_index.py` para soportar doble base + Factor de Enlace (hoy `_IPC_MENSUAL` es un
+diccionario plano `{(año, mes): valor}` de una sola base, sin ese campo), (2) decidir si `sys_ipc_indices`
+se modela como tabla nueva en `database/models.py` o como claves versionadas dentro de `parametros_legales`
+(mismo patrón que el resto de series, Sprint 13), y (3) conseguir la tabla real. La página 62 del PDF de
+requisitos (`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`) solo trae variación **anual**
+1967-2025 (la misma fuente ya transcrita en `_IPC_VARIACION_ANUAL`) — no resuelve este punto, es
+exactamente el hueco que motivó esta pregunta. Ver `Pendientes.md`, Sprint 8.
+
 ---
 
 ## Sprint 11 — Derecho Tributario (DIAN)
@@ -299,6 +334,35 @@ Convertir el valor del abono en divisa a COP usando esa TRM dinámica y luego ap
 **Estado en el código:** Implementado (Sprint 12, corrección del 2026-08-01) — ver `Pendientes.md`. El
 mecanismo exacto de cómo conviven la TRM dinámica y la anulación manual quedó como decisión técnica propia,
 documentada en `Pendientes.md`.
+
+---
+
+## Sprint 13 — Guía de uso de "Parámetros" para el despacho
+
+**Contexto:** el software permite editar tasas, topes y plazos legales (usura, cuota litis, SMLMV, IPC,
+etc.) desde la pantalla "⚙ Configuraciones → Parámetros", pensada para que alguien del despacho pueda
+actualizarlos sin depender de un programador.
+
+**Pregunta:** si en el futuro alguien del despacho va a actualizar los parámetros legales directamente
+desde esa pantalla, ¿hace falta una guía de uso corta para esa persona, y a qué perfil debe estar dirigida?
+
+**Respuesta del despacho:**
+SÍ. Es imperativa una guía. Las variables macroeconómicas (usura, IPC, SMLMV) cambian constantemente.
+
+Instrucciones de Desarrollo:
+- Perfil de usuario: la guía debe estar redactada para un Abogado Junior / Estudiante de Consultorio
+  Jurídico.
+- Lenguaje de la guía: debe usar "campos de hecho" (ej. "Fecha de exigibilidad", "Tasa pactada") con
+  enfoque pedagógico, para que el usuario traduzca el título ejecutivo al software sin errores que generen
+  responsabilidad disciplinaria.
+
+**Fecha:** (no especificada por el despacho al copiar la respuesta)
+
+**Estado en el código:** `docs/GUIA_USUARIO.md` ya documenta la pantalla de Parámetros (Sprints 57/58/68),
+pero en tono general de manual de usuario, no dirigido específicamente a un "Abogado Junior / Estudiante de
+Consultorio Jurídico" ni centrado en "campos de hecho" con enfoque pedagógico de traducción del título
+ejecutivo. Pendiente: sección dedicada (o ajuste de tono) en `GUIA_USUARIO.md` — ver `Pendientes.md`,
+Sprint 13.
 
 ---
 
@@ -414,6 +478,59 @@ el caso de prueba de arriba (piso 55% en vez de 65%, semanas mínimas variables 
 
 ---
 
+## Sprint 18 — Costas judiciales: tabla simple de rangos vs. tabla granular del Acuerdo PSAA16-10554
+
+**Contexto:** el PDF de BASTIUM cita un acuerdo del Consejo Superior de la Judicatura para costas
+judiciales/agencias en derecho sin transcribir la tabla completa. El desarrollo ya tenía construida una
+tabla granular (18 tipos de proceso × instancia, transcrita del Acuerdo PSAA16-10554 del 5 de agosto de
+2016, verificada contra ramajudicial.gov.co). El despacho aportó además una tabla simple de 3 rangos por
+cuantía que no coincide numéricamente con la granular, lo que generó una pregunta de seguimiento sobre si
+una reemplaza a la otra.
+
+**Pregunta 1:** ¿pueden aportar el texto completo o la tabla de rangos de cuantía y porcentaje del acuerdo
+del Consejo Superior de la Judicatura vigente hoy para costas judiciales?
+
+**Pregunta 2 (seguimiento):** ¿la tabla simple de 3 rangos es (a) una síntesis que reemplaza la tabla
+granular, o (b) un tope general que solo aplica al porcentaje manual, quedando la tabla granular como
+fuente del cálculo automático?
+
+**Respuesta del despacho:**
+Existe una tabla de rangos de cuantía estricta que limita lo que el juez puede fijar.
+
+Instrucción de Desarrollo:
+- Implementar tabla de validación cruzada basada en las pretensiones del proceso: Mínima Cuantía (hasta 40
+  SMMLV) → 0% al 10%; Menor Cuantía (>40 hasta 150 SMMLV) → 3% al 7%; Mayor Cuantía (>150 SMMLV) → 1% al
+  5%.
+- El sistema debe restringir el input del usuario: si el proceso es de Mayor Cuantía, no puede ingresar un
+  8% de agencias en derecho (error de validación).
+
+**Respuesta a la pregunta de seguimiento:**
+Opción (b). La tabla simple es un "Hard Cap" (filtro de seguridad) para inputs manuales; la tabla granular
+gobierna el cálculo automático. Rige el Acuerdo PCSJA20-11556 (que actualiza el PSAA16-10554).
+
+Instrucción de Desarrollo:
+- Cálculo automático: usar la tabla granular del Acuerdo PCSJA20-11556 (18 tipos de proceso × instancia)
+  como base de datos maestra.
+- Validación de input manual: tabla simple como restricción estricta (los 3 rangos de arriba).
+- Ultraactividad (tránsito CPC → CGP, Art. 624 CGP): validar la fecha de la providencia que impone costas;
+  si es posterior al CGP (1° de enero de 2016, o gradualidad por distrito), aplicar la tabla granular
+  nueva; si la etapa de alegatos concluyó antes del cambio normativo, respetar el trámite de la ley
+  anterior, pero la liquidación futura se rige por la nueva.
+
+**Fecha:** (no especificada por el despacho al copiar la respuesta)
+
+**Estado en el código:** `costas_pct_manual` (validación de input manual, Sprint 4) ya usa la tabla simple
+de 3 rangos como tope — implementado provisionalmente el 2026-08-01 mientras se esperaba esta respuesta. La
+tabla granular (`app/engine/costs/agencias_en_derecho.py`, 18 categorías) ya gobierna el cálculo automático
+desde el cierre original del sprint, sin cambios. Con esta respuesta confirmada, falta: (1) confirmar con
+el despacho si "Acuerdo PCSJA20-11556" y "Acuerdo PSAA16-10554" son la misma norma con numeración distinta
+o si uno modificó al otro — el desarrollo había verificado independientemente el PSAA16-10554 contra la
+fuente oficial, y el despacho ahora cita el PCSJA20-11556 como el que rige; y (2) implementar la lógica de
+ultraactividad CPC→CGP (Art. 624 CGP) sobre la fecha de la providencia, que hoy no existe en el motor. Ver
+`Pendientes.md`, Sprint 18.
+
+---
+
 ## Sprint 30 — Posible error de un día
 
 **Contexto:** Una revisión de código encontró un posible error sutil de "un día": para decidir si una
@@ -441,3 +558,198 @@ reglas de conteo inclusivo de días y del módulo pensional ya cubiertas en las 
 
 **Estado en el código:** Respuesta clara, no requiere reevaluación. Corrección de código (cambiar la
 comparación de días por aritmética de fechas real) pendiente de programar — ver `Pendientes.md`, Sprint 30.
+
+---
+
+## Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard
+
+**Contexto:** el Dashboard avisa cuando una obligación está por prescribir. Para calcular la fecha límite,
+el sistema necesita saber qué tipo de acción judicial aplica (ejecutiva, ordinaria, cambiaria, etc.), pero
+no existe un campo para capturarlo — se estaba usando "acción ejecutiva" para las 6 áreas por igual, como
+aproximación provisional.
+
+**Pregunta:** ¿es correcto usar "acción ejecutiva" para las 6 áreas, o cada área necesita un tipo de acción
+distinto con plazos diferentes?
+
+**Respuesta del despacho:**
+NO. La acción ejecutiva no es transversal. El motor debe diferenciar prescripción (alegable) de caducidad
+(de oficio).
+
+Instrucción de Desarrollo:
+- Implementar tabla determinista (enum/BD):
+  - Civil: Ejecutiva (5 años, Art. 2536 CC) | Ordinaria (10 años, Art. 2536 CC) | Rescisoria (4 años, Art.
+    1954 CC).
+  - Comercial: Cambiaria Directa (3 años, Art. 789 C.Co) | Cambiaria Regreso (1 año, Art. 790 C.Co) |
+    Cheque (6 meses, Art. 730 C.Co).
+  - Laboral: Ordinaria/Ejecutiva (3 años, Art. 488 CST).
+  - Familia: Alimentos/cada cuota (5 años, Art. 2536 CC).
+  - Sancionatorio: Disciplinaria (5 años, Ley 1952 de 2019).
+  - Honorarios: Cobro (3 años, Art. 488 CST / Art. 2542 CC).
+  - Administrativo (CPACA): Reparación Directa (2 años, Art. 164) | Nulidad y Restablecimiento (4 meses,
+    Art. 164).
+- Selector en UI: al elegir "Área", el sistema autocompleta el plazo según la tabla.
+- Cómputo "fecha a fecha" en calendario gregoriano (Art. 118 CGP); si el día de vencimiento no existe (29
+  de febrero), vence el último día del mes.
+- Alertas: disparar "Caducidad Inminente" cuando falten 30 días; considerar el término de 1 año para
+  notificar el auto admisorio (inoperancia de la caducidad).
+- Ultraactividad: si el término empezó a correr bajo CPC/Ley 794 de 2003, sigue bajo esa ley, salvo que el
+  CGP establezca un plazo más corto (se cuenta desde su vigencia, a menos que el plazo viejo venza primero).
+
+**Fecha:** (no especificada por el despacho al copiar la respuesta)
+
+**Estado en el código:** `UniversalLiquidationService` sigue usando `TipoAccion.EJECUTIVA` como default
+único para las 6 áreas (mismo default "provisional" que reutilizó el Sprint 42 para marcar obligaciones
+prescritas). Con esta respuesta ya no está bloqueado por falta de decisión legal — falta: (1) la tabla
+área→tipo de acción→plazo con la norma citada, (2) el selector en UI que autocomplete el plazo al elegir
+área, y (3) la lógica de ultraactividad CPC→CGP. Ver `Pendientes.md`, Sprint 33 (y Sprint 61, que ya
+identificó que la mayoría de estos plazos existen como parámetro en `parametros_legales` pero sin wiring a
+ninguna pantalla real).
+
+---
+
+## Sprint 41 — Fórmula de reajuste anual de la cuota alimentaria
+
+**Contexto:** el software automatiza el reajuste anual de la cuota alimentaria (capital constante dentro
+del año, reajustado cada 1° de enero) con la fórmula `cuota_nueva = cuota_anterior + (cuota_anterior ×
+porcentaje_variación_anual / 100)`, usando el índice que indique el acta o título ejecutivo (SMMLV o IPC).
+
+**Pregunta:** ¿es correcta esa fórmula para cualquier acta/título que fije un reajuste "según el SMMLV" o
+"según el IPC", o hay casos donde difiere (tope máximo, redondeo específico, mes de corte distinto a enero,
+porcentaje parcial)?
+
+**Respuesta del despacho:**
+La fórmula `CN = CA + (CA × %V / 100)` es correcta como regla general, pero requiere parametrización de
+excepciones para no fallar.
+
+Instrucción de Desarrollo:
+- Regla base: reajuste automático cada 1° de enero (Art. 129 Ley 1098/2006). Índice por defecto: IPC del
+  año anterior, a menos que el acta indique SMMLV u otro.
+- Tope de coerción: ningún embargo por alimentos puede exceder el 50% del salario/prestaciones del deudor
+  (validación obligatoria en UI).
+- Redondeo: precisión decimal completa; PROHIBIDO redondear a múltiplos de $1.000 automáticamente, salvo
+  que el título especifique "ajustado al peso".
+- Mes de corte: campo `Fecha_Base_Titulo`; si el acta dice "12 meses desde la firma" (ej. agosto), el
+  incremento se calcula en agosto, no en enero.
+- Porcentaje parcial: variable `Factor_Ponderación` (float, default 1.0); si el acta pacta "50% del
+  incremento", el factor es 0.5.
+- Fórmulas alternativas (mora y cascada): si hay cuotas adeudadas de varios años, `C_final = C_base ×
+  Π(1+i_t)` (producto de los intereses de cada año transcurrido); interés moratorio 0.5% mensual (6%
+  anual) sobre el capital indexado en mora.
+- Imputación de pagos (orden jerárquico estricto): 1° intereses moratorios → 2° gastos de
+  cobranza/costas → 3° capital (mes más antiguo).
+
+**Fecha:** (no especificada por el despacho al copiar la respuesta)
+
+**Estado en el código:** `app/services/reajuste_anual.py::generar_cuotas_mensuales()` (Sprint 41, cerrado
+2026-08-09) ya implementa la fórmula base confirmada arriba, con capital constante dentro del año y
+reajuste el 1° de enero. Verificado que **no existe** en el motor ninguna validación del tope del 50% de
+embargo por alimentos. Pendiente: (1) construir ese tope de coerción, (2) el campo `Fecha_Base_Titulo` para
+reajustes con mes de corte distinto a enero (hoy fijo al 1° de enero), (3) `Factor_Ponderación` para
+reajustes parciales, y (4) verificar la imputación jerárquica exacta (intereses moratorios → costas →
+capital del mes más antiguo) contra el motor de imputación general (`AllocationEngine`). Ver
+`Pendientes.md`, Sprint 41.
+
+---
+
+## Sprint 43 — Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario
+
+**Contexto:** la indexación IPC ya está construida y probada, pero solo está disponible para Civil/Familia
+— en las otras 5 áreas el checkbox correspondiente ni siquiera aparece. Tributario y Sancionatorio ya
+tienen su propio mecanismo de actualización monetaria (Art. 867-1 E.T. y conversión SMLMV/UVT), así que
+activar IPC ahí podría duplicar el ajuste.
+
+**Pregunta:** ¿en cuáles de las 5 áreas (Comercial, Laboral, Honorarios, Sancionatorio, Tributario) tiene
+sentido jurídico ofrecer indexación IPC como opción adicional a la que ya tiene el área hoy?
+
+**Respuesta del despacho:**
+
+**Tributario:** SÍ se ofrece IPC, pero no como opción paralela libre — está intrínsecamente ligado al Art.
+867-1 E.T.; son mutuamente excluyentes en su componente inflacionario para evitar doble actualización.
+- Trigger de morosidad: si mora > 36 meses, aplicar el algoritmo del Art. 867-1 E.T. (serie IPC del Sprint
+  8).
+- Sanciones: bloquear el interés de mora y aplicar exclusivamente el factor IPC (Art. 867-1 E.T.).
+- Impuestos: aplicar intereses de mora + actualización IPC (Art. 867-1 E.T.).
+- Validación de techo de usura: la tasa efectiva combinada (interés de mora + factor de indexación) no
+  puede superar la tasa de usura certificada por la Superfinanciera; si la supera, topearla y alertar.
+- Prohibición de doble cobro: si se detecta una tasa que ya incorpora protección inflacionaria (ej. UVR),
+  bloquear y lanzar error si se intenta aplicar IPC sobre el capital.
+
+**Comercial:** NO (como regla general acumulable a intereses).
+- Regla de exclusión (XOR): prohibir activar simultáneamente "Interés Comercial (mora/remuneratorio)" e
+  "Indexación IPC".
+- El usuario elige: (a) tasa comercial (ya incluye inflación) o (b) capital indexado + interés civil puro
+  (6% anual), esto último solo si existe pacto expreso en el título.
+
+**Honorarios:** SÍ (compatible con intereses civiles).
+- Habilitar IPC por defecto.
+- Fórmula: `Capital_Honorarios × (IPC_Final / IPC_Inicial) + Interés_Civil_6%_Anual(Capital_Actualizado)`.
+- El IPC_Inicial es el del mes en que se hizo exigible la obligación o se presentó la cuenta de cobro.
+- De oficio (automática): en etapa declarativa (sentencia de condena) y restitución de mutuos, el motor
+  calcula IPC sin checkbox.
+- A petición de parte (checkbox): en etapa ejecutiva; si el título no previó IPC y se cobran intereses
+  comerciales, alertar "Improcedente por acumulación".
+
+**Laboral:** IPC y la regla de 360 días cumplen funciones distintas y complementarias, pero IPC es
+excluyente con intereses moratorios.
+- El conteo de días (regla 360 días inclusiva) cuantifica la base temporal; el IPC actualiza el valor
+  resultante.
+- Regla de exclusión: permitir elegir IPC o intereses moratorios, pero alertar "Doble Actualización
+  Prohibida" si se marcan ambos sobre el mismo rubro en el mismo periodo.
+- Excepción: aplicar IPC solo si no hay moratorios (buena fe probada) o en reliquidaciones pensionales
+  (traer IBL a valor presente).
+
+**Sancionatorio:** la conversión SMLMV/UVT prevalece; IPC es excluyente con el SMLMV actual.
+- Prohibición: bloquear IPC si el rubro está parametrizado en UVT/SMLMV actualizado a la fecha de pago (el
+  incremento anual del SMMLV ya absorbe la inflación).
+- Excepción: IPC sí es válido si el valor de la multa se ancló a UVT/SMLMV a la fecha del hecho (faltas
+  antiguas); se aplica desde la exigibilidad (firmeza del acto) hasta el pago efectivo.
+
+**Fecha:** (no especificada por el despacho al copiar la respuesta)
+
+**Estado en el código:** ninguna de estas reglas está implementada todavía — `AreaStrategy.soporta_indexacion_ipc`
+sigue en `False` para las 5 áreas (`app/services/area_strategy.py`) y el checkbox sigue oculto fuera de
+Civil/Familia (`app/views/obligaciones.py`, línea ~554: `setVisible(self._area == "CIVIL_FAMILIA")`). Con
+esta respuesta ya no está bloqueado por falta de decisión legal — el bloqueo pasa a ser de implementación:
+son 5 mecanismos de exclusión/coexistencia distintos (uno por área), cada uno con su propia validación de
+"doble actualización", no una sola bandera. Ver `Pendientes.md`, Sprint 43.
+
+---
+
+## Sprint 47 — Recalcular liquidaciones históricas con las correcciones del Sprint 30
+
+**Contexto:** el Sprint 30 corrigió dos cómputos de fecha/conteo (prescripción fecha-a-fecha real, y
+conteo inclusivo de días de prestaciones en Laboral), pero por diseño no tocó ninguna liquidación ya
+guardada antes de esa fecha.
+
+**Pregunta:** ¿existe alguna liquidación ya entregada a un cliente o presentada ante un juzgado con la
+lógica vieja? Si existe, ¿se recalcula, y con qué alcance?
+
+**Respuesta del despacho:**
+SÍ. Existen liquidaciones entregadas con lógica defectuosa. Se rechaza mantener el error técnico. Es
+obligatorio recalcular por principios de verdad real y primacía de la realidad (Art. 53 CP).
+
+Instrucción de Desarrollo:
+- Auditoría y marcado (BD): marcar con flag "OBSOLETO - REQUIERE RECÁLCULO" todas las liquidaciones
+  generadas antes del cierre del Sprint 30.
+- Log de diferencias: mostrar al abogado un comparativo numérico ("Diferencia recuperada: +X días / +Y
+  semanas / +$Z pesos").
+- Protocolo de recálculo según estado procesal:
+  - Expedientes activos (en trámite): recálculo obligatorio; permitir generar un "Memorial de
+    Actualización/Corrección" para presentar antes del fallo de instancia.
+  - Presentadas en juzgado/CPACA: generar memorial de corrección de error aritmético (Art. 151 CPACA).
+  - En cosa juzgada (fallo en firme): NO recalcular; mantener el valor por seguridad jurídica, salvo
+    recurso de revisión por error de hecho manifiesto.
+- Priorización: el recálculo automatizado debe priorizar los expedientes donde la alerta de prescripción
+  esté a menos de 30 días de ocurrir.
+- Estandarización pensional: implementar la Sentencia SL138-2024 como estándar por defecto (días calendario
+  reales), eliminando la base comercial de 360 días exclusivamente para el módulo de densidad pensional.
+
+**Fecha:** (no especificada por el despacho al copiar la respuesta)
+
+**Estado en el código:** no implementado. El mecanismo técnico ya decidido con el usuario (liquidación
+nueva vinculada a la anterior, sin sobrescribir; flag de notificación manual visible) sigue siendo
+compatible con las instrucciones del despacho, pero falta construir: (1) el script de identificación/marcado
+de liquidaciones afectadas vía `AuditLog`, (2) los documentos de "Memorial de Actualización/Corrección" y
+de "corrección de error aritmético" (no solo el recálculo numérico), (3) el log de diferencias, y (4)
+confirmar si `LaboralStrategy` (densidad pensional) ya usa días calendario reales tras el Sprint 30 o si la
+Sentencia SL138-2024 exige un ajuste adicional específico de ese módulo. Ver `Pendientes.md`, Sprint 47.

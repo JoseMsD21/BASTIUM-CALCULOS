@@ -235,7 +235,7 @@ def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
 # IPC MENSUAL (Sprint 8, correccion 2026-08-01): el despacho calificó la
 # interpolacion por cierre de año (arriba) de "juridicamente invalida" y exige
 # el indice mensual real del DANE con interpolacion lineal de dias entre
-# meses -- ver Preguntas-Para-Abogado.md, Sprint 8 (respuesta 27/07/2026) y la
+# meses -- ver docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 8 (respuesta 27/07/2026) y la
 # pregunta de seguimiento agregada al final de ese documento (2026-08-01)
 # pidiendo la fuente/tabla real.
 #
@@ -266,7 +266,7 @@ def get_ipc_mensual_for_month(anio: int, mes: int) -> Decimal:
         raise IPCMensualNoDisponibleError(
             f"No hay indice IPC mensual cargado para {anio}-{mes:02d}. La tabla mensual "
             "del DANE todavia no se ha cargado (Sprint 8, pendiente de que el despacho "
-            "aporte la fuente -- ver Preguntas-Para-Abogado.md)."
+            "aporte la fuente -- ver docs/Preguntas-Para-Abogado-Respondidas.md)."
         ) from err
 
 

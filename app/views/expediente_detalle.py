@@ -23,6 +23,7 @@ from app.core.exceptions import (
     CuotaLitisExcedeTopeError,
     ParametroNoDisponibleError,
     TarifaNoDisponibleError,
+    TarifaPreCGPNoDisponibleError,
     TRMNoDisponibleError,
     UVTNoDisponibleError,
 )
@@ -663,6 +664,7 @@ class ExpedienteDetallePage(QWidget):
             CuotaLitisExcedeTopeError: "Cuota litis excede el tope",
             CostasFueraDeRangoError: "Costas fuera de rango",
             TarifaNoDisponibleError: "Tarifa de costas no disponible",
+            TarifaPreCGPNoDisponibleError: "Tarifa pre-CGP no disponible",
             UVTNoDisponibleError: "UVT no disponible",
             TRMNoDisponibleError: "TRM no disponible",
             ParametroNoDisponibleError: "Parámetro legal no configurado",

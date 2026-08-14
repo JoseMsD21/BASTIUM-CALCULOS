@@ -63,7 +63,7 @@ PLAZOS_CADUCIDAD_MESES_CONOCIDOS = {
     # Los siguientes 6 (Seguro se divide en dos, ordinaria/extraordinaria, mismo
     # criterio que los tres plazos cambiarios) fueron precargados en el Sprint 7
     # (2026-08-01) a partir de la respuesta del despacho
-    # (Preguntas-Para-Abogado.md), no del PDF de requisitos.
+    # (docs/Preguntas-Para-Abogado-Respondidas.md), no del PDF de requisitos.
     "CHEQUES": 6,
     "ENRIQUECIMIENTO_SIN_CAUSA": 12,
     "TRANSPORTE": 24,

@@ -111,7 +111,8 @@ def test_calcular_caducidad_tipo_conocido_impugnacion_societaria():
 
 
 def test_calcular_caducidad_cheques_6_meses():
-    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 7): Cheques, 6 meses.
+    # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 7):
+    # Cheques, 6 meses.
     # 2025-05-10 + 6 meses -> 2025-11-10, lunes hábil.
     assert calcular_caducidad(date(2025, 5, 10), "CHEQUES") == date(2025, 11, 10)
 

@@ -221,9 +221,9 @@ def test_liquidar_area_civil_con_indexacion_ipc_incluye_evento_de_indexacion(qtb
 def test_liquidar_area_comercial_con_tasa_usuraria_no_muestra_advertencia_y_aplica_sancion(
     qtbot, monkeypatch
 ):
-    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): una tasa por encima
-    # de la usura ya no rechaza la liquidacion -- se liquida igual y se aplica la sancion
-    # legal (perdida doblada del exceso) como un rubro mas del resultado.
+    # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 2): una
+    # tasa por encima de la usura ya no rechaza la liquidacion -- se liquida igual y se
+    # aplica la sancion legal (perdida doblada del exceso) como un rubro mas del resultado.
     expediente_id = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
 
     resultados_recibidos = []

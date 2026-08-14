@@ -218,7 +218,7 @@ _IPC_MENSUAL_FIXTURE = {
 def _ipc_mensual_de_prueba(monkeypatch):
     # Valores de ejemplo, NO datos reales del DANE -- Sprint 8 dejo la tabla
     # real (historical_index._IPC_MENSUAL) vacia a proposito hasta que el
-    # despacho aporte la fuente (ver Preguntas-Para-Abogado.md). Esta fixture
+    # despacho aporte la fuente (ver docs/Preguntas-Para-Abogado-Respondidas.md). Esta fixture
     # solo prueba que la matematica de interpolacion por dias es correcta.
     import app.engine.indexation.historical_index as historical_index_module
 

@@ -1219,6 +1219,15 @@ lenguaje de "campos de hecho" con enfoque pedagógico para traducir el título e
 manual, no con ese enfoque pedagógico específico — pendiente ajustar o agregar una sección dedicada. Ver
 `Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 13.
 
+**Cierre del ajuste de tono pedagógico (2026-08-14):** Completado — la sección 5.14 de
+`docs/GUIA_USUARIO.md` ahora abre con una nota dirigida explícitamente al Abogado Junior / Estudiante de
+Consultorio Jurídico, agrega un bloque "Cómo traducir un 'hecho del caso' a una fila de esta tabla" con
+ejemplos reales de "Topes legales" y "Plazos de prescripción y caducidad" (incluido el ejemplo completo de
+prescripción ejecutiva: hecho del caso → fila "Plazo de prescripción de la acción ejecutiva (meses)") y
+una advertencia explícita de responsabilidad disciplinaria por un valor mal cargado. No se removió
+contenido factual existente (columnas Área/Unidad/Vigente hasta de los Sprints 57/58/63 se conservan).
+Suite completa en verde (1162 passed).
+
 ---
 
 ## Sprint 14 — Tabla histórica de UVT (DIAN) ✅ Completado
@@ -1675,7 +1684,7 @@ Suite completa en verde (653 passed, 1 skipped).
 
 ---
 
-## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🔵 Bloqueado — pendiente de confirmación
+## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado
 
 **Prioridad sugerida:** Media — el Sprint 4 ya dejó `costas_pct_manual` como solución temporal por no
 conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa fuente.
@@ -1800,6 +1809,25 @@ lógica de ultraactividad CPC→CGP (Art. 624 CGP) todavía no implementada, y c
 distinto que actualiza la tabla granular. Ver el detalle completo en
 `Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 18. Pendiente de programar: la ultraactividad
 CPC→CGP sobre la fecha de la providencia.
+
+**Cierre de implementación de la ultraactividad CPC→CGP (2026-08-14):** Completado, vía
+`superpowers:subagent-driven-development`. Campo nuevo, opcional, `Obligacion.fecha_providencia_costas:
+date | None` (+ migración `scripts/migrate_fecha_providencia_costas.py`, mismo patrón idempotente que
+`costas_tipo_proceso`/`costas_instancia`). Nueva excepción `TarifaPreCGPNoDisponibleError`
+(`app/core/exceptions.py`). Nueva validación `validar_ultraactividad_cgp()` en
+`agencias_en_derecho.py` (constante `FECHA_VIGENCIA_CGP = date(2016, 1, 1)`, citando Art. 627 CGP): si
+`fecha_providencia_costas` está definida y es anterior al 1° de enero de 2016, lanza la excepción nueva en
+vez de aproximar — **no existe ninguna tabla de tarifas pre-CGP (era CPC) en el proyecto**, mismo criterio
+de "no inventar cifras sin fuente" de los Sprints 5/7/18 original. Completamente retrocompatible: si el
+campo es `None` o la fecha es posterior a 2016-01-01, el comportamiento es idéntico al de antes de este
+sprint (verificado con tests de regresión). Wiring a través del único punto compartido de cálculo de
+costas (`_evento_costas_procesales`, `app/services/area_strategy.py`, usado por las 5 áreas que manejan
+costas), y capturada en la GUI (`expediente_detalle.py`) junto con `TarifaNoDisponibleError`/
+`CostasFueraDeRangoError`. Gradualidad por distrito judicial explícitamente NO modelada (el despacho la
+mencionó sin dar fechas por distrito) — se usa solo la fecha general de vigencia nacional, documentado como
+limitación conocida. No se agregó campo de captura en el formulario de UI (alcance excluido a propósito,
+mismo criterio que `costas_tipo_proceso`/`costas_instancia` en su momento). Suite completa en verde (1162
+tras el merge final del lote).
 
 ---
 
@@ -4880,7 +4908,7 @@ día que se retome.
 
 ---
 
-## Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ 📋 Pendiente
+## Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ ✅ Completado
 
 **Prioridad sugerida:** Alta — hay ~130 archivos que citan la ruta vieja de estos 5 documentos; varios son
 documentación viva que el usuario final (README, Guía de Usuario) o un colaborador (CONTRIBUTING, plantilla
@@ -4916,9 +4944,22 @@ con no duplicar el prefijo si algún archivo ya dice `docs/Pendientes.md` correc
 - Suite completa en verde (no debería haber tests que dependan de estas rutas de documentación, pero se
   verifica).
 
+**Cierre de implementación (2026-08-14):** Completado, vía `superpowers:subagent-driven-development` en
+worktree dedicado (`worktree-sprints-71-18-62-63-13`). Reemplazadas 37 referencias al archivo viejo
+`Preguntas-Para-Abogado.md` (nombre anterior a la división en Abiertas/Respondidas) por
+`docs/Preguntas-Para-Abogado-Respondidas.md` en comentarios/docstrings de 20 archivos `.py` (10 en `app/`,
+10 en `tests/`), verificando sprint por sprint que cada cita realmente corresponde a ese archivo. Las
+referencias en `README.md`/`CONTRIBUTING.md`/`.github/PULL_REQUEST_TEMPLATE.md` ya usaban el prefijo
+`docs/` correcto; los enlaces relativos dentro de `docs/GUIA_USUARIO.md` (hermanos en el mismo directorio)
+se dejaron sin tocar por ya ser correctos. `docs/superpowers/plans/` y `docs/superpowers/specs/` excluidos
+del alcance, sin tocar. La revisión final del lote completo (ver Sprint 71/18/13 abajo) encontró que este
+cambio, al alargar las rutas citadas, empujó 13 líneas de comentario a superar el límite de 99 columnas de
+`ruff` — corregido en el mismo lote con un simple reflow de texto, sin cambios de lógica. Suite completa en
+verde (1162 passed), `ruff check .` limpio.
+
 ---
 
-## Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 📋 Pendiente
+## Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 ✅ Completado
 
 **Prioridad sugerida:** Alta — viola la regla obligatoria que el propio `Pendientes.md` se puso al cerrar
 cualquier sprint ("hay que actualizar README.md y docs/GUIA_USUARIO.md... nunca deben quedar
@@ -4954,6 +4995,16 @@ estilo que las entradas `Fixed` ya existentes.
 - `README.md` y `docs/GUIA_USUARIO.md` mencionan las 5 funciones nuevas listadas arriba.
 - `CHANGELOG.md` tiene entradas `Fixed` para los 2 bugs de producción.
 - Suite completa en verde.
+
+**Cierre de implementación (2026-08-13):** Completado — commits `4aa2236` ("docs: documentar en
+README/GUIA_USUARIO las funciones de los Sprints 52-60") y `d6f16bf` (corrección de alcance sobre diálogos
+redimensionables). `docs/GUIA_USUARIO.md` documenta Sprint 56 (§4, diálogos redimensionables/maximizables),
+Sprint 57 (§5.14, columnas Área/Unidad), Sprint 58 (§5.14, "Vigente hasta" inteligente y desglose IPC
+crudo-vs-calculado), Sprint 59 (§4, tooltips ⓘ) y Sprint 60 (§5.16 nueva, editar/eliminar obligación o
+abono); `README.md` refleja lo mismo en su sección "Estado actual"; `CHANGELOG.md` con las 2 entradas
+`Fixed` de los bugs de producción. Sprints 52/53 (internos) correctamente sin sección de usuario. Este
+cierre quedó hecho antes de que arrancara el lote de los Sprints 62/71/18/13 (2026-08-14) — verificado que
+sigue vigente y sin contenido duplicado.
 
 ---
 
@@ -5303,7 +5354,7 @@ mismo criterio de rigor que Sprint 5/7/18.
 
 ---
 
-## Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) 🔴 Bug reportado sin confirmar
+## Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado
 
 **Prioridad sugerida:** Alta — el Sprint 67 (cerrado 2026-08-13) corrigió la falta de estilos
 `QCheckBox::indicator` mismo día, pero cerró con una nota explícita de "pendiente de verificación manual...
@@ -5337,6 +5388,18 @@ marcables de `obligaciones.py`, o corregir la regla existente si el checkbox int
 - El checkbox de indexación IPC (y los 3 `QGroupBox` marcables) son visibles, marcados o sin marcar, en
   modo claro y oscuro — verificado visualmente en la app real, no solo con test headless.
 - Suite completa en verde.
+
+**Cierre de implementación (2026-08-14):** Completado, vía `superpowers:subagent-driven-development`. El
+diagnóstico confirmó que el problema era el segundo de los dos escenarios previstos: `check_aplica_indexacion_ipc`
+en sí es un `QCheckBox` real, ya cubierto por el fix del Sprint 67 — lo que faltaba era el indicador del
+`QGroupBox` contenedor (`grupo_tasas_intereses`, marcable). Se agregaron reglas `QGroupBox::indicator` (6
+estados: normal, hover, checked, checked:hover, disabled, checked:disabled) a `resources/theme.qss` y
+`resources/theme_dark.qss`, reutilizando exactamente los mismos colores y tamaño que `QCheckBox::indicator`
+en cada archivo. 4 tests nuevos en `tests/core/test_theme_qss.py`, mismo patrón que los 4 tests existentes
+del Sprint 67. **Pendiente de verificación manual** (mismo criterio que el Sprint 67): un test headless no
+puede confirmar el render final en Qt — queda para que el usuario lo confirme abriendo "Agregar obligación"
+en ambos temas. Suite completa en verde (1149 tras este sprint individual, 1162 tras el merge final del
+lote).
 
 ---
 

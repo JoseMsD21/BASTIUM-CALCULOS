@@ -26,11 +26,21 @@ class TarifaNoDisponibleError(Exception):
     se inventa un rango."""
 
 
+class TarifaPreCGPNoDisponibleError(Exception):
+    """Se lanza cuando la providencia que impone costas (fecha_providencia_costas) es
+    anterior al 1 de enero de 2016 (entrada en vigencia del CGP, Ley 1564 de 2012) --
+    Art. 624 CGP, regla de aplicacion inmediata / ultraactividad de la ley procesal
+    anterior (CPC). El sistema solo tiene cargada la tabla del Acuerdo PSAA16-10554
+    (vigente desde el CGP, 2016 en adelante); no existe ninguna tabla de tarifas
+    pre-CGP (era CPC) en el proyecto -- ni el PDF de requisitos ni ninguna respuesta
+    del despacho la trajo nunca. Nunca se aproxima ni se bloquea silenciosamente."""
+
+
 class CostasFueraDeRangoError(Exception):
     """Se lanza cuando el porcentaje manual de costas procesales (costas_pct_manual)
     esta fuera del rango permitido para la cuantia del proceso (CGP art. 25 / respuesta
-    del despacho, Preguntas-Para-Abogado.md Sprint 18) -- el sistema rechaza el valor,
-    nunca lo trunca al limite mas cercano."""
+    del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 18) -- el sistema
+    rechaza el valor, nunca lo trunca al limite mas cercano."""
 
 
 class TRMNoDisponibleError(Exception):
@@ -44,8 +54,8 @@ class IPCMensualNoDisponibleError(Exception):
     """Se lanza cuando se necesita el indice IPC mensual real del DANE para un mes que
     no esta cargado en historical_index._IPC_MENSUAL -- tabla deliberadamente vacia
     desde el Sprint 8 (2026-08-01) a la espera de que el despacho aporte la fuente
-    (ver Preguntas-Para-Abogado.md); nunca se aproxima con la serie anual ni con el
-    ultimo mes disponible."""
+    (ver docs/Preguntas-Para-Abogado-Respondidas.md); nunca se aproxima con la serie
+    anual ni con el ultimo mes disponible."""
 
 
 class DatoFaltanteError(ValueError):

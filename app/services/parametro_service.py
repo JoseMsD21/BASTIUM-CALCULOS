@@ -117,37 +117,37 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
     "CADUCIDAD_CHEQUES_MESES": InfoParametro(
         "Plazo de caducidad de la accion cambiaria del cheque (meses)",
         "Plazos de prescripcion y caducidad",
-        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)",
+        "Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 7 (27/07/2026)",
         ModoResolucion.ABIERTO,
     ),
     "CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES": InfoParametro(
         "Plazo de caducidad de la accion de enriquecimiento sin causa (meses)",
         "Plazos de prescripcion y caducidad",
-        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)",
+        "Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 7 (27/07/2026)",
         ModoResolucion.ABIERTO,
     ),
     "CADUCIDAD_TRANSPORTE_MESES": InfoParametro(
         "Plazo de caducidad de la accion de transporte (meses)",
         "Plazos de prescripcion y caducidad",
-        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)",
+        "Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 7 (27/07/2026)",
         ModoResolucion.ABIERTO,
     ),
     "CADUCIDAD_SEGURO_ORDINARIA_MESES": InfoParametro(
         "Plazo de prescripcion ordinaria del contrato de seguro (meses)",
         "Plazos de prescripcion y caducidad",
-        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)",
+        "Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 7 (27/07/2026)",
         ModoResolucion.ABIERTO,
     ),
     "CADUCIDAD_SEGURO_EXTRAORDINARIA_MESES": InfoParametro(
         "Plazo de prescripcion extraordinaria del contrato de seguro (meses)",
         "Plazos de prescripcion y caducidad",
-        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)",
+        "Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 7 (27/07/2026)",
         ModoResolucion.ABIERTO,
     ),
     "CADUCIDAD_IMPUGNACION_ACTAS_SOCIALES_MESES": InfoParametro(
         "Plazo de caducidad de impugnacion de actas sociales (meses)",
         "Plazos de prescripcion y caducidad",
-        "Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 7 (27/07/2026)",
+        "Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 7 (27/07/2026)",
         ModoResolucion.ABIERTO,
     ),
     "SMLMV": InfoParametro(

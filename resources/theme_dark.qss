@@ -69,6 +69,38 @@ QGroupBox::title {
     padding: 0 4px;
 }
 
+QGroupBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid #4A4039;
+    border-radius: 3px;
+    background-color: #2A2422;
+}
+
+QGroupBox::indicator:hover {
+    border: 1.5px solid #D9484D;
+}
+
+QGroupBox::indicator:checked {
+    border: 1.5px solid #D9484D;
+    background-color: #D9484D;
+}
+
+QGroupBox::indicator:checked:hover {
+    border: 1.5px solid #C93338;
+    background-color: #C93338;
+}
+
+QGroupBox::indicator:disabled {
+    border: 1.5px solid #4A4039;
+    background-color: #332C29;
+}
+
+QGroupBox::indicator:checked:disabled {
+    border: 1.5px solid #4A4039;
+    background-color: #6B5F57;
+}
+
 /* --- Botones --- */
 
 QPushButton {

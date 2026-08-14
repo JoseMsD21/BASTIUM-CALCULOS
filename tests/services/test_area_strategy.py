@@ -860,10 +860,10 @@ class TestComercialStrategy:
         )
 
     def test_tasa_moratoria_excede_tope_de_usura_no_lanza_error_y_aplica_sancion_doblada(self):
-        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): no se rechaza ni se
-        # recorta la tasa silenciosamente. Se liquida con la tasa pactada, se calcula el
-        # exceso de interes cobrado frente a la tasa de usura vigente, y se resta del saldo
-        # el doble de ese exceso (sancion legal por usura, Ley 45/1990 art. 72).
+        # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 2): no se
+        # rechaza ni se recorta la tasa silenciosamente. Se liquida con la tasa pactada, se
+        # calcula el exceso de interes cobrado frente a la tasa de usura vigente, y se resta
+        # del saldo el doble de ese exceso (sancion legal por usura, Ley 45/1990 art. 72).
         #
         # fecha_origen == fecha_vencimiento y tasa_remuneratoria == tasa_moratoria (35%): la
         # obligacion ya esta en mora desde el dia 1, asi que Comercial aplica una sola tasa
@@ -1113,7 +1113,7 @@ class TestComercialStrategy:
     def test_obligacion_usd_sin_trm_aplicable_usa_el_proveedor_dinamico_en_la_fecha_de_origen(
         self,
     ):
-        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 12): "eliminar
+        # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 12): "eliminar
         # la logica de TRM congelada al inicio" -- trm_aplicable ya NO es
         # obligatorio. Sin el, se usa el TRMProvider inyectado (en produccion,
         # SFCTRMProvider, la API en vivo de la SFC), consultado en la fecha real
@@ -1656,7 +1656,7 @@ def test_evento_costas_procesales_manual_gana_sobre_automatico():
 
 
 def test_evento_costas_procesales_manual_fuera_de_rango_lanza_error():
-    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 18): mayor cuantia
+    # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 18): mayor cuantia
     # (>150 SMMLV) permite 1%-5% -- el sistema debe rechazar, no truncar, un valor
     # fuera de ese rango (ejemplo textual del despacho: "el usuario no podra ingresar
     # un 8% de agencias en derecho" en un proceso de Mayor Cuantia).
@@ -1691,6 +1691,53 @@ def test_evento_costas_procesales_sin_ninguno_de_los_dos_retorna_none():
     assert evento is None
 
 
+def test_evento_costas_procesales_providencia_pre_cgp_lanza_error():
+    # Sprint 18 (ultraactividad CPC->CGP, Art. 624 CGP): la providencia que
+    # impone costas es anterior al 1/1/2016 -- el sistema no tiene tabla de
+    # tarifas pre-CGP, debe rechazar en vez de aproximar.
+    from app.core.exceptions import TarifaPreCGPNoDisponibleError
+
+    obligacion = _obligacion_honorarios()
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+    obligacion.fecha_providencia_costas = _date(2015, 6, 1)
+
+    with pytest.raises(TarifaPreCGPNoDisponibleError):
+        _evento_costas_procesales(obligacion, pretensiones_reconocidas=_Decimal("123500000.00"))
+
+
+def test_evento_costas_procesales_providencia_none_no_cambia_el_comportamiento():
+    # Regresion: fecha_providencia_costas=None (default del modelo, campo
+    # aditivo no capturado hoy) da exactamente el mismo resultado que antes
+    # de este sprint.
+    obligacion = _obligacion_honorarios()
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+    assert obligacion.fecha_providencia_costas is None
+
+    evento = _evento_costas_procesales(
+        obligacion, pretensiones_reconocidas=_Decimal("123500000.00")
+    )
+    assert evento is not None
+    assert evento.payload["amount"] == _Decimal("8645000.00")
+
+
+def test_evento_costas_procesales_providencia_posterior_a_cgp_no_cambia_el_resultado():
+    obligacion = _obligacion_honorarios()
+    obligacion.fecha_origen = _date(2024, 6, 1)
+    obligacion.costas_tipo_proceso = "declarativo_general"
+    obligacion.costas_instancia = "primera"
+    obligacion.fecha_providencia_costas = _date(2024, 5, 1)
+
+    evento = _evento_costas_procesales(
+        obligacion, pretensiones_reconocidas=_Decimal("123500000.00")
+    )
+    assert evento is not None
+    assert evento.payload["amount"] == _Decimal("8645000.00")
+
+
 class TestHonorariosStrategy:
     def test_liquida_honorarios_dentro_del_tope_total(self):
         # cuota litis = 10M * 20% = 2M. total = 1M + 2M = 3M (30% <= 50% tope total, OK).
@@ -1705,8 +1752,8 @@ class TestHonorariosStrategy:
     def test_cuota_litis_sola_por_encima_de_30_por_ciento_no_lanza_error_si_el_total_no_excede_50(
         self,
     ):
-        # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 4): no se aplican dos
-        # topes en cascada -- el unico tope legal es el 50% acumulado. cuota litis =
+        # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 4): no se
+        # aplican dos topes en cascada -- el unico tope legal es el 50% acumulado. cuota litis =
         # 10M * 35% = 3.5M (35% individual, por encima de lo que antes era un tope
         # propio de 30%), pero honorarios_fijos=0 asi que el total (3.5M) sigue por
         # debajo del 50% (5M) -> ya no debe fallar.
@@ -2756,8 +2803,9 @@ class TestTributarioStrategy:
         assert resultado.final_balance().total() == Decimal("0.00")
 
     def test_impuesto_con_mora_mayor_a_3_anios_indexa_y_topa_al_interes_de_usura_plena(self):
-        # Caso real del despacho (Preguntas-Para-Abogado.md, Sprint 15): impuesto de
-        # $100.000.000 vencido el 2018-05-10, liquidado el 2023-05-10 (5 anios de mora).
+        # Caso real del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 15):
+        # impuesto de $100.000.000 vencido el 2018-05-10, liquidado el 2023-05-10 (5 anios
+        # de mora).
         # El interes E.T. 635 ya calculado (123.160.595,20) mas la indexacion IPC sin topar
         # (32.814.627,80) superarian el techo de usura plena (130.933.902,61) -- la
         # indexacion debe recortarse a 7.773.307,41 (verificado independientemente en

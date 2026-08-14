@@ -1,6 +1,6 @@
 """
 Actualizacion por mora tributaria superior a 3 anios (Estatuto Tributario,
-art. 867-1). Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 15
+art. 867-1). Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 15
 (2026-08-01): la Corte Constitucional (Sentencia C-549 de 1993) considera que
 indexacion e interes moratorio tienen naturalezas distintas (la primera
 conserva poder adquisitivo, el segundo indemniza la mora) y pueden concurrir

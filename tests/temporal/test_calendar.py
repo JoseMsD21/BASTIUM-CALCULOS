@@ -28,7 +28,7 @@ def test_es_dia_habil_ley_emiliani():
 
 
 def test_es_dia_habil_vacancia_judicial_fin_de_anio():
-    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 6): vacancia
+    # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 6): vacancia
     # judicial del 20 de diciembre al 11 de enero, inclusive.
     assert CalendarUtils.es_dia_habil(date(2025, 12, 19)) is True  # víspera, aún hábil
     assert CalendarUtils.es_dia_habil(date(2025, 12, 20)) is False  # primer día de vacancia
@@ -75,7 +75,7 @@ def test_sumar_dias_habiles_cruza_fin_de_semana_y_festivo():
     # sin reusar CalendarUtils): 10 días hábiles desde el lunes 2025-12-22 (sin
     # contar ese día) caen en lunes 2026-01-26. Todo el rango 2025-12-23 a
     # 2026-01-11 queda inhábil por la vacancia judicial de fin de año (Sprint 6,
-    # Preguntas-Para-Abogado.md), y 2026-01-12 tambien es inhábil (Reyes Magos
+    # docs/Preguntas-Para-Abogado-Respondidas.md), y 2026-01-12 tambien es inhábil (Reyes Magos
     # observado, Ley Emiliani) -- el primer día hábil real es 2026-01-13.
     inicio = date(2025, 12, 22)
     assert CalendarUtils.sumar_dias_habiles(inicio, 10) == date(2026, 1, 26)

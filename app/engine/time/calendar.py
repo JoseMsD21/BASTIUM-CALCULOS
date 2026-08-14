@@ -44,7 +44,7 @@ class CalendarUtils:
     def _vacancia_semana_santa(anio: int) -> frozenset:
         # Lunes, Martes y Miercoles Santo (Jueves y Viernes Santo ya son festivos
         # oficiales, cubiertos por _festivos_colombia). Respuesta del despacho,
-        # Preguntas-Para-Abogado.md Sprint 6: excluir los tres dias adicionales.
+        # docs/Preguntas-Para-Abogado-Respondidas.md Sprint 6: excluir los tres dias adicionales.
         jueves_santo = CalendarUtils._jueves_santo(anio)
         return frozenset(
             jueves_santo - timedelta(days=dias) for dias in (1, 2, 3)
@@ -52,7 +52,7 @@ class CalendarUtils:
 
     @staticmethod
     def _en_vacancia_judicial_fin_de_anio(fecha: date) -> bool:
-        # Respuesta del despacho, Preguntas-Para-Abogado.md Sprint 6: 20 de
+        # Respuesta del despacho, docs/Preguntas-Para-Abogado-Respondidas.md Sprint 6: 20 de
         # diciembre a 11 de enero de cada año, inclusive. El 12 de enero es
         # habil salvo que caiga en fin de semana/festivo -- no requiere caso
         # especial, ya que simplemente queda fuera de este rango y se evalua

@@ -14,8 +14,9 @@ def calcular_tope_usura(ibc_vigente: Decimal, fecha: date) -> Decimal:
     """Tope legal de usura vigente en `fecha` (parametro USURA_MULTIPLICADOR, Ley
     45/1990 art. 72) x ibc_vigente.
 
-    No lanza ni rechaza nada: la respuesta del despacho (Preguntas-Para-Abogado.md,
-    Sprint 2) fue explicita en que superar este tope no se rechaza ni se recorta
+    No lanza ni rechaza nada: la respuesta del despacho
+    (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 2) fue explicita en que
+    superar este tope no se rechaza ni se recorta
     silenciosamente -- la sancion es la perdida del exceso cobrado, doblado, a favor
     del deudor (ver ComercialStrategy._calcular_sancion_usura). Esta funcion solo
     calcula el tope; quien la llama decide que hacer con la comparacion.

@@ -92,8 +92,8 @@ def test_cada_nivel_de_riesgo_arl(nivel, arl_esperado, total_esperado):
 
 
 def test_arl_se_topa_al_8_7_por_ciento_ley_1562_de_2012():
-    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 16): tope legal maximo
-    # del 8.7% para cualquier nivel de riesgo ARL (Ley 1562/2012), sin importar el
+    # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 16): tope
+    # legal maximo del 8.7% para cualquier nivel de riesgo ARL (Ley 1562/2012), sin importar el
     # porcentaje cargado en parametros_legales -- si alguien sube SS_ARL_NIVEL_V_PCT por
     # encima de eso desde la pantalla de Parametros (Sprint 13), el motor debe seguir
     # respetando el tope legal, no el valor cargado.

@@ -26,5 +26,6 @@ def test_calcula_el_tope_como_multiplicador_por_ibc():
 def test_no_lanza_nada_ni_para_tasas_por_encima_del_tope():
     # calcular_tope_usura solo calcula el tope -- no rechaza ni recorta ninguna tasa.
     # Sancionar el exceso (Ley 45/1990 art. 72) es responsabilidad de quien la llama,
-    # ver ComercialStrategy._calcular_sancion_usura (Preguntas-Para-Abogado.md Sprint 2).
+    # ver ComercialStrategy._calcular_sancion_usura
+    # (docs/Preguntas-Para-Abogado-Respondidas.md Sprint 2).
     calcular_tope_usura(Decimal("20.00"), date(2026, 1, 1))

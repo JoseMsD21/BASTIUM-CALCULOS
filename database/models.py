@@ -132,6 +132,14 @@ class Obligacion(Base):
     costas_pct_manual: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     costas_tipo_proceso: Mapped[str | None] = mapped_column(String(60), nullable=True)
     costas_instancia: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # Fecha de la providencia judicial que impone las costas (Sprint 18 -- ultraactividad
+    # CPC->CGP, Art. 624 CGP) -- distinta de fecha_origen, que representa cuando nacio la
+    # obligacion y puede ser muy anterior a cuando un juez impuso costas. Opcional/aditiva:
+    # None mantiene el comportamiento actual (tabla granular vigente sin mas validacion),
+    # igual que costas_tipo_proceso/costas_instancia arriba -- este sprint no agrega el
+    # campo al formulario de UI, solo el motor y la validacion (ver
+    # app/engine/costs/agencias_en_derecho.py, validar_ultraactividad_cgp).
+    fecha_providencia_costas: Mapped[date | None] = mapped_column(Date, nullable=True)
     aplica_indexacion_ipc: Mapped[bool] = mapped_column(Boolean, default=False)
     interes_sobre_capital_indexado: Mapped[bool] = mapped_column(Boolean, default=False)
     moneda: Mapped[str] = mapped_column(String(3), default="COP")

@@ -4,8 +4,9 @@ from decimal import Decimal
 import pytest
 
 import database.session as session_module
-from app.core.exceptions import TarifaNoDisponibleError
+from app.core.exceptions import TarifaNoDisponibleError, TarifaPreCGPNoDisponibleError
 from app.engine.costs.agencias_en_derecho import (
+    FECHA_VIGENCIA_CGP,
     TARIFAS_AGENCIAS_EN_DERECHO,
     TOPE_MAXIMO_SMLMV,
     UMBRAL_MENOR_CUANTIA_SMLMV,
@@ -18,6 +19,7 @@ from app.engine.costs.agencias_en_derecho import (
     _interpolar_dentro_de_rango,
     calcular_agencias_en_derecho,
     resolver_cuantia_tier,
+    validar_ultraactividad_cgp,
 )
 from database.models import ParametroLegal
 
@@ -481,3 +483,87 @@ def test_recurso_extraordinario_calcula_punto_medio_del_rango_smlmv():
         fecha_radicacion=date(2024, 6, 1),
     )
     assert resultado == Decimal("13650000.00")  # 10.5 * 1.300.000
+
+
+# --- Sprint 18 (ultraactividad CPC->CGP, Art. 624 CGP) ---
+#
+# El despacho confirmo (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 18) que rige la Regla de
+# Aplicacion Inmediata: si la providencia que impone costas es posterior a la
+# entrada en vigencia del CGP (1/1/2016, gradualidad por distrito no modelada),
+# aplica la tabla granular nueva (ya implementada arriba); si es anterior, rige
+# el tramite de la ley procesal anterior (CPC), para la cual el sistema no
+# tiene ninguna tabla de tarifas cargada -- se rechaza explicitamente en vez de
+# aproximar o bloquear silenciosamente.
+
+
+def test_fecha_vigencia_cgp_es_1_de_enero_de_2016():
+    # Art. 627 CGP: entrada en vigencia general nacional (gradualidad por
+    # distrito judicial explicitamente no modelada, ver docstring de
+    # validar_ultraactividad_cgp).
+    assert FECHA_VIGENCIA_CGP == date(2016, 1, 1)
+
+
+def test_validar_ultraactividad_cgp_lanza_error_si_providencia_es_anterior_a_2016():
+    with pytest.raises(TarifaPreCGPNoDisponibleError):
+        validar_ultraactividad_cgp(date(2015, 12, 31))
+
+
+def test_validar_ultraactividad_cgp_no_lanza_error_si_providencia_es_exactamente_2016_01_01():
+    # El 1 de enero de 2016 es la propia fecha de entrada en vigencia -- "posterior
+    # o igual" aplica la tabla granular nueva, no la ultraactividad del CPC.
+    validar_ultraactividad_cgp(date(2016, 1, 1))
+
+
+def test_validar_ultraactividad_cgp_no_lanza_error_si_providencia_es_posterior_a_2016():
+    validar_ultraactividad_cgp(date(2020, 6, 15))
+
+
+def test_calcular_agencias_en_derecho_lanza_tarifa_pre_cgp_si_providencia_es_anterior_a_2016():
+    with pytest.raises(TarifaPreCGPNoDisponibleError):
+        calcular_agencias_en_derecho(
+            tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+            instancia=Instancia.PRIMERA,
+            pretensiones_reconocidas=Decimal("123500000.00"),
+            fecha_radicacion=date(2024, 6, 1),
+            fecha_providencia_costas=date(2015, 6, 1),
+        )
+
+
+def test_calcular_agencias_en_derecho_sin_fecha_providencia_costas_no_cambia_nada():
+    # Regresion: fecha_providencia_costas=None (default, campo no capturado) debe
+    # comportarse exactamente igual que antes de este sprint.
+    resultado_sin_parametro = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("123500000.00"),
+        fecha_radicacion=date(2024, 6, 1),
+    )
+    resultado_con_none_explicito = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("123500000.00"),
+        fecha_radicacion=date(2024, 6, 1),
+        fecha_providencia_costas=None,
+    )
+    assert resultado_sin_parametro == resultado_con_none_explicito == Decimal("8645000.00")
+
+
+def test_calcular_agencias_en_derecho_con_providencia_posterior_a_2016_da_el_mismo_resultado():
+    # Regresion: una providencia posterior (o igual) a 2016-01-01 no cambia el
+    # resultado de la tabla granular vigente.
+    resultado_sin_providencia = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("123500000.00"),
+        fecha_radicacion=date(2024, 6, 1),
+    )
+    resultado_con_providencia_posterior = calcular_agencias_en_derecho(
+        tipo_proceso=TipoProceso.DECLARATIVO_GENERAL,
+        instancia=Instancia.PRIMERA,
+        pretensiones_reconocidas=Decimal("123500000.00"),
+        fecha_radicacion=date(2024, 6, 1),
+        fecha_providencia_costas=date(2024, 5, 1),
+    )
+    assert (
+        resultado_sin_providencia == resultado_con_providencia_posterior == Decimal("8645000.00")
+    )

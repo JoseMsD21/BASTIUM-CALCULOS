@@ -30,7 +30,7 @@ def calcular_ibl(
 # que modifico el art. 33 Ley 100/1993): 1000 semanas base, +50 en 2005, +25 cada año desde
 # 2006 hasta llegar a 1300 en 2015 -- NO una cifra fija de 1300 para cualquier año, como
 # tenia el codigo antes de esta correccion (Sprint 17, respuesta del despacho,
-# Preguntas-Para-Abogado.md: caso de prueba 2006 exige 1075 semanas, no 1300).
+# docs/Preguntas-Para-Abogado-Respondidas.md: caso de prueba 2006 exige 1075 semanas, no 1300).
 _SEMANAS_MINIMAS_POR_ANIO: dict[int, int] = {
     2005: 1050,
     2006: 1075,

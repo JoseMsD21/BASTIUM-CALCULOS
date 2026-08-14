@@ -88,10 +88,10 @@ def test_tasa_reemplazo_s_uno_con_bono_de_dos_bloques():
 
 
 def test_tasa_reemplazo_s_alto_baja_del_65_pero_no_del_piso_55():
-    # Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 17): el piso legal de la
-    # tasa inicial es 55%, NO 65% -- 65.5% es el TECHO (para quien gana 1 SMMLV). Antes de
-    # esta correccion, s=10 (alguien que gana 10 SMMLV) quedaba mal floreado a 65% en vez
-    # de dejarse en su valor real de la formula, 60.5%.
+    # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 17): el
+    # piso legal de la tasa inicial es 55%, NO 65% -- 65.5% es el TECHO (para quien gana
+    # 1 SMMLV). Antes de esta correccion, s=10 (alguien que gana 10 SMMLV) quedaba mal
+    # floreado a 65% en vez de dejarse en su valor real de la formula, 60.5%.
     from app.engine.labor.ibl import calcular_tasa_reemplazo
 
     resultado = calcular_tasa_reemplazo(
