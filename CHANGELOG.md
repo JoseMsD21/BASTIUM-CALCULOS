@@ -34,7 +34,9 @@ saldo final ya calculado en ningún sprint — solo el desglose de interés por 
 desglose por cuota del Sprint 41 cambian de forma, no de total.
 Sprint 66: el botón "Parametros" del sidebar se renombra a "Configuraciones" y se convierte en una
 pantalla con submenú lateral (Parámetros/Apariencia, con espacio para futuras secciones); el interruptor
-de modo oscuro/claro se muda de Parámetros a la nueva sección Apariencia.
+de modo oscuro/claro se muda de Parámetros a la nueva sección Apariencia. Esa pantalla gana después una
+tercera sección, Restablecer, para borrar expedientes y parámetros legales propios con backup automático
+y confirmación escrita.
 
 ### Added
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales

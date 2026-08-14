@@ -8,8 +8,9 @@
 > **Última actualización:** 2026-08-13 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, el panel de
 > navegación lateral fijo (sidebar) con los botones Volver/Inicio/Configuraciones con íconos y estado
-> activo, la pantalla "Configuraciones" con submenú Parámetros/Apariencia (el modo oscuro/claro se movió a
-> Apariencia en el Sprint 66), el breadcrumb de contexto y los atajos de teclado de
+> activo, la pantalla "Configuraciones" con tres secciones — Parámetros, Apariencia (el modo oscuro/claro
+> se movió ahí en el Sprint 66) y Restablecer (borra expedientes y parámetros legales propios, con backup
+> automático) —, el breadcrumb de contexto y los atajos de teclado de
 > navegación y de los formularios, la edición/eliminación de expediente, la pantalla de parámetros
 > legales versionados, la prescripción/caducidad conectada al cálculo real de la liquidación, y el
 > Dashboard de inicio con resumen de expedientes, su gráfica por área y alertas de vencimiento. También
