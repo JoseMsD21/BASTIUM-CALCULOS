@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -491,24 +492,57 @@ class ObligacionFormDialog(QDialog):
         # Grid de 2 columnas en vez de una sola QVBoxLayout apilada (Sprint 72): con las
         # 3 secciones en una sola columna, la ventana crecia tanto en alto que el boton
         # "Guardar" quedaba fuera de la vista en pantallas estandar sin redimensionar a
-        # mano. "Tasas e intereses" pasa a la derecha de "Datos basicos" (columna 1,
-        # abarcando las 2 filas para alinearse con el fondo de "Honorarios y costas");
-        # "Honorarios y costas" queda debajo de "Datos basicos" en la misma columna 0 --
-        # solo es visible para el area Honorarios (ver grupo_honorarios_costas.setVisible
-        # mas abajo), asi que no le resta espacio vertical a las otras 5 areas. El boton
-        # "Guardar" ocupa las 2 columnas para quedar siempre a todo lo ancho al final.
-        layout_principal = QGridLayout()
-        layout_principal.addWidget(self.grupo_datos_basicos, 0, 0)
-        layout_principal.addWidget(self.grupo_tasas_intereses, 0, 1, 2, 1)
-        layout_principal.addWidget(self.grupo_honorarios_costas, 1, 0)
-        layout_principal.addWidget(self.boton_guardar, 2, 0, 1, 2)
+        # mano. "Tasas e intereses" pasa a la derecha de "Datos basicos" (misma fila 0,
+        # columna 1 -- SIN rowSpan: una version anterior la hacia abarcar 2 filas para
+        # alinearse con "Honorarios y costas", pero eso reservaba la altura de la fila 1
+        # en la columna 0 incluso cuando "Honorarios y costas" esta oculto -- ~300px de
+        # hueco vacio en 5 de las 6 areas -- asi que se descarto). "Honorarios y costas"
+        # queda debajo de "Datos basicos" en la fila 1, columna 0 -- solo es visible para
+        # el area Honorarios (ver grupo_honorarios_costas.setVisible mas abajo), asi que
+        # esa fila colapsa a 0 altura y no le resta espacio a las otras 5 areas.
+        grid_secciones = QGridLayout()
+        grid_secciones.addWidget(self.grupo_datos_basicos, 0, 0)
+        grid_secciones.addWidget(self.grupo_tasas_intereses, 0, 1)
+        grid_secciones.addWidget(self.grupo_honorarios_costas, 1, 0)
+
+        # Contenido del grid dentro de un QScrollArea (Sprint 72, fix tras code review):
+        # un QGridLayout de ancho fijo con 2 QGroupBox anchos lado a lado (ej. "Datos
+        # basicos" + "Tasas e intereses" en Civil/Familia, la combinacion mas ancha)
+        # pide, una vez el dialogo se muestra con `.show()`/`.exec()` y Qt activa el
+        # layout, mas de 1600px de ancho minimo -- verificado empiricamente para las 6
+        # areas -- porque un QDialog de nivel superior no puede quedar mas angosto que
+        # el minimo de su layout. Un simple `self.resize(...)` NO alcanza a evitar eso:
+        # Qt lo sobreescribe al mostrar el dialogo. El QScrollArea desacopla el tamaño
+        # minimo del contenido del tamaño minimo del dialogo -- el contenido que no
+        # quepa en el tamaño fijo elegido mas abajo se desplaza con scrollbars en vez de
+        # agrandar la ventana mas alla de una pantalla estandar (1366x768). Ademas
+        # "Guardar" queda FUERA del area desplazable (ver mas abajo), asi que sigue
+        # siempre visible sin importar la posicion del scroll.
+        contenido_grid = QWidget()
+        contenido_grid.setLayout(grid_secciones)
+        self.area_desplazable_secciones = QScrollArea()
+        self.area_desplazable_secciones.setWidget(contenido_grid)
+        self.area_desplazable_secciones.setWidgetResizable(True)
+        self.area_desplazable_secciones.setFrameShape(QScrollArea.Shape.NoFrame)
+
+        layout_principal = QVBoxLayout()
+        layout_principal.addWidget(self.area_desplazable_secciones)
+        layout_principal.addWidget(self.boton_guardar)
         self.setLayout(layout_principal)
-        # Tamaño inicial razonable para que "Guardar" sea visible sin redimensionar en
-        # una pantalla estandar (ej. 1366x768) -- antes no se fijaba ninguno y el
-        # dialogo se abria al tamaño que pidiera el layout apilado verticalmente
-        # (Sprint 72). hacer_redimensionable() ya permite agrandarlo/maximizarlo si el
-        # usuario lo necesita para un area con muchos campos visibles.
-        self.resize(900, 650)
+        # Tamaño inicial fijo, con margen bajo 1366x768 (pantalla estandar objetivo) para
+        # que quepa con espacio de sobra para bordes/barra de tareas del sistema
+        # operativo -- antes no se fijaba ninguno y el dialogo se abria al tamaño que
+        # pidiera el layout apilado verticalmente (Sprint 72). 1300 en vez de 900: reduce
+        # cuanto hay que desplazar horizontalmente en las areas mas anchas (Sancionatorio
+        # y Honorarios, ~1270-1282px de contenido, caben casi completas) sin arriesgar
+        # que el dialogo exceda el ancho de pantalla -- Civil/Familia (~1620px de
+        # contenido, la mas ancha por el checkbox largo "Interes sobre capital ya
+        # indexado...") sigue necesitando scroll horizontal parcial, verificado
+        # empiricamente con QT_QPA_PLATFORM=offscreen + `.show()`. El tamaño se mantiene
+        # fijo en 1300x650 tras `.show()`/`.exec()` gracias al QScrollArea de arriba (sin
+        # el, quedaria sobreescrito -- ver comentario arriba). hacer_redimensionable() ya
+        # permite agrandarlo/maximizarlo si el usuario quiere ver todo sin scroll.
+        self.resize(1300, 650)
 
         es_comercial = self._area == "COMERCIAL"
         es_sancionatorio = self._area == "SANCIONATORIO"

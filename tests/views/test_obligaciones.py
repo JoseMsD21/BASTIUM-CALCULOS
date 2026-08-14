@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
+import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QFormLayout, QGridLayout, QLabel
 from sqlalchemy import create_engine
@@ -1382,32 +1383,36 @@ def test_grupo_datos_basicos_es_colapsable_y_conserva_los_datos_al_colapsar(qtbo
     assert dialog.campo_concepto.isVisible() is True
 
 
-def test_layout_principal_es_grid_de_2_columnas(qtbot, monkeypatch):
+@pytest.mark.parametrize("area", list(AreaDerecho))
+def test_grid_de_secciones_tiene_2_columnas_y_boton_fuera_del_scroll(qtbot, monkeypatch, area):
     """Sprint 72: "Datos basicos" y "Tasas e intereses" quedan lado a lado (misma
     fila, columnas distintas) en vez de apiladas verticalmente, para que el
     dialogo no crezca tanto en alto que "Guardar" quede fuera de la vista.
     "Honorarios y costas" queda debajo de "Datos basicos", en su misma columna
-    (solo ocupa espacio quando el area es Honorarios). "Guardar" abarca las 2
-    columnas, debajo de todo lo demas."""
-    expediente_id = _expediente_de_prueba(monkeypatch)
+    (solo ocupa espacio cuando el area es Honorarios). El grid vive dentro de
+    `area_desplazable_secciones` (un QScrollArea, agregado tras code review de
+    Sprint 72: ver el comentario junto a su construccion en obligaciones.py) --
+    "Guardar" queda FUERA de ese QScrollArea, en el QVBoxLayout externo del
+    dialogo, para permanecer siempre visible sin importar la posicion del
+    scroll. Parametrizado sobre las 6 areas porque la combinacion de filas/
+    columnas visibles varia por area (ej. Honorarios es la unica con las 3
+    secciones visibles a la vez)."""
+    expediente_id = _expediente_de_prueba(monkeypatch, area=area)
 
-    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area=area.value)
     qtbot.addWidget(dialog)
 
-    layout = dialog.layout()
-    assert isinstance(layout, QGridLayout)
+    grid = dialog.area_desplazable_secciones.widget().layout()
+    assert isinstance(grid, QGridLayout)
 
-    fila_datos, columna_datos, _, _ = layout.getItemPosition(
-        layout.indexOf(dialog.grupo_datos_basicos)
+    fila_datos, columna_datos, _, _ = grid.getItemPosition(
+        grid.indexOf(dialog.grupo_datos_basicos)
     )
-    fila_tasas, columna_tasas, _, _ = layout.getItemPosition(
-        layout.indexOf(dialog.grupo_tasas_intereses)
+    fila_tasas, columna_tasas, _, _ = grid.getItemPosition(
+        grid.indexOf(dialog.grupo_tasas_intereses)
     )
-    fila_honorarios, columna_honorarios, _, _ = layout.getItemPosition(
-        layout.indexOf(dialog.grupo_honorarios_costas)
-    )
-    _, columna_boton, _, span_columnas_boton = layout.getItemPosition(
-        layout.indexOf(dialog.boton_guardar)
+    fila_honorarios, columna_honorarios, _, _ = grid.getItemPosition(
+        grid.indexOf(dialog.grupo_honorarios_costas)
     )
 
     # Datos basicos y Tasas e intereses: misma fila, columna distinta (lado a lado).
@@ -1418,24 +1423,43 @@ def test_layout_principal_es_grid_de_2_columnas(qtbot, monkeypatch):
     assert columna_honorarios == columna_datos
     assert fila_honorarios != fila_datos
 
-    # El boton Guardar abarca ambas columnas, a todo lo ancho.
-    assert span_columnas_boton == 2
+    # El boton Guardar no vive en el grid -- queda en el layout externo del dialogo.
+    assert grid.indexOf(dialog.boton_guardar) == -1
+    layout_externo = dialog.layout()
+    assert layout_externo.indexOf(dialog.boton_guardar) != -1
+    assert layout_externo.indexOf(dialog.area_desplazable_secciones) != -1
 
 
-def test_dialogo_abre_con_tamano_que_deja_boton_guardar_visible_en_1366x768(qtbot, monkeypatch):
-    """Sprint 72: el dialogo debe abrir con un tamaño inicial fijo (no depender del
-    tamaño que pida el layout apilado de antes) suficientemente chico para caber
-    en una pantalla estandar de 1366x768 sin redimensionar a mano, con "Guardar"
-    visible dentro de esa area."""
-    expediente_id = _expediente_de_prueba(monkeypatch)
+@pytest.mark.parametrize("area", list(AreaDerecho))
+def test_dialogo_mantiene_tamano_fijo_bajo_1366x768_tras_mostrarse(qtbot, monkeypatch, area):
+    """Sprint 72 (fix tras code review): un `self.resize(...)` solo fija el
+    tamaño ANTES de que Qt active el layout -- una vez el dialogo se muestra de
+    verdad via `.show()`/`.exec()` (como lo invoca expediente_detalle.py:390 y
+    :413, el unico call site real), Qt recalculaba el ancho minimo del
+    QGridLayout con "Datos basicos" y "Tasas e intereses" lado a lado y lo
+    sobreescribia -- 4 de las 6 areas (incluida CIVIL_FAMILIA, la de por
+    defecto) terminaban mas anchas que 1366px. El fix envuelve el grid en un
+    QScrollArea (`area_desplazable_secciones`), que desacopla el tamaño minimo
+    del contenido del tamaño minimo del dialogo -- el contenido que no quepa
+    se desplaza en vez de agrandar la ventana. Se verifica llamando a
+    `.show()` + `qtbot.waitExposed(...)` (no solo construyendo el dialogo, que
+    no dispara la activacion real del layout) y parametrizado sobre las 6
+    areas -- antes del fix, solo LABORAL y TRIBUTARIO se mantenian dentro del
+    tamaño fijado."""
+    expediente_id = _expediente_de_prueba(monkeypatch, area=area)
 
-    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area=area.value)
     qtbot.addWidget(dialog)
+
+    dialog.show()
+    qtbot.waitExposed(dialog)
 
     assert dialog.size().width() <= 1366
     assert dialog.size().height() <= 768
 
-    # El boton Guardar queda dentro de esa area, no fuera de la vista.
+    # El boton Guardar esta visible y dentro del area del dialogo, sin importar
+    # cuanto contenido tenga esa area dentro del QScrollArea.
+    assert dialog.boton_guardar.isVisible() is True
     esquina_inferior_boton = dialog.boton_guardar.mapTo(
         dialog, dialog.boton_guardar.rect().bottomRight()
     )
