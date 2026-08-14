@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QFormLayout, QLabel
+from PySide6.QtWidgets import QDialog, QFormLayout, QGridLayout, QLabel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -1380,6 +1380,66 @@ def test_grupo_datos_basicos_es_colapsable_y_conserva_los_datos_al_colapsar(qtbo
 
     dialog.grupo_datos_basicos.setChecked(True)
     assert dialog.campo_concepto.isVisible() is True
+
+
+def test_layout_principal_es_grid_de_2_columnas(qtbot, monkeypatch):
+    """Sprint 72: "Datos basicos" y "Tasas e intereses" quedan lado a lado (misma
+    fila, columnas distintas) en vez de apiladas verticalmente, para que el
+    dialogo no crezca tanto en alto que "Guardar" quede fuera de la vista.
+    "Honorarios y costas" queda debajo de "Datos basicos", en su misma columna
+    (solo ocupa espacio quando el area es Honorarios). "Guardar" abarca las 2
+    columnas, debajo de todo lo demas."""
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+
+    layout = dialog.layout()
+    assert isinstance(layout, QGridLayout)
+
+    fila_datos, columna_datos, _, _ = layout.getItemPosition(
+        layout.indexOf(dialog.grupo_datos_basicos)
+    )
+    fila_tasas, columna_tasas, _, _ = layout.getItemPosition(
+        layout.indexOf(dialog.grupo_tasas_intereses)
+    )
+    fila_honorarios, columna_honorarios, _, _ = layout.getItemPosition(
+        layout.indexOf(dialog.grupo_honorarios_costas)
+    )
+    _, columna_boton, _, span_columnas_boton = layout.getItemPosition(
+        layout.indexOf(dialog.boton_guardar)
+    )
+
+    # Datos basicos y Tasas e intereses: misma fila, columna distinta (lado a lado).
+    assert fila_datos == fila_tasas
+    assert columna_datos != columna_tasas
+
+    # Honorarios y costas: debajo de Datos basicos, en su misma columna.
+    assert columna_honorarios == columna_datos
+    assert fila_honorarios != fila_datos
+
+    # El boton Guardar abarca ambas columnas, a todo lo ancho.
+    assert span_columnas_boton == 2
+
+
+def test_dialogo_abre_con_tamano_que_deja_boton_guardar_visible_en_1366x768(qtbot, monkeypatch):
+    """Sprint 72: el dialogo debe abrir con un tamaño inicial fijo (no depender del
+    tamaño que pida el layout apilado de antes) suficientemente chico para caber
+    en una pantalla estandar de 1366x768 sin redimensionar a mano, con "Guardar"
+    visible dentro de esa area."""
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.size().width() <= 1366
+    assert dialog.size().height() <= 768
+
+    # El boton Guardar queda dentro de esa area, no fuera de la vista.
+    esquina_inferior_boton = dialog.boton_guardar.mapTo(
+        dialog, dialog.boton_guardar.rect().bottomRight()
+    )
+    assert esquina_inferior_boton.y() <= dialog.size().height()
 
 
 def test_campo_tasa_tiene_tooltip_legal(qtbot, monkeypatch):

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -487,12 +488,27 @@ class ObligacionFormDialog(QDialog):
             "% Costas judiciales (opcional)", self.campo_costas_pct
         )
 
-        layout_principal = QVBoxLayout()
-        layout_principal.addWidget(self.grupo_datos_basicos)
-        layout_principal.addWidget(self.grupo_tasas_intereses)
-        layout_principal.addWidget(self.grupo_honorarios_costas)
-        layout_principal.addWidget(self.boton_guardar)
+        # Grid de 2 columnas en vez de una sola QVBoxLayout apilada (Sprint 72): con las
+        # 3 secciones en una sola columna, la ventana crecia tanto en alto que el boton
+        # "Guardar" quedaba fuera de la vista en pantallas estandar sin redimensionar a
+        # mano. "Tasas e intereses" pasa a la derecha de "Datos basicos" (columna 1,
+        # abarcando las 2 filas para alinearse con el fondo de "Honorarios y costas");
+        # "Honorarios y costas" queda debajo de "Datos basicos" en la misma columna 0 --
+        # solo es visible para el area Honorarios (ver grupo_honorarios_costas.setVisible
+        # mas abajo), asi que no le resta espacio vertical a las otras 5 areas. El boton
+        # "Guardar" ocupa las 2 columnas para quedar siempre a todo lo ancho al final.
+        layout_principal = QGridLayout()
+        layout_principal.addWidget(self.grupo_datos_basicos, 0, 0)
+        layout_principal.addWidget(self.grupo_tasas_intereses, 0, 1, 2, 1)
+        layout_principal.addWidget(self.grupo_honorarios_costas, 1, 0)
+        layout_principal.addWidget(self.boton_guardar, 2, 0, 1, 2)
         self.setLayout(layout_principal)
+        # Tamaño inicial razonable para que "Guardar" sea visible sin redimensionar en
+        # una pantalla estandar (ej. 1366x768) -- antes no se fijaba ninguno y el
+        # dialogo se abria al tamaño que pidiera el layout apilado verticalmente
+        # (Sprint 72). hacer_redimensionable() ya permite agrandarlo/maximizarlo si el
+        # usuario lo necesita para un area con muchos campos visibles.
+        self.resize(900, 650)
 
         es_comercial = self._area == "COMERCIAL"
         es_sancionatorio = self._area == "SANCIONATORIO"
