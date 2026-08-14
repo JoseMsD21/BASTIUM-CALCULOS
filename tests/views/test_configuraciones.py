@@ -90,3 +90,36 @@ def test_configuraciones_view_etiqueta_seccion_actual(qtbot):
     vista.mostrar_apariencia()
 
     assert vista.etiqueta_seccion_actual() == "Apariencia"
+
+
+def test_configuraciones_view_tiene_seccion_restablecer(qtbot):
+    from app.views.configuraciones import ConfiguracionesView
+    from app.views.restablecer import RestablecerView
+
+    vista = ConfiguracionesView()
+    qtbot.addWidget(vista)
+    assert isinstance(vista.restablecer_view, RestablecerView)
+
+
+def test_configuraciones_view_mostrar_restablecer_cambia_seccion_y_stack(qtbot):
+    from app.views.configuraciones import SECCION_RESTABLECER, ConfiguracionesView
+
+    vista = ConfiguracionesView()
+    qtbot.addWidget(vista)
+
+    vista.mostrar_restablecer()
+
+    assert vista.seccion_actual == SECCION_RESTABLECER
+    assert vista.etiqueta_seccion_actual() == "Restablecer"
+    assert vista._stack_secciones.currentWidget() is vista.restablecer_view
+
+
+def test_configuraciones_view_mostrar_restablecer_emite_seccion_cambiada(qtbot):
+    from app.views.configuraciones import SECCION_RESTABLECER, ConfiguracionesView
+
+    vista = ConfiguracionesView()
+    qtbot.addWidget(vista)
+
+    with qtbot.waitSignal(vista.seccion_cambiada, timeout=1000) as blocker:
+        vista.mostrar_restablecer()
+    assert blocker.args == [SECCION_RESTABLECER]
