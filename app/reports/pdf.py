@@ -1,7 +1,28 @@
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+# Peso relativo de cada columna de la tabla de cronologia -- "Concepto" pesa mas
+# porque es la unica columna con texto largo (ej. "Indexacion IPC -- Reparacion
+# vehiculo por accidente de transito"); el resto son fechas/montos cortos. Usado
+# por _anchos_columnas_cronologia para repartir el ancho disponible de la pagina
+# proporcionalmente, en vez de dejar que reportlab infiera el ancho de cada
+# columna del contenido sin wrap (causaba que la tabla se saliera de los margenes
+# -- ver docs/Pendientes.md, hallazgo de la prueba practica Civil/Familia).
+_PESO_COLUMNA_CRONOLOGIA = {
+    "Fecha": 0.7,
+    "Concepto": 2.0,
+    "Base Capital": 0.95,
+    "Tasa": 0.55,
+    "Interés": 0.85,
+    "Indexación/Sanciones": 1.05,
+    "Pago": 0.85,
+    "Saldo Capital": 0.95,
+    "Saldo Interés": 0.9,
+    "Saldo Total": 0.95,
+    "Saldo a favor": 0.85,
+}
 
 
 class JudicialPDFGenerator:
@@ -21,6 +42,19 @@ class JudicialPDFGenerator:
                 alignment=1,  # Centro
             )
         )
+        self.styles.add(
+            ParagraphStyle(
+                name="CeldaConcepto",
+                fontSize=8,
+                leading=9.5,
+                textColor=self.c_black,
+            )
+        )
+
+    def _anchos_columnas_cronologia(self, encabezados: list[str], ancho_disponible: float) -> list[float]:
+        pesos = [_PESO_COLUMNA_CRONOLOGIA.get(encabezado, 0.85) for encabezado in encabezados]
+        total_pesos = sum(pesos)
+        return [(peso / total_pesos) * ancho_disponible for peso in pesos]
 
     def generar_documento(self, datos_rubros: list, ruta_grafica: str):
         # Crear documento con fondo crema (se simula mediante el canvas)
@@ -112,7 +146,19 @@ class JudicialPDFGenerator:
     ):
         """Genera el dictamen a partir de la salida del motor LiquidationCore
         (ReportSummaryBuilder.build_summary + ReportTableBuilder.build_matrix)."""
-        doc = SimpleDocTemplate(self.output_path, pagesize=letter)
+        # Horizontal (Sprint 50, hallazgo de la prueba practica Civil/Familia): la
+        # tabla de cronologia tiene 10-11 columnas de fechas/montos/texto -- en
+        # vertical (Letter portrait, ~468pt utiles) no cabe ni con wrap; en
+        # horizontal (~720pt utiles con margenes de 36pt) si.
+        doc = SimpleDocTemplate(
+            self.output_path,
+            pagesize=landscape(letter),
+            leftMargin=36,
+            rightMargin=36,
+            topMargin=36,
+            bottomMargin=36,
+        )
+        ancho_disponible = doc.width
         elementos = []
 
         elementos.append(Paragraph(f"<b>{title}</b>", self.styles["BastiumTitle"]))
@@ -194,9 +240,15 @@ class JudicialPDFGenerator:
             encabezados_cronologia.append("Saldo a favor")
         datos_cronologia = [encabezados_cronologia]
         for fila in table_data:
+            # "Concepto" envuelto en Paragraph (Sprint 50): a diferencia de las demas
+            # columnas (fechas/montos cortos), el concepto puede ser texto largo (ej.
+            # "Indexación IPC — Reparación vehículo por accidente de tránsito") -- una
+            # celda con texto plano no hace word-wrap en reportlab y reportlab
+            # ensancha la columna para que quepa en una sola linea, lo que era la
+            # causa real de que la tabla se saliera de los margenes de la pagina.
             fila_cronologia = [
                 fila["fecha"],
-                fila["concepto"],
+                Paragraph(fila["concepto"], self.styles["CeldaConcepto"]),
                 fila["base_capital"],
                 fila["tasa"],
                 fila["interes"],
@@ -210,7 +262,10 @@ class JudicialPDFGenerator:
                 fila_cronologia.append(fila.get("saldo_a_favor", "$0.00"))
             datos_cronologia.append(fila_cronologia)
 
-        tabla_cronologia = Table(datos_cronologia, repeatRows=1)
+        anchos_cronologia = self._anchos_columnas_cronologia(
+            encabezados_cronologia, ancho_disponible
+        )
+        tabla_cronologia = Table(datos_cronologia, colWidths=anchos_cronologia, repeatRows=1)
         estilo_cronologia = [
             ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
             ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
@@ -220,6 +275,9 @@ class JudicialPDFGenerator:
             ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
             ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
             ("GRID", (0, 0), (-1, -1), 0.5, self.c_burgundy),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]
         # Sprint 42: indicador visual (texto en rojo/negrita) para las filas cuya
         # obligacion de origen ya vencio su plazo de prescripcion/caducidad

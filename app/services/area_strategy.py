@@ -201,13 +201,32 @@ def _fusionar_resultados(
             interest=sum((r.final_balance().interest for r in resultados), Decimal("0.00")),
             indexation=sum((r.final_balance().indexation for r in resultados), Decimal("0.00")),
         )
+        # Cada obligacion aislada ya causo su propio interes de cierre (el que corre
+        # entre su ultimo evento y fecha_corte, ver LiquidationCore.process()) en su
+        # propio LiquidationItem de tipo LIQUIDATION_CUTOFF -- pero ese item se
+        # descarta arriba (filas_regulares excluye LIQUIDATION_CUTOFF) para no
+        # mostrar N filas de cierre. Sin sumar ese interes aqui, el total que ve el
+        # abogado en "Interes acumulado"/"Intereses Generados"
+        # (LiquidationResult.total_interest_accrued(), que solo suma la columna
+        # interest_amount fila por fila) queda por debajo del interes real de la
+        # liquidacion en cualquier expediente con 2+ obligaciones, aunque el saldo
+        # final (basado en balance.debt, no en esta columna) siempre fue correcto.
+        interes_cierre_consolidado = sum(
+            (
+                item.interest_amount
+                for resultado in resultados
+                for item in resultado.items
+                if item.balance.event_type == "LIQUIDATION_CUTOFF"
+            ),
+            Decimal("0.00"),
+        )
         items_fusionados.append(
             LiquidationItem(
                 date=fecha_corte,
                 concept="Corte final de liquidación",
                 capital_base=saldo_final.principal,
                 interest_rate=Decimal("0.00"),
-                interest_amount=Decimal("0.00"),
+                interest_amount=interes_cierre_consolidado,
                 indexation_amount=Decimal("0.00"),
                 payment_amount=Decimal("0.00"),
                 balance=RunningBalance(

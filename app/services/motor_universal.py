@@ -42,10 +42,11 @@ class UniversalLiquidationService:
         eventos_pago = []
         for pago in pagos:
             if pago.date <= fecha_corte:
+                label = f"Abono — {pago.reference}" if pago.reference else "Abono"
                 eventos_pago.append(
                     Event(
                         date=pago.date,
-                        payload={"amount": pago.amount, "reference": pago.reference},
+                        payload={"amount": pago.amount, "reference": pago.reference, "label": label},
                         event_type="PAYMENT",
                     )
                 )

@@ -1,6 +1,25 @@
 from docx import Document
+from docx.enum.section import WD_ORIENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt, RGBColor
+from docx.shared import Cm, Pt, RGBColor
+
+# Peso relativo de cada columna de la tabla de cronologia -- mismo criterio y
+# mismos pesos que _PESO_COLUMNA_CRONOLOGIA en app/reports/pdf.py (mantener
+# ambos en sync si se ajusta uno). "Concepto" pesa mas por ser la unica columna
+# con texto largo.
+_PESO_COLUMNA_CRONOLOGIA = {
+    "Fecha": 0.7,
+    "Concepto": 2.0,
+    "Base Capital": 0.95,
+    "Tasa": 0.55,
+    "Interés": 0.85,
+    "Indexación/Sanciones": 1.05,
+    "Pago": 0.85,
+    "Saldo Capital": 0.95,
+    "Saldo Interés": 0.9,
+    "Saldo Total": 0.95,
+    "Saldo a favor": 0.85,
+}
 
 
 class WordReportGenerator:
@@ -8,6 +27,19 @@ class WordReportGenerator:
         self.output_path = output_path
         self.c_burgundy = RGBColor(0xAE, 0x1C, 0x21)
         self.c_prescrita = RGBColor(0xC0, 0x00, 0x00)
+
+    def _anchos_columnas_cronologia(self, encabezados: list[str], ancho_disponible: Cm) -> list[Cm]:
+        pesos = [_PESO_COLUMNA_CRONOLOGIA.get(encabezado, 0.85) for encabezado in encabezados]
+        total_pesos = sum(pesos)
+        return [Cm((peso / total_pesos) * ancho_disponible.cm) for peso in pesos]
+
+    def _fijar_ancho_columna(self, tabla, indice: int, ancho: Cm) -> None:
+        # Quirk conocido de python-docx: asignar solo `table.columns[i].width` no
+        # es suficiente para que Word respete el ancho al abrir el documento --
+        # hay que fijarlo tambien celda por celda de esa columna.
+        tabla.columns[indice].width = ancho
+        for fila in tabla.rows:
+            fila.cells[indice].width = ancho
 
     def generate(
         self,
@@ -18,6 +50,27 @@ class WordReportGenerator:
         renta_liquida: dict | None = None,
     ) -> None:
         documento = Document()
+
+        # Horizontal (Sprint 50, hallazgo de la prueba practica Civil/Familia): la
+        # tabla de cronologia tiene 10-11 columnas -- en vertical (Letter portrait,
+        # ~15.9cm utiles) no cabe; en horizontal (~24.9cm utiles con margenes de
+        # 1.5cm) si. Ademas de girar la pagina, hay que fijar el ancho de cada
+        # columna explicitamente (ver _fijar_ancho_columna) porque el estilo
+        # "Table Grid" por defecto usa autofit-to-contents, que ignora los margenes
+        # de la pagina cuando el contenido es ancho -- esa era la causa real del
+        # desborde, no la orientacion en si.
+        seccion = documento.sections[0]
+        seccion.orientation = WD_ORIENT.LANDSCAPE
+        # python-docx no intercambia el ancho/alto de pagina automaticamente al
+        # cambiar `orientation` -- hay que hacerlo a mano.
+        seccion.page_width, seccion.page_height = seccion.page_height, seccion.page_width
+        seccion.left_margin = Cm(1.5)
+        seccion.right_margin = Cm(1.5)
+        seccion.top_margin = Cm(1.5)
+        seccion.bottom_margin = Cm(1.5)
+        ancho_disponible = Cm(
+            seccion.page_width.cm - seccion.left_margin.cm - seccion.right_margin.cm
+        )
 
         parrafo_titulo = documento.add_paragraph()
         parrafo_titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -117,6 +170,18 @@ class WordReportGenerator:
                 if es_prescrita:
                     run.font.color.rgb = self.c_prescrita
                     run.bold = True
+
+        # Fijar ancho por columna (Sprint 50): "Table Grid" por defecto usa
+        # autofit-to-contents, que Word resuelve al abrir el documento sin
+        # respetar el ancho de pagina cuando el contenido es ancho (esa era la
+        # causa real del desborde). `autofit = False` cambia la tabla a layout
+        # fijo para que los anchos de abajo se respeten.
+        tabla_cronologia.autofit = False
+        anchos_cronologia = self._anchos_columnas_cronologia(
+            columnas_cronologia, ancho_disponible
+        )
+        for indice, ancho in enumerate(anchos_cronologia):
+            self._fijar_ancho_columna(tabla_cronologia, indice, ancho)
 
         if renta_liquida is not None:
             documento.add_paragraph()
