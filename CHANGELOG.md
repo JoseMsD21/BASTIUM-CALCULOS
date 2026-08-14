@@ -36,7 +36,12 @@ Sprint 66: el botón "Parametros" del sidebar se renombra a "Configuraciones" y 
 pantalla con submenú lateral (Parámetros/Apariencia, con espacio para futuras secciones); el interruptor
 de modo oscuro/claro se muda de Parámetros a la nueva sección Apariencia. Esa pantalla gana después una
 tercera sección, Restablecer, para borrar expedientes y parámetros legales propios con backup automático
-y confirmación escrita.
+y confirmación escrita. Sprint 76 (prueba práctica del usuario en Civil/Familia, 2026-08-14): 4 bugs reales
+corregidos (concepto "PAYMENT" ilegible en la cronología, subestimación de "Intereses Generados" en
+expedientes con 2+ obligaciones, tabla de cronología del PDF/Word desbordando los márgenes de la página, y
+el combo "Reajuste anual" sin precargar al editar una obligación) más el paso "Generar cuotas" documentado
+en la guía de usuario; queda 1 pregunta abierta sobre la fórmula de tasa diaria del Art. 1617 (ver
+`Preguntas-Para-Abogado-Abiertas.md`, Sprint 76).
 
 ### Added
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
@@ -114,6 +119,24 @@ y confirmación escrita.
 - Tooltips ⓘ en todos los campos del formulario de parámetros y en las columnas de la tabla.
 
 ### Fixed
+- El combo "Reajuste anual" de una obligación Recurrente Civil/Familia no se precargaba al editar (Sprint
+  76): siempre mostraba "Ninguno" sin importar el valor real guardado, y volver a dar clic en "Guardar" sin
+  tocar ese campo revertía silenciosamente `tipo_reajuste_anual` a `NINGUNO` en la base de datos (el
+  guardado original sí funcionaba bien — el problema era solo la precarga al editar). Corregido en
+  `app/views/obligaciones.py::_precargar_desde_obligacion`, con 2 tests de regresión nuevos.
+- La tabla de cronología del PDF y del Word se salía de los márgenes de la página (Sprint 76): con 10-11
+  columnas y sin ancho fijo, reportlab (PDF, sin `colWidths`) y `Table Grid` en modo autofit-to-contents
+  (Word) ensanchaban cada columna al ancho de su texto sin wrap, ignorando el margen impreso. Corregido con
+  orientación horizontal, anchos de columna proporcionales explícitos en ambos formatos, y "Concepto" con
+  word-wrap en el PDF.
+- "Intereses Generados" en el resumen ejecutivo del PDF/Word/pantalla quedaba por debajo del interés real
+  en cualquier expediente con 2 o más obligaciones (Sprint 76): la fila de cierre consolidada que fusiona
+  varias obligaciones aisladas fijaba su interés en `$0.00` en vez de sumar el interés de cierre real de
+  cada una. El "Saldo Final de Intereses" y el "Gran Total Adeudado" siempre fueron correctos — solo el
+  subtotal informativo estaba mal. Corregido en `app/services/area_strategy.py::_fusionar_resultados`.
+- La fila de un abono mostraba el texto literal "PAYMENT" como concepto en la cronología liquidada, en vez
+  de un texto legible (Sprint 76) — el evento de pago nunca llevaba un `label` en su payload. Corregido en
+  `app/services/motor_universal.py`: ahora muestra "Abono — {referencia}" (o solo "Abono" sin referencia).
 - `aplicar_migraciones_pendientes()` fallaba con `sqlite3.OperationalError: no such column:
   parametros_legales.areas_derecho` en cualquier `bastium.db` real sembrada antes del Sprint 57: como
   `migrar_parametros_legales()` corría antes que `migrar_parametros_area_unidad()` (quien agrega esas

@@ -1824,6 +1824,72 @@ def test_obligacion_id_precarga_los_campos_civil_familia(qtbot, monkeypatch):
     assert dialog.campo_fecha_origen.date().toPython() == date(2025, 11, 20)
 
 
+def test_obligacion_id_precarga_el_reajuste_anual_recurrente(qtbot, monkeypatch):
+    # Hallazgo de una prueba practica del despacho: el combo de reajuste anual
+    # nunca se precargaba al editar -- siempre mostraba "Ninguno" (su primer
+    # item) sin importar el valor real guardado, aunque el guardado en si
+    # funcionaba bien (ver test_guarda_obligacion_recurrente_civil_familia_con_reajuste_smmlv).
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        fecha_inicio=date(2026, 1, 1),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo_reajuste_anual.currentData() == "SMMLV"
+
+
+def test_reguardar_una_obligacion_editada_no_revierte_el_reajuste_anual(qtbot, monkeypatch):
+    # Complemento del test anterior: sin la precarga, volver a guardar una
+    # obligacion editada (sin tocar el combo de reajuste) revertia
+    # silenciosamente tipo_reajuste_anual a NINGUNO en la base de datos --
+    # porque guardar() siempre lee el valor actual del combo. Este test
+    # verifica el escenario completo end-to-end: guardar de nuevo debe
+    # preservar el SMMLV ya guardado.
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        fecha_inicio=date(2026, 1, 1),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert guardada.tipo_reajuste_anual == TipoReajusteAnual.SMMLV
+    session.close()
+
+
 def test_obligacion_id_precarga_fecha_de_pago_real_en_laboral(qtbot, monkeypatch):
     # Motivo original del hallazgo (Sprint 44): "fecha de pago real" quedaba
     # inaccesible una vez guardada la obligacion porque no habia forma de

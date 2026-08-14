@@ -633,6 +633,23 @@ class ObligacionFormDialog(QDialog):
                 self.campo_fecha_inicio.setDate(_qdate(obligacion.fecha_inicio))
                 if obligacion.dia_pago:
                     self.campo_dia_pago.setValue(obligacion.dia_pago)
+                # Reajuste anual (Sprint 41): faltaba precargar el combo desde la
+                # obligacion guardada -- sin esto, siempre mostraba "Ninguno" (su
+                # primer item por defecto) al editar, sin importar el valor real en
+                # BD. Ademas de confundir al abogado, re-guardar sin tocar este
+                # campo revertia silenciosamente tipo_reajuste_anual a NINGUNO
+                # (guardar() siempre lee el valor actual del combo, ver
+                # _parse_campos_civil_familia). obligacion.tipo_reajuste_anual
+                # puede venir None en filas legacy (mismo criterio tolerante que
+                # area_strategy.py) -- se trata igual que NINGUNO.
+                valor_reajuste = (
+                    obligacion.tipo_reajuste_anual.value
+                    if obligacion.tipo_reajuste_anual is not None
+                    else "NINGUNO"
+                )
+                indice_reajuste = self.combo_tipo_reajuste_anual.findData(valor_reajuste)
+                if indice_reajuste >= 0:
+                    self.combo_tipo_reajuste_anual.setCurrentIndex(indice_reajuste)
             else:
                 self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
 

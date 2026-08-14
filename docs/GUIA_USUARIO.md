@@ -5,7 +5,10 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-13 — refleja el estado de Civil/Familia, Comercial, Sancionatorio,
+> **Última actualización:** 2026-08-14 — agrega el paso "Generar cuotas" (obligatorio para que el
+> reajuste anual de una obligación Recurrente tenga efecto real al liquidar) a la sección 5.4, y una nota
+> sobre la pregunta abierta con el despacho acerca de la fórmula de tasa diaria del Art. 1617 (sección
+> 7.1). Además, refleja el estado de Civil/Familia, Comercial, Sancionatorio,
 > Honorarios/Litigio, Laboral, Tributario, exportación de liquidaciones a PDF/Word, el panel de
 > navegación lateral fijo (sidebar) con los botones Volver/Inicio/Configuraciones con íconos y estado
 > activo, la pantalla "Configuraciones" con tres secciones — Parámetros, Apariencia (el modo oscuro/claro
@@ -338,10 +341,24 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
      interés del 6% se calcula sobre ese valor ya indexado, no sobre el capital histórico. Sin esta
      casilla, el interés se sigue calculando solo sobre el capital histórico (comportamiento anterior a
      este sprint). Ver [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle.
+   - **Reajuste anual (Recurrente, Civil/Familia)**: solo visible en esta área. Elige **"SMMLV (Salario
+     Mínimo)"** o **"IPC"** si la cuota debe reajustarse cada 1° de enero (ej. cuota alimentaria que la
+     sentencia ordena actualizar con el salario mínimo o el IPC del año anterior — Art. 129 Ley
+     1098/2006). Deja **"Ninguno"** si la cuota es de monto fijo todo el tiempo.
 3. Haz clic en **"Guardar"**.
+4. **Si elegiste un Reajuste anual (SMMLV/IPC), hay un paso más, obligatorio:** de vuelta en el Detalle
+   del expediente, selecciona (clic) la fila de esta obligación en la tabla de Obligaciones, y haz clic
+   en el botón **"Generar cuotas"** (junto a "Agregar obligación", solo visible en Civil/Familia). Esto
+   crea y guarda las cuotas mensuales reales, con el capital ya escalado cada enero — sin este paso, el
+   campo "Reajuste anual" queda guardado pero **no tiene ningún efecto al liquidar**: la obligación se
+   sigue calculando con el capital constante de siempre, como si "Reajuste anual" estuviera en "Ninguno".
+   Si editas el valor, la tasa o el reajuste de una obligación que ya tiene cuotas generadas, o si la
+   eliminas y la vuelves a crear, tienes que volver a hacer clic en "Generar cuotas" (es seguro repetirlo:
+   no duplica cuotas ya generadas, solo las confirma).
 
-El programa genera automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de
-corte del expediente.
+Si "Reajuste anual" quedó en "Ninguno" (o no le diste clic a "Generar cuotas"), el programa genera
+automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de corte del expediente,
+con el mismo capital cada mes.
 
 ### 5.5. Agregar un abono (registrar un pago)
 
@@ -897,6 +914,13 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
 - **Ejemplo numérico completo**: con la tasa por defecto del 6% anual, `i_diario = (1.06)^(1/365) - 1 ≈
   0,00015965` (0,015965% diario). Sobre un capital de **$10.000.000** durante **30 días**, el interés es
   `I = C × i × t = 10.000.000 × 0,00015965 × 30 ≈ $47.896`.
+- **Pregunta abierta con el despacho (Sprint 76):** esta fórmula ("efectiva compuesta") no es la única
+  forma válida de convertir un 6% anual a una tasa diaria — existe también la fórmula lineal (`6% ÷ 365 =
+  0,0164%` diario), que es la que trae el documento de requisitos del despacho. Con un caso real de prueba,
+  la fórmula lineal acercó el resultado de BASTIUM al de un Excel del despacho casi 3 veces más que la
+  fórmula actual (0,04% de diferencia vs. 0,11%). Todavía no hay confirmación de cuál debe usar el software
+  — ver el desarrollo completo, con ejemplos numéricos paso a paso, en
+  `Preguntas-Para-Abogado-Abiertas.md`, Sprint 76.
 
 ### 7.1.1. Tope de usura comercial (1.5x IBC, Ley 45/1990 art. 72)
 

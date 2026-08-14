@@ -837,6 +837,23 @@ Dos hallazgos de la revisión final de rama, resueltos o documentados antes de c
   indexación activada, verificando el resultado numérico contra un cálculo manual con la fórmula del PDF.
 - Suite completa en verde.
 
+**Respuesta de seguimiento recibida (2026-08-13):** el despacho confirmó la metodología exacta para el IPC
+mensual (Número Índice, no variación %; doble base diciembre 2008=100 / diciembre 2018=100 con Factor de
+Enlace en el mes de traslape), pero **todavía no aportó los valores reales**. Sigue bloqueado por el mismo
+motivo de siempre — falta el dato, no la decisión — y se agregó una nueva pregunta de seguimiento en
+`Preguntas-Para-Abogado-Abiertas.md` ("Sprint 8 (seguimiento 2)") pidiendo la tabla real en las dos bases.
+Detalle completo en `Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 8. El usuario reportó además
+(2026-08-13) que la página 62 del PDF de requisitos ("REGLAS DE CÁLCULO BASTIUM") no trae los datos de IPC
+por año que esperaba encontrar ahí — verificado leyendo esa página directamente: **solo trae variación %
+anual 1967-2025**, la misma fuente ya transcrita en `_IPC_VARIACION_ANUAL`, no el índice mensual con doble
+base que ahora pide el despacho. No es un bug de lectura del PDF: es el mismo hueco de dato que este sprint
+ya documentaba, confirmado de nuevo desde otra fuente. Adicionalmente, `areas_parametro.py` solo etiqueta
+`IPC_INDICE_ACUMULADO` para las áreas Civil/Familia y Tributario (`["CIVIL_FAMILIA", "TRIBUTARIO"]`) — si
+el usuario filtra la pantalla de Parámetros por otra área (Comercial, Laboral, Sancionatorio, Honorarios),
+la fila de IPC no aparece en absoluto, lo cual puede ser otra causa de la misma percepción de "no aparecen
+los datos de IPC". Esa lista de áreas debe revisarse junto con el Sprint 43 cuando se activen las 5 áreas
+restantes.
+
 ---
 
 ## Sprint 9 — Motor de auditoría / bitácora ✅ Completado
@@ -1194,6 +1211,13 @@ SQLite truncaba silenciosamente valores `Decimal` de alta precisión al guardarl
 corrigió con un `TypeDecorator` `DecimalExacto` a nivel de columna (usado en `parametros_legales.valor`).
 
 `README.md` y `docs/GUIA_USUARIO.md` actualizados. Suite completa en verde (367 passed, 1 skipped).
+
+**Respuesta recibida sobre la guía de uso de Parámetros (2026-08-13):** el despacho confirmó que SÍ hace
+falta una guía corta, dirigida a un perfil "Abogado Junior / Estudiante de Consultorio Jurídico", en
+lenguaje de "campos de hecho" con enfoque pedagógico para traducir el título ejecutivo al software.
+`docs/GUIA_USUARIO.md` ya documenta la pantalla de Parámetros (Sprints 57/58/68) pero en tono general de
+manual, no con ese enfoque pedagógico específico — pendiente ajustar o agregar una sección dedicada. Ver
+`Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 13.
 
 ---
 
@@ -1766,6 +1790,16 @@ Se agregó una pregunta de seguimiento en `Preguntas-Para-Abogado-Abiertas.md` (
 preguntando explícitamente si la tabla simple reemplaza la granular o solo acota el valor manual — no
 asumir ninguna de las dos sin confirmación. `docs/GUIA_USUARIO.md` actualizado (nueva sección 7.6.1).
 Suite completa en verde (655 passed, 1 skipped).
+
+**Respuesta de seguimiento recibida (2026-08-13):** el despacho confirmó opción (b) — la tabla simple es un
+"Hard Cap" solo para el input manual; la tabla granular (PSAA16-10554) sigue gobernando el cálculo
+automático, tal como ya está implementado, sin cambios de código necesarios por este punto. Trajo además la
+lógica de ultraactividad CPC→CGP (Art. 624 CGP) todavía no implementada, y citó el acuerdo como
+"PCSJA20-11556" — se agregó una nueva pregunta de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`
+("Sprint 18 (seguimiento 2)") para confirmar si es el mismo acuerdo que el PSAA16-10554 ya verificado o uno
+distinto que actualiza la tabla granular. Ver el detalle completo en
+`Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 18. Pendiente de programar: la ultraactividad
+CPC→CGP sobre la fecha de la providencia.
 
 ---
 
@@ -2985,6 +3019,16 @@ releyó el `main_window.py` real post-Sprint-32 en vez de asumir su contenido, s
 plan). `docs/GUIA_USUARIO.md` actualizado para reflejar que la app ahora arranca en el Dashboard. Suite
 completa en verde (829 tests) tras el merge final a `main`.
 
+**Respuesta recibida (2026-08-13):** el despacho confirmó que "acción ejecutiva" NO es transversal y trajo
+una tabla determinista completa de área → tipo de acción → plazo (Civil, Comercial, Laboral, Familia,
+Sancionatorio, Honorarios, Administrativo/CPACA), con norma de respaldo para cada una — ver
+`Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 33. Pendiente de programar: (1) la tabla área→tipo
+de acción→plazo en el motor (hoy `TipoAccion.EJECUTIVA` sigue siendo el único default en
+`UniversalLiquidationService`), (2) el selector en UI que autocomplete el plazo al elegir área, y (3) la
+lógica de ultraactividad CPC/Ley 794 de 2003 → CGP. Esto conecta directamente con el Sprint 61 (parámetros
+de prescripción/caducidad sin wiring a pantallas reales), que ya identificó que la mayoría de estos plazos
+existen en `parametros_legales` pero ningún botón los dispara.
+
 ---
 
 ## Sprint 34 — UX de formularios: agrupación, ayuda contextual y feedback en tiempo real ✅ Completado
@@ -3543,6 +3587,17 @@ Sprint 44, punto 6, explícitamente excluido). Botón "Generar cuotas" nuevo en 
 visible solo para Civil/Familia. Suite completa en verde (953 tests tras el merge final, que tuvo conflictos
 reales con el Sprint 44 sobre los mismos archivos, resueltos a mano).
 
+**Respuesta recibida (2026-08-13):** el despacho confirmó la fórmula base (`CN = CA + CA × %V / 100`) ya
+implementada, pero exige parametrizar varias excepciones que hoy **no existen** en el motor: (1) tope de
+coerción — ningún embargo por alimentos puede exceder el 50% del salario/prestaciones del deudor
+(verificado: no hay ninguna validación de este tope en el código), (2) campo `Fecha_Base_Titulo` para actas
+que reajusten en un mes distinto a enero (hoy el reajuste está fijo al 1° de enero), (3) `Factor_Ponderación`
+para actas que pacten solo un porcentaje parcial del incremento (ej. 50%), y (4) imputación jerárquica
+estricta de pagos (1° intereses moratorios → 2° costas/cobranza → 3° capital del mes más antiguo) a
+verificar contra el `AllocationEngine` general. Detalle completo en
+`Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 41. Ninguno de estos 4 puntos está construido —
+queda como trabajo pendiente de un sprint de seguimiento.
+
 ---
 
 ## Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación ✅ Completado
@@ -3607,7 +3662,7 @@ tests tras el merge final).
 
 ---
 
-## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión
+## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🟡 Desbloqueado — respuesta recibida, pendiente de programar
 
 **Prioridad sugerida:** Media — no es un bug, es un límite de alcance documentado desde el Sprint 8, pero el
 usuario pide explícitamente que la indexación sea "opcional para cualquier liquidación de cualquier área",
@@ -3651,6 +3706,16 @@ las preguntas correspondientes en `Preguntas-Para-Abogado-Abiertas.md` en vez de
 sección "Sprint 43" de ese documento (pregunta por las 5 áreas, con la advertencia de posible doble
 actualización monetaria en Sancionatorio y Tributario). Sigue bloqueado hasta que el despacho responda; no
 se tocó código de este sprint.
+
+**Respuesta recibida (2026-08-13):** el despacho respondió las 5 áreas con reglas distintas por área — SÍ
+en Tributario (ligado al Art. 867-1 E.T., mutuamente excluyente con el mecanismo propio), NO en Comercial
+(XOR con interés comercial), SÍ en Honorarios (con fórmula propia, interés civil 6% **sobre el capital ya
+indexado** — ver la nueva pregunta de seguimiento sobre si eso es válido en
+`Preguntas-Para-Abogado-Abiertas.md`, sección "Sprint 43 (seguimiento)"), condicional en Laboral (excluyente
+con moratorios, con dos excepciones) y condicional en Sancionatorio (excluyente con SMLMV/UVT actualizado,
+con una excepción para faltas antiguas). Detalle completo en `Preguntas-Para-Abogado-Respondidas.md`,
+sección Sprint 43. Nada de esto está implementado todavía: son 5 mecanismos de exclusión/coexistencia
+distintos, no una sola bandera — queda pendiente de programar como sprint(s) de implementación.
 
 ---
 
@@ -3858,7 +3923,7 @@ ya existente cambió de valor. Suite completa en verde (970 tests tras este spri
 
 ---
 
-## Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión
+## Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🟡 Desbloqueado — respuesta recibida, pendiente de programar
 
 **Prioridad sugerida:** Media-alta si hay liquidaciones reales ya entregadas a un juzgado o cliente con los
 valores antiguos; baja si el uso hasta ahora fue solo de prueba/desarrollo.
@@ -3911,6 +3976,18 @@ prestaciones sociales? y si la hay, ¿se recalcula toda o solo expedientes activ
 `Preguntas-Para-Abogado-Abiertas.md`, sección "Sprint 47", junto con el mecanismo técnico ya decidido para
 cuando se retome (liquidación nueva vinculada a la anterior, no sobrescribir; flag de notificación manual
 visible en el expediente). Este sprint sigue bloqueado hasta esa respuesta.
+
+**Respuesta recibida (2026-08-13):** el despacho confirmó que SÍ existen liquidaciones entregadas con la
+lógica defectuosa y que es obligatorio recalcular (principio de primacía de la realidad, Art. 53 CP), con
+un protocolo detallado según el estado procesal de cada expediente (activo → recálculo obligatorio con
+memorial de actualización; presentado en juzgado/CPACA → memorial de corrección de error aritmético; cosa
+juzgada → NO recalcular). También exige un flag "OBSOLETO - REQUIERE RECÁLCULO", un log de diferencias
+numérico, priorización por cercanía de prescripción, y adoptar la Sentencia SL138-2024 (días calendario
+reales) como estándar del módulo de densidad pensional. Detalle completo en
+`Preguntas-Para-Abogado-Respondidas.md`, sección Sprint 47. Nada de esto está construido — es un sprint de
+implementación grande (script de identificación vía `AuditLog`, generación de los 2 tipos de memorial, log
+de diferencias, y verificar si `LaboralStrategy` ya cumple SL138-2024 tras el Sprint 30 o necesita un ajuste
+adicional).
 
 ---
 
@@ -4770,6 +4847,12 @@ vez de traceback) en los 5 métodos de editar/eliminar (`_eliminar_obligacion`, 
 verificados fallando contra el código anterior con el mismo error exacto reportado. Suite completa en
 verde (1092 tests).
 
+**Nota (2026-08-13):** el usuario volvió a reportar como "novedad" que hace falta un botón de editar y
+eliminar para obligaciones y abonos — ya está implementado exactamente en este sprint (cerrado un día
+antes, 2026-08-12). Probablemente el reporte es de una build sin actualizar o de no haber notado los
+botones en la tabla. No requiere trabajo nuevo; si al probarlo el botón sigue sin aparecer, es un bug de
+regresión sobre este sprint, no un gap nuevo.
+
 ---
 
 ## Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión
@@ -5162,6 +5245,343 @@ no hay riesgo de pérdida de datos, solo degradación de UX ante un caso hoy no 
 **Pendiente de verificación manual:** el clic a través real (confirmar el texto de advertencia, el botón
 destructivo, el gate de confirmación, y el flujo completo de restablecimiento con datos de prueba) no se
 pudo confirmar de forma headless — queda para que el usuario lo revise.
+
+---
+
+## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Alta — afecta directamente la corrección jurídica de cualquier liquidación
+pensional o laboral cuyo hecho generador haya ocurrido bajo una ley distinta a la que el motor usa hoy.
+
+**Depende de:** Sprint 17 (módulo pensional, fórmula de tasa de reemplazo ya implementada) y Sprint 13
+(infraestructura de `parametros_legales` versionados por fecha de vigencia — ya existe el patrón, falta
+extenderlo a fórmulas completas, no solo cifras sueltas).
+
+**Contexto (reportado por el usuario, 2026-08-13):** el sistema debe saber qué ley aplica (la fórmula y las
+cifras de cada ley) dependiendo del año en que ocurrió el hecho del caso, no de la fecha actual. Ejemplo
+dado por el usuario: quien se pensionó en 1997 se rige por la Ley 100 de 1993; quien se pensionó en 2024 se
+rige por la Ley 797 de 2003; quien se pensione desde la entrada en vigencia de la Ley 2381 de 2024 se rige
+por esa ley nueva. Lo mismo aplica en Derecho Laboral y Seguridad Social, donde el CST y el CPT han tenido
+varias reformas con vigencias propias.
+
+**Hallazgos (verificados leyendo el código, 2026-08-13):** `app/services/parametro_service.py` (Sprint 13)
+versiona **valores** (tasas, topes, cifras) por fecha de vigencia — eso ya está resuelto para números
+sueltos. Pero `calcular_tasa_reemplazo`/`CALCULAR_R` (Sprint 17, `r = 65.5 − 0.5·s`, con piso 55%/techo
+65.5% y bono de 1.5% cada 50 semanas sobre 1.300 mínimas) es una única fórmula fija en Python, sin ninguna
+noción de "esta fórmula rige solo entre la fecha X y la fecha Y". El propio cierre del Sprint 13 documentó
+esta distinción a propósito (versionar **parámetros**, no reglas/fórmulas completas como el catálogo EFDJ
+del PDF) porque en ese momento no había un caso de uso concreto que lo exigiera — este reporte es
+exactamente ese caso de uso concreto.
+
+**Decisión de diseño a tomar con el usuario antes de codificar (no asumir):**
+- ¿Se modela como un catálogo de "fórmulas versionadas" (una tabla que asocia rango de fechas → función/
+  parámetros de la fórmula), o basta con condicionales explícitos en el código por rango de fecha para las
+  pocas leyes que hoy se conocen (Ley 100/1993, Ley 797/2003, Ley 2381/2024)?
+- ¿Aplica solo al módulo pensional (Sprint 17), o también a otras fórmulas de Laboral/Seguridad Social que
+  hayan cambiado por reforma del CST/CPT? El usuario menciona ambos dominios pero solo da el ejemplo
+  pensional en detalle.
+
+**Código nuevo a crear (una vez conseguida la fuente y tomada la decisión):**
+- Tabla o estructura versionada de Ley → fecha de vigencia → fórmula/cifra aplicable, empezando por las 3
+  leyes pensionales mencionadas.
+- Selector de fórmula por fecha del hecho generador (no la fecha actual del sistema) en el módulo pensional,
+  y en cualquier otro módulo que el despacho confirme afectado.
+
+**Alcance explícitamente excluido (por ahora):** no se está pidiendo migrar al catálogo EFDJ completo (24
+campos por regla, ya evaluado y cerrado sin construir en el Sprint 13) — es un paso intermedio, igual de
+acotado que el que ya se hizo para parámetros, pero para fórmulas.
+
+**Definición de Hecho:**
+- Una liquidación pensional con hecho generador en 1997 usa la fórmula/cifras de la Ley 100 de 1993; una
+  con hecho generador en 2024 usa la Ley 797 de 2003; una posterior a la entrada en vigencia de la Ley 2381
+  de 2024 usa esa ley — verificado con tests que reproduzcan un caso real de cada ley.
+- Suite completa en verde.
+
+**Bloqueado por:** pregunta agregada a `Preguntas-Para-Abogado-Abiertas.md`, sección "Sprint 70" — se
+necesita la tabla completa de leyes, fecha de vigencia y fórmula/cifra aplicable antes de codificar nada,
+mismo criterio de rigor que Sprint 5/7/18.
+
+---
+
+## Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) 🔴 Bug reportado sin confirmar
+
+**Prioridad sugerida:** Alta — el Sprint 67 (cerrado 2026-08-13) corrigió la falta de estilos
+`QCheckBox::indicator` mismo día, pero cerró con una nota explícita de "pendiente de verificación manual...
+queda para que el usuario lo confirme la próxima vez que abra la app". Este reporte es exactamente esa
+verificación, y encontró que el problema sigue presente.
+
+**Depende de:** Sprint 67 (ya completado, es la corrección que este sprint debe verificar/extender).
+
+**Contexto (reportado por el usuario, 2026-08-13):** en "Agregar obligación", la casilla "aplica
+indexación IPC (corrección monetaria)" no se ve porque se confunde con el fondo color crema del resto del
+formulario.
+
+**Hallazgos (verificados leyendo el código, 2026-08-13):** `check_aplica_indexacion_ipc`
+(`app/views/obligaciones.py:255`) es un `QCheckBox` real — en teoría ya cubierto por las reglas
+`QCheckBox::indicator` que el Sprint 67 agregó a `theme.qss`/`theme_dark.qss`. Pero vive dentro de
+`self.grupo_tasas_intereses` (línea 384), un `QGroupBox` creado con `setCheckable(True)` — y el propio
+cierre del Sprint 67 dejó documentado, como hallazgo no resuelto: "3 `QGroupBox` marcables en
+`obligaciones.py` usan un subcontrol distinto (`QGroupBox::indicator`), no cubierto por este fix". Es
+decir: puede que el checkbox interno sí esté bien estilado y el problema real sea el indicador del
+`QGroupBox` contenedor (que si tampoco se ve, hace más difícil distinguir visualmente dónde está cada
+control dentro de la sección "Tasas e intereses"), o puede que el fix de Sprint 67 no se esté aplicando
+correctamente sobre este control específico — hace falta reproducir visualmente en la app (no solo con
+tests headless, que es justo lo que el Sprint 67 no pudo hacer) para diagnosticar cuál de las dos cosas es.
+
+**Código nuevo a crear:** diagnóstico visual primero (abrir la app, "Agregar obligación", área
+Civil/Familia, sección "Tasas e intereses"); según lo que se confirme, extender las reglas QSS de
+`QGroupBox::indicator` (mismo patrón que `QCheckBox::indicator` del Sprint 67) a los 3 `QGroupBox`
+marcables de `obligaciones.py`, o corregir la regla existente si el checkbox interno es el que sigue mal.
+
+**Definición de Hecho:**
+- El checkbox de indexación IPC (y los 3 `QGroupBox` marcables) son visibles, marcados o sin marcar, en
+  modo claro y oscuro — verificado visualmente en la app real, no solo con test headless.
+- Suite completa en verde.
+
+---
+
+## Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo 📋 Pendiente
+
+**Prioridad sugerida:** Media-alta — no es un bug de cálculo, pero afecta la usabilidad de la pantalla más
+usada del software (Sprint 56 ya permitió redimensionar el diálogo, pero no corrigió el tamaño inicial ni
+la disposición del contenido).
+
+**Depende de:** Sprint 56 (diálogos redimensionables, ya completo — este sprint es sobre el contenido/
+tamaño por defecto, no sobre la capacidad de redimensionar en sí).
+
+**Contexto (reportado por el usuario, 2026-08-13):** la ventana de "Agregar obligación" es muy grande y no
+tiene forma fácil de achicarla, al punto de que el botón "Guardar" no aparece a simple vista. El usuario
+pide además que, al ampliar la ventana, los campos no queden como barras largas en una sola columna, sino
+en un layout armónico — específicamente que la sección "Tasas e intereses" pase a la derecha de "Datos
+básicos" en vez de debajo, para que funcione bien en cualquier tamaño de pantalla.
+
+**Hallazgos (verificados leyendo el código, 2026-08-13):** `ObligacionFormDialog` (`app/views/obligaciones.py`)
+organiza sus 3 `QGroupBox` colapsables (Datos básicos, Tasas e intereses, Honorarios y costas, Sprint 34) en
+un único layout vertical (`QVBoxLayout` o equivalente) — no hay ningún `QGridLayout`/`QHBoxLayout` que
+ponga secciones una junto a otra. El Sprint 56 solo agregó la capacidad de redimensionar/maximizar (flags de
+Qt), sin tocar el tamaño inicial (`resize()`/`setMinimumSize()`) ni el contenido del formulario — está
+documentado explícitamente como alcance excluido de ese sprint.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** confirmar el layout deseado (ej. 2
+columnas: Datos básicos + Honorarios/costas a la izquierda, Tasas e intereses a la derecha, o alguna otra
+distribución) y si debe ser responsivo (colapsar a una columna en pantallas angostas) o fijo de 2 columnas
+siempre.
+
+**Código nuevo a crear:**
+- Reestructurar el layout de `ObligacionFormDialog` a un `QGridLayout` (o `QHBoxLayout` de 2 columnas)
+  entre los `QGroupBox` existentes, sin tocar los campos internos de cada sección.
+- Ajustar el tamaño inicial del diálogo para que el botón "Guardar" sea visible sin necesidad de
+  redimensionar manualmente.
+
+**Alcance explícitamente excluido:** no cambia ningún campo ni validación existente — solo la disposición
+visual y el tamaño por defecto.
+
+**Definición de Hecho:**
+- El botón "Guardar" es visible sin redimensionar la ventana, en una resolución de pantalla estándar
+  (ej. 1366×768).
+- Las secciones "Datos básicos" y "Tasas e intereses" quedan una junto a otra (no una debajo de otra) en el
+  tamaño por defecto del diálogo.
+- Suite completa en verde.
+
+---
+
+## Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) 📋 Pendiente
+
+**Prioridad sugerida:** Media — extiende un mecanismo ya construido (Sprint 41) a un patrón de recurrencia
+distinto, no es un bug.
+
+**Depende de:** Sprint 41 (generador de cuotas mensuales con reajuste anual, ya completo — este sprint
+necesita el mismo tipo de mecanismo pero con fechas arbitrarias en vez de "cada mes").
+
+**Contexto (reportado por el usuario, 2026-08-13):** los gastos de vestuario no se repiten mes a mes, sino
+en fechas puntuales del año (ej. junio, diciembre, y el cumpleaños del niño). El usuario pide que solo esas
+fechas específicas queden registradas en el calendario de obligaciones, no una cuota mensual.
+
+**Hallazgos (a verificar antes de codificar):** el generador de cuotas del Sprint 41
+(`app/services/reajuste_anual.py::generar_cuotas_mensuales()`) y el `RecurringScheduler`
+(`app/engine/temporal/schedulers/recurring.py`) están diseñados para cadencia **mensual** fija — no hay
+ningún mecanismo para una lista arbitraria de fechas por año (ej. "15 de junio, 15 de diciembre, y la fecha
+de cumpleaños de X persona, cada año").
+
+**Decisión de diseño a tomar con el usuario antes de codificar:**
+- ¿Se modela como un nuevo tipo de recurrencia (`TipoRecurrencia.FECHAS_ANUALES_FIJAS` o similar) con una
+  lista de fechas MM-DD por año, reutilizando el resto del mecanismo de reajuste/abonos del Sprint 41?
+- ¿La fecha de cumpleaños del niño se ingresa como una fecha MM-DD fija dentro de esa lista, o se deriva
+  automáticamente de la fecha de nacimiento del beneficiario (ver Sprint 74)?
+
+**Código nuevo a crear (una vez decidido):**
+- Nuevo tipo de recurrencia con lista de fechas por año, reutilizando el generador de obligaciones hijas y
+  el sistema de abonos por cuota ya construido en el Sprint 41.
+- Campo(s) en el formulario de obligación recurrente para capturar las fechas (o derivarlas de la fecha de
+  cumpleaños si aplica).
+
+**Definición de Hecho:**
+- Una obligación de "gastos de vestuario" con fechas junio/diciembre/cumpleaños genera exactamente esas
+  ocurrencias por año, no 12 cuotas mensuales.
+- Suite completa en verde.
+
+---
+
+## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente
+
+**Prioridad sugerida:** Alta — es información base que condiciona hasta cuándo es exigible cualquier
+obligación alimentaria; sin esto, el sistema no puede calcular automáticamente la fecha de terminación de
+una cuota alimentaria.
+
+**Depende de:** Nada técnicamente, pero bloqueado por la pregunta legal de Sprint 74 en
+`Preguntas-Para-Abogado-Abiertas.md` (reglas de vigencia exactas por tipo de beneficiario).
+
+**Contexto (reportado por el usuario, 2026-08-13, 3 hallazgos relacionados del mismo reporte):**
+1. Al inicio de un caso de Civil/Familia se debe capturar la fecha de nacimiento del demandante (o del
+   beneficiario) para que el sistema calcule automáticamente su edad — relevante porque una cuota
+   alimentaria para un niño sin discapacidad termina a los 18 años si no estudia, o se extiende hasta los
+   25 si estudia una carrera profesional/técnica/tecnológica.
+2. El sistema debe preguntar si existe un beneficiario distinto del demandante (el beneficiario es quien
+   tiene el derecho real sobre la obligación) — si existe, se debe capturar su nombre y fecha de nacimiento
+   para el mismo cálculo automático de edad.
+3. No solo los niños reciben alimentos: el sistema debe preguntar, como primer paso, si el beneficiario es
+   un niño, un niño con discapacidad, el cónyuge, los padres, u otra persona (donante, abuelos, etc.), y
+   presentar los campos siguientes como un árbol de decisión que cambia según esa respuesta (ej. niño sin
+   discapacidad → fecha de nacimiento + "¿estudia?"; niño con discapacidad → si es permanente, obligación
+   vitalicia; cónyuge → hasta que supere su condición de vulnerabilidad; padres → hasta la muerte de
+   cualquiera de las partes).
+
+**Hallazgos (verificados leyendo el código, 2026-08-13):** no existe hoy ningún campo de fecha de
+nacimiento, ni de tipo de beneficiario, ni de relación demandante/beneficiario en `database/models.py` —
+confirmado con búsqueda de "beneficiario"/"fecha de nacimiento"/"discapacidad"/"cónyuge" en todo el
+proyecto (`Pendientes.md`, código, specs): cero resultados antes de este reporte. Es una funcionalidad
+enteramente nueva, no una corrección.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:**
+- Confirmar las reglas exactas de vigencia por tipo de beneficiario con el despacho (ver pregunta en
+  `Preguntas-Para-Abogado-Abiertas.md`, sección "Sprint 74") antes de construir el árbol de decisión, para
+  no codificar una regla legal sin confirmar (mismo criterio que Sprints 13/16/20/41).
+- Modelo de datos: ¿un campo `tipo_beneficiario` (enum) + campos condicionales según el tipo en el mismo
+  `Expediente`/`Obligacion`, o una entidad `Beneficiario` propia (nombre, fecha de nacimiento, tipo,
+  relación con el demandante) referenciada desde el expediente?
+
+**Código nuevo a crear (una vez confirmadas las reglas y el modelo):**
+- Campo(s) de fecha de nacimiento + cálculo automático de edad, tanto para el demandante como para un
+  beneficiario distinto si existe.
+- Selector de tipo de beneficiario (niño / niño con discapacidad / cónyuge / padres / otro) con campos que
+  aparecen o desaparecen según la selección (árbol de decisión).
+- Cálculo automático de la fecha de terminación de la obligación según el tipo de beneficiario y las reglas
+  confirmadas por el despacho.
+
+**Definición de Hecho:**
+- Un caso de Familia con un niño beneficiario sin discapacidad calcula automáticamente si la obligación
+  sigue vigente a los 18/25 años según si estudia.
+- Un caso con beneficiario cónyuge/padres no aplica el límite de edad de los niños.
+- Suite completa en verde.
+
+---
+
+## Sprint 75 — Cuotas recurrentes en todas las áreas, con selección de pago por rango e imputación en cascada 📋 Pendiente
+
+**Prioridad sugerida:** Alta — extiende a las 6 áreas un mecanismo que hoy solo existe para Familia
+(Sprint 41), y agrega una capacidad de imputación de pagos parciales más rica que la que existe hoy en
+cualquier área.
+
+**Depende de:** Sprint 41 (generador de cuotas mensuales con reajuste anual, hoy exclusivo de Civil/
+Familia) y Sprint 44 punto 6 (extensión a Laboral, explícitamente excluida en su momento y dejada para
+"cuando el usuario decida extenderlo").
+
+**Contexto (reportado por el usuario, 2026-08-13):** para **todas las categorías de todas las áreas del
+derecho**, el sistema debe detectar que una obligación es recurrente y generar automáticamente el listado
+de obligaciones mensuales (con sus sub-obligaciones de intereses) desde la fecha pactada. Sobre ese
+listado, el abogado debe poder seleccionar por rangos o manualmente qué cuotas ya se pagaron completas, y
+si hubo abonos parciales, el sistema debe imputar el pago desde la fecha del abono hacia atrás en el tiempo
+según una lógica de cascada: ejemplo dado por el usuario — un abono de $500.000 el 1 de abril de 2024 paga
+primero el capital de la cuota de abril, luego el capital e intereses de la cuota de marzo, y luego solo
+una parte de los intereses de la cuota de febrero (el resto de esos intereses se sigue debiendo, pero como
+el capital de febrero ya quedó pagado, no sigue generando intereses nuevos); o si el abono alcanza para
+pagar solo una parte del capital de una cuota atrasada, los intereses ya generados hasta la fecha del abono
+se mantienen, pero los intereses nuevos se calculan sobre el capital insoluto restante.
+
+**Hallazgos (verificados leyendo el código, 2026-08-13):** el Sprint 41 ya construyó exactamente este
+mecanismo (generación de cuotas mensuales reales como `Obligacion` hijas, abonos por cuota individual), pero
+**limitado a Civil/Familia** — `CivilFamiliaStrategy` es la única que usa las cuotas hijas reales; las otras
+5 áreas siguen usando `RecurringScheduler`, que expande la obligación recurrente solo de forma efímera
+dentro de `liquidar()`, nunca como filas visibles antes de liquidar. Tampoco existe hoy: (1) una UI de
+selección de pago "por rango" (el Sprint 41 permite abono por cuota individual, no por rango de cuotas de
+una sola vez), ni (2) la lógica de imputación en cascada descrita por el usuario (capital de la cuota más
+reciente pagado primero, luego capital+intereses de las anteriores, con los intereses restantes "congelados"
+sin seguir generando sobre el capital ya pagado) — el motor de imputación general (`AllocationEngine`)
+tiene su propio orden de imputación (intereses primero, luego capital, mismo patrón del PDF pág. 63), que
+no es exactamente el descrito aquí.
+
+**Decisión de diseño a tomar con el usuario antes de codificar (alta complejidad, no asumir):**
+- ¿Se extiende el mecanismo del Sprint 41 (generación de cuotas hijas reales) a las 5 áreas restantes tal
+  cual, o cada área necesita su propia variante?
+- La lógica de imputación en cascada descrita por el usuario es distinta del orden de imputación general
+  que ya usa `AllocationEngine` (intereses primero, luego capital) — confirmar si esta cascada especial
+  aplica solo a obligaciones recurrentes por cuotas, o debe reemplazar el orden general en todas las áreas.
+- ¿La selección "por rango" reemplaza la selección cuota-por-cuota del Sprint 41, o se ofrecen ambas?
+
+**Código nuevo a crear (una vez tomada la decisión — conviene partir en sub-tareas con
+`superpowers:writing-plans` dado el tamaño):**
+- Generalizar el generador de cuotas del Sprint 41 a las 6 áreas (o a las que decida el usuario).
+- UI de selección de pago por rango de cuotas, además de la selección individual ya existente.
+- Motor de imputación en cascada específico para cuotas recurrentes, con capital/intereses tratados de
+  forma independiente por cuota tal como describe el ejemplo del usuario.
+
+**Definición de Hecho:**
+- Un expediente de cualquier área con obligación recurrente genera el listado completo de cuotas antes de
+  liquidar, seleccionable por rango o individualmente.
+- El ejemplo numérico del usuario (abono de $500.000 el 1 de abril de 2024 sobre cuotas de $150.000
+  mensuales desde el 1 de abril de 2022) se reproduce exactamente en un test de integración.
+- Suite completa en verde.
+
+---
+
+## Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)
+
+**Contexto:** el usuario probó el flujo completo de Civil/Familia con un caso real (Radicado 2224),
+comparando los resultados de BASTIUM contra un Excel real del despacho para el mismo caso. La prueba
+sacó a la luz 5 hallazgos.
+
+**Hallazgos y estado:**
+
+1. **Concepto "PAYMENT" en la cronología en vez de un texto legible** — la fila de un abono mostraba
+   literalmente la palabra "PAYMENT" como concepto, en vez de algo como "Abono — {referencia}". Causa: el
+   evento de pago nunca llevaba un `label` en su payload. ✅ Corregido en
+   `app/services/motor_universal.py` (aplica a las 6 áreas, no solo Civil/Familia).
+2. **"Intereses Generados" subestimaba el interés real en expedientes con 2+ obligaciones** — el resumen
+   ejecutivo del PDF/Word mostraba un subtotal de interés más bajo que el real (el "Saldo Final de
+   Intereses" sí era correcto) porque `_fusionar_resultados` fijaba en `$0.00` el interés de la fila de
+   cierre consolidada en vez de sumar el interés de cierre real de cada obligación aislada. ✅ Corregido en
+   `app/services/area_strategy.py`.
+3. **La tabla de cronología del PDF/Word se salía de los márgenes de la página** — con 10-11 columnas y
+   sin ancho fijo, reportlab (PDF) y `Table Grid` en autofit-to-contents (Word) desbordaban el margen
+   impreso. ✅ Corregido en `app/reports/pdf.py` y `app/reports/word.py`: página horizontal, anchos de
+   columna proporcionales explícitos, y "Concepto" con word-wrap en el PDF.
+4. **El combo "Reajuste anual" no se precargaba al editar una obligación ya guardada** — siempre mostraba
+   "Ninguno" sin importar el valor real, y volver a guardar sin tocar ese campo revertía silenciosamente
+   `tipo_reajuste_anual` a `NINGUNO` en la base de datos (el guardado en sí funcionaba bien; el problema
+   era solo la precarga al editar). ✅ Corregido en `app/views/obligaciones.py::_precargar_desde_obligacion`,
+   con 2 tests de regresión nuevos en `tests/views/test_obligaciones.py` (uno verifica la precarga, otro
+   verifica que re-guardar ya no revierte el reajuste).
+5. **El paso "Generar cuotas" (obligatorio para que el reajuste anual tenga efecto real al liquidar)
+   nunca estaba documentado** — marcar "Reajuste anual" en la obligación no aplica nada por sí solo; hay
+   que además seleccionar la obligación y hacer clic en "Generar cuotas" para que se persistan las cuotas
+   mensuales con el capital ya escalado. Sin ese paso, el motor sigue expandiendo con capital constante
+   como si el reajuste estuviera en "Ninguno" (`_eventos_de_obligacion`,
+   `app/services/area_strategy.py`, líneas ~358-382). ✅ Corregido: paso agregado a
+   `docs/GUIA_USUARIO.md`, sección 5.4.
+6. **La fórmula de conversión de tasa anual → diaria no coincide con la del documento de requisitos del
+   despacho** — BASTIUM usa la fórmula "efectiva compuesta" `(1+i)^(1/365)-1`; el documento de requisitos
+   trae la fórmula lineal `i/365` (`0,0164` diario). Verificado con el caso real: usando la fórmula lineal,
+   BASTIUM queda a solo 0,04% del Excel del despacho, vs. 0,11% con la fórmula compuesta actual. 🔵
+   **Pregunta abierta** — ver `Preguntas-Para-Abogado-Abiertas.md`, Sprint 76, con el desarrollo completo
+   pensado para que lo entienda alguien sin trasfondo técnico/financiero.
+
+**Verificación:** cada hallazgo se diagnosticó reproduciendo el caso real en un script aislado (sesión
+SQLite en memoria, mismas fechas/montos/configuración que el expediente del usuario) antes de tocar
+código, no solo por lectura. Suite completa tras los 4 fixes de código: 1147/1147 tests en verde.
+
+**Archivos tocados:** `app/services/motor_universal.py`, `app/services/area_strategy.py`,
+`app/reports/pdf.py`, `app/reports/word.py`, `app/views/obligaciones.py`,
+`tests/views/test_obligaciones.py`, `docs/GUIA_USUARIO.md`.
 
 ---
 

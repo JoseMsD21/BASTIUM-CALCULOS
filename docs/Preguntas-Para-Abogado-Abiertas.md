@@ -31,39 +31,34 @@ Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archi
 
 ## Índice
 
-- [Sprint 8 (seguimiento) — Fuente del IPC mensual del DANE](#sprint-8-seguimiento--fuente-del-ipc-mensual-del-dane)
-- [Sprint 13 — Motor de reglas / parámetros legales](#sprint-13--motor-de-reglas--parámetros-legales)
-- [Sprint 18 — Costas judiciales (tabla de rangos)](#sprint-18--costas-judiciales-tabla-de-rangos)
-- [Sprint 18 (seguimiento) — ¿La tabla simple reemplaza el Acuerdo PSAA16-10554?](#sprint-18-seguimiento--la-tabla-simple-de-rangos-reemplaza-el-acuerdo-psaa16-10554)
-- [Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard](#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard)
-- [Sprint 41 — Fórmula de reajuste anual de la cuota alimentaria](#sprint-41--fórmula-de-reajuste-anual-de-la-cuota-alimentaria)
-- [Sprint 43 — Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario](#sprint-43--indexación-ipc-en-comercial-laboral-honorarios-sancionatorio-y-tributario)
-- [Sprint 47 — Recalcular liquidaciones históricas con las correcciones del Sprint 30](#sprint-47--recalcular-liquidaciones-históricas-con-las-correcciones-del-sprint-30)
+- [Sprint 8 (seguimiento 2) — Tabla real de índices IPC mensuales del DANE (doble base 2008/2018)](#sprint-8-seguimiento-2--tabla-real-de-índices-ipc-mensuales-del-dane-doble-base-20082018)
+- [Sprint 18 (seguimiento 2) — ¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?](#sprint-18-seguimiento-2--pcsja20-11556-y-psaa16-10554-son-el-mismo-acuerdo)
+- [Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?](#sprint-43-seguimiento--es-válido-cobrar-interés-civil-sobre-el-capital-ya-indexado-en-honorarios)
+- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt)
+- [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
+- [Sprint 76 — Fórmula de tasa diaria del Art. 1617 C.C.: ¿lineal (6%÷365) o efectiva compuesta?](#sprint-76--fórmula-de-tasa-diaria-del-art-1617-cc-lineal-6365-o-efectiva-compuesta)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
 
-## Sprint 8 (seguimiento) — Fuente del IPC mensual del DANE
+## Sprint 8 (seguimiento 2) — Tabla real de índices IPC mensuales del DANE (doble base 2008/2018)
 
-**Contexto:** El despacho ya confirmó (ver Sprint 8 en el archivo de Respondidas) que la interpolación
-entre cierres de año es jurídicamente inválida y que se necesita el índice IPC **mensual** real del DANE,
-con interpolación lineal de días entre meses. El desarrollo ya construyó y probó la función que hace esa
-interpolación (`get_ipc_interpolado_mensual_for_date` en `app/engine/indexation/historical_index.py`),
-pero le falta el insumo: la tabla real de índices mensuales del DANE. La fuente que ya tenía el software
-(transcrita del PDF de requisitos) solo trae variación **anual**, no mensual. Una búsqueda de fuentes
-públicas en internet no encontró una serie mensual completa y verificable en un formato transcribible con
-confianza (solo variaciones porcentuales desde 2011, no el índice completo desde 1967).
+**Contexto:** el despacho ya confirmó la metodología exacta que debe usar el motor de IPC mensual (ver
+Sprint 8 en `Preguntas-Para-Abogado-Respondidas.md`): operar siempre sobre el Número Índice (no variación
+%), soportando dos bases (diciembre 2008 = 100 y diciembre 2018 = 100) enlazadas por un Factor de Enlace
+calculado en el mes de traslape. Con esa metodología ya confirmada, sigue faltando el único insumo que el
+desarrollo no puede producir por sí mismo: **los valores reales** del índice mes a mes. La página 62 del
+PDF de requisitos (`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`) solo trae la variación
+**anual** 1967-2025 (ya transcrita en el software), no el índice mensual con sus dos bases.
 
-**Pregunta:** ¿El despacho tiene acceso a la serie histórica mensual de IPC del DANE (índice, no solo
-variación porcentual), por ejemplo a través de un servicio como Legis, Actualícese Premium, o la
-suscripción de datos que use el despacho? Si es así, ¿pueden aportar esa tabla (Excel, CSV, o el enlace de
-descarga)?
+**Pregunta:** ¿el despacho tiene acceso a la serie histórica mensual de IPC del DANE en las dos bases
+(diciembre 2008 = 100 y diciembre 2018 = 100), por ejemplo vía Legis, Actualícese Premium, o la suscripción
+de datos que use el despacho? Si es así, ¿pueden aportar esa tabla (Excel, CSV, o el enlace de descarga)?
 
-**Qué necesito exactamente:** La tabla completa de índice IPC mensual (no variación porcentual) que cubra
-desde el año más antiguo que el despacho necesite liquidar hasta el mes más reciente certificado por el
-DANE, idealmente con la base y el período de referencia indicados (ej. "base diciembre 2018 = 100"). Si no
-se consigue la serie completa desde 1967, sirve también acotar desde qué año en adelante hace falta —
-misma lógica que se usó con la UVT en el Sprint 14.
+**Qué necesito exactamente:** la tabla de índice IPC mensual (no variación %) con una columna que indique
+a qué base pertenece cada valor (2008 o 2018), cubriendo desde el año más antiguo que el despacho necesite
+liquidar hasta el mes más reciente certificado por el DANE. Si no se consigue la serie completa, sirve
+acotar desde qué año en adelante hace falta — misma lógica que se usó con la UVT en el Sprint 14.
 
 **Respuesta del despacho:**
 
@@ -72,25 +67,21 @@ misma lógica que se usó con la UVT en el Sprint 14.
 
 ---
 
-## Sprint 13 — Motor de reglas / parámetros legales
+## Sprint 18 (seguimiento 2) — ¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?
 
-**Contexto:** Este sprint fue una decisión de arquitectura (no una pregunta legal): se decidió que las
-tasas, topes y porcentajes legales (usura, cuota litis, SMLMV, IPC, etc.) vivan en una tabla editable desde
-la pantalla de "Parámetros" del software, para que puedan actualizarse sin necesitar un programador.
+**Contexto:** el desarrollo había identificado y verificado directamente contra la fuente oficial
+(ramajudicial.gov.co) que el Acuerdo **PSAA16-10554** del 5 de agosto de 2016 del Consejo Superior de la
+Judicatura es el que regula las tarifas de agencias en derecho, y transcribió su tabla granular completa
+(18 tipos de proceso × instancia). La respuesta más reciente del despacho, sobre cómo conviven la tabla
+simple de 3 rangos con la tabla granular, cita en cambio el Acuerdo **PCSJA20-11556** como el que rige hoy.
 
-Nota de JoseMsD (2026-08-01): en una ronda anterior de respuestas, este bloque quedó duplicado por error —
-lo que había ahí era una copia exacta de la respuesta del Sprint 11 (imputación de pagos, piso de
-sanciones, concurrencia intereses/actualización), que ya está archivada en su sección correcta en
-`Preguntas-Para-Abogado-Respondidas.md`. Junto con esa copia venía además una tabla histórica de UVT
-2006-2026, que en realidad responde al Sprint 5 y ya se movió a esa sección. **Sigue sin existir una
-respuesta real a la pregunta de este Sprint 13.**
+**Pregunta:** ¿el PCSJA20-11556 es una actualización/reemplazo del PSAA16-10554 (en cuyo caso el desarrollo
+necesitaría la tabla granular actualizada de ese acuerdo nuevo, no la de 2016), o son referencias al mismo
+acuerdo con una numeración distinta por error de transcripción?
 
-**Pregunta:** Si en el futuro alguien del despacho va a ser quien actualice los parámetros legales
-(tasas, topes, plazos) directamente desde la sección "Parámetros" de "⚙ Configuraciones" del software, ¿hace falta preparar
-una guía de uso corta para esa persona?
-
-**Qué necesito exactamente:** Sí/no, y si es sí, quién sería esa persona (para adaptar el lenguaje de la
-guía a su nivel técnico).
+**Qué necesito exactamente:** confirmación de cuál de los dos números es el correcto, y si es un acuerdo
+distinto al PSAA16-10554, la tabla granular actualizada (18 tipos de proceso × instancia, o los que
+correspondan) del acuerdo vigente.
 
 **Respuesta del despacho:**
 
@@ -99,63 +90,25 @@ guía a su nivel técnico).
 
 ---
 
-## Sprint 18 — Costas judiciales (tabla de rangos)
+## Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?
 
-**Contexto:** El PDF de BASTIUM menciona que las costas judiciales (agencias en derecho) se fijan según
-rangos de porcentaje del Consejo Superior de la Judicatura (cita el Acuerdo PCSJA20-11556 como ejemplo,
-"3% al 7% de las pretensiones reconocidas"), pero **no transcribe la tabla completa de rangos**. Este
-acuerdo tampoco se consiguió buscando en fuentes públicas.
+**Contexto:** la respuesta del despacho para Honorarios (ver Sprint 43 en
+`Preguntas-Para-Abogado-Respondidas.md`) trae la fórmula `Capital_Honorarios × (IPC_Final / IPC_Inicial) +
+Interés_Civil_6%_Anual(Capital_Actualizado)` — es decir, el interés civil del 6% se calcula **sobre el
+capital ya indexado**, no sobre el capital original. Esto es distinto de cómo funciona hoy el resto del
+motor: en Civil/Familia (Sprint 8), el interés se calcula solo sobre el capital original, nunca sobre el
+capital ya indexado — quedó documentado como limitación conocida en su momento, precisamente porque
+combinar interés + indexación sobre la misma base puede considerarse una doble actualización no permitida
+en algunos escenarios (revisado también en la respuesta del Sprint 15, sobre la prohibición de "doble
+consideración" del componente inflacionario).
 
-**Pregunta:** ¿Pueden aportar el texto completo (o al menos la tabla de rangos de cuantía y porcentaje) del
-Acuerdo del Consejo Superior de la Judicatura que esté vigente hoy para costas judiciales/agencias en
-derecho?
+**Pregunta:** ¿es jurídicamente correcto que el interés civil del 6% anual en Honorarios se calcule sobre
+el capital ya indexado (interés compuesto sobre la corrección monetaria), o el ordenamiento exige que el
+interés se calcule siempre sobre el capital original, aplicándose la indexación como un rubro aparte que no
+genera intereses sobre sí mismo?
 
-**Qué necesito exactamente:** El documento o la tabla completa (rango de cuantía desde/hasta → porcentaje
-aplicable), o el nombre/número exacto del acuerdo vigente si no es el PCSJA20-11556.
-
-**Respuesta del despacho:**
-Existe una tabla de rangos de cuantía estricta que limita lo que el juez puede fijar.
-Instrucción de Desarrollo:
-
-Implementar tabla de validación cruzada basada en las pretensiones del proceso:
-Mínima Cuantía (Hasta 40 SMMLV): Rango permitido 0% al 10%.
-Menor Cuantía (>40 hasta 150 SMMLV): Rango permitido 3% al 7%.
-Mayor Cuantía (>150 SMMLV): Rango permitido 1% al 5%.
-El sistema debe restringir el input del usuario: si el proceso es de Mayor Cuantía, el usuario no podrá ingresar un 8% de agencias en derecho (el sistema debe lanzar un error de validación).
-
-**Fecha:** _(pendiente — no se especificó al copiar la respuesta; confirmar con el despacho)_
-
-**Por qué sigue abierta (verificado leyendo el código, 2026-08-01):** esta tabla simple de 3 rangos **no
-coincide numéricamente** con la tabla granular que el desarrollo ya había construido en el cierre original
-del Sprint 18 (18 tipos de proceso × instancia, cada uno con su propio rango, transcrita directamente del
-Acuerdo PSAA16-10554 del 5 de agosto de 2016 del Consejo Superior de la Judicatura, verificado contra la
-fuente oficial en ramajudicial.gov.co — ej. la tabla granular da 5%-15% para mínima cuantía en varios tipos
-de proceso, no 0%-10%). Ver la pregunta de seguimiento abajo, que es la que de verdad necesita respuesta
-para poder cerrar este punto.
-
----
-
-## Sprint 18 (seguimiento) — ¿La tabla simple de rangos reemplaza el Acuerdo PSAA16-10554?
-
-**Contexto:** La respuesta del despacho arriba trajo una tabla simple de 3 rangos por cuantía (Mínima
-0%-10%, Menor 3%-7%, Mayor 1%-5%). El desarrollo ya tenía construida, desde el cierre original del Sprint
-18, una tabla mucho más granular (18 tipos de proceso × instancia, cada uno con su propio rango) transcrita
-directamente del Acuerdo PSAA16-10554 — esa tabla granular NO coincide numéricamente con la tabla simple.
-
-**Qué se hizo mientras tanto (2026-08-01):** para no dejar sin implementar la instrucción explícita del
-despacho ("el sistema debe restringir el input del usuario... lanzar un error de validación"), se usó la
-tabla simple **únicamente para validar/rechazar el porcentaje manual** (`costas_pct_manual`) — la tabla
-granular sigue intacta y sin tocar para el cálculo automático por tipo de proceso
-(`costas_tipo_proceso`/`costas_instancia`). Es una decisión técnica tomada con criterio propio, no
-confirmada todavía por el despacho.
-
-**Pregunta:** ¿La tabla simple de 3 rangos que enviaron es (a) una síntesis/resumen aceptable que reemplaza
-por completo la tabla granular del Acuerdo PSAA16-10554 (en cuyo caso habría que eliminar la tabla granular
-y quedarnos solo con los 3 rangos), o (b) un tope general que solo aplica cuando se usa el porcentaje
-manual, y la tabla granular sigue siendo la fuente correcta para el cálculo automático por tipo de proceso?
-
-**Qué necesito exactamente:** Una de las dos opciones (a/b), o la aclaración que corresponda si ninguna es
-exacta.
+**Qué necesito exactamente:** confirmación de una de las dos opciones, o la aclaración exacta si depende de
+si el título ejecutivo pactó expresamente el interés sobre "capital actualizado" o no.
 
 **Respuesta del despacho:**
 
@@ -164,52 +117,27 @@ exacta.
 
 ---
 
-## Sprint 33 — Tipo de acción procesal para las alertas de prescripción del Dashboard
+## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)
 
-**Contexto:** El Dashboard nuevo de BASTIUM (pantalla de inicio) avisa cuando una obligación está por
-prescribir, para que no se pase la fecha límite sin darse cuenta. Para calcular esa fecha límite, el
-software necesita saber qué "tipo de acción" judicial aplica (por ejemplo, ejecutiva, ordinaria,
-cambiaria), porque cada tipo tiene un plazo de prescripción distinto. Hoy el software **no guarda ese dato
-en ningún expediente ni obligación** — no existe un campo para eso — así que, por ahora, se está usando
-"acción ejecutiva" para calcular la alerta en **todas** las áreas del derecho por igual (Civil/Familia,
-Comercial, Sancionatorio, Honorarios, Laboral, Tributario). Esto es una simplificación técnica temporal,
-no una regla legal confirmada por el despacho.
+**Contexto:** hoy el software resuelve las fórmulas y cifras legales (tasa de reemplazo pensional,
+porcentajes, topes) con una sola versión de cada fórmula, sin distinguir qué ley aplicaba en la fecha en
+que ocurrió el hecho generador del caso. En la práctica, la ley que rige un caso depende de la fecha en que
+el hecho ocurrió, no de la fecha actual: por ejemplo, quien se pensionó en 1997 se rige por la Ley 100 de
+1993, quien se pensionó en 2024 por la Ley 797 de 2003, y quien se pensione desde que entró en vigencia la
+Ley 2381 de 2024 se rige por esa ley nueva. Lo mismo aplica en Derecho Laboral y Seguridad Social, donde el
+Código Sustantivo del Trabajo y el Código de Procedimiento del Trabajo han tenido varias modificaciones con
+fechas de vigencia propias.
 
-**Pregunta:** ¿La acción ejecutiva es el tipo correcto para calcular la prescripción en las 6 áreas que
-maneja el software, o cada área debería usar un tipo de acción distinto (por ejemplo, ordinaria para
-algunos casos de Familia, cambiaria para pagarés/letras en Comercial, etc.), con plazos diferentes?
+**Pregunta:** para las fórmulas y cifras que dependen de la ley vigente al momento del hecho (empezando por
+la tasa de reemplazo pensional del Sprint 17, hoy implementada como una sola fórmula fija `r = 65.5 −
+0.5·s` de la Ley 100/Ley 797), ¿pueden confirmar la lista de leyes relevantes con su fecha exacta de entrada
+en vigencia y qué fórmula/cifra corresponde a cada una, empezando por: Ley 100 de 1993, Ley 797 de 2003, y
+Ley 2381 de 2024? ¿Hay otras leyes/reformas del CST o del CPT con vigencias específicas que el motor deba
+distinguir de la misma forma?
 
-**Qué necesito exactamente:** Si la respuesta es "cada área es distinta", una tabla simple de
-Área del derecho → Tipo de acción → Plazo de prescripción (en años o meses), con la norma que lo respalda
-si es posible. Si "ejecutiva para todo" es una aproximación razonable mientras tanto, basta la confirmación
-de que sirve como estimado provisional (sabiendo que puede no ser exacto para casos puntuales).
-
-**Respuesta del despacho:**
-
-
-**Fecha:**
-
----
-
-## Sprint 41 — Fórmula de reajuste anual de la cuota alimentaria
-
-**Contexto:** Un usuario del software aportó una demanda ejecutiva de alimentos real (Daniela Aranda
-Andrade c. Jorge Andrés Carvajal Córdoba, Juzgado de Familia de Neiva, radicada 2026-06-28, Acta de
-Conciliación No. 036-2019, Comisaría de Familia de Yaguará, 2019-07-23) donde la cuota alimentaria base de
-$100.000 crece cada 1 de enero según el porcentaje de incremento del SMMLV decretado por el Gobierno
-Nacional, manteniéndose constante durante el resto del año, hasta llegar a $212.450 vigente en 2026. El
-software va a automatizar este reajuste anual (capital constante dentro del año calendario, reajustado cada
-1° de enero) con la fórmula `cuota_nueva = cuota_anterior + (cuota_anterior × porcentaje_variación_anual /
-100)`, usando el índice que indique el acta o título ejecutivo de cada caso (SMMLV o IPC).
-
-**Pregunta:** ¿Es correcta esa fórmula de reajuste anual (aplicar el % de variación completo del SMMLV o
-IPC del año anterior sobre la cuota vigente, cada 1 de enero) para cualquier acta/título ejecutivo que fije
-un reajuste "según el SMMLV" o "según el IPC", o hay casos donde la fórmula real difiere (ej. un tope
-máximo, un redondeo específico, un mes de corte distinto al 1 de enero, o un porcentaje parcial en vez del
-100% de la variación)?
-
-**Qué necesito exactamente:** Confirmación de que la fórmula de arriba es la interpretación jurídica
-correcta y general para este tipo de cláusula, o la corrección exacta si difiere en algún escenario.
+**Qué necesito exactamente:** una tabla de Ley → fecha de entrada en vigencia → fórmula o cifra que
+corresponde → a qué módulo del software aplica (pensional, laboral, otro). No hace falta que sea exhaustiva
+de una sola vez — puede empezar por las 3 leyes pensionales mencionadas y ampliarse después.
 
 **Respuesta del despacho:**
 
@@ -218,29 +146,26 @@ correcta y general para este tipo de cláusula, o la corrección exacta si difie
 
 ---
 
-## Sprint 43 — Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario
+## Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo
 
-**Contexto:** El software ya tiene indexación por IPC construida y probada, pero hoy solo está disponible
-para el área Civil/Familia — en las otras 5 áreas el checkbox correspondiente ni siquiera aparece en el
-formulario. Se quiere ofrecerla como opción en cualquier liquidación de cualquier área, pero dos de esas
-áreas ya tienen su **propio** mecanismo de actualización monetaria: Tributario (Art. 867-1 E.T.) y
-Sancionatorio (conversión SMLMV/UVT según la fecha del hecho, Ley 1955/2019 art. 49) — activar IPC ahí
-también podría estar duplicando el ajuste sobre el mismo capital.
+**Contexto:** hoy el software no distingue quién es el beneficiario de una obligación alimentaria más allá
+de un campo de texto libre — no pregunta si es un niño, un niño con discapacidad, el cónyuge, los padres, u
+otra persona (ej. donante), y por lo tanto no puede calcular automáticamente hasta cuándo es exigible cada
+obligación. Según lo que el usuario describe: para niños sin discapacidad la obligación termina a los 18
+años si no estudia una carrera profesional/técnica/tecnológica, o se extiende hasta los 25 años si estudia;
+para niños con discapacidad permanente la obligación es vitalicia; para el cónyuge se debe hasta que supere
+su condición de vulnerabilidad (ej. consiga trabajo); para los padres se debe hasta la muerte de cualquiera
+de las partes; y para otros beneficiarios (abuelos, donantes) aplicarían reglas puntuales.
 
-**Pregunta:** ¿En cuáles de estas áreas tiene sentido jurídico ofrecer indexación IPC como opción adicional
-a la que ya tiene el área hoy?
-- **Comercial** (sin mecanismo propio de actualización monetaria detectado en el código).
-- **Laboral** (sin mecanismo propio de actualización monetaria detectado en el código).
-- **Honorarios** (sin mecanismo propio de actualización monetaria detectado en el código).
-- **Sancionatorio** — ¿la indexación IPC puede coexistir con la conversión SMLMV/UVT ya existente, o sería
-  una doble actualización sobre el mismo capital?
-- **Tributario** — ¿la indexación IPC puede coexistir con la actualización del Art. 867-1 E.T. ya existente,
-  o sería una doble actualización sobre el mismo capital?
+**Pregunta:** ¿pueden confirmar la lista completa de reglas de vigencia por tipo de beneficiario descritas
+arriba, y las que falten (ej. ¿cómo se determina y se prueba en el proceso que un cónyuge "superó su
+condición de vulnerabilidad"? ¿hay un tope de edad distinto si el niño sin discapacidad no estudia pero
+tampoco puede sostenerse por otra razón?)? ¿Existen otras categorías de beneficiario además de las
+mencionadas (niño, niño con discapacidad, cónyuge, padres, otros) que el software deba contemplar?
 
-**Qué necesito exactamente:** Para cada una de las 5 áreas, sí/no sobre si debe ofrecerse IPC; para
-Sancionatorio y Tributario en particular, si la respuesta es sí, aclarar si IPC reemplaza al mecanismo
-propio, se suma a él, o son mutuamente excluyentes (el abogado elige uno u otro por liquidación, nunca
-ambos).
+**Qué necesito exactamente:** confirmación de las reglas de vigencia por tipo de beneficiario, con la norma
+que respalda cada una, para poder construir el árbol de decisión que el usuario pidió en el formulario de
+captura del caso.
 
 **Respuesta del despacho:**
 
@@ -249,40 +174,83 @@ ambos).
 
 ---
 
-## Sprint 47 — Recalcular liquidaciones históricas con las correcciones del Sprint 30
+## Sprint 76 — Fórmula de tasa diaria del Art. 1617 C.C.: ¿lineal (6%÷365) o efectiva compuesta?
 
-**Contexto:** El Sprint 30 corrigió dos cómputos de fecha/conteo que el despacho había confirmado como
-incorrectos: la fecha de interrupción efectiva de la prescripción (ahora fecha-a-fecha real, en vez de un
-umbral de "365 días o menos"), y el conteo de días de prestaciones sociales en el área Laboral (ahora
-inclusivo, sobre base comercial de 360 días). Esas correcciones aplican automáticamente a cualquier
-liquidación calculada de ahora en adelante, pero **por diseño no tocaron ninguna liquidación que ya
-estuviera guardada** en el sistema antes del Sprint 30 — esas liquidaciones antiguas siguen mostrando el
-valor calculado con la lógica vieja (potencialmente incorrecta) si alguien las vuelve a abrir o
-reconstruir, en vez del valor corregido.
+**Contexto (explicado desde cero, para quien no haya visto el código):**
 
-Recalcular una liquidación ya entregada (a un cliente, o presentada ante un juzgado) no es solo actualizar
-un dato en el sistema — puede tener una implicación práctica real: dos valores distintos "correctos" para
-el mismo período, uno ya conocido por la contraparte y otro nuevo. Por eso esta decisión no se tomó
-técnicamente sin consultar antes.
+El Artículo 1617 del Código Civil dice que, cuando un contrato no pactó una tasa de interés, se debe el
+**6% anual**. El software necesita liquidar día por día (para saber exactamente cuánto interés se debe
+en cualquier fecha, no solo al cierre de cada año), así que ese 6% anual tiene que convertirse primero en
+una **tasa diaria equivalente**. El problema es que existen dos formas matemáticas distintas — y
+legalmente distintas — de hacer esa conversión, y dan números diferentes.
 
-**Ya decidido por el desarrollo (2026-08-09), no hace falta confirmarlo — informativo:** si el despacho
-decide que sí hace falta recalcular alguna liquidación, el mecanismo técnico ya está definido: se guardaría
-como una liquidación **nueva vinculada a la anterior** (no se sobrescribe el registro original, para no
-perder el rastro de qué se calculó y entregó en su momento), y el sistema dejaría una **marca/flag visible**
-en el expediente para que el abogado decida manualmente si notifica a alguien.
+**Opción A — Lineal (o "nominal"), la fórmula que trae el documento de requisitos:**
 
-**Pregunta:** ¿Existe hoy alguna liquidación ya calculada con BASTIUM (antes del cierre del Sprint 30,
-2026-08-04) que ya se haya entregado formalmente a un cliente o presentado ante un juzgado, usando el
-cómputo de prescripción o de prestaciones sociales de Laboral? Si la respuesta es sí:
-- ¿Se debe recalcular esa liquidación específica (y cualquier otra en la misma situación), o se deja tal
-  como se entregó, asumiendo que las liquidaciones nuevas de ahora en adelante ya usan la lógica corregida?
-- Si se recalcula: ¿aplica solo a expedientes que el despacho sigue trabajando activamente, o a cualquier
-  expediente sin importar su estado actual?
+Es la división simple: `tasa_diaria = 6% ÷ 365 = 0,016438...%` por día (el documento
+`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf` la redondea a `0,0164`). La idea detrás de esta
+fórmula es que el 6% anual se "reparte" en partes iguales entre los 365 días del año — ningún día genera
+más ni menos que los demás, y el interés de cada día se calcula siempre sobre el mismo porcentaje fijo.
 
-**Qué necesito exactamente:** Un sí/no sobre si existe alguna liquidación real ya entregada en esa
-situación, y si la respuesta es sí, cuál de las dos opciones de alcance de recálculo aplica. Si la
-respuesta es "no, todo el uso hasta ahora fue de prueba/desarrollo", esta pregunta se puede cerrar
-confirmando que no se recalcula ninguna liquidación histórica.
+**Opción B — Efectiva compuesta, la que usa BASTIUM hoy:**
+
+`tasa_diaria = (1 + 6%)^(1/365) − 1 = 0,015965...%` por día — un poquito más baja que la Opción A. La idea
+detrás de esta fórmula es distinta: en el mundo financiero/bancario colombiano, cuando una tasa se certifica
+como "efectiva anual" (EA — así se certifican, por ejemplo, las tasas de usura de la Superfinanciera), se
+asume que el interés se reinvierte (se capitaliza) cada día, y esta fórmula calcula la única tasa diaria
+que, capitalizada 365 veces seguidas, reproduce exactamente ese 6% al cabo del año — ni un peso más, ni un
+peso menos. Es la fórmula estándar para convertir una tasa "efectiva" (EA) a un plazo más corto.
+
+**La tensión que hay que resolver:** el Art. 1617 nunca dice que el 6% sea una tasa "efectiva anual" en el
+sentido técnico-financiero (con capitalización); podría leerse simplemente como "6% al año, repartido en
+partes iguales" — que es la Opción A. Además, BASTIUM **no capitaliza** el interés día a día (el interés se
+guarda aparte, nunca se le suma al capital para que genere más interés sobre sí mismo, salvo que exista
+anatocismo pactado en Comercial) — así que usar hoy una tasa "diseñada para capitalizar" pero sin
+capitalizar en la práctica es, como mínimo, una inconsistencia que vale la pena que el despacho confirme o
+corrija.
+
+**Ejemplo numérico simple, para entender la diferencia:** $10.000.000 de capital, 30 días, al 6% anual:
+
+| Fórmula | Tasa diaria | Interés de 30 días |
+|---|---|---|
+| A — Lineal (6% ÷ 365) | 0,016438% | **$49.315,20** |
+| B — Efectiva compuesta (fórmula actual de BASTIUM) | 0,015965% | **$47.896,20** |
+
+Diferencia: **$1.419,00** (la Opción A da 2,96% más interés que la Opción B) sobre apenas 30 días y un
+capital de $10 millones. La diferencia crece con el capital y con el tiempo transcurrido.
+
+**Ejemplo con un caso real capturado en el software (Radicado 2224, prueba práctica del usuario, comparado
+contra un Excel real del despacho):** cuota de $300.000/mes desde noviembre de 2023, reajustada cada 1° de
+enero según el SMMLV (Sprint 41), sin indexación IPC, liquidada hasta el 31 de agosto de 2025 (~22 meses):
+
+| | Excel del despacho | BASTIUM con la fórmula actual (B) | BASTIUM si usara la fórmula lineal (A) |
+|---|---|---|---|
+| Intereses | $423.063,74 | $410.700,80 | **$422.866,16** |
+| Gran Total | **$7.999.230,14** | $7.990.356,08 | **$8.002.521,44** |
+| Diferencia vs. el Excel | — | 0,11% por debajo | **0,04% por encima** |
+
+Con la fórmula lineal (Opción A), BASTIUM queda casi 3 veces más cerca del resultado del Excel del despacho
+que con la fórmula que usa hoy. El 0,04% que todavía quedaría de diferencia ya no sería por la tasa —
+vendría de que el Excel del despacho aproxima el interés mes a mes con un 0,50% fijo (en vez de contar los
+días exactos de cada mes) y redondea el porcentaje de reajuste del SMMLV (12,00%/9,53% en vez del dato
+exacto 12,07%/9,50%).
+
+**Pregunta:** para el interés civil del Art. 1617 (y, si aplica también a otras tasas pactadas por las
+partes en Civil/Familia y Comercial, siempre que no se haya pactado capitalización/anatocismo), ¿la
+conversión de la tasa anual a diaria debe hacerse con la fórmula **lineal** (`tasa_anual ÷ 365`, la que trae
+el documento de requisitos) o con la fórmula **efectiva compuesta** (`(1+tasa_anual)^(1/365) − 1`, la que
+usa el software hoy)? Y, relacionado: cuando el interés diario calculado NO se reinvierte en el capital
+(comportamiento por defecto del software, sin anatocismo), ¿tiene sentido jurídico seguir usando una tasa
+derivada asumiendo capitalización, o debería usarse siempre la lineal en ese caso?
+
+**Qué necesito exactamente:** confirmación de cuál de las dos fórmulas (A o B) debe usar el software para
+el interés del Art. 1617 y para las tasas pactadas sin capitalización explícita — y, si la respuesta es "depende"
+(ej. depende de si la tasa fue certificada como "efectiva anual" en el título ejecutivo o no), una regla
+clara de cuándo aplica cada una.
+
+**Dónde vive esto en el código (para referencia del desarrollo, no hace falta leerlo para responder):**
+`app/engine/interest/rate_conversion.py`, clase `EffectiveRateConverter`, método `annual_to_daily` —
+implementa hoy la Opción B. Cambiarla afecta a las 6 áreas del derecho (todas pasan por el mismo motor),
+no solo Civil/Familia.
 
 **Respuesta del despacho:**
 
