@@ -5012,6 +5012,159 @@ señala sus propios hallazgos de alcance. `ruff check .` queda limpio al final (
 
 ---
 
+## Sprint 67 — Checkbox invisible en modo claro y oscuro (indicador de QCheckBox) ✅ Completado
+
+**Prioridad sugerida:** Alta — bug visual real que afecta el flujo de captura en todas las pantallas con
+checkboxes (Agregar obligación, Agregar valor de parámetro, Modo oscuro).
+
+**Depende de:** Nada.
+
+**Contexto:** el usuario reportó, mientras probaba "Agregar obligación", que no podía ver el recuadro de
+las casillas "Demanda judicial" ni "¿Hay acuerdo posterior de capitalización?" — ni en modo claro ni en
+modo oscuro (este último en la vista de Parámetros). Investigación confirmó que ni `resources/theme.qss`
+ni `resources/theme_dark.qss` tenían jamás una sola regla `QCheckBox::indicator` — afecta a los 4 archivos
+de `app/views/` que usan `QCheckBox` (`obligaciones.py`, `configuracion.py`, `apariencia.py`,
+`descuentos_laborales.py`), no solo a los 2 que el usuario notó. Diseño en
+`docs/superpowers/specs/2026-08-13-checkbox-indicador-visible-design.md`, plan en
+`docs/superpowers/plans/2026-08-13-checkbox-indicador-visible.md`, ejecutado con
+superpowers:subagent-driven-development en un worktree dedicado.
+
+**Código nuevo a crear:** bloques `QCheckBox`/`QCheckBox::indicator` (normal, hover, checked,
+checked:hover, disabled, checked:disabled) en `resources/theme.qss` y `resources/theme_dark.qss`, usando
+solo los colores de marca ya documentados en cada archivo — el estado "marcado" se representa con relleno
+de color sólido (sin glifo de tilde dibujado encima, para no depender de un asset SVG nuevo). Test nuevo:
+`tests/core/test_theme_qss.py`.
+
+**Definición de Hecho:**
+- El indicador de cualquier `QCheckBox` de la app es visible, marcado o sin marcar, en modo claro y en modo
+  oscuro.
+- Suite completa en verde.
+
+**Cierre de implementación (2026-08-13):** Completado. 4 commits (test que falla + implementación, para
+cada tema), cada uno con revisión de spec y de calidad. Suite completa: 1107 passed (número justo después
+de mergear este sprint); `ruff check .` limpio. La revisión final encontró 2 notas no bloqueantes:
+`QCheckBox::indicator:checked:disabled` reutiliza el color de "texto deshabilitado" en vez de un tono
+"primario disabled" dedicado (sigue siendo un color de marca documentado, solo una inconsistencia menor de
+patrón), y 3 `QGroupBox` marcables en `obligaciones.py` usan un subcontrol distinto
+(`QGroupBox::indicator`), no cubierto por este fix — posible seguimiento futuro, fuera del alcance de este
+bug. **Pendiente de verificación manual:** el agente que ejecutó el plan corrió en modo headless y no pudo
+confirmar visualmente el renderizado real en la app (clic a través de "Agregar obligación" en ambos temas)
+— queda para que el usuario lo confirme la próxima vez que abra la app.
+
+---
+
+## Sprint 68 — Parámetros: editar/eliminar de usuario, vigencia clara, unidad desplegable y tooltips homologados ✅ Completado
+
+**Prioridad sugerida:** Alta — gap funcional real: el usuario no tenía forma de corregir parámetros de
+prueba mal cargados.
+
+**Depende de:** Nada.
+
+**Contexto:** el usuario, probando el flujo de captura de parámetros, cargó valores de prueba que
+"quedaron mal" y no tenía forma de eliminarlos ni editarlos — `parametros_legales` era estrictamente
+append-only en la UI, sin ningún flag real que distinguiera los valores de sistema/semilla de los creados
+por un usuario (el campo `usuario` era solo texto libre). Además reportó 3 problemas más en el mismo
+formulario: "Vigente hasta" desaparecía sin explicación según el modo del parámetro elegido, "Unidad" era
+texto libre en vez de un desplegable, y solo el campo "Unidad" tenía el ícono ⓘ de ayuda visual (el resto
+tenía tooltip solo al pasar el mouse directo sobre el campo, sin ícono). Diseño en
+`docs/superpowers/specs/2026-08-13-parametros-crud-usuario-design.md`, plan en
+`docs/superpowers/plans/2026-08-13-parametros-crud-usuario.md`, ejecutado con
+superpowers:subagent-driven-development en un worktree dedicado, 10 tareas secuenciales (comparten archivo
+con `app/views/configuracion.py`, no paralelizables entre sí sin riesgo de conflicto).
+
+**Código nuevo a crear:**
+- `database/models.py`: columna `creado_por_sistema: bool` en `ParametroLegal`. Migración nueva
+  `scripts/migrate_creado_por_sistema.py` (idempotente, con backfill de las filas ya sembradas con
+  `usuario='sistema'`).
+- `app/services/parametro_service.py`: `editar_valor`/`eliminar_valor` nuevos, protegidos (nunca operan
+  sobre `creado_por_sistema=True`); `agregar_valor` refactorizado (`_validar_y_preparar` compartida) y
+  ahora marca `creado_por_sistema=False` siempre.
+- `app/views/configuracion.py`: `ParametroFormDialog` soporta modo edición (`parametro_id`); "Vigente
+  hasta" se deshabilita con nota explicativa en vez de ocultarse; "Unidad" pasa a `QComboBox` con opción
+  "Otros..."; todos los campos usan el ícono ⓘ (`agregar_ayuda`); `HistorialParametroDialog` gana columnas
+  Editar/Eliminar (solo para filas de usuario); `ParametrosView.tabla` gana tooltips de columna.
+- Tests nuevos/actualizados en `tests/scripts/test_migrate_creado_por_sistema.py`,
+  `tests/services/test_parametro_service.py`, `tests/views/test_configuracion.py`.
+- Documentación: `README.md`, `docs/GUIA_USUARIO.md`, `CHANGELOG.md`.
+
+**Definición de Hecho:**
+- Un usuario puede editar/eliminar solo los valores de parámetro que él mismo cargó; los de sistema quedan
+  protegidos en cada camino de código (servicio y UI), no solo ocultos en pantalla.
+- "Vigente hasta" explica en la propia UI cuándo aplica, sin cambiar el motor de resolución de parámetros.
+- "Unidad" es un desplegable con las 6 unidades ya usadas + "Otros...".
+- Todos los campos del formulario y las columnas de la tabla resumen tienen tooltip ⓘ.
+- Suite completa en verde.
+
+**Cierre de implementación (2026-08-13):** Completado. 16 commits a través de las 10 tareas del plan, cada
+una con revisión de spec y de calidad, más una revisión holística final centrada en verificar la invariante
+de protección de filas de sistema en cada camino nuevo de código. Suite completa: 1127 passed en la rama,
+1131 tras mergear a main junto con el Sprint 67; `ruff check .` limpio. Un hallazgo real durante la Task 1:
+los scripts de migración con SQL crudo que verificaban columnas de `parametros_legales` se rompieron al
+agregar la columna nueva — se corrigieron como parte de la misma tarea, no señalado explícitamente en el
+plan pero necesario para no dejar la suite roja. La Task 8 encontró y corrigió un bug real durante el
+auto-review del implementador: `QTableWidget` no limpia los `cellWidget` de una fila al reordenarse, lo que
+podía dejar botones Editar/Eliminar "fantasma" en una fila de sistema tras un cambio de orden — corregido
+con un test de regresión que lo reproduce. La Task 10 (revisión final) encontró y corrigió 3 tooltips ⓘ
+residuales (Área, Unidad, Usuario) que todavía decían "no se puede editar después de guardar", texto que
+había quedado obsoleto desde que la Task 7 habilitó la edición. **Pendiente de verificación manual:** el
+clic a través real de la pantalla de Parámetros (revelado de "Otros...", estados habilitado/deshabilitado
+de "Vigente hasta", flujo de Editar/Eliminar) no se pudo confirmar de forma headless — queda para que el
+usuario lo revise.
+
+---
+
+## Sprint 69 — Configuraciones: Restablecer datos de fábrica ✅ Completado
+
+**Prioridad sugerida:** Media — feature nueva pedida por el usuario para poder empezar de cero tras cargar
+datos de prueba, sin bloquear el uso actual.
+
+**Depende de:** Sprint 68 (columna `creado_por_sistema`, usada para no borrar los parámetros de sistema al
+restablecer).
+
+**Contexto:** el usuario pidió una forma de volver la app al estado "recién instalada" desde la propia UI
+— motivado por los mismos datos de prueba mencionados en el Sprint 68, pero a nivel de toda la base
+(expedientes incluidos), no solo parámetros. Diseño en
+`docs/superpowers/specs/2026-08-13-restablecer-datos-fabrica-design.md`, plan en
+`docs/superpowers/plans/2026-08-13-restablecer-datos-fabrica.md`, ejecutado con
+superpowers:subagent-driven-development en un worktree dedicado, despachado después de que el Sprint 68
+mergeara a main (dependencia real de esquema, no solo de orden narrativo).
+
+**Código nuevo a crear:**
+- `app/services/restablecer_service.py` (nuevo): `crear_backup_de_base_de_datos()` (copia `bastium.db` a
+  `backups/`, mismo patrón de nombre que los backups manuales del Sprint 64) + `restablecer_datos_fabrica()`
+  (borra expedientes en cascada vía ORM + parámetros con `creado_por_sistema=False`, deja los de sistema
+  intactos).
+- `app/views/restablecer.py` (nuevo): `ConfirmarRestablecerDialog` (exige escribir "RESTABLECER" para
+  habilitar el botón de confirmar) + `RestablecerView` (orquesta diálogo → backup → borrado → reset de tema
+  a claro → mensaje de éxito con la ruta del backup; aborta sin borrar nada si el backup falla).
+- `app/views/configuraciones.py`: tercera sección "Restablecer" en el submenú, junto a Parámetros y
+  Apariencia.
+- Tests nuevos: `tests/services/test_restablecer_service.py`, `tests/views/test_restablecer.py`, casos
+  nuevos en `tests/views/test_configuraciones.py`.
+- Documentación: `README.md`, `docs/GUIA_USUARIO.md`, `CHANGELOG.md`.
+
+**Definición de Hecho:**
+- Configuraciones → Restablecer borra todos los expedientes y los parámetros de usuario, deja los de
+  sistema y crea un backup automático antes de borrar.
+- La confirmación exige escribir "RESTABLECER" exacto; si el backup falla, no se borra nada.
+- Suite completa en verde.
+
+**Cierre de implementación (2026-08-13):** Completado. 7 commits a través de las 7 tareas del plan, cada
+una con revisión de spec y de calidad, más revisión holística final centrada en la garantía de orden
+(backup exitoso antes de cualquier borrado), verificada trazando el código real 3 veces (implementador,
+revisor de spec, revisor final). Suite completa: 1145 passed tras mergear a main; `ruff check .` limpio.
+Una interrupción por límite de sesión del agente ocurrió justo antes de despachar la Task 3 — se verificó
+que no quedó trabajo a medio commitear antes de reanudar, sin pérdida ni duplicación. **Hallazgo no
+bloqueante, no corregido** (fuera del alcance literal del plan): `RestablecerView._restablecer()` no
+captura excepciones después de un backup exitoso — si `restablecer_datos_fabrica()` lanzara una excepción
+en ese punto, el usuario vería un traceback crudo en vez de un diálogo de error (el backup ya está a salvo,
+no hay riesgo de pérdida de datos, solo degradación de UX ante un caso hoy no observado en ningún test).
+**Pendiente de verificación manual:** el clic a través real (confirmar el texto de advertencia, el botón
+destructivo, el gate de confirmación, y el flujo completo de restablecimiento con datos de prueba) no se
+pudo confirmar de forma headless — queda para que el usuario lo revise.
+
+---
+
 ## Notas de entorno (sin sprint asignado)
 
 - ~~Validar/enable Windows "Long Paths" en la máquina de desarrollo~~ — **resuelto** (2026-07-15): se
