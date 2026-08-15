@@ -73,6 +73,28 @@ class TipoReajusteAnual(enum.Enum):
     NINGUNO = "NINGUNO"
 
 
+class TipoRecurrencia(enum.Enum):
+    """Cadencia de una obligacion RECURRENTE (Sprint 73). MENSUAL (default)
+    preserva el comportamiento de siempre: una cuota cada mes (cuota
+    alimentaria tipica), generada por app.services.reajuste_anual (Sprint 41)
+    o por RecurringScheduler en su forma efimera. FECHAS_ANUALES_FIJAS es un
+    patron distinto reportado por el usuario (gastos de vestuario en
+    junio/diciembre/cumpleanos del beneficiario, no una cuota mes a mes):
+    solo se causan obligaciones en las fechas MM-DD listadas en
+    `Obligacion.fechas_anuales_fijas`, cada año, via
+    app.services.recurrencia_fechas_fijas.generar_cuotas_fechas_fijas.
+
+    El cumpleanos del beneficiario se ingresa como una entrada MM-DD manual
+    mas dentro de esa lista -- NO se deriva automaticamente de una fecha de
+    nacimiento de beneficiario, porque ese dato (entidad Beneficiario/fecha de
+    nacimiento) no existe todavia en el modelo (Sprint 74, bloqueado por una
+    pregunta legal pendiente de respuesta del despacho). Revisar esta
+    limitacion cuando el Sprint 74 aterrice."""
+
+    MENSUAL = "MENSUAL"
+    FECHAS_ANUALES_FIJAS = "FECHAS_ANUALES_FIJAS"
+
+
 class TipoEventoLaboral(enum.Enum):
     SUSPENSION = "SUSPENSION"
     INCAPACIDAD_COMUN = "INCAPACIDAD_COMUN"
@@ -214,6 +236,27 @@ class Obligacion(Base):
     # el riesgo de migracion. La relacion logica (hija -> padre) se resuelve en
     # Python filtrando por este entero, no via relationship() de SQLAlchemy.
     obligacion_padre_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # tipo_recurrencia/fechas_anuales_fijas (Sprint 73): aditivo, solo relevante
+    # para una obligacion RECURRENTE. tipo_recurrencia default MENSUAL preserva
+    # el comportamiento de todas las obligaciones RECURRENTE creadas antes de
+    # este sprint. fechas_anuales_fijas guarda una lista JSON de fechas "MM-DD"
+    # (ej. '["06-15", "12-15", "03-22"]') como TEXT en una columna String --
+    # mismo patron ya usado por ParametroLegal.areas_derecho (Sprint 57, ver
+    # app/services/areas_parametro.py) en vez de inventar un tipo de columna
+    # JSON nuevo. Solo se llena cuando tipo_recurrencia ==
+    # FECHAS_ANUALES_FIJAS; ver app/services/recurrencia_fechas_fijas.py para
+    # la (de)serializacion y el generador de cuotas hijas real.
+    # server_default (ademas de default de Python), mismo motivo que
+    # EstadoProcesal arriba: hay tests/scripts existentes que insertan filas en
+    # `obligaciones` via SQL crudo sin pasar por el ORM -- sin un DEFAULT a
+    # nivel de DDL, SQLite rechazaria esos INSERT con "NOT NULL constraint
+    # failed" en cuanto esta columna existe.
+    tipo_recurrencia: Mapped[TipoRecurrencia] = mapped_column(
+        SAEnum(TipoRecurrencia),
+        default=TipoRecurrencia.MENSUAL,
+        server_default=TipoRecurrencia.MENSUAL.value,
+    )
+    fechas_anuales_fijas: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(

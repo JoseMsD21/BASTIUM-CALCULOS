@@ -47,6 +47,7 @@ from app.engine.temporal.schedulers.labor import LaborScheduler
 from app.engine.time.calendar import CalendarUtils
 from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import cache_de_liquidacion, get_parametro
+from app.services.recurrencia_fechas_fijas import deserializar_fechas_anuales
 
 
 def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
@@ -369,25 +370,56 @@ class CivilFamiliaStrategy(AreaStrategy):
         # ids_con_cuotas_generadas), se preserva el comportamiento anterior a este
         # sprint (expansion efimera, capital constante, sin reajuste) -- el reajuste
         # solo aplica una vez que el usuario genera las cuotas explicitamente.
-        # tipo_reajuste_anual puede venir en None en un objeto Obligacion transitorio
-        # nunca pasado por session.commit() (el default de columna 'NINGUNO' solo lo
-        # aplica SQLAlchemy al hacer flush/insert) -- se trata igual que NINGUNO, mismo
-        # criterio tolerante que ya usa aplica_indexacion_ipc/interes_sobre_capital_indexado
-        # en este archivo (booleanos con default=False evaluados con truthy check).
-        reajuste_activo = (
-            obligacion.tipo_reajuste_anual is not None
-            and obligacion.tipo_reajuste_anual.value != "NINGUNO"
-        )
-        if reajuste_activo and obligacion.id in (ids_con_cuotas_generadas or set()):
+        # Sprint 73: cualquier obligacion RECURRENTE con cuotas hijas reales ya
+        # persistidas (obligacion_padre_id apuntando a ella, sin importar si las
+        # genero generar_cuotas_mensuales -- reajuste SMMLV/IPC, Sprint 41 -- o
+        # generar_cuotas_fechas_fijas -- fechas anuales fijas, Sprint 73) se
+        # procesa exclusivamente a traves de esas cuotas. Generalizado desde el
+        # chequeo original del Sprint 41 (que ademas exigia `reajuste_activo`):
+        # ids_con_cuotas_generadas solo puede contener el id de esta obligacion si
+        # alguno de los dos generadores ya corrio y persistio cuotas reales, asi
+        # que basta con la pertenencia al set -- no hace falta repetir la condicion
+        # de que tipo de recurrencia/reajuste esta activo.
+        if obligacion.id in (ids_con_cuotas_generadas or set()):
             return []
 
-        scheduler = FamilyScheduler()
-        scheduler.add_monthly_obligation(
-            amount=obligacion.valor,
-            concept=obligacion.concepto,
-            due_day=obligacion.dia_pago,
-            category=obligacion.categoria,
+        # tipo_recurrencia puede venir en None en un objeto Obligacion transitorio
+        # nunca pasado por session.commit() (el default de columna 'MENSUAL' solo
+        # lo aplica SQLAlchemy al hacer flush/insert) -- se trata igual que
+        # MENSUAL, mismo criterio tolerante que tipo_reajuste_anual/None de abajo.
+        es_fechas_fijas = (
+            obligacion.tipo_recurrencia is not None
+            and obligacion.tipo_recurrencia.value == "FECHAS_ANUALES_FIJAS"
         )
+
+        scheduler = FamilyScheduler()
+        if es_fechas_fijas:
+            # Expansion efimera (sin cuotas hijas generadas todavia) para una
+            # obligacion de fechas anuales fijas (ej. gastos de vestuario en
+            # junio/diciembre/cumpleanos) -- reutiliza
+            # FamilyScheduler.add_yearly_obligation, ya existente y probado
+            # (tests/temporal/test_schedulers.py), una vez por cada fecha MM-DD
+            # configurada, en vez de add_monthly_obligation. Sin este branch, una
+            # obligacion de este tipo liquidada antes de presionar "Generar
+            # cuotas" caeria en el fallback mensual de abajo (12 cuotas en vez de
+            # las fechas puntuales pactadas) -- exactamente el bug que reporto el
+            # usuario en el Sprint 73.
+            for fecha_mm_dd in deserializar_fechas_anuales(obligacion.fechas_anuales_fijas):
+                mes, dia = (int(parte) for parte in fecha_mm_dd.split("-"))
+                scheduler.add_yearly_obligation(
+                    amount=obligacion.valor,
+                    concept=obligacion.concepto,
+                    month=mes,
+                    day=dia,
+                    category=obligacion.categoria,
+                )
+        else:
+            scheduler.add_monthly_obligation(
+                amount=obligacion.valor,
+                concept=obligacion.concepto,
+                due_day=obligacion.dia_pago,
+                category=obligacion.categoria,
+            )
         fin = obligacion.fecha_fin or fecha_corte
         eventos_capital = scheduler.generate(start=obligacion.fecha_inicio, end=fin)
 

@@ -33,6 +33,10 @@ from app.core.constants import (
 )
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
+from app.services.recurrencia_fechas_fijas import (
+    deserializar_fechas_anuales,
+    serializar_fechas_anuales,
+)
 from app.views.form_utils import (
     agregar_ayuda,
     guardar_o_actualizar,
@@ -40,7 +44,13 @@ from app.views.form_utils import (
     set_row_visible,
 )
 from app.views.icons import icon
-from database.models import Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
+from database.models import (
+    Expediente,
+    Obligacion,
+    TipoObligacion,
+    TipoReajusteAnual,
+    TipoRecurrencia,
+)
 
 
 class ObligacionFormDialog(QDialog):
@@ -63,6 +73,8 @@ class ObligacionFormDialog(QDialog):
         "anatocismo_demanda_judicial": False,
         "anatocismo_fecha_acuerdo": None,
         "tipo_reajuste_anual": TipoReajusteAnual.NINGUNO,
+        "tipo_recurrencia": TipoRecurrencia.MENSUAL,
+        "fechas_anuales_fijas": None,
     }
 
     def __init__(
@@ -160,6 +172,32 @@ class ObligacionFormDialog(QDialog):
             "Si se activa, el capital de cada cuota mensual se reajusta el 1 de enero de "
             "cada año segun el indice elegido -- usar el boton 'Generar cuotas' del "
             "expediente despues de guardar para crear las cuotas mensuales reales."
+        )
+
+        # Tipo de recurrencia y fechas anuales fijas (Sprint 73): igual que el
+        # reajuste anual de arriba, solo aplica a una obligacion RECURRENTE de
+        # Civil/Familia -- ver _actualizar_campos_visibles. "Mensual" primero y
+        # preseleccionado: mismo comportamiento que antes de este sprint si el
+        # usuario no lo toca (default del modelo, TipoRecurrencia.MENSUAL).
+        self.combo_tipo_recurrencia = QComboBox()
+        self.combo_tipo_recurrencia.addItem("Mensual (cuota cada mes)", userData="MENSUAL")
+        self.combo_tipo_recurrencia.addItem(
+            "Fechas anuales fijas (ej. gastos de vestuario)", userData="FECHAS_ANUALES_FIJAS"
+        )
+        self.combo_tipo_recurrencia.setToolTip(
+            "Mensual: una cuota cada mes (cuota alimentaria tipica). Fechas anuales fijas: "
+            "solo se causan obligaciones en las fechas MM-DD indicadas abajo, no una cuota "
+            "mensual -- util para gastos que se repiten cada año en fechas concretas (ej. "
+            "gastos de vestuario en junio, diciembre y el cumpleaños del beneficiario)."
+        )
+        self.campo_fechas_anuales_fijas = QLineEdit()
+        self.campo_fechas_anuales_fijas.setPlaceholderText("06-15, 12-15, 03-22")
+        self.campo_fechas_anuales_fijas.setToolTip(
+            "Lista de fechas fijas por año en formato MM-DD, separadas por comas (ej. "
+            "'06-15, 12-15, 03-22' para gastos de vestuario en junio, diciembre y el "
+            "cumpleaños del beneficiario). El cumpleaños se ingresa aqui a mano -- todavia "
+            "no se deriva automaticamente de una fecha de nacimiento de beneficiario "
+            "(Sprint 74, no implementado)."
         )
 
         self.campo_tasa_moratoria = QLineEdit("24.00")
@@ -433,6 +471,13 @@ class ObligacionFormDialog(QDialog):
             "Reajuste anual (Recurrente, Civil/Familia)", self.combo_tipo_reajuste_anual
         )
         self.layout_datos_basicos.addRow(
+            "Tipo de recurrencia (Recurrente, Civil/Familia)", self.combo_tipo_recurrencia
+        )
+        self.layout_datos_basicos.addRow(
+            "Fechas anuales fijas MM-DD (Fechas anuales fijas)",
+            self.campo_fechas_anuales_fijas,
+        )
+        self.layout_datos_basicos.addRow(
             "Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt
         )
         self.layout_datos_basicos.addRow(
@@ -628,6 +673,7 @@ class ObligacionFormDialog(QDialog):
         # referencia (incluyendo los de Laboral: check_pagada, campo_fecha_pago_total)
         # ya existen antes de que la señal pueda dispararse.
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
+        self.combo_tipo_recurrencia.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_es_smmlv.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_incluir_seguridad_social.stateChanged.connect(self._actualizar_campos_visibles)
@@ -700,6 +746,21 @@ class ObligacionFormDialog(QDialog):
                 indice_reajuste = self.combo_tipo_reajuste_anual.findData(valor_reajuste)
                 if indice_reajuste >= 0:
                     self.combo_tipo_reajuste_anual.setCurrentIndex(indice_reajuste)
+                # Tipo de recurrencia y fechas anuales fijas (Sprint 73): mismo
+                # criterio tolerante que arriba -- obligacion.tipo_recurrencia puede
+                # venir None en filas legacy, se trata igual que MENSUAL.
+                valor_recurrencia = (
+                    obligacion.tipo_recurrencia.value
+                    if obligacion.tipo_recurrencia is not None
+                    else "MENSUAL"
+                )
+                indice_recurrencia = self.combo_tipo_recurrencia.findData(valor_recurrencia)
+                if indice_recurrencia >= 0:
+                    self.combo_tipo_recurrencia.setCurrentIndex(indice_recurrencia)
+                if obligacion.fechas_anuales_fijas:
+                    self.campo_fechas_anuales_fijas.setText(
+                        ", ".join(deserializar_fechas_anuales(obligacion.fechas_anuales_fijas))
+                    )
             else:
                 self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
 
@@ -811,6 +872,8 @@ class ObligacionFormDialog(QDialog):
             self.campo_fecha_inicio,
             self.campo_dia_pago,
             self.combo_tipo_reajuste_anual,
+            self.combo_tipo_recurrencia,
+            self.campo_fechas_anuales_fijas,
             self.campo_cantidad_smlmv_uvt,
             self.campo_base_sancion,
             self.campo_meses_extemporaneidad,
@@ -923,6 +986,8 @@ class ObligacionFormDialog(QDialog):
                     # liquidar, digitarlo a mano no serviria de nada.
                     self._contenedor_campo_valor: not self.check_es_smmlv.isChecked(),
                     self.combo_tipo_reajuste_anual: False,
+                    self.combo_tipo_recurrencia: False,
+                    self.campo_fechas_anuales_fijas: False,
                     self.campo_fecha_pago_total: self.check_pagada.isChecked(),
                     self.combo_nivel_riesgo_arl: self.check_incluir_seguridad_social.isChecked(),
                 },
@@ -935,18 +1000,31 @@ class ObligacionFormDialog(QDialog):
             return
 
         es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
+        es_civil_familia = self._area == "CIVIL_FAMILIA"
+        # Fechas anuales fijas (Sprint 73): mismo alcance que el reajuste anual
+        # arriba (solo Civil/Familia) -- gastos de vestuario u otros gastos que
+        # se repiten cada año en fechas concretas, no una cuota mensual.
+        es_fechas_fijas = self.combo_tipo_recurrencia.currentData() == "FECHAS_ANUALES_FIJAS"
         self._aplicar_visibilidad_filas(
             self.layout_datos_basicos,
             {
                 self.campo_fecha_pago_total: False,
                 self.campo_fecha_origen: not es_recurrente,
                 self.campo_fecha_inicio: es_recurrente,
-                self.campo_dia_pago: es_recurrente,
+                # Dia de pago no aplica cuando la recurrencia es de fechas anuales
+                # fijas: las fechas de cada cuota vienen de la lista MM-DD, no de un
+                # dia fijo del mes.
+                self.campo_dia_pago: es_recurrente
+                and not (es_civil_familia and es_fechas_fijas),
                 # Reajuste anual (Sprint 41): solo Civil/Familia -- Comercial tambien
                 # admite RECURRENTE pero el reajuste SMMLV/IPC es exclusivo de cuotas
                 # alimentarias (ver plan del Sprint 41, alcance excluido: Laboral queda
                 # para otro sprint, Comercial nunca lo pidio).
-                self.combo_tipo_reajuste_anual: es_recurrente and self._area == "CIVIL_FAMILIA",
+                self.combo_tipo_reajuste_anual: es_recurrente and es_civil_familia,
+                self.combo_tipo_recurrencia: es_recurrente and es_civil_familia,
+                self.campo_fechas_anuales_fijas: es_recurrente
+                and es_civil_familia
+                and es_fechas_fijas,
             },
         )
 
@@ -1166,9 +1244,26 @@ class ObligacionFormDialog(QDialog):
     def _parse_campos_civil_familia(self) -> dict:
         if self.combo_tipo.currentData() != "RECURRENTE":
             return {}
-        return {
-            "tipo_reajuste_anual": TipoReajusteAnual(self.combo_tipo_reajuste_anual.currentData())
+        tipo_recurrencia = TipoRecurrencia(self.combo_tipo_recurrencia.currentData())
+        campos = {
+            "tipo_reajuste_anual": TipoReajusteAnual(
+                self.combo_tipo_reajuste_anual.currentData()
+            ),
+            "tipo_recurrencia": tipo_recurrencia,
+            "fechas_anuales_fijas": None,
         }
+        if tipo_recurrencia == TipoRecurrencia.FECHAS_ANUALES_FIJAS:
+            fechas = [
+                parte.strip()
+                for parte in self.campo_fechas_anuales_fijas.text().split(",")
+                if parte.strip()
+            ]
+            # serializar_fechas_anuales valida formato/lista vacia y lanza
+            # ValueError -- _guardar_y_cerrar ya lo captura y lo muestra como
+            # "Datos invalidos" (mismo patron que el resto de validaciones de
+            # este dialogo).
+            campos["fechas_anuales_fijas"] = serializar_fechas_anuales(fechas)
+        return campos
 
     def _parse_campos_sancionatorio(self) -> dict:
         (cantidad_smlmv_uvt,) = self._parse_decimales(

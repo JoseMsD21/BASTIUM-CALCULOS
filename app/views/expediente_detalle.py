@@ -33,6 +33,7 @@ from app.engine.audit.service import (
 )
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.reajuste_anual import generar_cuotas_mensuales
+from app.services.recurrencia_fechas_fijas import generar_cuotas_fechas_fijas
 from app.views.abonos import AbonoFormDialog
 from app.views.concurrency import TareaEnHilo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
@@ -530,7 +531,15 @@ class ExpedienteDetallePage(QWidget):
         RECURRENTE seleccionada en `tabla_obligaciones` (debe tener
         tipo_reajuste_anual SMMLV/IPC activo -- ver ObligacionFormDialog). Llamarlo
         de nuevo sobre la misma obligacion es seguro: generar_cuotas_mensuales es
-        idempotente (retorna las cuotas ya persistidas en vez de duplicarlas)."""
+        idempotente (retorna las cuotas ya persistidas en vez de duplicarlas).
+
+        Sprint 73: si la obligacion tiene tipo_recurrencia FECHAS_ANUALES_FIJAS
+        (ej. gastos de vestuario en junio/diciembre/cumpleanos), despacha a
+        generar_cuotas_fechas_fijas en vez de generar_cuotas_mensuales -- mismo
+        boton, mismo flujo, distinto generador segun la cadencia configurada en
+        ObligacionFormDialog. tipo_recurrencia puede venir None en filas legacy
+        (mismo criterio tolerante que area_strategy.py) -- se trata igual que
+        MENSUAL."""
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
             QMessageBox.warning(
@@ -547,8 +556,16 @@ class ExpedienteDetallePage(QWidget):
         fecha_corte = expediente.fecha_corte_default
         session.close()
 
+        es_fechas_fijas = (
+            obligacion.tipo_recurrencia is not None
+            and obligacion.tipo_recurrencia.value == "FECHAS_ANUALES_FIJAS"
+        )
+
         try:
-            cuotas = generar_cuotas_mensuales(obligacion, fecha_corte=fecha_corte)
+            if es_fechas_fijas:
+                cuotas = generar_cuotas_fechas_fijas(obligacion, fecha_corte=fecha_corte)
+            else:
+                cuotas = generar_cuotas_mensuales(obligacion, fecha_corte=fecha_corte)
         except ValueError as error:
             QMessageBox.warning(self, "No se pudo generar cuotas", str(error))
             return

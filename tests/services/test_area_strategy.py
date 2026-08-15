@@ -28,6 +28,7 @@ from app.services.area_strategy import (
     TributarioStrategy,
     _evento_costas_procesales,
 )
+from app.services.recurrencia_fechas_fijas import serializar_fechas_anuales
 from database.models import (
     Abono,
     Base,
@@ -35,6 +36,7 @@ from database.models import (
     ParametroLegal,
     TipoObligacion,
     TipoReajusteAnual,
+    TipoRecurrencia,
 )
 
 
@@ -420,6 +422,80 @@ def test_civil_familia_recurrente_con_reajuste_pero_sin_cuotas_generadas_usa_exp
     # 3 cuotas efimeras de 500000 (enero, febrero, marzo), igual que la obligacion
     # sin reajuste -- mismo comportamiento previo a este sprint.
     assert resultado.final_balance().principal == Decimal("1500000.00")
+
+
+def test_civil_familia_fechas_fijas_sin_cuotas_generadas_usa_expansion_efimera_por_fechas():
+    """Sprint 73: una obligacion RECURRENTE con tipo_recurrencia
+    FECHAS_ANUALES_FIJAS, liquidada ANTES de presionar "Generar cuotas" (sin
+    hijas persistidas todavia), debe expandirse efimeramente en las fechas
+    MM-DD configuradas -- NUNCA en 12 cuotas mensuales (que es justo el bug
+    que este sprint corrige: antes de este cambio, el fallback de
+    _eventos_de_obligacion solo sabia expandir mensualmente)."""
+    strategy = CivilFamiliaStrategy()
+    obligacion = Obligacion(
+        id=30,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Gastos de vestuario",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 12, 31),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas=serializar_fechas_anuales(["06-15", "12-15", "03-22"]),
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 12, 31)
+    )
+
+    # Exactamente 3 ocurrencias de 150000 (450000 total) -- no 12 cuotas
+    # mensuales (que habrian dado 1800000).
+    assert resultado.final_balance().principal == Decimal("450000.00")
+
+
+def test_civil_familia_fechas_fijas_con_cuotas_generadas_no_duplica_capital():
+    """Complemento del test anterior: una vez que existen cuotas hijas reales
+    (obligacion_padre_id apuntando a la RECURRENTE padre), la obligacion padre
+    no debe aportar capital propio -- mismo criterio ya probado para
+    reajuste SMMLV/IPC (Sprint 41), ahora generalizado a cualquier obligacion
+    con cuotas hijas persistidas, sin importar el generador que las creo."""
+    strategy = CivilFamiliaStrategy()
+    padre = Obligacion(
+        id=31,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Gastos de vestuario",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 12, 31),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas=serializar_fechas_anuales(["06-15", "12-15", "03-22"]),
+    )
+    cuota_marzo = Obligacion(
+        id=32,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos de vestuario - 22/03/2026",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 3, 22),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        obligacion_padre_id=31,
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[padre, cuota_marzo], abonos=[], fecha_corte=date(2026, 12, 31)
+    )
+
+    # Solo la cuota hija real (150000) -- ni las 3 fantasma de la expansion
+    # efimera (450000), ni el capital propio de la obligacion padre.
+    assert resultado.final_balance().principal == Decimal("150000.00")
 
 
 def test_civil_familia_puntual_sin_indexacion_no_genera_evento_indexation():

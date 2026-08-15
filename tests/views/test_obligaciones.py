@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
+from app.services.recurrencia_fechas_fijas import deserializar_fechas_anuales
 from app.views.obligaciones import ObligacionFormDialog
 from database.models import (
     AreaDerecho,
@@ -16,6 +17,7 @@ from database.models import (
     Obligacion,
     TipoObligacion,
     TipoReajusteAnual,
+    TipoRecurrencia,
 )
 
 
@@ -2080,4 +2082,208 @@ def test_guardar_con_obligacion_id_laboral_actualiza_en_vez_de_crear_una_nueva(q
     actualizada = session.get(Obligacion, obligacion_id)
     assert actualizada.pagada is True
     assert actualizada.fecha_pago_total == date(2021, 2, 1)
+
+
+# --- Sprint 73: obligaciones RECURRENTE con fechas anuales fijas ------------
+
+
+def test_combo_tipo_recurrencia_visible_solo_para_recurrente_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    assert dialog.combo_tipo_recurrencia.isVisible() is False
+
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    assert dialog.combo_tipo_recurrencia.isVisible() is True
+
+
+def test_combo_tipo_recurrencia_oculto_para_comercial_recurrente(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+
+    assert dialog.combo_tipo_recurrencia.isVisible() is False
+
+
+def test_campo_fechas_anuales_fijas_visible_solo_cuando_tipo_recurrencia_lo_es(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+
+    indice_mensual = dialog.combo_tipo_recurrencia.findData("MENSUAL")
+    dialog.combo_tipo_recurrencia.setCurrentIndex(indice_mensual)
+    assert dialog.campo_fechas_anuales_fijas.isVisible() is False
+
+    indice_fechas_fijas = dialog.combo_tipo_recurrencia.findData("FECHAS_ANUALES_FIJAS")
+    dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
+    assert dialog.campo_fechas_anuales_fijas.isVisible() is True
+
+
+def test_guarda_obligacion_recurrente_fechas_anuales_fijas_gastos_vestuario(qtbot, monkeypatch):
+    """Definicion de Hecho del Sprint 73 (extremo de captura): una obligacion
+    de "gastos de vestuario" con 3 fechas anuales fijas (junio, diciembre, y
+    el "cumpleanos" del beneficiario, ingresado a mano como una entrada MM-DD
+    mas -- ver limitacion documentada en TipoRecurrencia, Sprint 74 todavia no
+    implementado) se guarda con tipo_recurrencia FECHAS_ANUALES_FIJAS y la
+    lista de fechas serializada."""
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Gastos de vestuario")
+    dialog.campo_valor.setText("150000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    indice_fechas_fijas = dialog.combo_tipo_recurrencia.findData("FECHAS_ANUALES_FIJAS")
+    dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
+    # Cumpleanos del beneficiario (23 de marzo) entrado a mano, junto con
+    # junio y diciembre -- exactamente el caso del reporte del usuario.
+    dialog.campo_fechas_anuales_fijas.setText("06-15, 12-15, 03-23")
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo == TipoObligacion.RECURRENTE
+    assert guardada.tipo_recurrencia == TipoRecurrencia.FECHAS_ANUALES_FIJAS
+    assert deserializar_fechas_anuales(guardada.fechas_anuales_fijas) == [
+        "06-15",
+        "12-15",
+        "03-23",
+    ]
     session.close()
+
+
+def test_guarda_obligacion_recurrente_civil_familia_sin_tocar_recurrencia_queda_mensual(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Cuota alimentaria")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    dialog.campo_dia_pago.setValue(5)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo_recurrencia == TipoRecurrencia.MENSUAL
+    assert guardada.fechas_anuales_fijas is None
+    session.close()
+
+
+def test_guardar_fechas_anuales_fijas_con_lista_vacia_lanza_error_de_validacion(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Gastos de vestuario")
+    dialog.campo_valor.setText("150000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    indice_fechas_fijas = dialog.combo_tipo_recurrencia.findData("FECHAS_ANUALES_FIJAS")
+    dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
+    dialog.campo_fechas_anuales_fijas.setText("")
+
+    with pytest.raises(ValueError, match="al menos una fecha"):
+        dialog.guardar()
+
+
+def test_obligacion_id_precarga_tipo_recurrencia_y_fechas_anuales_fijas(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Gastos de vestuario",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        fecha_inicio=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas='["06-15", "12-15", "03-23"]',
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="CIVIL_FAMILIA", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo_recurrencia.currentData() == "FECHAS_ANUALES_FIJAS"
+    assert dialog.campo_fechas_anuales_fijas.text() == "06-15, 12-15, 03-23"
+
+
+def test_reguardar_fechas_anuales_fijas_editada_no_las_revierte_a_mensual(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Gastos de vestuario",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        fecha_inicio=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas='["06-15", "12-15", "03-23"]',
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="CIVIL_FAMILIA", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog)
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert guardada.tipo_recurrencia == TipoRecurrencia.FECHAS_ANUALES_FIJAS
+    assert deserializar_fechas_anuales(guardada.fechas_anuales_fijas) == [
+        "06-15",
+        "12-15",
+        "03-23",
+    ]
+    session.close()
+
+
+def test_civil_familia_recurrente_fechas_fijas_sin_labels_huerfanas(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    indice_fechas_fijas = dialog.combo_tipo_recurrencia.findData("FECHAS_ANUALES_FIJAS")
+    dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
+
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
