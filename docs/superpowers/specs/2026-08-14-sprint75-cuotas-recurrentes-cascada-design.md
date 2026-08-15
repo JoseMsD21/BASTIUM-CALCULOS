@@ -1,6 +1,6 @@
 # Sprint 75 — Cuotas recurrentes en todas las áreas, con selección de pago por rango e imputación en cascada
 
-**Fecha:** 2026-08-14
+**Fecha:** 2026-08-14 (alcance de áreas revisado el mismo día, ver nota abajo)
 **Origen:** `docs/Pendientes.md`, sección "Sprint 75" (reporte del usuario 2026-08-13). Diseño discutido con
 el usuario en brainstorming el 2026-08-14 antes de codificar, por indicación explícita de Pendientes.md
 ("alta complejidad, no asumir").
@@ -9,13 +9,27 @@ el usuario en brainstorming el 2026-08-14 antes de codificar, por indicación ex
 
 El Sprint 41 construyó generación real de cuotas mensuales (`Obligacion` PUNTUAL hijas de una obligación
 RECURRENTE, con reajuste anual SMMLV/IPC) y abonos por cuota individual, pero **limitado a
-Civil/Familia** — las otras 5 áreas siguen usando `RecurringScheduler`, que expande la recurrencia solo
-de forma efímera dentro de `liquidar()`, nunca como filas persistidas y seleccionables antes de liquidar.
-Tampoco existe hoy: (1) selección de pago por rango de cuotas (solo cuota-por-cuota), ni (2) una lógica de
-imputación en cascada donde un abono grande cubre capital de la cuota más reciente primero, luego
-capital+interés de las anteriores, dejando intereses ya generados "congelados" sin seguir acumulando sobre
-capital ya pagado — distinta del orden general que usa `AllocationEngine.allocate()` hoy
+Civil/Familia**. Tampoco existe hoy: (1) selección de pago por rango de cuotas (solo cuota-por-cuota), ni
+(2) una lógica de imputación en cascada donde un abono grande cubre capital de la cuota más reciente
+primero, luego capital+interés de las anteriores, dejando intereses ya generados "congelados" sin seguir
+acumulando sobre capital ya pagado — distinta del orden general que usa `AllocationEngine.allocate()` hoy
 (indexación→interés→capital, `app/engine/liquidation/allocation.py:16-64`).
+
+**Nota sobre el alcance de áreas (revisado durante la fase de planeación, 2026-08-14):** el reporte
+original del usuario decía "todas las categorías de todas las áreas". Al investigar el código real de las
+6 estrategias para escribir el plan de implementación se encontró que esto no es parejo entre áreas:
+`ComercialStrategy` ya soporta `RECURRENTE` estructuralmente (usa `FamilyScheduler`, igual que Civil/
+Familia antes del Sprint 41) y solo le falta el bloque de cuotas-hija. Pero `SancionatorioStrategy`,
+`HonorariosStrategy` y `TributarioStrategy` **rechazan `RECURRENTE` a propósito hoy**, con la razón legal
+explícita en el código ("una multa es un hecho único", "un hecho tributario es un evento único") — no
+tienen generación de eventos mensuales que reutilizar, habría que construirla desde cero sin confirmación
+del despacho de que pagar una multa/impuesto/honorarios en cuotas tiene sentido en la práctica.
+`LaboralStrategy` es estructuralmente incompatible: cada obligación representa la liquidación completa de
+UN contrato de trabajo (`len(obligaciones) != 1` lanza error hoy), no una serie de cuotas — no hay un
+concepto de "cuota recurrente" que encaje ahí sin una funcionalidad distinta. Decisión tomada con el
+usuario: este sprint generaliza únicamente a **Civil/Familia (ya existía) y Comercial (nuevo)**.
+Laboral/Sancionatorio/Honorarios/Tributario quedan **explícitamente excluidos** de este sprint (ver
+"Alcance explícitamente excluido" abajo).
 
 ## Decisiones de diseño tomadas con el usuario (2026-08-14)
 
@@ -46,7 +60,7 @@ capital ya pagado — distinta del orden general que usa `AllocationEngine.alloc
 
 ## Alcance
 
-### 1. `app/services/reajuste_anual.py` — generalizar a las 6 áreas
+### 1. `app/services/reajuste_anual.py` — generalizar a Civil/Familia + Comercial
 
 - `generar_cuotas_mensuales`: quitar el `raise ValueError` cuando `tipo_reajuste_anual == NINGUNO`; en ese
   caso `capital_actual` nunca se reajusta (se salta la llamada a `_reajustar_capital`, el resto del bucle
@@ -54,15 +68,25 @@ capital ya pagado — distinta del orden general que usa `AllocationEngine.alloc
 - Sin cambios en la firma pública ni en la idempotencia ya existente (cuotas ya generadas se retornan tal
   cual).
 
-### 2. `app/services/area_strategy.py` — extender el patrón de `CivilFamiliaStrategy` a las 5 áreas restantes
+### 2. `app/services/area_strategy.py` — extender el patrón de `CivilFamiliaStrategy` a `ComercialStrategy`
 
-- `ComercialStrategy`, `LaboralStrategy`, `SancionatorioStrategy`, `HonorariosStrategy`,
-  `TributarioStrategy` ganan el mismo bloque que hoy solo tiene `CivilFamiliaStrategy.liquidar()`
+- `ComercialStrategy` gana el mismo bloque que hoy solo tiene `CivilFamiliaStrategy.liquidar()`
   (`area_strategy.py:290-316`): detectar `ids_con_cuotas_generadas` (padres con hijas ya persistidas) y
-  no emitir eventos de capital duplicados para el padre cuando ya tiene cuotas hijas
-  (`_eventos_de_obligacion`, mismo criterio que `area_strategy.py:383-388`).
+  no emitir eventos de capital duplicados para el padre cuando ya tiene cuotas hijas en su rama RECURRENTE
+  (`_eventos_de_obligacion`, `area_strategy.py:748-757`, mismo criterio que
+  `CivilFamiliaStrategy._eventos_de_obligacion`, `area_strategy.py:383-388`). `ComercialStrategy` ya acepta
+  `RECURRENTE` y ya usa `FamilyScheduler` — este es el único cambio que necesita.
 - Reutiliza `_liquidar_por_obligacion`/`_fusionar_resultados` ya existentes — no se duplica ese mecanismo
   por área.
+
+### Alcance explícitamente excluido
+
+- `LaboralStrategy`, `SancionatorioStrategy`, `HonorariosStrategy`, `TributarioStrategy`: no se tocan en
+  este sprint (ver "Nota sobre el alcance de áreas" arriba). Queda como pendiente futuro, condicionado a
+  confirmar con el despacho si tiene sentido legal pagar en cuotas una multa/sanción/impuesto/honorarios, y
+  a diseñar la generación de eventos mensuales que hoy no existe en esas 3 áreas. Laboral necesitaría una
+  funcionalidad distinta (no cuotas-hija de una obligación, dado que ya es estructuralmente un solo
+  contrato por expediente).
 
 ### 3. `app/engine/liquidation/allocation.py` y `app/engine/liquidation/engine.py` — estrategia intercambiable
 
@@ -121,8 +145,8 @@ capital ya pagado — distinta del orden general que usa `AllocationEngine.alloc
 - Unitarias sobre `AllocationEngine.allocate_capital_primero` (capital antes que interés) vs.
   `allocate` (sin cambios, sigue interés antes que capital) — confirmar que no hay regresión en el
   comportamiento por defecto.
-- Integración: expediente en cada una de las 5 áreas nuevas genera cuotas hijas reales igual que Familia
-  hoy, sin reajuste (capital constante) y con reajuste (SMMLV/IPC) donde aplique al área.
+- Integración: expediente de Comercial genera cuotas hijas reales igual que Familia hoy, tanto sin reajuste
+  (capital constante, caso típico fuera de Familia) como con reajuste (SMMLV/IPC).
 - Integración: el ejemplo numérico exacto del usuario (cuotas de $150.000 mensuales desde 1-abr-2022,
   abono de $500.000 el 1-abr-2024) reproduce la cifra descrita — cuota de abril paga capital completo,
   marzo paga capital+interés completo, febrero paga capital completo + parte de sus intereses, con el
@@ -132,9 +156,9 @@ capital ya pagado — distinta del orden general que usa `AllocationEngine.alloc
 
 ## Definición de Hecho
 
-- Un expediente de cualquiera de las 6 áreas con obligación recurrente genera el listado completo de
+- Un expediente de Civil/Familia o Comercial con obligación recurrente genera el listado completo de
   cuotas antes de liquidar, seleccionable por rango o individualmente.
 - El ejemplo numérico del usuario se reproduce exactamente en un test de integración.
 - Ninguna de las 6 áreas cambia su comportamiento de imputación para obligaciones que no son cuotas-hija
-  (regresión cero sobre lo ya construido y probado).
+  (regresión cero sobre lo ya construido y probado, incluidas las 4 áreas excluidas de este sprint).
 - Suite completa en verde.
