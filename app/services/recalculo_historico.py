@@ -72,6 +72,23 @@ _ACCION_POR_ESTADO = {
 }
 
 
+class CosaJuzgadaNoRecalculableError(Exception):
+    """Se lanza al intentar recalcular (o generar un memorial para) un
+    expediente en EstadoProcesal.COSA_JUZGADA. Instruccion explicita del
+    despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 47): NO se
+    recalcula, se mantiene el valor por seguridad juridica, salvo recurso de
+    revision por error de hecho manifiesto (ese recurso, de haber lugar, es
+    un tramite manual del abogado -- fuera del alcance automatizado de este
+    modulo). Vive aqui (la capa que escribe AuditLog), no en
+    app/engine/reports/memoriales.py, para que la restriccion se aplique en
+    la capa que efectivamente escribe datos, sin importar el llamador --
+    memoriales.py importa esta misma excepcion en vez de duplicarla, ver
+    hallazgo de code review del Sprint 47 (recalcular_liquidacion no
+    validaba estado_procesal, solo lo hacia el script de orquestacion y la
+    generacion de memoriales, ambos posteriores al punto donde ya se habia
+    escrito la fila AuditLog nueva)."""
+
+
 def accion_por_estado_procesal(estado: EstadoProcesal) -> str:
     """Protocolo de recalculo segun estado procesal, tal como lo confirmo el
     despacho: EN_TRAMITE -> recalculo obligatorio + Memorial de
@@ -229,17 +246,37 @@ def recalcular_liquidacion(
     (append-only -- nunca sobrescribe `audit_log.resultado_json`) y marca
     `audit_log` como obsoleta si todavia no lo estaba.
 
+    Restriccion dura (Art. 53 CP / seguridad juridica, ver
+    CosaJuzgadaNoRecalculableError): si el expediente esta en
+    EstadoProcesal.COSA_JUZGADA, esta funcion se NIEGA a recalcular --
+    lanza ANTES de leer/escribir nada -- sin importar quien la llame. Esta
+    es la UNICA garantia real: un llamador que se salte
+    scripts/recalcular_historicas_sprint30.py (una vista de GUI futura, un
+    script de mantenimiento puntual, una consola interactiva) no tiene
+    ninguna otra barrera -- la validacion en
+    app/engine/reports/memoriales.py solo protege la generacion del
+    documento, que ocurre DESPUES de que esta funcion ya habria escrito la
+    fila AuditLog nueva.
+
     Nota conocida: esto asume que las filas Obligacion/Abono del expediente
     no cambiaron desde que `audit_log` se genero -- el AuditLog original solo
     guarda el RESULTADO, no los parametros de entrada, asi que no hay forma
     de reconstruir con certeza los inputs exactos de entonces si alguien
     edito la obligacion despues. Es la misma limitacion que ya tiene
     reconstruir_liquidacion para cualquier otro proposito de auditoria."""
-    resultado_anterior = reconstruir_liquidacion(session, audit_log.id)
-
     expediente = session.get(Expediente, audit_log.expediente_id)
     if expediente is None:
         raise ValueError(f"No existe el expediente {audit_log.expediente_id}.")
+    accion = accion_por_estado_procesal(expediente.estado_procesal)
+    if accion == ACCION_NO_RECALCULAR_COSA_JUZGADA:
+        raise CosaJuzgadaNoRecalculableError(
+            f"El expediente {expediente.radicado!r} está en cosa juzgada (fallo en "
+            "firme) -- el despacho instruyó explícitamente NO recalcular en este "
+            "caso, salvo recurso de revisión por error de hecho manifiesto. "
+            f"AuditLog #{audit_log.id} se mantiene sin cambios."
+        )
+
+    resultado_anterior = reconstruir_liquidacion(session, audit_log.id)
     obligaciones = list(expediente.obligaciones)
     abonos = [abono for obligacion in obligaciones for abono in obligacion.abonos]
     for obligacion in obligaciones:

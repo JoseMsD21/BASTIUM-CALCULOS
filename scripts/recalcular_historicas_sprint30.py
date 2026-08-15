@@ -7,10 +7,15 @@ vive en app/services/recalculo_historico.py y app/engine/reports/memoriales.py
 (bastium.db) en el orden que exige el protocolo del despacho
 (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 47):
 
-1. Identificar y marcar (flag "OBSOLETO - REQUIERE RECÁLCULO") todas las
-   liquidaciones (AuditLog) generadas antes del cierre del Sprint 30.
+1. Identificar todas las liquidaciones (AuditLog) generadas antes del
+   cierre del Sprint 30 que todavia no se marcaron obsoletas.
 2. Priorizar por cercania de prescripcion (<30 dias primero).
-3. Por cada una, segun el estado procesal del expediente:
+3. Por cada una, segun el estado procesal del expediente -- marcando el
+   flag "OBSOLETO - REQUIERE RECÁLCULO" atomicamente junto con el
+   resultado real de procesarla (nunca por adelantado en un paso separado
+   para todo el lote: un crash a mitad de camino no debe dejar filas
+   marcadas como "ya se le hizo algo" sin que en realidad se les haya
+   hecho nada -- ver docstring de procesar_liquidacion):
    - COSA_JUZGADA: NO recalcular, se deja el flag de obsoleta como unico
      rastro (para que quede visible que existe una version mas nueva de la
      logica pero que este expediente esta protegido por seguridad juridica).
@@ -71,21 +76,49 @@ def procesar_liquidacion(
 ) -> ResultadoProcesamiento:
     """Aplica el protocolo del despacho a UNA liquidacion ya identificada
     como pre-Sprint-30: recalcula (si el estado procesal lo permite) y
-    genera el memorial correspondiente. Si el expediente esta en
-    COSA_JUZGADA, no recalcula -- el flag de obsoleta (ya puesto por
-    marcar_obsoletas) queda como unico rastro."""
+    genera el memorial correspondiente.
+
+    Marca `audit_log` como obsoleta AQUI, atomicamente junto con el
+    resultado real de procesarla (recalculada, o explicitamente no
+    recalculada por cosa juzgada) -- nunca antes, en un paso separado
+    (code review Critical #2 del Sprint 47: `ejecutar` solia llamar
+    marcar_obsoletas() por adelantado para TODO el lote completo, antes de
+    procesar ninguna fila; si el procesamiento reventaba a mitad de lote
+    -- un parametro legal faltante, un area no registrada, cualquier
+    problema real de datos -- las filas todavia no alcanzadas quedaban
+    marcadas "obsoleta" sin haberse recalculado nunca, indistinguibles de
+    las que si se completaron, y un re-run las saltaba en silencio via el
+    filtro `obsoleto_requiere_recalculo.is_(False)` de
+    identificar_liquidaciones_pre_sprint30 -- exactamente el tipo de brecha
+    de cumplimiento que el despacho no puede aceptar dado que "es
+    obligatorio recalcular"). Con el marcado movido aqui, una fila que
+    nunca se alcanzo por un crash a mitad de lote simplemente sigue
+    obsoleto_requiere_recalculo=False, y vuelve a identificarse en el
+    proximo re-run -- nunca se pierde silenciosamente.
+
+    Si el expediente esta en COSA_JUZGADA: se marca (para que quede
+    visible que existe una version mas nueva de la logica, aunque este
+    expediente este protegido) pero NO se recalcula -- recalcular_liquidacion
+    tambien se niega por su cuenta (ver app/services/recalculo_historico.py),
+    asi que el chequeo de aqui es solo para no llamarla y ahorrarse la
+    excepcion, no la unica barrera."""
     expediente = session.get(Expediente, audit_log.expediente_id)
     if expediente is None:
         raise ValueError(f"No existe el expediente {audit_log.expediente_id}.")
 
     accion = accion_por_estado_procesal(expediente.estado_procesal)
     if accion == ACCION_NO_RECALCULAR_COSA_JUZGADA:
+        marcar_obsoletas(session, [audit_log])
         return ResultadoProcesamiento(
             audit_log_anterior_id=audit_log.id,
             expediente_radicado=expediente.radicado,
             accion=accion,
         )
 
+    # recalcular_liquidacion marca `audit_log` como obsoleta ella misma,
+    # como parte de su propia transaccion (ver
+    # app/services/recalculo_historico.py) -- no hace falta llamar
+    # marcar_obsoletas aqui tambien para el caso recalculado.
     audit_log_nuevo, diferencia = recalcular_liquidacion(session, audit_log)
 
     ruta_memorial = None
@@ -131,11 +164,23 @@ def ejecutar(
     formato: str = "pdf",
     fecha_referencia: date | None = None,
 ) -> list[ResultadoProcesamiento]:
-    """Corre el protocolo completo: identifica, marca, prioriza por
-    prescripcion, y procesa (recalcula + genera memorial) cada liquidacion
-    pre-Sprint-30, en el orden de prioridad resultante."""
+    """Corre el protocolo completo: identifica, prioriza por prescripcion, y
+    procesa (recalcula + genera memorial, marcando obsoleta cada fila
+    atomicamente junto con su propio resultado) cada liquidacion
+    pre-Sprint-30, en el orden de prioridad resultante.
+
+    Deliberadamente NO marca nada por adelantado (code review Critical #2
+    del Sprint 47) -- el marcado ocurre fila por fila, dentro de
+    procesar_liquidacion/recalcular_liquidacion, para que un crash a mitad
+    de lote deje las filas no alcanzadas en su estado original
+    (obsoleto_requiere_recalculo=False) en vez de "marcadas pero nunca
+    recalculadas". Si esta funcion revienta a mitad de la lista (una
+    excepcion real de datos, no atrapada aqui a proposito -- ver el
+    docstring de procesar_liquidacion), las filas ya procesadas quedan
+    tal cual (cada una comprometida a la BD en su propia transaccion), y
+    las filas restantes simplemente vuelven a aparecer en
+    identificar_liquidaciones_pre_sprint30() en el proximo re-run."""
     pendientes = identificar_liquidaciones_pre_sprint30(session)
-    marcar_obsoletas(session, pendientes)
     priorizados = priorizar_recalculo(session, pendientes, fecha_referencia=fecha_referencia)
 
     return [

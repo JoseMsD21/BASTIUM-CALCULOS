@@ -14,6 +14,7 @@ from app.services.recalculo_historico import (
     ACCION_RECALCULAR_MEMORIAL_ERROR_ARITMETICO,
     FLAG_OBSOLETO,
     SPRINT_30_CIERRE,
+    CosaJuzgadaNoRecalculableError,
     accion_por_estado_procesal,
     calcular_diferencia,
     dias_para_prescribir,
@@ -303,6 +304,59 @@ def test_recalcular_liquidacion_propio_registro_de_auditoria_con_usuario(session
     assert nuevo_log.usuario == "paralegal-1"
     assert "Recálculo Sprint 30" in nuevo_log.motivo_recalculo
     assert str(log_viejo.id) in nuevo_log.motivo_recalculo
+
+
+def test_recalcular_liquidacion_cosa_juzgada_lanza_y_no_crea_fila_nueva(session):
+    # Code review Critical #1 (Sprint 47): la restriccion "nunca recalcular
+    # cosa juzgada" tiene que vivir en la funcion que ESCRIBE datos, no solo
+    # en el script de orquestacion (scripts/recalcular_historicas_sprint30.py)
+    # ni en la generacion de memoriales (app/engine/reports/memoriales.py) --
+    # ambos corren DESPUES de que recalcular_liquidacion ya habria escrito la
+    # fila AuditLog nueva. Este test llama recalcular_liquidacion
+    # DIRECTAMENTE, sin pasar por ningun script/orquestador, para probar que
+    # la garantia es real sin importar el llamador.
+    expediente = _expediente(session, radicado="2026-00502", estado=EstadoProcesal.COSA_JUZGADA)
+    obligacion = _obligacion_laboral(expediente.id)
+    session.add(obligacion)
+    session.flush()
+    log_viejo = _log_pre_sprint30(session, expediente)
+
+    conteo_audit_logs_antes = session.query(AuditLog).count()
+
+    with pytest.raises(CosaJuzgadaNoRecalculableError, match="cosa juzgada"):
+        recalcular_liquidacion(session, log_viejo)
+
+    # Ninguna fila AuditLog nueva se creo -- la funcion lanzo ANTES de llamar
+    # a registrar_liquidacion, no despues de crearla y luego "deshacerla".
+    assert session.query(AuditLog).count() == conteo_audit_logs_antes
+
+    # La fila vieja tampoco quedo tocada de ninguna forma (ni marcada
+    # obsoleta ni vinculada) -- esta funcion no escribe NADA en el caso de
+    # cosa juzgada, el marcado (si aplica) es responsabilidad explicita de
+    # otro llamador (ver marcar_obsoletas / procesar_liquidacion).
+    session.refresh(log_viejo)
+    assert log_viejo.obsoleto_requiere_recalculo is False
+    assert log_viejo.liquidacion_anterior_id is None
+    assert log_viejo.motivo_recalculo is None
+
+
+def test_recalcular_liquidacion_en_tramite_y_cpaca_si_recalculan(session):
+    # Contraste directo con el test de arriba: EN_TRAMITE y
+    # PRESENTADO_JUZGADO_CPACA (los otros 2 valores de EstadoProcesal) SI
+    # deben poder recalcularse sin excepcion -- solo COSA_JUZGADA bloquea.
+    for estado, radicado in (
+        (EstadoProcesal.EN_TRAMITE, "2026-00503"),
+        (EstadoProcesal.PRESENTADO_JUZGADO_CPACA, "2026-00504"),
+    ):
+        expediente = _expediente(session, radicado=radicado, estado=estado)
+        session.add(_obligacion_laboral(expediente.id))
+        session.flush()
+        log_viejo = _log_pre_sprint30(session, expediente)
+
+        nuevo_log, diferencia = recalcular_liquidacion(session, log_viejo)
+
+        assert nuevo_log.liquidacion_anterior_id == log_viejo.id
+        assert diferencia.monto_recalculado == Decimal("7860000.00")
 
 
 # ---------------------------------------------------------------------------

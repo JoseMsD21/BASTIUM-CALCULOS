@@ -30,6 +30,7 @@ from app.services.recalculo_historico import (
     ACCION_NO_RECALCULAR_COSA_JUZGADA,
     ACCION_RECALCULAR_MEMORIAL_ACTUALIZACION,
     ACCION_RECALCULAR_MEMORIAL_ERROR_ARITMETICO,
+    CosaJuzgadaNoRecalculableError,
     DiferenciaRecalculo,
     accion_por_estado_procesal,
 )
@@ -74,14 +75,11 @@ _TIPO_POR_ACCION = {
     ACCION_RECALCULAR_MEMORIAL_ERROR_ARITMETICO: TIPO_ERROR_ARITMETICO_CPACA,
 }
 
-
-class CosaJuzgadaNoRecalculableError(Exception):
-    """Se lanza al intentar generar un memorial de recalculo para un
-    expediente en EstadoProcesal.COSA_JUZGADA. Instruccion explicita del
-    despacho: NO se recalcula, se mantiene el valor por seguridad juridica,
-    salvo recurso de revision por error de hecho manifiesto (ese recurso,
-    de haber lugar, es un tramite manual del abogado -- fuera del alcance
-    automatizado de este modulo)."""
+# CosaJuzgadaNoRecalculableError vive en app.services.recalculo_historico (la
+# capa que escribe AuditLog) desde el hallazgo de code review del Sprint 47:
+# la restriccion "nunca recalcular cosa juzgada" tiene que vivir en la capa
+# de datos, no solo aqui (generacion de documentos) -- re-exportada para no
+# romper a nadie que ya la importe desde este modulo.
 
 
 def tipo_memorial_por_estado_procesal(estado: EstadoProcesal) -> str:
@@ -162,8 +160,26 @@ def generar_memorial(
     expediente (o segun `tipo` explicito, si se provee -- para no acoplar
     esta funcion a que el llamador siempre tenga que tocar
     expediente.estado_procesal) y lo escribe en `ruta_salida`.
-    `formato` es "pdf" o "word". Lanza CosaJuzgadaNoRecalculableError si el
-    expediente esta en cosa juzgada y no se paso `tipo` explicito."""
+    `formato` es "pdf" o "word".
+
+    Lanza CosaJuzgadaNoRecalculableError si el expediente esta en cosa
+    juzgada -- SIEMPRE, incluso si se paso `tipo` explicito: `tipo` solo
+    sirve para elegir entre los 2 memoriales validos (p.ej. una GUI que ya
+    le pregunto al abogado cual generar), nunca para saltarse la
+    restriccion de cosa juzgada. Ver el mismo chequeo, con la misma
+    excepcion, en app.services.recalculo_historico.recalcular_liquidacion
+    -- esta funcion nunca deberia llegar a ejecutarse con un
+    audit_log_nuevo de un expediente en cosa juzgada porque
+    recalcular_liquidacion ya se hubiera negado a crearlo, pero se valida
+    aqui tambien por si acaso (defensa en profundidad, no la unica
+    barrera)."""
+    if expediente.estado_procesal == EstadoProcesal.COSA_JUZGADA:
+        raise CosaJuzgadaNoRecalculableError(
+            f"El expediente {expediente.radicado!r} está en cosa juzgada (fallo en "
+            "firme) -- el despacho instruyó explícitamente NO generar memorial en "
+            "este caso, salvo recurso de revisión por error de hecho manifiesto. "
+            "Esto aplica incluso si se pasó un `tipo` explícito."
+        )
     if tipo is None:
         tipo = tipo_memorial_por_estado_procesal(expediente.estado_procesal)
     if tipo not in _TITULO_POR_TIPO:

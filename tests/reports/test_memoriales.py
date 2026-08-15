@@ -155,21 +155,48 @@ def test_generar_memorial_error_aritmetico_para_expediente_presentado_cpaca(sess
     assert diferencia.resumen_texto in texto_completo
 
 
-def test_generar_memorial_cosa_juzgada_no_genera_ningun_archivo(session, tmp_path):
-    expediente, log_viejo, log_nuevo, diferencia = _preparar_recalculo(
-        session, EstadoProcesal.COSA_JUZGADA, radicado="2026-00903"
+def test_preparar_recalculo_cosa_juzgada_ya_falla_en_recalcular_liquidacion(session):
+    # Sprint 47, code review Critical #1: recalcular_liquidacion (la capa que
+    # escribe AuditLog) ahora se niega a recalcular un expediente en cosa
+    # juzgada por si sola -- ni siquiera llega a existir un log_nuevo/
+    # diferencia para pasarle a generar_memorial. Antes de este fix, este
+    # helper SI lograba recalcular (silenciosamente, sin ningun guardian) y
+    # solo generar_memorial bloqueaba, DESPUES de que la fila ya se habia
+    # escrito -- ver test_recalculo_historico.py para el test directo de
+    # esa garantia (sin pasar por este modulo de reportes en absoluto).
+    expediente = _expediente(session, EstadoProcesal.COSA_JUZGADA, "2026-00903")
+    session.add(_obligacion_laboral(expediente.id))
+    session.flush()
+    log_viejo = _log_pre_sprint30(session, expediente)
+
+    with pytest.raises(CosaJuzgadaNoRecalculableError):
+        recalcular_liquidacion(session, log_viejo)
+
+
+def test_generar_memorial_cosa_juzgada_no_genera_archivo_ni_confia_en_tipo_explicito(
+    session, tmp_path
+):
+    # Defensa en profundidad de generar_memorial: aunque alguien lograra
+    # construir un log_nuevo/diferencia validos (de OTRO expediente) y los
+    # pasara junto con un `expediente` en cosa juzgada -- p.ej. un bug de
+    # otro llamador que mezcle datos, o el `tipo=` forzado explicitamente --
+    # generar_memorial se niega igual, sin generar ningun archivo.
+    _expediente_valido, log_viejo, log_nuevo, diferencia = _preparar_recalculo(
+        session, EstadoProcesal.EN_TRAMITE, radicado="2026-00906"
     )
+    expediente_cosa_juzgada = _expediente(session, EstadoProcesal.COSA_JUZGADA, "2026-00903")
     ruta = tmp_path / "memorial_cosa_juzgada.pdf"
 
     with pytest.raises(CosaJuzgadaNoRecalculableError):
         generar_memorial(
             session,
-            expediente,
+            expediente_cosa_juzgada,
             log_viejo,
             log_nuevo,
             diferencia,
             ruta_salida=str(ruta),
             formato="pdf",
+            tipo=TIPO_ACTUALIZACION,
         )
 
     assert not ruta.exists()

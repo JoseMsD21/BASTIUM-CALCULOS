@@ -11,6 +11,7 @@ from app.services.recalculo_historico import (
     ACCION_NO_RECALCULAR_COSA_JUZGADA,
     ACCION_RECALCULAR_MEMORIAL_ACTUALIZACION,
     FLAG_OBSOLETO,
+    identificar_liquidaciones_pre_sprint30,
 )
 from database.models import (
     AreaDerecho,
@@ -60,7 +61,9 @@ def _obligacion_laboral(expediente_id) -> Obligacion:
     )
 
 
-def _log_pre_sprint30(session, expediente) -> AuditLog:
+def _log_pre_sprint30(
+    session, expediente, fecha_ejecucion: datetime = datetime(2026, 7, 1, 9, 0, 0)
+) -> AuditLog:
     debt = PendingDebt(Decimal("7830000.00"), Decimal("0.00"), Decimal("0.00"))
     balance = RunningBalance(date=date(2020, 12, 31), debt=debt, event_type="INSTALLMENT")
     item = LiquidationItem(
@@ -80,7 +83,29 @@ def _log_pre_sprint30(session, expediente) -> AuditLog:
         fecha_corte=date(2020, 12, 31),
         resultado=LiquidationResult(items=[item]),
         usuario="jsilva",
-        fecha_ejecucion=datetime(2026, 7, 1, 9, 0, 0),
+        fecha_ejecucion=fecha_ejecucion,
+    )
+
+
+def _obligacion_laboral_invalida(expediente_id) -> Obligacion:
+    # fecha_fin <= fecha_inicio -- LaboralStrategy._validar_obligacion_laboral
+    # (app/services/area_strategy.py) rechaza esto con ValueError. Sirve para
+    # simular, con un problema real de datos (no un mock/monkeypatch), el
+    # tipo de fallo a mitad de lote que el despacho advirtio como riesgo real
+    # ("un parametro legal faltante, un area no registrada, cualquier
+    # problema real de datos").
+    return Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Liquidacion de contrato (dato invalido a proposito)",
+        categoria="LIQUIDACION_CONTRATO_LABORAL",
+        fecha_origen=date(2020, 1, 1),
+        valor=Decimal("3000000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        fecha_inicio=date(2020, 12, 31),
+        fecha_fin=date(2020, 1, 1),
+        pagada=False,
+        fecha_pago_total=None,
     )
 
 
@@ -155,3 +180,82 @@ def test_ejecutar_sin_carpeta_salida_recalcula_pero_no_genera_archivos(session):
     assert len(resultados) == 1
     assert resultados[0].audit_log_nuevo_id is not None
     assert resultados[0].ruta_memorial is None
+
+
+def test_ejecutar_fallo_a_mitad_de_lote_no_deja_filas_falsamente_marcadas(session, tmp_path):
+    # Code review Critical #2 (Sprint 47): antes de este fix, ejecutar()
+    # llamaba marcar_obsoletas() por adelantado para TODAS las filas
+    # pendientes, antes de procesar ninguna -- si el procesamiento reventaba
+    # a mitad de camino, las filas todavia no alcanzadas quedaban marcadas
+    # "obsoleta" sin haberse recalculado, indistinguibles de las que si se
+    # completaron (mismo `obsoleto_requiere_recalculo=True`), y un re-run las
+    # saltaba en silencio.
+    #
+    # 3 expedientes; el del medio tiene una obligacion invalida a proposito
+    # (fecha_fin <= fecha_inicio) que hace que LaboralStrategy.liquidar
+    # reviente con ValueError -- simula un problema real de datos, no un
+    # mock. Sin sembrar PRESCRIPCION_EJECUTIVA_MESES, priorizar_recalculo no
+    # puede resolver ninguna fecha de prescripcion (dias=inf para las 3), asi
+    # que conserva el orden de identificar_liquidaciones_pre_sprint30 (mas
+    # antigua primero) -- exactamente el orden en que se sembraron aqui.
+    expediente_1 = _expediente(session, EstadoProcesal.EN_TRAMITE, "2026-02001")
+    session.add(_obligacion_laboral(expediente_1.id))
+    expediente_2 = _expediente(session, EstadoProcesal.EN_TRAMITE, "2026-02002")
+    session.add(_obligacion_laboral_invalida(expediente_2.id))
+    expediente_3 = _expediente(session, EstadoProcesal.EN_TRAMITE, "2026-02003")
+    session.add(_obligacion_laboral(expediente_3.id))
+    session.flush()
+
+    log_1 = _log_pre_sprint30(session, expediente_1, datetime(2026, 7, 1, 9, 0, 0))
+    log_2 = _log_pre_sprint30(session, expediente_2, datetime(2026, 7, 2, 9, 0, 0))
+    log_3 = _log_pre_sprint30(session, expediente_3, datetime(2026, 7, 3, 9, 0, 0))
+
+    with pytest.raises(ValueError):
+        ejecutar(session, carpeta_salida=tmp_path, formato="pdf")
+
+    # log_1 (procesado ANTES del fallo) SI quedo marcado+recalculado -- su
+    # commit ya ocurrio, un fallo posterior en log_2 no lo deshace.
+    session.refresh(log_1)
+    assert log_1.obsoleto_requiere_recalculo is True
+    assert (
+        session.query(AuditLog).filter(AuditLog.liquidacion_anterior_id == log_1.id).count() == 1
+    )
+
+    # log_2 (el que fallo) y log_3 (el que nunca se alcanzo) NO deben quedar
+    # marcados -- es exactamente el gap que existia antes del fix.
+    session.refresh(log_2)
+    session.refresh(log_3)
+    assert log_2.obsoleto_requiere_recalculo is False
+    assert log_3.obsoleto_requiere_recalculo is False
+    assert (
+        session.query(AuditLog).filter(AuditLog.liquidacion_anterior_id == log_2.id).count() == 0
+    )
+    assert (
+        session.query(AuditLog).filter(AuditLog.liquidacion_anterior_id == log_3.id).count() == 0
+    )
+
+    # Un re-run los vuelve a identificar como pendientes -- nada se perdio
+    # silenciosamente.
+    pendientes_tras_fallo = identificar_liquidaciones_pre_sprint30(session)
+    assert {log.id for log in pendientes_tras_fallo} == {log_2.id, log_3.id}
+
+    # Arreglando el dato invalido EN SITIO (no borrar+recrear: con
+    # expire_on_commit=False, database/session.py -- la coleccion
+    # expediente.obligaciones ya cacheada en este `session` no se
+    # refrescaria sola tras un DELETE+INSERT crudo) un re-run SI logra
+    # procesar lo que quedo pendiente, confirmando que el estado es
+    # realmente recuperable, no solo "no roto".
+    obligacion_invalida = (
+        session.query(Obligacion).filter(Obligacion.expediente_id == expediente_2.id).one()
+    )
+    obligacion_invalida.fecha_inicio = date(2020, 1, 1)
+    obligacion_invalida.fecha_fin = date(2020, 12, 31)
+    session.commit()
+
+    resultados_reintento = ejecutar(session, carpeta_salida=tmp_path, formato="pdf")
+
+    assert {r.audit_log_anterior_id for r in resultados_reintento} == {log_2.id, log_3.id}
+    session.refresh(log_2)
+    session.refresh(log_3)
+    assert log_2.obsoleto_requiere_recalculo is True
+    assert log_3.obsoleto_requiere_recalculo is True
