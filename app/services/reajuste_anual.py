@@ -1,9 +1,12 @@
 """Sprint 41: genera y persiste las cuotas mensuales reales de una obligacion
-RECURRENTE de Civil/Familia con reajuste anual activo (tipo_reajuste_anual
-SMMLV/IPC). Cada cuota se guarda como una `Obligacion` PUNTUAL hija
-(obligacion_padre_id apuntando a la obligacion RECURRENTE original), con
-capital constante dentro de cada año calendario y reajustado el 1 de enero de
-cada año siguiente al de origen, segun el indice elegido.
+RECURRENTE de Civil/Familia, opcionalmente con reajuste anual activo
+(tipo_reajuste_anual SMMLV/IPC; Sprint 75 elimino el requisito de que el
+reajuste este activo -- con tipo_reajuste_anual == NINGUNO el capital
+simplemente se mantiene constante en todas las cuotas generadas). Cada cuota
+se guarda como una `Obligacion` PUNTUAL hija (obligacion_padre_id apuntando a
+la obligacion RECURRENTE original), con capital constante dentro de cada año
+calendario y, cuando hay reajuste activo, reajustado el 1 de enero de cada año
+siguiente al de origen, segun el indice elegido.
 
 Ver la seccion "Architecture" del plan
 (docs/superpowers/plans/2026-08-07-sprint41-familia-cuotas-reajuste-anual.md)
@@ -83,11 +86,14 @@ def generar_cuotas_mensuales(
     """Genera y persiste una Obligacion PUNTUAL por cada mes entre
     `obligacion_recurrente.fecha_origen` (que para una obligacion RECURRENTE
     equivale a su fecha_inicio, ver ObligacionFormDialog.guardar()) y la fecha
-    de corte (topada por `fecha_fin` si esta seteada). Idempotente: si esta
-    obligacion ya tiene cuotas hijas persistidas (obligacion_padre_id
-    apuntando a ella), las retorna tal cual en vez de generar duplicados --
-    alcance excluido de este sprint es retro-generar/regenerar cuotas para una
-    obligacion que cambio de fecha_corte despues de generarlas una vez.
+    de corte (topada por `fecha_fin` si esta seteada). El reajuste anual
+    (SMMLV/IPC) es opcional: con tipo_reajuste_anual == NINGUNO el capital de
+    cada cuota es igual al de la obligacion padre, sin reajustarse nunca.
+    Idempotente: si esta obligacion ya tiene cuotas hijas persistidas
+    (obligacion_padre_id apuntando a ella), las retorna tal cual en vez de
+    generar duplicados -- alcance excluido de este sprint es
+    retro-generar/regenerar cuotas para una obligacion que cambio de
+    fecha_corte despues de generarlas una vez.
 
     Abre y cierra su propia sesion de SQLAlchemy (igual que
     app/services/parametro_service.py): `obligacion_recurrente` puede venir de
@@ -98,11 +104,6 @@ def generar_cuotas_mensuales(
     """
     if obligacion_recurrente.tipo != TipoObligacion.RECURRENTE:
         raise ValueError("Solo una obligacion RECURRENTE puede generar cuotas mensuales.")
-    if obligacion_recurrente.tipo_reajuste_anual == TipoReajusteAnual.NINGUNO:
-        raise ValueError(
-            "La obligacion no tiene un tipo_reajuste_anual activo (SMMLV/IPC) -- "
-            "generar_cuotas_mensuales no aplica a obligaciones sin reajuste."
-        )
     if not obligacion_recurrente.dia_pago:
         raise ValueError("La obligacion RECURRENTE debe tener un dia_pago para generar cuotas.")
 
@@ -147,7 +148,8 @@ def generar_cuotas_mensuales(
             # ocurre exactamente una vez por transicion de año (nunca se saltan años),
             # siempre en enero.
             if anio_cursor != anio_capital:
-                capital_actual = _reajustar_capital(capital_actual, anio_cursor, tipo_reajuste)
+                if tipo_reajuste != TipoReajusteAnual.NINGUNO:
+                    capital_actual = _reajustar_capital(capital_actual, anio_cursor, tipo_reajuste)
                 anio_capital = anio_cursor
 
             concepto = f"{concepto_base} DE {_MESES_ES[mes_cursor]} {anio_cursor}"

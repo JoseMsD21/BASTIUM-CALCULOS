@@ -15,12 +15,12 @@ from database.models import (
 )
 
 
-def _expediente_civil(session) -> int:
+def _expediente_civil(session, area: AreaDerecho = AreaDerecho.CIVIL_FAMILIA) -> int:
     expediente = Expediente(
         radicado="2026-041",
         demandante="Ana",
         demandado="Luis",
-        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        area_derecho=area,
         fecha_corte_default=date(2026, 6, 1),
     )
     session.add(expediente)
@@ -248,24 +248,31 @@ def test_generar_cuotas_mensuales_rechaza_obligacion_puntual():
         generar_cuotas_mensuales(obligacion, fecha_corte=date(2025, 1, 1))
 
 
-def test_generar_cuotas_mensuales_rechaza_tipo_reajuste_ninguno():
+def test_genera_cuotas_con_capital_constante_cuando_no_hay_reajuste():
     session = session_module.get_session()
-    expediente_id = _expediente_civil(session)
-    obligacion = Obligacion(
+    expediente_id = _expediente_civil(session, area=AreaDerecho.COMERCIAL)
+    obligacion_recurrente = Obligacion(
         expediente_id=expediente_id,
         tipo=TipoObligacion.RECURRENTE,
-        concepto="CUOTA ALIMENTARIA",
-        categoria="CHILD_SUPPORT",
+        concepto="Cuota de arrendamiento",
+        categoria="CAPITAL_PAGARE",
         fecha_origen=date(2024, 1, 1),
         fecha_inicio=date(2024, 1, 1),
-        dia_pago=5,
-        valor=Decimal("100000.00"),
-        tasa_efectiva_anual=Decimal("6.00"),
+        fecha_fin=date(2024, 4, 1),
+        dia_pago=1,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
         tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
     )
-    session.add(obligacion)
+    session.add(obligacion_recurrente)
     session.commit()
+    obligacion_id = obligacion_recurrente.id
     session.close()
 
-    with pytest.raises(ValueError, match="tipo_reajuste_anual"):
-        generar_cuotas_mensuales(obligacion, fecha_corte=date(2025, 1, 1))
+    session = session_module.get_session()
+    padre = session.get(Obligacion, obligacion_id)
+    cuotas = generar_cuotas_mensuales(padre, fecha_corte=date(2024, 4, 1))
+    session.close()
+
+    assert len(cuotas) == 4
+    assert all(cuota.valor == Decimal("500000.00") for cuota in cuotas)
