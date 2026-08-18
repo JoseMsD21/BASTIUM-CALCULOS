@@ -11,6 +11,7 @@ import database.session as session_module
 from app.engine.audit.service import registrar_liquidacion
 from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO
 from app.engine.liquidation.registry import AreaRegistry
+from app.services.reajuste_anual import generar_cuotas_mensuales
 from app.views.expediente_detalle import ExpedienteDetallePage
 from database.models import (
     AreaDerecho,
@@ -1282,7 +1283,16 @@ def _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch) -> tup
     return expediente_id, obligacion_id
 
 
-def test_boton_generar_cuotas_visible_solo_para_civil_familia(qtbot, monkeypatch):
+def test_boton_generar_cuotas_visible_para_civil_familia_y_comercial_oculto_para_otras_areas(
+    qtbot, monkeypatch
+):
+    """Sprint 75 (hallazgo de revision de codigo posterior a Task 3): Comercial ya
+    soporta generar_cuotas_mensuales igual que Civil/Familia (ver
+    app/services/area_strategy.py::ComercialStrategy._eventos_de_obligacion), asi que
+    el boton ya no puede quedar oculto para esa area -- de lo contrario un usuario de
+    Comercial no tendria forma de llegar a esa funcionalidad desde la UI. Sigue oculto
+    para el resto de areas (Laboral aqui, representativa de las que no soportan cuotas
+    recurrentes reajustables)."""
     expediente_id_civil, _ = _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch)
 
     page = ExpedienteDetallePage()
@@ -1293,6 +1303,10 @@ def test_boton_generar_cuotas_visible_solo_para_civil_familia(qtbot, monkeypatch
 
     expediente_id_comercial = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
     page.cargar_expediente(expediente_id_comercial)
+    assert page.boton_generar_cuotas.isVisible() is True
+
+    expediente_id_laboral = _expediente_laboral_sin_mora(monkeypatch)
+    page.cargar_expediente(expediente_id_laboral)
     assert page.boton_generar_cuotas.isVisible() is False
 
 
@@ -1849,3 +1863,196 @@ def test_tabla_abonos_tiene_columnas_editar_y_eliminar(qtbot):
     assert page.tabla_abonos.columnCount() == 5
     encabezados = [page.tabla_abonos.horizontalHeaderItem(i).text() for i in range(5)]
     assert encabezados == ["Fecha", "Monto", "Referencia", "Editar", "Eliminar"]
+
+
+# --- Sprint 75 (Task 5): seleccion por rango + boton "Pagar cuotas seleccionadas" -----
+
+
+def _expediente_civil_con_cuotas_generadas(monkeypatch) -> tuple[int, int]:
+    """Expediente Civil/Familia con una obligacion RECURRENTE (tipo_reajuste_anual =
+    NINGUNO, deterministico, sin necesitar parametros SMLMV/IPC en memoria) que ya
+    genero 3 cuotas hijas reales (Feb/Mar/Abr 2024) via generar_cuotas_mensuales.
+    Retorna (expediente_id, obligacion_padre_id). Segun _refrescar_obligaciones(), la
+    fila 0 de tabla_obligaciones es la obligacion RECURRENTE padre y las filas 1-3 son
+    sus 3 cuotas hijas, en el mismo orden que list(expediente.obligaciones) -- mismo
+    patron ya verificado por
+    test_flujo_completo_crear_obligacion_recurrente_generar_cuotas_y_abonar_una_cuota
+    (lineas 1471-1474 de este archivo)."""
+    from database.models import TipoReajusteAnual
+
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-095",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2024, 4, 1),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="CUOTA ALIMENTARIA",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2024, 2, 1),
+        fecha_inicio=date(2024, 2, 1),
+        dia_pago=1,
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    session.add(obligacion)
+    session.commit()
+    expediente_id = expediente.id
+    obligacion_id = obligacion.id
+    session.close()
+
+    session = session_module.get_session()
+    obligacion_recargada = session.get(Obligacion, obligacion_id)
+    generar_cuotas_mensuales(obligacion_recargada, fecha_corte=date(2024, 4, 1))
+    session.close()
+
+    return expediente_id, obligacion_id
+
+
+def _seleccionar_filas(page: ExpedienteDetallePage, fila_desde: int, fila_hasta: int) -> None:
+    from PySide6.QtWidgets import QTableWidgetSelectionRange
+
+    page.tabla_obligaciones.clearSelection()
+    page.tabla_obligaciones.setRangeSelected(
+        QTableWidgetSelectionRange(
+            fila_desde, 0, fila_hasta, page.tabla_obligaciones.columnCount() - 1
+        ),
+        True,
+    )
+
+
+def test_boton_pagar_cuotas_seleccionadas_solo_habilita_con_cuotas_hija_de_la_misma_recurrente(
+    qtbot, monkeypatch
+):
+    expediente_id, _obligacion_padre_id = _expediente_civil_con_cuotas_generadas(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.cargar_expediente(expediente_id)
+    assert pagina.tabla_obligaciones.rowCount() == 4  # padre + 3 cuotas
+
+    # Sin seleccion: deshabilitado.
+    assert not pagina.boton_pagar_cuotas_seleccionadas.isEnabled()
+
+    # Selecciona las 2 primeras cuotas (filas 1 y 2, contiguas, misma recurrente).
+    _seleccionar_filas(pagina, 1, 2)
+    pagina._actualizar_boton_pagar_cuotas_seleccionadas()
+    assert pagina.boton_pagar_cuotas_seleccionadas.isEnabled()
+
+
+def test_boton_pagar_cuotas_seleccionadas_deshabilita_si_incluye_la_obligacion_padre(
+    qtbot, monkeypatch
+):
+    expediente_id, _obligacion_padre_id = _expediente_civil_con_cuotas_generadas(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.cargar_expediente(expediente_id)
+
+    # Fila 0 es la obligacion RECURRENTE padre (obligacion_padre_id=None): mezclar el
+    # padre con sus propias cuotas hijas no es un rango valido para pagar en cascada.
+    _seleccionar_filas(pagina, 0, 1)
+    pagina._actualizar_boton_pagar_cuotas_seleccionadas()
+    assert not pagina.boton_pagar_cuotas_seleccionadas.isEnabled()
+
+
+def test_cuotas_hija_de_una_misma_recurrente_retorna_false_para_seleccion_vacia(qtbot):
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+
+    assert pagina._cuotas_hija_de_una_misma_recurrente([]) is False
+
+
+def test_boton_pagar_cuotas_seleccionadas_visible_para_civil_familia_y_comercial(
+    qtbot, monkeypatch
+):
+    """Mismo criterio de visibilidad que boton_generar_cuotas (ver fix de este mismo
+    sprint): el pago por rango solo tiene sentido en las 2 areas que soportan cuotas-
+    hija recurrentes -- _ESTRATEGIA_POR_AREA de PagoPorRangoDialog
+    (app/views/pago_por_rango.py) solo tiene entradas para CIVIL_FAMILIA/COMERCIAL."""
+    expediente_id_civil, _ = _expediente_civil_con_cuotas_generadas(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.show()
+    pagina.cargar_expediente(expediente_id_civil)
+    assert pagina.boton_pagar_cuotas_seleccionadas.isVisible() is True
+
+    expediente_id_comercial = _expediente_comercial_con_obligacion_usuraria(monkeypatch)
+    pagina.cargar_expediente(expediente_id_comercial)
+    assert pagina.boton_pagar_cuotas_seleccionadas.isVisible() is True
+
+    expediente_id_laboral = _expediente_laboral_sin_mora(monkeypatch)
+    pagina.cargar_expediente(expediente_id_laboral)
+    assert pagina.boton_pagar_cuotas_seleccionadas.isVisible() is False
+
+
+def test_abrir_dialogo_pago_por_rango_crea_abonos_y_refresca_tablas(qtbot, monkeypatch):
+    from database.models import Abono
+
+    expediente_id, _obligacion_padre_id = _expediente_civil_con_cuotas_generadas(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.cargar_expediente(expediente_id)
+
+    _seleccionar_filas(pagina, 1, 3)  # las 3 cuotas hijas
+    pagina._actualizar_boton_pagar_cuotas_seleccionadas()
+    assert pagina.boton_pagar_cuotas_seleccionadas.isEnabled()
+
+    ids_cuotas_seleccionadas = [pagina._obligacion_ids_por_fila[fila] for fila in (1, 2, 3)]
+
+    def _dialogo_falso(cuotas, area, parent=None):
+        assert area == "CIVIL_FAMILIA"
+        assert {c.id for c in cuotas} == set(ids_cuotas_seleccionadas)
+        # Cascada real: capital de cada cuota es 150.000, tasa 0% -> 450.000 alcanza
+        # exacto para las 3 sin dejar remanente.
+        session = session_module.get_session()
+        for cuota in cuotas:
+            session.add(Abono(obligacion_id=cuota.id, fecha=date(2024, 4, 1), monto=cuota.valor))
+        session.commit()
+        session.close()
+
+        class _Resultado:
+            def exec(self_inner):
+                return True
+
+        return _Resultado()
+
+    monkeypatch.setattr("app.views.expediente_detalle.PagoPorRangoDialog", _dialogo_falso)
+
+    pagina._abrir_dialogo_pago_por_rango()
+
+    session = session_module.get_session()
+    total_abonos = (
+        session.query(Abono).filter(Abono.obligacion_id.in_(ids_cuotas_seleccionadas)).count()
+    )
+    session.close()
+    assert total_abonos == 3
+
+
+def test_obligacion_por_fila_retorna_la_obligacion_real(qtbot, monkeypatch):
+    expediente_id, obligacion_padre_id = _expediente_civil_con_cuotas_generadas(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.cargar_expediente(expediente_id)
+
+    obligacion = pagina._obligacion_por_fila(0)
+    assert obligacion.id == obligacion_padre_id
+    assert obligacion.concepto == "CUOTA ALIMENTARIA"

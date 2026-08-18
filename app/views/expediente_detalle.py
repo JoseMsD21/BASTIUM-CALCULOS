@@ -40,6 +40,7 @@ from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog
 from app.views.icons import icon
 from app.views.obligaciones import ObligacionFormDialog
+from app.views.pago_por_rango import PagoPorRangoDialog
 from app.views.toast import mostrar_toast
 from database.models import Abono, AreaDerecho, EventoLaboral, Expediente, Obligacion
 
@@ -90,6 +91,11 @@ class ExpedienteDetallePage(QWidget):
         self._on_liquidado = on_liquidado
         self._expediente_id = None
         self._obligacion_ids_por_fila = []
+        # Area del expediente actualmente cargado, como str (AreaDerecho.value) --
+        # Sprint 75: la necesita _abrir_dialogo_pago_por_rango para instanciar
+        # PagoPorRangoDialog con la estrategia correcta. None hasta el primer
+        # cargar_expediente().
+        self._area = None
 
         # Columnas "Editar"/"Eliminar" (Sprint 44, punto 2; "Eliminar" agregada en
         # el Sprint 60): mismo patron de boton por fila que ya usa
@@ -100,23 +106,50 @@ class ExpedienteDetallePage(QWidget):
         self.tabla_obligaciones.setHorizontalHeaderLabels(
             ["Concepto", "Tipo", "Valor", "Editar", "Eliminar"]
         )
+        # Seleccion multiple contigua (Sprint 75, Task 5): primer precedente de
+        # multi-seleccion en el codebase -- habilita elegir un rango de cuotas-hija
+        # consecutivas (ej. Febrero a Abril) para pagarlas de una vez con
+        # PagoPorRangoDialog. ContiguousSelection (en vez de ExtendedSelection) evita
+        # que el usuario arme un rango con huecos, que no tendria sentido para una
+        # cascada de pago que asume cuotas consecutivas.
+        self.tabla_obligaciones.setSelectionMode(
+            QAbstractItemView.SelectionMode.ContiguousSelection
+        )
+        self.tabla_obligaciones.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tabla_obligaciones.itemSelectionChanged.connect(
+            self._actualizar_boton_pagar_cuotas_seleccionadas
+        )
         self.boton_agregar_obligacion = QPushButton("Agregar obligacion")
         self.boton_agregar_obligacion.setProperty("class", "secondary")
         self.boton_agregar_obligacion.clicked.connect(self._abrir_dialogo_obligacion)
 
-        # "Generar cuotas" (Sprint 41): solo relevante en Civil/Familia -- genera y
-        # persiste las cuotas mensuales reales de una obligacion RECURRENTE con
-        # reajuste anual activo (ver app/services/reajuste_anual.py). Visibilidad
+        # "Generar cuotas" (Sprint 41, extendido a Comercial en el Sprint 75): genera y
+        # persiste las cuotas mensuales reales de una obligacion RECURRENTE (con o sin
+        # reajuste anual activo, ver app/services/reajuste_anual.py). Visibilidad
         # ajustada en cargar_expediente() segun el area del expediente, igual que
         # grupo_eventos_laborales.
         self.boton_generar_cuotas = QPushButton("Generar cuotas")
         self.boton_generar_cuotas.setProperty("class", "secondary")
         self.boton_generar_cuotas.clicked.connect(self._generar_cuotas)
 
+        # "Pagar cuotas seleccionadas" (Sprint 75, Task 5): abre PagoPorRangoDialog con
+        # el rango de cuotas-hija seleccionado en tabla_obligaciones. Solo se habilita
+        # cuando la seleccion son puras cuotas-hija de UNA misma obligacion RECURRENTE
+        # (ver _actualizar_boton_pagar_cuotas_seleccionadas) -- deshabilitado por
+        # defecto porque al cargar la pagina no hay ninguna seleccion. Visibilidad
+        # ajustada en cargar_expediente(), mismo criterio de area que
+        # boton_generar_cuotas (el pago por rango solo tiene sentido donde existen
+        # cuotas-hija generables).
+        self.boton_pagar_cuotas_seleccionadas = QPushButton("Pagar cuotas seleccionadas")
+        self.boton_pagar_cuotas_seleccionadas.setProperty("class", "secondary")
+        self.boton_pagar_cuotas_seleccionadas.setEnabled(False)
+        self.boton_pagar_cuotas_seleccionadas.clicked.connect(self._abrir_dialogo_pago_por_rango)
+
         grupo_obligaciones = QGroupBox("Obligaciones")
         layout_obligaciones = QVBoxLayout()
         layout_obligaciones.addWidget(self.boton_agregar_obligacion)
         layout_obligaciones.addWidget(self.boton_generar_cuotas)
+        layout_obligaciones.addWidget(self.boton_pagar_cuotas_seleccionadas)
         layout_obligaciones.addWidget(self.tabla_obligaciones)
         grupo_obligaciones.setLayout(layout_obligaciones)
 
@@ -219,7 +252,19 @@ class ExpedienteDetallePage(QWidget):
         expediente = session.get(Expediente, expediente_id)
         es_laboral = expediente.area_derecho == AreaDerecho.LABORAL
         fecha_corte_default = expediente.fecha_corte_default
-        es_civil_familia = expediente.area_derecho == AreaDerecho.CIVIL_FAMILIA
+        # Sprint 75 (hallazgo de revision de codigo posterior a Task 3): Civil/Familia
+        # y Comercial son las 2 unicas areas que soportan cuotas-hija recurrentes
+        # (generar_cuotas_mensuales, Task 1) -- "Generar cuotas" y "Pagar cuotas
+        # seleccionadas" (PagoPorRangoDialog._ESTRATEGIA_POR_AREA solo tiene esas 2
+        # claves) solo tienen sentido para ellas. Antes de este sprint el boton
+        # "Generar cuotas" solo se mostraba para Civil/Familia (es_civil_familia),
+        # dejando a un usuario de Comercial sin forma de llegar a esa funcionalidad
+        # ya soportada por el motor -- ver es_area_con_cuotas_recurrentes.
+        es_area_con_cuotas_recurrentes = expediente.area_derecho in (
+            AreaDerecho.CIVIL_FAMILIA,
+            AreaDerecho.COMERCIAL,
+        )
+        self._area = expediente.area_derecho.value
         session.close()
 
         # Precarga el override de fecha de corte (Sprint 44, punto 5) con el
@@ -231,13 +276,20 @@ class ExpedienteDetallePage(QWidget):
         )
         self.grupo_eventos_laborales.setVisible(es_laboral)
         self.grupo_descuentos_laborales.setVisible(es_laboral)
-        self.boton_generar_cuotas.setVisible(es_civil_familia)
+        self.boton_generar_cuotas.setVisible(es_area_con_cuotas_recurrentes)
+        self.boton_pagar_cuotas_seleccionadas.setVisible(es_area_con_cuotas_recurrentes)
         self._refrescar_obligaciones()
         self._refrescar_abonos()
         self._refrescar_historial()
         if es_laboral:
             self._refrescar_eventos_laborales()
             self._refrescar_descuentos_laborales()
+        # Reinicia el estado habilitado/deshabilitado del boton de pago por rango al
+        # cambiar de expediente -- _refrescar_obligaciones() de arriba ya reconstruyo
+        # tabla_obligaciones (sin seleccion), asi que sin esto el boton podia quedar
+        # habilitado "heredado" del expediente anterior hasta el proximo clic en la
+        # tabla.
+        self._actualizar_boton_pagar_cuotas_seleccionadas()
 
     def _refrescar_obligaciones(self) -> None:
         session = session_module.get_session()
@@ -474,6 +526,21 @@ class ExpedienteDetallePage(QWidget):
         self._refrescar_eventos_laborales()
         self._refrescar_descuentos_laborales()
 
+    def _obligacion_por_fila(self, fila: int) -> Obligacion:
+        """Resuelve la `Obligacion` real (no solo su id) a partir de una fila de
+        `tabla_obligaciones`, usando el mapa fila->id ya mantenido por
+        `_refrescar_obligaciones` (`self._obligacion_ids_por_fila`). Extraido de
+        `_abrir_dialogo_abono` (Sprint 75, Task 5) para que tambien lo reutilicen
+        `_actualizar_boton_pagar_cuotas_seleccionadas` y
+        `_abrir_dialogo_pago_por_rango`, en vez de duplicar esta resolucion fila->
+        Obligacion en cada lugar."""
+        obligacion_id = self._obligacion_ids_por_fila[fila]
+        session = session_module.get_session()
+        try:
+            return session.get(Obligacion, obligacion_id)
+        finally:
+            session.close()
+
     def _abrir_dialogo_abono(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
@@ -482,8 +549,8 @@ class ExpedienteDetallePage(QWidget):
             )
             return
 
-        obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
-        dialogo = AbonoFormDialog(obligacion_id=obligacion_id, parent=self)
+        obligacion = self._obligacion_por_fila(fila_seleccionada)
+        dialogo = AbonoFormDialog(obligacion_id=obligacion.id, parent=self)
         if dialogo.exec():
             self._refrescar_abonos()
 
@@ -556,6 +623,50 @@ class ExpedienteDetallePage(QWidget):
 
         self._refrescar_obligaciones()
         mostrar_toast(self, f"{len(cuotas)} cuota(s) generada(s)/confirmada(s).")
+
+    def _cuotas_hija_de_una_misma_recurrente(self, obligaciones: list) -> bool:
+        """True solo si `obligaciones` no esta vacia y todas son cuotas-hija
+        (`obligacion_padre_id` no nulo) de la MISMA obligacion RECURRENTE -- el
+        requisito para que `boton_pagar_cuotas_seleccionadas` tenga sentido: la
+        cascada de PagoPorRangoDialog asume que todas las cuotas seleccionadas
+        pertenecen a una sola obligacion recurrente (mismo capital/tasa de origen).
+        Una seleccion vacia, una que incluya la obligacion padre misma
+        (`obligacion_padre_id is None`), o que mezcle cuotas de 2 recurrentes
+        distintas, retorna False."""
+        if not obligaciones:
+            return False
+        padres = {o.obligacion_padre_id for o in obligaciones}
+        return len(padres) == 1 and None not in padres
+
+    def _actualizar_boton_pagar_cuotas_seleccionadas(self) -> None:
+        filas = sorted({indice.row() for indice in self.tabla_obligaciones.selectedIndexes()})
+        obligaciones_seleccionadas = [
+            self._obligacion_por_fila(fila)
+            for fila in filas
+            if 0 <= fila < len(self._obligacion_ids_por_fila)
+        ]
+        self.boton_pagar_cuotas_seleccionadas.setEnabled(
+            self._cuotas_hija_de_una_misma_recurrente(obligaciones_seleccionadas)
+        )
+
+    def _abrir_dialogo_pago_por_rango(self) -> None:
+        filas = sorted({indice.row() for indice in self.tabla_obligaciones.selectedIndexes()})
+        obligaciones_seleccionadas = [
+            self._obligacion_por_fila(fila)
+            for fila in filas
+            if 0 <= fila < len(self._obligacion_ids_por_fila)
+        ]
+        # Cascada de mas reciente a mas antigua (ver docstring de
+        # distribuir_pago_en_cascada, app/services/cascada_cuotas.py): el orden de
+        # seleccion del usuario en la tabla no importa, siempre se paga la cuota mas
+        # nueva primero.
+        cuotas_ordenadas = sorted(
+            obligaciones_seleccionadas, key=lambda o: o.fecha_origen, reverse=True
+        )
+        dialogo = PagoPorRangoDialog(cuotas=cuotas_ordenadas, area=self._area, parent=self)
+        if dialogo.exec():
+            self._refrescar_obligaciones()
+            self._refrescar_abonos()
 
     def _abrir_dialogo_evento_laboral(self) -> None:
         fila_seleccionada = self.tabla_obligaciones.currentRow()
