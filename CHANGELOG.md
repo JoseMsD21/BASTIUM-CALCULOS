@@ -56,9 +56,23 @@ anterior (Sprints 34/56-60) — solo se corrigió el estado en `Pendientes.md`, 
 (rediseño de "Agregar Obligación"): layout de 2 columnas con `QScrollArea` para que el botón Guardar siempre
 sea visible en 1366×768 sin importar el área elegida. Sprint 73 (obligaciones recurrentes con fechas
 personalizadas): nuevo tipo de recurrencia por lista de fechas fijas anuales (ej. gastos de vestuario en
-junio/diciembre/cumpleaños), alternativo a la cadencia mensual del Sprint 41.
+junio/diciembre/cumpleaños), alternativo a la cadencia mensual del Sprint 41. Sprint 18 (ultraactividad
+CPC→CGP, 2026-08-14): campo opcional `fecha_providencia_costas` en Obligación — si la providencia que impone
+costas es anterior al 1° de enero de 2016 (Art. 627 CGP), el sistema no aproxima con la tabla granular
+vigente (no existe fuente confiable pre-CGP) y lanza un error explícito en vez de inventar una cifra;
+retrocompatible si el campo queda vacío. Sprint 71 (checkbox de indexación IPC invisible, seguimiento del
+Sprint 67, 2026-08-14): el `QGroupBox` marcable que contiene ese checkbox tampoco tenía estilo de indicador
+— reglas `QGroupBox::indicator` agregadas a los 2 temas, mismo patrón que el `QCheckBox::indicator` del
+Sprint 67. Sprint 62 (2026-08-14): 37 referencias rotas al archivo `Preguntas-Para-Abogado.md` (renombrado
+hace tiempo) corregidas en comentarios/docstrings de 20 archivos `.py`. Sprint 13 (2026-08-14): la sección de
+Parámetros en `docs/GUIA_USUARIO.md` gana un tono pedagógico dirigido a un perfil "Abogado Junior/Estudiante
+de Consultorio Jurídico", con ejemplos de cómo traducir un hecho del caso a una fila de la tabla.
 
 ### Added
+- Ultraactividad CPC→CGP en costas judiciales (Sprint 18): campo opcional `fecha_providencia_costas` en
+  Obligación; si la providencia es anterior al 1° de enero de 2016 (Art. 627 CGP), lanza
+  `TarifaPreCGPNoDisponibleError` en vez de aplicar la tabla granular vigente (no existe tabla pre-CGP
+  confiable) — sin campo de captura en la GUI todavía, ver `Pendientes.md`.
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
   creados por el usuario (deja los de sistema intactos), con backup automático previo y confirmación
   escrita.
@@ -154,6 +168,10 @@ junio/diciembre/cumpleaños), alternativo a la cadencia mensual del Sprint 41.
   hijas/abonos del Sprint 41.
 
 ### Fixed
+- El checkbox "Aplica indexación IPC" seguía invisible en Civil/Familia tras el fix del Sprint 67 (Sprint
+  71): el checkbox en sí ya estaba bien estilado, pero el `QGroupBox` marcable que lo contiene
+  (`grupo_tasas_intereses`) usa un subcontrol distinto (`QGroupBox::indicator`), no cubierto por esas
+  reglas — agregadas para los 3 `QGroupBox` marcables del proyecto, en ambos temas.
 - El diálogo "Agregar obligación" era tan grande que el botón "Guardar" no aparecía a simple vista, y sus 3
   secciones quedaban apiladas en una sola columna sin importar el tamaño de la ventana (Sprint 72).
   Reorganizado en un `QGridLayout` de 2 columnas ("Tasas e intereses" a la derecha de "Datos básicos")

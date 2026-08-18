@@ -38,6 +38,7 @@ Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archi
 - [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
 - [Sprint 76 — Fórmula de tasa diaria del Art. 1617 C.C.: ¿lineal (6%÷365) o efectiva compuesta?](#sprint-76--fórmula-de-tasa-diaria-del-art-1617-cc-lineal-6365-o-efectiva-compuesta)
 - [Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?](#sprint-78--conteo-de-días-para-densidad-pensional-semanas-cotizadas-aplica-el-1-inclusivo)
+- [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -276,6 +277,26 @@ para este cálculo específico?
 
 **Qué necesito exactamente:** un sí/no sobre si aplica el "+1" a este cálculo puntual, y si la respuesta es
 "depende", una aclaración de cuándo sí y cuándo no.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?
+
+**Contexto:** cuando una obligación tiene marcado "Interés sobre capital ya indexado" (algoritmo Suma
+Única, disponible en Civil/Familia y ahora también en Comercial y Honorarios) y además tiene costas
+procesales, el software hoy suma las costas al mismo monto de capital que genera el interés civil del 6%
+anual — es decir, las costas también generan ese interés, no solo el capital original de la obligación.
+
+**Pregunta:** ¿es correcto que las costas procesales generen interés junto con el capital bajo este
+algoritmo, o las costas deberían sumarse al final del cálculo sin generar interés adicional?
+
+**Qué necesito exactamente:** un sí/no sobre si las costas deben incluirse en la base que genera interés
+bajo Suma Única.
 
 **Respuesta del despacho:**
 

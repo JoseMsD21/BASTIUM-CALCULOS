@@ -5832,6 +5832,38 @@ confirmación — mismo criterio de rigor que el resto del proyecto (Sprints 5/7
 
 ---
 
+## Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 📋 Pendiente
+
+**Prioridad sugerida:** Media — no es un bug confirmado (nadie ha dicho que esté mal), pero es un
+comportamiento no documentado explícitamente en ninguna de las dos fórmulas que lo producen.
+
+**Depende de:** Sprint 18 (costas procesales, ya completo) y Sprint 20/43 (algoritmo "Suma Única", ya
+completo en Civil/Familia y ahora también alcanzable en Comercial modo (b) y Honorarios).
+
+**Contexto (hallazgo de la revisión de integración cruzada entre los batches de Sprints 18/62/71/13 y
+24/72/73/43/47, 2026-08-18):** `COSTAS_PROCESALES` comparte el mismo "bucket" de capital
+(`_capital_concepts`, `app/engine/liquidation/engine.py:61`) que el capital propio de la obligación. Bajo
+Suma Única (`usar_suma_unica=True`), la base de interés diario es `principal + indexación` — así que un
+monto de costas termina generando interés civil del 6% junto con el capital, aunque ni la fórmula del
+despacho para Honorarios (`Capital_Honorarios × IPC... + Interés_Civil_6%(Capital_Actualizado)`, Sprint 43)
+ni el diseño original de Suma Única (Sprint 20) mencionan costas como parte de esa base. Ya existía en
+Civil/Familia desde antes del Sprint 43; ese sprint solo hizo alcanzable la misma combinación en dos áreas
+más (Comercial modo (b), Honorarios).
+
+**Pregunta para el despacho:** cuando una obligación tiene costas procesales Y usa Suma Única/interés sobre
+capital indexado, ¿las costas deben generar ese interés civil junto con el capital, o deben quedar fuera de
+esa base (sumadas al final, sin generar interés adicional)?
+
+**Definición de Hecho:**
+- Pregunta registrada y respondida en `Preguntas-Para-Abogado-Abiertas.md`/`Respondidas.md`.
+- Si el despacho confirma que costas NO debe estar en la base de Suma Única: separar `COSTAS_PROCESALES` de
+  `_capital_concepts` con su propio test de regresión numérico.
+- Si confirma que SÍ debe estarlo (comportamiento actual): documentar la decisión explícitamente en el
+  docstring de `_evento_costas_procesales`/Suma Única, sin cambiar código.
+- Suite completa en verde.
+
+---
+
 ## Notas de entorno (sin sprint asignado)
 
 - ~~Validar/enable Windows "Long Paths" en la máquina de desarrollo~~ — **resuelto** (2026-07-15): se
