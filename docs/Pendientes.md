@@ -195,7 +195,7 @@ botón real que los dispare).
 - [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte ✅ Completado](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte--completado)
 - [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente ✅ Completado](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente--completado)
 - [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado ✅ Completado](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--completado)
-- [Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🔵 Bloqueado — pendiente de decisión](#sprint-47--recalcular-liquidaciones-históricas-afectadas-por-las-correcciones-del-sprint-30--bloqueado--pendiente-de-decisión)
+- [Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 ✅ Completado](#sprint-47--recalcular-liquidaciones-históricas-afectadas-por-las-correcciones-del-sprint-30--completado)
 - [Sprint 48 — Limpiar la deuda de `ruff` preexistente y agregar el chequeo de lint al pipeline de CI ✅ Completado](#sprint-48--limpiar-la-deuda-de-ruff-preexistente-y-agregar-el-chequeo-de-lint-al-pipeline-de-ci--completado)
 - [Sprint 49 — Bug de UI: los botones "Volver"/"Inicio" reaparecen visibles tras el primer render de la ventana ✅ Completado](#sprint-49--bug-de-ui-los-botones-volverinicio-reaparecen-visibles-tras-el-primer-render-de-la-ventana--completado)
 - [Sprint 50 — Mejoras de personalización y presentación diferidas de los Sprints 31-33 (modo oscuro, sidebar, gráficas del dashboard) ✅ Completado](#sprint-50--mejoras-de-personalización-y-presentación-diferidas-de-los-sprints-31-33-modo-oscuro-sidebar-gráficas-del-dashboard--completado)
@@ -3971,7 +3971,7 @@ ya existente cambió de valor. Suite completa en verde (970 tests tras este spri
 
 ---
 
-## Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 🟡 Desbloqueado — respuesta recibida, pendiente de programar
+## Sprint 47 — Recalcular liquidaciones históricas afectadas por las correcciones del Sprint 30 ✅ Completado
 
 **Prioridad sugerida:** Media-alta si hay liquidaciones reales ya entregadas a un juzgado o cliente con los
 valores antiguos; baja si el uso hasta ahora fue solo de prueba/desarrollo.
@@ -4036,6 +4036,25 @@ reales) como estándar del módulo de densidad pensional. Detalle completo en
 implementación grande (script de identificación vía `AuditLog`, generación de los 2 tipos de memorial, log
 de diferencias, y verificar si `LaboralStrategy` ya cumple SL138-2024 tras el Sprint 30 o necesita un ajuste
 adicional).
+
+**Cierre de implementación, parte A (2026-08-14, commits `3147d62`/`5eb57bd`):** script de
+identificación/marcado de liquidaciones afectadas vía `AuditLog` (`app/services/recalculo_historico.py`,
+`scripts/recalcular_historicas_sprint30.py`), generación de los 2 memoriales del protocolo
+(`app/engine/reports/memoriales.py`) y log de diferencias numérico, todos construidos; corrección de code
+review aplicó el enforcer de nunca-recalcular-cosa-juzgada dentro de la capa de escritura.
+
+**Cierre de implementación, parte B (2026-08-18):** confirmado el último punto pendiente —
+"Estandarización pensional" (Sentencia SL138-2024). `calcular_densidad_semanas`
+(`app/engine/labor/ibl.py`) ya usaba días calendario reales (365/366) desde que se creó en el Sprint 17 —
+**no** la base comercial de 360 días — así que **no requirió ningún cambio de código**. Es una función
+aislada sin conectar a `LaboralStrategy` ni a la GUI (misma nota del Sprint 3 sobre el módulo pensional), por
+lo que tampoco hay liquidaciones ya guardadas afectadas por este punto ni una fecha de corte nueva que
+agregar al script de recálculo del Sprint 47a. El test que ya existía,
+`tests/engine/labor/test_ibl.py::test_densidad_semanas_calendario_real_vs_ano_comercial_360`, pina este
+comportamiento explícitamente (caso que cruza un año bisiesto: 57 semanas en calendario real vs. 56 bajo año
+comercial de 360, documentando la diferencia). La base de 360 días de `LaboralStrategy.liquidar`
+(prestaciones sociales) no se tocó — sigue siendo la correcta para ese rubro distinto, por diseño del
+Sprint 3/30. Suite completa en verde (1258 passed).
 
 ---
 

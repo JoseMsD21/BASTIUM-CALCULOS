@@ -46,7 +46,12 @@ en la guía de usuario; queda 1 pregunta abierta sobre la fórmula de tasa diari
 867-1 E.T.), Comercial (XOR con la tasa comercial, solo con pacto expreso), Honorarios (compatible con el
 interés civil, fórmula exacta del despacho), Laboral (excluyente con la indemnización moratoria, con
 alerta) y Sancionatorio (condicional, ya cubierto por la excepción del despacho con el motor actual) — antes
-solo existía para Civil/Familia.
+solo existía para Civil/Familia. Sprint 47 (recálculo histórico, respuesta del despacho recibida
+2026-08-13): script de identificación/marcado de liquidaciones afectadas por el Sprint 30, generación de los
+2 memoriales del protocolo (actualización/corrección y error aritmético Art. 151 CPACA) y log de diferencias
+numérico; confirmado que el módulo de densidad pensional (`calcular_densidad_semanas`) ya usaba días
+calendario reales desde el Sprint 17 y no requería el ajuste de la Sentencia SL138-2024 que el despacho pidió
+verificar.
 
 ### Added
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
