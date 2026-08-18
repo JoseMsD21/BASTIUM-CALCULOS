@@ -276,3 +276,44 @@ def test_genera_cuotas_con_capital_constante_cuando_no_hay_reajuste():
 
     assert len(cuotas) == 4
     assert all(cuota.valor == Decimal("500000.00") for cuota in cuotas)
+
+
+def test_genera_cuotas_con_capital_constante_al_cruzar_ano_cuando_no_hay_reajuste():
+    # A diferencia del test anterior (que se queda dentro de un solo 2024 y por
+    # eso nunca ejecuta la rama `anio_cursor != anio_capital` del guard), este
+    # rango cruza el 1 de enero para forzar la transicion de año que dispara el
+    # bloque de reajuste -- confirmando que con NINGUNO ese bloque se salta y el
+    # capital permanece constante tambien a traves del cambio de año.
+    session = session_module.get_session()
+    expediente_id = _expediente_civil(session, area=AreaDerecho.COMERCIAL)
+    obligacion_recurrente = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota de arrendamiento",
+        categoria="CAPITAL_PAGARE",
+        fecha_origen=date(2023, 11, 1),
+        fecha_inicio=date(2023, 11, 1),
+        fecha_fin=date(2024, 2, 1),
+        dia_pago=1,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    session.add(obligacion_recurrente)
+    session.commit()
+    obligacion_id = obligacion_recurrente.id
+    session.close()
+
+    session = session_module.get_session()
+    padre = session.get(Obligacion, obligacion_id)
+    cuotas = generar_cuotas_mensuales(padre, fecha_corte=date(2024, 2, 1))
+    session.close()
+
+    # Nov/Dic 2023 (2) + Ene/Feb 2024 (2) = 4 cuotas, cruzando el 1 de enero 2024.
+    assert len(cuotas) == 4
+    por_fecha = {c.fecha_origen: c.valor for c in cuotas}
+    assert por_fecha[date(2023, 11, 1)] == Decimal("500000.00")
+    assert por_fecha[date(2023, 12, 1)] == Decimal("500000.00")
+    assert por_fecha[date(2024, 1, 1)] == Decimal("500000.00")
+    assert por_fecha[date(2024, 2, 1)] == Decimal("500000.00")
+    assert all(cuota.valor == Decimal("500000.00") for cuota in cuotas)
