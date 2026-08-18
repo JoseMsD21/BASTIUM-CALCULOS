@@ -371,33 +371,34 @@ class CivilFamiliaStrategy(AreaStrategy):
             return eventos
 
         # RECURRENTE
-        # Sprint 41 -- reajuste anual (SMMLV/IPC): si esta obligacion ya tiene cuotas
-        # mensuales reales generadas y persistidas (Obligacion PUNTUAL hijas, ver
+        # Sprint 41/75 -- si esta obligacion ya tiene cuotas mensuales reales
+        # generadas y persistidas (Obligacion PUNTUAL hijas, ver
         # app/services/reajuste_anual.py::generar_cuotas_mensuales), esas cuotas ya
         # vienen incluidas en `obligaciones` como filas independientes -- cada una se
-        # procesa con su propio capital reajustado y su propia fecha, exactamente como
-        # cualquier obligacion PUNTUAL normal (branch de arriba). Esta obligacion
-        # RECURRENTE padre NO debe generar NINGUN evento de capital propio en ese caso:
-        # hacerlo duplicaria el capital (una vez via la expansion efimera de
-        # RecurringScheduler de abajo, otra vez via cada cuota hija real). Ver
-        # Architecture punto 5 del plan del Sprint 41 y la verificacion matematica de
-        # la Task 3 (tests/family/test_interes_autonomo_por_cuota.py), que confirma
-        # que dejar que el motor consolidado procese las cuotas como obligaciones
-        # independientes ya produce el interes de mora correcto por cuota. Si todavia
-        # no se han generado cuotas (obligacion.id no aparece en
+        # procesa con su propio capital (reajustado o no, ver Sprint 75 Task 1) y su
+        # propia fecha, exactamente como cualquier obligacion PUNTUAL normal (branch
+        # de arriba). Esta obligacion RECURRENTE padre NO debe generar NINGUN evento
+        # de capital propio en ese caso: hacerlo duplicaria el capital (una vez via
+        # la expansion efimera de RecurringScheduler de abajo, otra vez via cada
+        # cuota hija real). Ver Architecture punto 5 del plan del Sprint 41 y la
+        # verificacion matematica de la Task 3
+        # (tests/family/test_interes_autonomo_por_cuota.py), que confirma que dejar
+        # que el motor consolidado procese las cuotas como obligaciones
+        # independientes ya produce el interes de mora correcto por cuota. Si
+        # todavia no se han generado cuotas (obligacion.id no aparece en
         # ids_con_cuotas_generadas), se preserva el comportamiento anterior a este
-        # sprint (expansion efimera, capital constante, sin reajuste) -- el reajuste
-        # solo aplica una vez que el usuario genera las cuotas explicitamente.
-        # tipo_reajuste_anual puede venir en None en un objeto Obligacion transitorio
-        # nunca pasado por session.commit() (el default de columna 'NINGUNO' solo lo
-        # aplica SQLAlchemy al hacer flush/insert) -- se trata igual que NINGUNO, mismo
-        # criterio tolerante que ya usa aplica_indexacion_ipc/interes_sobre_capital_indexado
-        # en este archivo (booleanos con default=False evaluados con truthy check).
-        reajuste_activo = (
-            obligacion.tipo_reajuste_anual is not None
-            and obligacion.tipo_reajuste_anual.value != "NINGUNO"
-        )
-        if reajuste_activo and obligacion.id in (ids_con_cuotas_generadas or set()):
+        # sprint (expansion efimera, capital constante). El criterio de skip es
+        # unicamente la membresia en ids_con_cuotas_generadas (calculado a partir de
+        # obligacion_padre_id real, ver liquidar() arriba) -- ya NO depende de
+        # tipo_reajuste_anual: hasta el Sprint 75 solo SMMLV/IPC podian tener cuotas
+        # hijas reales generadas, asi que exigir reajuste activo ademas de la
+        # membresia era redundante-pero-inofensivo; desde que generar_cuotas_mensuales
+        # (Sprint 75 Task 1) tambien soporta NINGUNO, esa condicion extra volvio el
+        # guard incorrecto -- una obligacion NINGUNO con cuotas ya generadas dejaba
+        # de saltarse la expansion efimera y duplicaba el capital (bug encontrado en
+        # revision de codigo, ver test
+        # test_civil_familia_recurrente_sin_reajuste_y_cuotas_generadas_no_duplica_capital).
+        if obligacion.id in (ids_con_cuotas_generadas or set()):
             return []
 
         scheduler = FamilyScheduler()

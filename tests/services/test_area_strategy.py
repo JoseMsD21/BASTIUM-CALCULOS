@@ -463,6 +463,43 @@ def test_civil_familia_cuota_hija_usa_capital_primero_en_su_propio_abono():
     assert saldo.interest > Decimal("0.00")
 
 
+def test_civil_familia_recurrente_sin_reajuste_y_cuotas_generadas_no_duplica_capital():
+    """Bug encontrado en revision de codigo del Sprint 75 (Task 1 + Task 2):
+    Task 1 hizo que generar_cuotas_mensuales funcione tambien para
+    tipo_reajuste_anual = NINGUNO (antes solo SMMLV/IPC podian tener cuotas
+    hijas reales). El guard de _eventos_de_obligacion que evita re-expandir
+    una obligacion RECURRENTE padre que ya tiene cuotas hijas generadas
+    exigia `reajuste_activo` (SMMLV/IPC) ademas de la membresia en
+    ids_con_cuotas_generadas -- por lo que una obligacion NINGUNO con cuotas
+    reales generadas NO se saltaba la expansion efimera de FamilyScheduler,
+    duplicando el capital (una vez via las cuotas reales, otra vez via los
+    eventos fantasma). Ver test analogo para SMMLV/IPC arriba:
+    test_civil_familia_recurrente_con_reajuste_y_cuotas_generadas_no_duplica_capital."""
+    obligacion_recurrente = _obligacion_civil_familia_recurrente_persistida(
+        valor=Decimal("150000.00"),
+        fecha_inicio=date(2024, 1, 1),
+        tasa_efectiva_anual=Decimal("12.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
+    assert len(cuotas) == 3
+    for cuota in cuotas:
+        assert cuota.obligacion_padre_id == obligacion_recurrente.id
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion_recurrente, *cuotas],
+        abonos=[],
+        fecha_corte=date(2024, 3, 1),
+    )
+
+    # Solo las 3 cuotas hijas reales (150000 x 3 = 450000) -- la obligacion
+    # padre no debe aportar capital propio via expansion efimera encima de
+    # las cuotas ya generadas. Sin el fix, esto da 900000.00 (el doble).
+    total_esperado = sum((cuota.valor for cuota in cuotas), Decimal("0.00"))
+    assert total_esperado == Decimal("450000.00")
+    assert resultado.final_balance().principal == total_esperado
+
+
 def test_civil_familia_recurrente_con_reajuste_pero_sin_cuotas_generadas_usa_expansion_efimera():
     """Complemento del test anterior: si tipo_reajuste_anual esta activo pero
     TODAVIA no se generaron cuotas hijas (el usuario no presiono "Generar
