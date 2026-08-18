@@ -16,8 +16,12 @@ from datetime import date
 from decimal import Decimal
 from typing import TypeVar
 
+from app.domain.obligation.payment import Payment
+from app.engine.interest.provider import RateProvider
 from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.models import PendingDebt
+from app.engine.temporal.schedulers.base import Event
+from app.services.motor_universal import UniversalLiquidationService
 
 _T = TypeVar("_T")
 
@@ -44,3 +48,34 @@ def distribuir_pago_en_cascada(
             asignaciones.append((cuota, monto_asignado))
         remanente = sobra
     return asignaciones, remanente
+
+
+def deuda_pendiente_cuota(
+    cuota,
+    abonos_existentes: list,
+    fecha_pago: date,
+    rate_provider: RateProvider,
+) -> PendingDebt:
+    """Deuda pendiente real de una cuota-hija a `fecha_pago`, corriendo el
+    mismo motor (UniversalLiquidationService) y la misma estrategia
+    (allocate_capital_primero) que se usara despues al liquidar de verdad los
+    Abono que cree la cascada -- no persiste nada (pagos=[] o los abonos ya
+    existentes de esa cuota, nunca los que la cascada esta a punto de crear)."""
+    evento = Event(
+        date=cuota.fecha_origen,
+        payload={"amount": cuota.valor, "label": cuota.concepto},
+        event_type=cuota.categoria,
+    )
+    pagos = [
+        Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
+        for abono in abonos_existentes
+        if abono.obligacion_id == cuota.id
+    ]
+    resultado = UniversalLiquidationService().liquidar(
+        eventos_causacion=[evento],
+        pagos=pagos,
+        fecha_corte=fecha_pago,
+        rate_provider=rate_provider,
+        estrategia_imputacion=AllocationEngine.allocate_capital_primero,
+    )
+    return resultado.final_balance()

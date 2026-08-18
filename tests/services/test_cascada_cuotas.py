@@ -2,13 +2,48 @@ from datetime import date
 from decimal import Decimal
 
 from app.engine.liquidation.models import PendingDebt
-from app.services.cascada_cuotas import distribuir_pago_en_cascada
+from app.services.area_strategy import CivilFamiliaStrategy
+from app.services.cascada_cuotas import deuda_pendiente_cuota, distribuir_pago_en_cascada
+from app.services.reajuste_anual import generar_cuotas_mensuales
+from database.models import Obligacion, TipoObligacion, TipoReajusteAnual
+import database.session as session_module
 
 
 def _deuda(principal: str, interest: str) -> PendingDebt:
     return PendingDebt(
         principal=Decimal(principal), interest=Decimal(interest), indexation=Decimal("0.00")
     )
+
+
+def _obligacion_civil_familia_recurrente_persistida(
+    valor: Decimal,
+    fecha_inicio: date,
+    tasa_efectiva_anual: Decimal,
+    tipo_reajuste_anual: TipoReajusteAnual,
+    expediente_id: int = 1,
+) -> Obligacion:
+    """Persiste una obligacion RECURRENTE de Civil/Familia en la sesion en memoria
+    (fixture autouse `_db_en_memoria_por_defecto` de tests/conftest.py) -- necesario
+    porque `generar_cuotas_mensuales` (Sprint 41/75) requiere una obligacion con `id`
+    real para poder generar y persistir las cuotas hijas. Mismo patron que
+    tests/services/test_area_strategy.py::_obligacion_civil_familia_recurrente_persistida."""
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="CUOTA ALIMENTARIA",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=fecha_inicio,
+        fecha_inicio=fecha_inicio,
+        dia_pago=fecha_inicio.day,
+        valor=valor,
+        tasa_efectiva_anual=tasa_efectiva_anual,
+        tipo_reajuste_anual=tipo_reajuste_anual,
+    )
+    session.add(obligacion)
+    session.commit()
+    session.close()
+    return obligacion
 
 
 def test_ejemplo_del_usuario_abril_marzo_febrero():
@@ -59,3 +94,23 @@ def test_remanente_sobrante_cuando_el_pago_excede_todas_las_cuotas():
     )
     assert asignaciones[0][1] == Decimal("150000.00")
     assert remanente == Decimal("50000.00")
+
+
+def test_deuda_pendiente_cuota_refleja_capital_e_interes_reales():
+    obligacion_recurrente = _obligacion_civil_familia_recurrente_persistida(
+        valor=Decimal("150000.00"),
+        fecha_inicio=date(2024, 1, 1),
+        tasa_efectiva_anual=Decimal("12.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
+    cuota_enero = next(c for c in cuotas if c.fecha_origen == date(2024, 1, 1))
+
+    rate_provider = CivilFamiliaStrategy()._construir_rate_provider_obligacion(
+        cuota_enero, date(2024, 3, 1)
+    )
+    deuda = deuda_pendiente_cuota(
+        cuota_enero, abonos_existentes=[], fecha_pago=date(2024, 3, 1), rate_provider=rate_provider
+    )
+    assert deuda.principal == Decimal("150000.00")
+    assert deuda.interest > Decimal("0.00")  # 2 meses de mora al 12% anual
