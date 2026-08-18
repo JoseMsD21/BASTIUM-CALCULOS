@@ -46,7 +46,12 @@ AREA_UNIDAD_POR_CLAVE: dict[str, tuple[list[AreaDerecho], str]] = {
     "ET635_PUNTOS_DESCUENTO": ([_TR], "puntos"),
     "PRESCRIPCION_EJECUTIVA_MESES": (_LAS_6_AREAS, "meses"),
     "SMLMV": ([_CF, _LA, _SA, _CO, _HO], "COP"),
-    "IPC_INDICE_ACUMULADO": ([_CF, _TR], "índice"),
+    # Sprint 43: IPC_INDICE_ACUMULADO ahora tambien alimenta la indexacion IPC de
+    # Honorarios (incondicional), Laboral/Sancionatorio (condicional) y Comercial
+    # (modo b, pacto expreso) -- ver app/services/area_strategy.py. Tributario ya
+    # estaba en la lista (Art. 867-1 E.T., Sprint 15). Las 6 areas usan la clave
+    # ahora, de ahi _LAS_6_AREAS en vez de enumerarlas a mano.
+    "IPC_INDICE_ACUMULADO": (_LAS_6_AREAS, "índice"),
     "IBC_CONSUMO_ORDINARIO": ([_TR, _LA], "%"),
     "USURA_CONSUMO_ORDINARIO": ([_TR, _LA], "%"),
     "UVT": ([_TR, _SA], "COP"),
@@ -68,7 +73,11 @@ AREA_UNIDAD_POR_CLAVE: dict[str, tuple[list[AreaDerecho], str]] = {
     "SS_FSP_TRAMO_5_PCT": ([_LA], "%"),
     "SS_FSP_TRAMO_6_PCT": ([_LA], "%"),
     # --- Grupo sin wiring a produccion todavia (Sprint 61) ---
-    "CIVIL_ANNUAL_RATE": ([_CF], "%"),
+    # Sprint 43: CIVIL_ANNUAL_RATE ahora tambien alimenta la tasa civil fija del
+    # segundo termino de la formula de indexacion IPC de Honorarios y el modo (b)
+    # de Comercial (capital indexado + interes civil puro) -- ver
+    # AreaStrategy._tasa_civil_anual_pct en app/services/area_strategy.py.
+    "CIVIL_ANNUAL_RATE": ([_CF, _CO, _HO], "%"),
     "PRESCRIPCION_ORDINARIA_MESES": ([_CF], "meses"),
     "PRESCRIPCION_HONORARIOS_MESES": ([_HO], "meses"),
     "PRESCRIPCION_CAMBIARIA_DIRECTA_MESES": ([_CO], "meses"),
@@ -82,8 +91,9 @@ AREA_UNIDAD_POR_CLAVE: dict[str, tuple[list[AreaDerecho], str]] = {
     "CADUCIDAD_IMPUGNACION_ACTAS_SOCIALES_MESES": ([_CO], "meses"),
     "CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES": ([_CF, _CO], "meses"),
     # Sprint 58: mismas areas que IPC_INDICE_ACUMULADO -- es el dato crudo del
-    # que ese se deriva (ver CLAVE_CRUDA_DE en parametro_service.py).
-    "IPC_VARIACION_ANUAL": ([_CF, _TR], "%"),
+    # que ese se deriva (ver CLAVE_CRUDA_DE en parametro_service.py). Actualizado
+    # en el Sprint 43 junto con IPC_INDICE_ACUMULADO (ver arriba).
+    "IPC_VARIACION_ANUAL": (_LAS_6_AREAS, "%"),
 }
 
 

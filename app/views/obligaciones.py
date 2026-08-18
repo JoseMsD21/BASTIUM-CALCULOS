@@ -75,6 +75,10 @@ class ObligacionFormDialog(QDialog):
         "tipo_reajuste_anual": TipoReajusteAnual.NINGUNO,
         "tipo_recurrencia": TipoRecurrencia.MENSUAL,
         "fechas_anuales_fijas": None,
+        # pacto_expreso_indexacion (Sprint 43): solo _parse_campos_comercial la
+        # sobreescribe; el resto de areas que pasan por guardar() (Civil/Familia,
+        # Sancionatorio, Honorarios) la dejan en False -- no tienen el checkbox.
+        "pacto_expreso_indexacion": False,
     }
 
     def __init__(
@@ -306,6 +310,32 @@ class ObligacionFormDialog(QDialog):
             "Calcula el interes sobre el capital ya indexado, en vez de sobre el capital "
             "historico (algoritmo de Suma Unica, Ley 80 de 1993)."
         )
+        # pacto_expreso_indexacion (Sprint 43, solo Comercial): habilita el modo (b) de
+        # la regla XOR del despacho -- capital indexado por IPC + interes civil puro 6%
+        # anual, EN VEZ DE la tasa comercial (que ya incorpora inflacion). Sin este
+        # pacto, marcar "Aplica indexación IPC" en Comercial se rechaza al liquidar
+        # (ver ComercialStrategy._validar_obligacion_comercial).
+        self.check_pacto_expreso_indexacion = QCheckBox(
+            "Pacto expreso de indexación IPC en el título (Art. 884 C.Co.)"
+        )
+        self.check_pacto_expreso_indexacion.setToolTip(
+            "Solo con este pacto expreso en el titulo es valido reemplazar la tasa "
+            "comercial por capital indexado (IPC) + interes civil puro del 6% anual, en "
+            "vez de acumular IPC a la tasa comercial (que ya incorpora inflacion)."
+        )
+        # protegida_inflacion_uvr (Sprint 43, solo Tributario): prohibicion de doble
+        # cobro -- si el titulo/tasa de esta obligacion ya incorpora su propia
+        # proteccion inflacionaria (ej. UVR), no se puede aplicar ADEMAS la indexacion
+        # IPC automatica del Art. 867-1 E.T. sobre el mismo capital.
+        self.check_protegida_inflacion_uvr = QCheckBox(
+            "El título/tasa ya incorpora protección inflacionaria propia (ej. UVR)"
+        )
+        self.check_protegida_inflacion_uvr.setToolTip(
+            "Si esta obligacion ya esta protegida contra la inflacion por su propia tasa "
+            "o unidad (ej. UVR), la liquidacion bloquea con error cualquier intento de "
+            "aplicar ADEMAS la indexacion IPC del Art. 867-1 E.T. sobre el mismo capital "
+            "(evita doble cobro)."
+        )
 
         self.campo_base_sancion = QLineEdit()
         self.campo_base_sancion.setToolTip(
@@ -522,6 +552,13 @@ class ObligacionFormDialog(QDialog):
         )
         self.layout_tasas_intereses.addRow(self.check_aplica_indexacion_ipc)
         self.layout_tasas_intereses.addRow(self.check_interes_sobre_capital_indexado)
+        self.layout_tasas_intereses.addRow(self.check_pacto_expreso_indexacion)
+        # check_protegida_inflacion_uvr va en "Datos basicos", no en "Tasas e
+        # intereses": ese grupo completo queda oculto para TRIBUTARIO (ver
+        # grupo_tasas_intereses.setVisible mas abajo, "el interes es automatico, E.T.
+        # art. 635, nunca se pacta"), asi que un checkbox de Tributario ahi nunca
+        # llegaria a mostrarse.
+        self.layout_datos_basicos.addRow(self.check_protegida_inflacion_uvr)
 
         self.layout_honorarios_costas.addRow(
             "Honorarios fijos pactados", self.campo_honorarios_fijos
@@ -646,8 +683,20 @@ class ObligacionFormDialog(QDialog):
         # etiqueta de texto separada) -- QFormLayout no genera QLabel para ellos, asi
         # que no sufren el bug de fila huerfana y pueden seguir usando setVisible()
         # directo (Sprint 39).
-        self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
+        # Indexacion IPC (Sprint 43): visible en toda area donde el despacho confirmo
+        # que aplica via un checkbox manual -- Civil/Familia (Sprint 8), Comercial
+        # (XOR con pacto expreso), Laboral (excluyente con moratorios), Sancionatorio
+        # (condicional, excepcion "fecha del hecho") y Honorarios (compatible con
+        # interes civil). TRIBUTARIO se deja fuera a proposito: ahi IPC es automatico
+        # (ligado al trigger de mora del Art. 867-1 E.T.), no una eleccion manual del
+        # abogado -- ver TributarioStrategy.
+        self.check_aplica_indexacion_ipc.setVisible(
+            self._area
+            in ("CIVIL_FAMILIA", "COMERCIAL", "LABORAL", "SANCIONATORIO", "HONORARIOS")
+        )
         self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
+        self.check_pacto_expreso_indexacion.setVisible(es_comercial)
+        self.check_protegida_inflacion_uvr.setVisible(es_tributario)
         self.check_es_smmlv.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
@@ -657,7 +706,13 @@ class ObligacionFormDialog(QDialog):
         # ocultas (Sprint 34) en vez de mostrar un grupo con todos sus campos
         # individualmente invisibles -- menos ruido visual para un abogado sin
         # conocimiento tecnico. "Datos basicos" siempre aplica, no se oculta nunca.
-        self.grupo_tasas_intereses.setVisible(not es_laboral and not es_tributario)
+        # LABORAL (Sprint 43): antes ocultaba el grupo completo ("Tasas e intereses")
+        # porque no usa tasa pactada -- ahora SI necesita mostrarlo, unicamente para
+        # el checkbox "Aplica indexación IPC" (todos los demas campos del grupo ya
+        # quedan individualmente ocultos para esta area por las reglas de arriba, asi
+        # que el grupo termina mostrando solo ese checkbox). TRIBUTARIO se mantiene
+        # oculto: ahi IPC es automatico, sin checkbox (ver mas arriba).
+        self.grupo_tasas_intereses.setVisible(not es_tributario)
         self.grupo_honorarios_costas.setVisible(es_honorarios)
 
         # campo_fecha_origen se reutiliza en Laboral como "fecha de inicio del contrato"
@@ -793,6 +848,9 @@ class ObligacionFormDialog(QDialog):
                     self.campo_trm_fecha_referencia.setDate(
                         _qdate(obligacion.trm_fecha_referencia)
                     )
+                self.check_pacto_expreso_indexacion.setChecked(
+                    obligacion.pacto_expreso_indexacion
+                )
 
             elif self._area == "SANCIONATORIO":
                 if obligacion.cantidad_smlmv_uvt is not None:
@@ -841,6 +899,7 @@ class ObligacionFormDialog(QDialog):
                     self.campo_deducciones.setText(str(obligacion.deducciones))
                 if obligacion.rentas_exentas is not None:
                     self.campo_rentas_exentas.setText(str(obligacion.rentas_exentas))
+                self.check_protegida_inflacion_uvr.setChecked(obligacion.protegida_inflacion_uvr)
         finally:
             session.close()
 
@@ -900,6 +959,8 @@ class ObligacionFormDialog(QDialog):
             self.campo_trm_fecha_referencia,
             self.check_aplica_indexacion_ipc,
             self.check_interes_sobre_capital_indexado,
+            self.check_pacto_expreso_indexacion,
+            self.check_protegida_inflacion_uvr,
             self.campo_honorarios_fijos,
             self.campo_cuota_litis_pct,
             self.campo_beneficio_obtenido,
@@ -1342,6 +1403,9 @@ class ObligacionFormDialog(QDialog):
             "trm_fecha_referencia": trm_fecha_referencia,
             "anatocismo_demanda_judicial": anatocismo_demanda_judicial,
             "anatocismo_fecha_acuerdo": anatocismo_fecha_acuerdo,
+            # pacto_expreso_indexacion (Sprint 43): habilita el modo (b) de la regla
+            # XOR de indexacion IPC -- ver ComercialStrategy._validar_obligacion_comercial.
+            "pacto_expreso_indexacion": self.check_pacto_expreso_indexacion.isChecked(),
         }
 
     def _guardar_laboral(self) -> int:
@@ -1400,6 +1464,10 @@ class ObligacionFormDialog(QDialog):
             incluir_seguridad_social=incluir_seguridad_social,
             nivel_riesgo_arl=nivel_riesgo_arl,
             es_smmlv=es_smmlv,
+            # aplica_indexacion_ipc (Sprint 43): antes de este sprint, _guardar_laboral
+            # nunca lo pasaba (el checkbox estaba oculto para LABORAL) -- ahora es
+            # visible, ver LaboralStrategy.
+            aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
         )
         session.close()
         return obligacion_id
@@ -1477,6 +1545,9 @@ class ObligacionFormDialog(QDialog):
             costos=costos,
             deducciones=deducciones,
             rentas_exentas=rentas_exentas,
+            # protegida_inflacion_uvr (Sprint 43): prohibicion de doble cobro -- ver
+            # TributarioStrategy.liquidar().
+            protegida_inflacion_uvr=self.check_protegida_inflacion_uvr.isChecked(),
         )
         session.close()
         return obligacion_id

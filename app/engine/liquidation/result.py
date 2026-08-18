@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from app.engine.liquidation.models import LiquidationItem, PendingDebt
@@ -16,9 +16,20 @@ class LiquidationResult:
     "RENTA_LIQUIDA". No participa del balance de deuda (items/PendingDebt) -- es
     informativo, deliberadamente separado (ver design spec, seccion "Renta Liquida
     Gravable no se mezcla con el saldo de deuda").
-    """
+
+    `alertas` (Sprint 43): mensajes de advertencia NO bloqueantes generados durante
+    liquidar() -- la liquidacion se completa igual y el saldo no cambia por su
+    presencia, pero el abogado debe revisarlos (ej. "Doble Actualización Prohibida"
+    en Laboral cuando IPC y la indemnizacion moratoria coinciden sobre el mismo
+    rubro/periodo, o "Improcedente por acumulación" en Honorarios). Reutiliza el
+    mismo criterio de "feedback no bloqueante" del Sprint 36 (`app/views/toast.py`)
+    -- la vista (`expediente_detalle.py`) los muestra con `mostrar_toast(tipo="warning")`
+    en vez de un `QMessageBox` modal. Default lista vacia: ninguna liquidacion previa
+    a este sprint construye `LiquidationResult` con este argumento, asi que el default
+    preserva el comportamiento exacto de siempre."""
     items: list[LiquidationItem]
     renta_liquida: RentaLiquidaGravableResult | None = None
+    alertas: list[str] = field(default_factory=list)
 
     def total_interest_accrued(self) -> Decimal:
         return sum((item.interest_amount for item in self.items), Decimal("0.00"))

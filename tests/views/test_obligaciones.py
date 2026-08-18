@@ -604,20 +604,64 @@ def test_campo_fecha_pago_total_solo_visible_si_pagada_marcada(qtbot, monkeypatc
     assert dialog.campo_fecha_pago_total.isVisible() is False
 
 
-def test_check_indexacion_visible_solo_en_civil_familia(qtbot, monkeypatch):
-    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
-    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
-    qtbot.addWidget(dialog_civil)
-    dialog_civil.show()
-    assert dialog_civil.check_aplica_indexacion_ipc.isVisible() is True
+def test_check_indexacion_visible_en_las_5_areas_con_checkbox_manual(qtbot, monkeypatch):
+    # Sprint 43: el despacho confirmo IPC para las 5 areas restantes, cada una con su
+    # propia regla de exclusion/coexistencia -- el checkbox pasa a ser visible en
+    # Comercial/Laboral/Sancionatorio/Honorarios ademas de Civil/Familia. TRIBUTARIO
+    # se queda oculto: ahi IPC es automatico (Art. 867-1 E.T.), no una eleccion manual.
+    areas_con_checkbox = {
+        "CIVIL_FAMILIA": AreaDerecho.CIVIL_FAMILIA,
+        "COMERCIAL": AreaDerecho.COMERCIAL,
+        "LABORAL": AreaDerecho.LABORAL,
+        "SANCIONATORIO": AreaDerecho.SANCIONATORIO,
+        "HONORARIOS": AreaDerecho.HONORARIOS,
+    }
+    for area_str, area_enum in areas_con_checkbox.items():
+        expediente_id = _expediente_de_prueba(monkeypatch, area=area_enum)
+        dialog = ObligacionFormDialog(expediente_id=expediente_id, area=area_str)
+        qtbot.addWidget(dialog)
+        dialog.show()
+        assert dialog.check_aplica_indexacion_ipc.isVisible() is True, area_str
 
+    expediente_id_tributario = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+    dialog_tributario = ObligacionFormDialog(
+        expediente_id=expediente_id_tributario, area="TRIBUTARIO"
+    )
+    qtbot.addWidget(dialog_tributario)
+    dialog_tributario.show()
+    assert dialog_tributario.check_aplica_indexacion_ipc.isVisible() is False
+
+
+def test_check_pacto_expreso_indexacion_visible_solo_en_comercial(qtbot, monkeypatch):
     expediente_id_comercial = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
     dialog_comercial = ObligacionFormDialog(
         expediente_id=expediente_id_comercial, area="COMERCIAL"
     )
     qtbot.addWidget(dialog_comercial)
     dialog_comercial.show()
-    assert dialog_comercial.check_aplica_indexacion_ipc.isVisible() is False
+    assert dialog_comercial.check_pacto_expreso_indexacion.isVisible() is True
+
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+    dialog_civil.show()
+    assert dialog_civil.check_pacto_expreso_indexacion.isVisible() is False
+
+
+def test_check_protegida_inflacion_uvr_visible_solo_en_tributario(qtbot, monkeypatch):
+    expediente_id_tributario = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+    dialog_tributario = ObligacionFormDialog(
+        expediente_id=expediente_id_tributario, area="TRIBUTARIO"
+    )
+    qtbot.addWidget(dialog_tributario)
+    dialog_tributario.show()
+    assert dialog_tributario.check_protegida_inflacion_uvr.isVisible() is True
+
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+    dialog_civil.show()
+    assert dialog_civil.check_protegida_inflacion_uvr.isVisible() is False
 
 
 def test_guarda_obligacion_con_indexacion_ipc_marcada(qtbot, monkeypatch):
@@ -656,6 +700,97 @@ def test_guarda_obligacion_sin_marcar_indexacion_queda_en_false(qtbot, monkeypat
     session = session_module.get_session()
     guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
     assert guardada.aplica_indexacion_ipc is False
+    session.close()
+
+
+def test_guarda_obligacion_comercial_con_pacto_expreso_indexacion(qtbot, monkeypatch):
+    # Sprint 43: la GUI debe persistir pacto_expreso_indexacion (habilita el modo b
+    # de la regla XOR de indexacion IPC en ComercialStrategy).
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+    dialog.check_aplica_indexacion_ipc.setChecked(True)
+    dialog.check_pacto_expreso_indexacion.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.aplica_indexacion_ipc is True
+    assert guardada.pacto_expreso_indexacion is True
+    session.close()
+
+
+def test_guarda_obligacion_comercial_sin_pacto_expreso_queda_en_false(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Capital de pagare")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2025, 2, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.pacto_expreso_indexacion is False
+    session.close()
+
+
+def test_guarda_obligacion_tributaria_con_proteccion_inflacion_uvr(qtbot, monkeypatch):
+    # Sprint 43: la GUI debe persistir protegida_inflacion_uvr (prohibicion de doble
+    # cobro en TributarioStrategy).
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.combo_categoria.setCurrentIndex(0)  # IMPUESTO_A_CARGO
+    dialog.campo_concepto.setText("Impuesto de renta 2024")
+    dialog.campo_valor.setText("10000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+    dialog.check_protegida_inflacion_uvr.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.protegida_inflacion_uvr is True
+    session.close()
+
+
+def test_guarda_obligacion_laboral_con_indexacion_ipc_marcada(qtbot, monkeypatch):
+    # Sprint 43: _guardar_laboral() antes no pasaba aplica_indexacion_ipc en absoluto
+    # (el checkbox estaba oculto para LABORAL) -- ahora debe persistirlo.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+    dialog.check_aplica_indexacion_ipc.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.aplica_indexacion_ipc is True
     session.close()
 
 
@@ -1329,11 +1464,17 @@ def test_grupo_datos_basicos_siempre_visible(qtbot, monkeypatch):
 
 
 def test_grupo_tasas_intereses_oculto_para_laboral_y_tributario(qtbot, monkeypatch):
+    # Sprint 43: LABORAL ya NO oculta el grupo completo -- ahora lo necesita para el
+    # checkbox "Aplica indexación IPC" (todos los demas campos del grupo siguen
+    # ocultos individualmente para esta area, ver
+    # test_check_indexacion_visible_en_las_5_areas_con_checkbox_manual). TRIBUTARIO
+    # sigue oculto: ahi IPC es automatico, sin checkbox.
     expediente_id_laboral = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
     dialog_laboral = ObligacionFormDialog(expediente_id=expediente_id_laboral, area="LABORAL")
     qtbot.addWidget(dialog_laboral)
     dialog_laboral.show()
-    assert dialog_laboral.grupo_tasas_intereses.isVisible() is False
+    assert dialog_laboral.grupo_tasas_intereses.isVisible() is True
+    assert dialog_laboral.check_aplica_indexacion_ipc.isVisible() is True
 
     expediente_id_tributario = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
     dialog_tributario = ObligacionFormDialog(

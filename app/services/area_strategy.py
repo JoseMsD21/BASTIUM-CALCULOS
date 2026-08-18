@@ -266,6 +266,47 @@ class AreaStrategy(ABC):
         )
         return provider
 
+    @staticmethod
+    def _evento_indexacion_ipc(
+        fecha_causacion: date, capital: Decimal, concepto: str, fecha_corte: date
+    ) -> Event:
+        """Evento de indexacion IPC generico (Sprint 8, promovido a la clase base en
+        el Sprint 43 para que Honorarios/Sancionatorio/Laboral/Comercial lo reutilicen
+        tal cual en vez de reimplementar la misma formula -- ver
+        CivilFamiliaStrategy._evento_indexacion, ahora un alias de este metodo).
+        `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay deflacion o si el
+        capital es 0/negativo -- ver docstring de esa funcion."""
+        monto = IPCIndexation.calculate(
+            capital=capital,
+            initial_index=get_ipc_interpolado_for_date(fecha_causacion),
+            final_index=get_ipc_interpolado_for_date(fecha_corte),
+        )
+        return Event(
+            date=fecha_causacion,
+            payload={"amount": monto, "label": f"Indexación IPC — {concepto}"},
+            event_type="INDEXATION",
+        )
+
+    @staticmethod
+    def _tasa_civil_anual_pct(fecha: date) -> Decimal:
+        """Tasa de interes civil legal anual (Art. 1617 C.C.), en forma porcentual
+        (ej. Decimal("6.00")) lista para `EffectiveRateConverter.annual_to_daily`/
+        `_rate_provider_tasa_plana`. Consulta la clave versionada CIVIL_ANNUAL_RATE
+        via `get_parametro` (fuente unica, `app/engine/interest/legal_rates.py`) en
+        vez de hardcodear un 6% nuevo -- esa clave guarda la tasa en forma fraccion
+        (0.06), de ahi el x100. Sprint 43: reutilizada por HonorariosStrategy (segundo
+        termino de su formula) y por ComercialStrategy en el modo (b) de la regla XOR
+        (capital indexado + interes civil puro, solo con pacto expreso)."""
+        return get_parametro("CIVIL_ANNUAL_RATE", fecha) * Decimal("100")
+
+    @staticmethod
+    def _agregar_alerta(resultado: LiquidationResult, mensaje: str) -> LiquidationResult:
+        """Adjunta un mensaje de advertencia NO bloqueante a `resultado` (Sprint 43) --
+        ver docstring de `LiquidationResult.alertas`. La vista los muestra con
+        `mostrar_toast(tipo="warning")` (mismo mecanismo del Sprint 36), reutilizado
+        aqui en vez de inventar un segundo canal de alertas."""
+        return replace(resultado, alertas=[*resultado.alertas, mensaje])
+
 
 class CivilFamiliaStrategy(AreaStrategy):
     """
@@ -441,16 +482,10 @@ class CivilFamiliaStrategy(AreaStrategy):
     def _evento_indexacion(
         self, fecha_causacion: date, capital: Decimal, concepto: str, fecha_corte: date
     ) -> Event:
-        monto = IPCIndexation.calculate(
-            capital=capital,
-            initial_index=get_ipc_interpolado_for_date(fecha_causacion),
-            final_index=get_ipc_interpolado_for_date(fecha_corte),
-        )
-        return Event(
-            date=fecha_causacion,
-            payload={"amount": monto, "label": f"Indexación IPC — {concepto}"},
-            event_type="INDEXATION",
-        )
+        """Alias historico (Sprint 8) del helper generico promovido a la clase base en
+        el Sprint 43 -- ver `AreaStrategy._evento_indexacion_ipc`. Se conserva este
+        nombre/firma para no tocar los call sites existentes de esta clase."""
+        return self._evento_indexacion_ipc(fecha_causacion, capital, concepto, fecha_corte)
 
     def _construir_rate_provider_obligacion(
         self, obligacion, fecha_corte: date
@@ -482,7 +517,25 @@ class ComercialStrategy(AreaStrategy):
     cuota individual no esta modelado
     (ver docs/superpowers/specs/2026-07-15-area-comercial-design.md).
 
-    No es compatible con indexacion IPC (soporta_indexacion_ipc = False).
+    Indexacion IPC (Sprint 43, respuesta del despacho -- XOR estricto, NO como
+    opcion libre acumulable a los intereses comerciales): `soporta_indexacion_ipc`
+    se mantiene en `False` -- la tasa comercial (remuneratoria/moratoria) ya
+    incorpora un componente inflacionario, asi que combinarla con IPC seria doble
+    actualizacion. El abogado elige exactamente uno de los dos modos:
+      (a) [default] tasa comercial pactada (remuneratoria antes del vencimiento,
+          moratoria despues) -- comportamiento identico a antes de este sprint.
+      (b) `aplica_indexacion_ipc` marcado + `pacto_expreso_indexacion` marcado:
+          capital indexado por IPC (desde `fecha_origen` hasta la fecha de corte)
+          + interes civil puro del 6% anual (Art. 1617 C.C., `_tasa_civil_anual_pct`)
+          sobre el capital YA indexado (Suma Unica, `usar_suma_unica`) EN VEZ DE la
+          tasa comercial -- solo valido si existe pacto expreso en el titulo que lo
+          autorice (Art. 884 C.Co. es supletivo, no imperativo). Marcar
+          `aplica_indexacion_ipc` SIN `pacto_expreso_indexacion` bloquea la
+          liquidacion con ValueError (ver `_validar_obligacion_comercial`) -- ese es
+          el mecanismo real del XOR: nunca se liquida con tasa comercial + IPC a la
+          vez para la misma obligacion. Alcance reducido a PUNTUAL (mismo criterio
+          que el anatocismo de esta clase): RECURRENTE no modela un pacto expreso
+          por cuota individual, se rechaza con ValueError si se intenta.
 
     TRM (Sprint 12, correccion 2026-08-01): respuesta del despacho -- "eliminar
     la logica de TRM congelada al inicio". Por defecto, cada obligacion en
@@ -516,11 +569,20 @@ class ComercialStrategy(AreaStrategy):
             fecha_corte=fecha_corte,
             eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
             rate_provider_fn=self._construir_rate_provider_obligacion,
+            usar_suma_unica_fn=self._modo_ipc_activo,
             monto_abono_fn=self._monto_abono_en_pesos,
         )
 
         ajustes_usura = []
         for obligacion in obligaciones:
+            # Modo (b) -- IPC + civil 6% (Sprint 43): la tasa realmente cobrada ya no
+            # es tasa_efectiva_anual/tasa_moratoria_anual (ver
+            # _construir_rate_provider_obligacion), es la civil legal fija, que nunca
+            # es usuraria -- comparar esos dos campos (no usados para cobrar nada en
+            # este modo) contra el tope de usura no tendria sentido y podria generar
+            # una "sancion por usura" fantasma sobre una tasa que nunca se aplico.
+            if self._modo_ipc_activo(obligacion):
+                continue
             abonos_obligacion = [abono for abono in abonos if abono.obligacion_id == obligacion.id]
             ajuste = self._calcular_sancion_usura(obligacion, abonos_obligacion, fecha_corte)
             if ajuste is not None:
@@ -530,6 +592,17 @@ class ComercialStrategy(AreaStrategy):
             resultado = self._aplicar_sanciones_usura(resultado, ajustes_usura, fecha_corte)
 
         return resultado
+
+    def _modo_ipc_activo(self, obligacion) -> bool:
+        """True si esta obligacion liquida en el modo (b) de la regla XOR del
+        Sprint 43: capital indexado por IPC + interes civil puro, EN VEZ DE la tasa
+        comercial -- solo cuando ambos flags estan marcados (ver docstring de la
+        clase y `_validar_obligacion_comercial`, que bloquea la combinacion
+        aplica_indexacion_ipc=True sin pacto_expreso_indexacion=True antes de
+        llegar aqui)."""
+        return bool(obligacion.aplica_indexacion_ipc) and bool(
+            obligacion.pacto_expreso_indexacion
+        )
 
     def _calcular_sancion_usura(self, obligacion, abonos: list, fecha_corte: date) -> dict | None:
         """Respuesta del despacho (Preguntas-Para-Abogado.md, Sprint 2): una tasa
@@ -651,6 +724,27 @@ class ComercialStrategy(AreaStrategy):
         # igual y la sancion legal (perdida del exceso, doblado) se calcula y resta
         # del saldo en liquidar() -> _calcular_sancion_usura/_aplicar_sanciones_usura.
 
+        # Indexacion IPC (Sprint 43): el XOR real. aplica_indexacion_ipc marcado
+        # implica que la obligacion abandona la tasa comercial en favor del modo (b)
+        # -- eso solo es valido con pacto expreso en el titulo (ver docstring de la
+        # clase). Bloquear aqui, no en tiempo de calculo, evita liquidar con un modo
+        # que el titulo no autoriza.
+        if obligacion.aplica_indexacion_ipc and not obligacion.pacto_expreso_indexacion:
+            raise ValueError(
+                f"La obligacion comercial '{obligacion.concepto}' marca 'Aplica indexación "
+                f"IPC' sin 'Pacto expreso de indexación en el título': la tasa comercial "
+                f"(Art. 884 C.Co.) ya incorpora un componente inflacionario, asi que no se "
+                f"puede acumular con IPC salvo que el titulo autorice expresamente el modo "
+                f"capital indexado + interés civil puro 6% anual en su lugar."
+            )
+        if self._modo_ipc_activo(obligacion) and obligacion.tipo.value != "PUNTUAL":
+            raise ValueError(
+                f"La obligacion comercial '{obligacion.concepto}' tiene el modo de indexación "
+                f"IPC (pacto expreso) activo, pero ese modo solo aplica a obligaciones PUNTUAL "
+                f"(RECURRENTE no modela un pacto expreso por cuota individual, alcance "
+                f"reducido del Sprint 43)."
+            )
+
         # trm_aplicable/trm_fecha_referencia ya NO son obligatorios (Sprint 12,
         # correccion 2026-08-01): por defecto la TRM se consulta en vivo, por fecha,
         # via SFCTRMProvider -- ver docstring de la clase. trm_aplicable sigue siendo
@@ -763,6 +857,18 @@ class ComercialStrategy(AreaStrategy):
                     event_type=obligacion.categoria,
                 )
             ]
+            # Modo (b) -- IPC + civil 6% (Sprint 43): en vez de la tasa comercial, se
+            # indexa el capital por IPC (ver docstring de la clase). Solo llega aqui
+            # si _validar_obligacion_comercial ya confirmo el pacto expreso.
+            if self._modo_ipc_activo(obligacion):
+                eventos.append(
+                    self._evento_indexacion_ipc(
+                        fecha_causacion=obligacion.fecha_origen,
+                        capital=valor_pesos,
+                        concepto=obligacion.concepto,
+                        fecha_corte=fecha_corte,
+                    )
+                )
             eventos.extend(self._eventos_anatocismo(obligacion, fecha_corte))
             evento_costas = _evento_costas_procesales(
                 obligacion, pretensiones_reconocidas=valor_pesos
@@ -789,7 +895,22 @@ class ComercialStrategy(AreaStrategy):
         (remuneratoria y moratoria) a ese tope antes de convertirlas a diarias --
         usado unicamente por _calcular_sancion_usura para la liquidacion sombra de
         referencia ("Intereses_Cobrados_Con_Tasa_Usura"), nunca en la liquidacion
-        real que se devuelve al usuario."""
+        real que se devuelve al usuario.
+
+        Modo (b) -- IPC + civil 6% (Sprint 43): la tasa comercial pactada
+        (remuneratoria/moratoria) NO se usa en absoluto -- se reemplaza por una sola
+        tasa civil legal plana (Art. 1617 C.C.) para todo el periodo, sobre el
+        capital ya indexado (`usar_suma_unica`, ver liquidar()). `tope` no aplica
+        aqui: la sancion de usura ya se salta esta obligacion por completo (ver
+        liquidar())."""
+        if self._modo_ipc_activo(obligacion):
+            return self._rate_provider_tasa_plana(
+                obligacion.fecha_origen,
+                fecha_corte,
+                self._tasa_civil_anual_pct(obligacion.fecha_origen),
+                source="Interés civil puro (Art. 1617 C.C.) — pacto expreso de indexación IPC",
+            )
+
         tasa_remuneratoria_anual = obligacion.tasa_efectiva_anual
         tasa_moratoria_anual = obligacion.tasa_moratoria_anual
         if tope is not None:
@@ -840,9 +961,31 @@ class LaboralStrategy(AreaStrategy):
     Art. 65 CST (MoratoryIndemnityCalculator) si el pago real o la fecha de
     corte quedan despues de la fecha de terminacion del contrato.
 
-    No es compatible con indexacion IPC (soporta_indexacion_ipc = False): las
-    prestaciones sociales se liquidan sobre el salario nominal vigente al
-    momento de la causacion, no se indexan por perdida de poder adquisitivo.
+    Indexacion IPC (Sprint 43, respuesta del despacho -- condicional, excluyente
+    con la indemnizacion moratoria del Art. 65 CST sobre el mismo rubro/periodo):
+    el conteo de 360 dias (arriba) cuantifica la base temporal de las prestaciones;
+    IPC actualiza ese valor resultante por perdida de poder adquisitivo -- son
+    complementarios en concepto, pero el despacho exige elegir uno u otro, nunca
+    los dos a la vez sobre el mismo saldo:
+      - `aplica_indexacion_ipc` marcado + SIN mora (buena fe probada, excepcion 1
+        del despacho): se indexa `monto_prestaciones` por IPC desde `fecha_fin`
+        (cuando las prestaciones se hacen exigibles) hasta la fecha de corte.
+      - `aplica_indexacion_ipc` marcado + CON mora: la indemnizacion moratoria del
+        Art. 65 CST prevalece (via legal especifica, mas gravosa que IPC) y el IPC
+        NO se aplica -- se agrega una alerta NO bloqueante "Doble Actualización
+        Prohibida" a `LiquidationResult.alertas` en vez de bloquear la liquidacion
+        (mismo mecanismo del Sprint 36, ver `_agregar_alerta`).
+      - `aplica_indexacion_ipc` sin marcar: comportamiento identico a antes de este
+        sprint (sin IPC, la mora se resuelve exclusivamente via SANCION_MORATORIA).
+
+    Excepcion 2 del despacho (reliquidaciones pensionales, traer el IBL a valor
+    presente) queda documentada como limitacion conocida, NO implementada: revisando
+    `app/engine/labor/ibl.py` (Sprint 17), `calcular_ibl` ya indexa por IPC cada
+    salario historico, pero es una funcion de calculo aislada, nunca conectada a
+    `AreaRegistry`/`LiquidationResult` -- no existe hoy un concepto de "reliquidacion"
+    como operacion de liquidar() distinta de una liquidacion normal sobre la que
+    enganchar esta excepcion sin construir esa infraestructura desde cero (fuera de
+    alcance de este sprint, ver "Alcance explícitamente excluido").
 
     Seguridad social (cotizaciones IBC, pension, salud, ARL, FSP) es opt-in
     via el flag `incluir_seguridad_social` de la obligacion (requiere ademas
@@ -850,7 +993,7 @@ class LaboralStrategy(AreaStrategy):
     docs/superpowers/specs/2026-07-18-area-laboral-design.md.
     """
 
-    soporta_indexacion_ipc = False
+    soporta_indexacion_ipc = True
 
     @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
@@ -995,6 +1138,7 @@ class LaboralStrategy(AreaStrategy):
         else:
             fecha_referencia_mora = fecha_corte
 
+        hay_mora = False
         if fecha_referencia_mora > obligacion.fecha_fin:
             monto_adeudado = monto_prestaciones
             mora = MoratoryIndemnityCalculator.calcular(
@@ -1004,6 +1148,7 @@ class LaboralStrategy(AreaStrategy):
                 fecha_pago_o_corte=fecha_referencia_mora,
             )
             if mora.total > Decimal("0.00"):
+                hay_mora = True
                 eventos.append(
                     Event(
                         date=fecha_referencia_mora,
@@ -1014,6 +1159,25 @@ class LaboralStrategy(AreaStrategy):
                         event_type="SANCION_MORATORIA",
                     )
                 )
+
+        # Indexacion IPC (Sprint 43): ver docstring de la clase. Solo se agrega el
+        # evento de indexacion cuando NO hay mora (excepcion 1, buena fe probada) --
+        # si hay mora, la moratoria prevalece y se registra una alerta no bloqueante
+        # despues de liquidar (ver mas abajo, necesita el LiquidationResult final).
+        aplica_ipc_sin_mora = (
+            obligacion.aplica_indexacion_ipc
+            and not hay_mora
+            and monto_prestaciones > Decimal("0.00")
+        )
+        if aplica_ipc_sin_mora:
+            eventos.append(
+                self._evento_indexacion_ipc(
+                    fecha_causacion=obligacion.fecha_fin,
+                    capital=monto_prestaciones,
+                    concepto="Prestaciones sociales",
+                    fecha_corte=fecha_corte,
+                )
+            )
 
         # Descuentos del empleador (Sprint 44, punto 3): se inyectan como
         # eventos PAYMENT mas -- mismo mecanismo de pagos/allocation que ya
@@ -1041,7 +1205,7 @@ class LaboralStrategy(AreaStrategy):
         ]
 
         service = UniversalLiquidationService()
-        return service.liquidar(
+        resultado = service.liquidar(
             eventos_causacion=eventos,
             pagos=pagos,
             fecha_corte=fecha_corte,
@@ -1050,6 +1214,15 @@ class LaboralStrategy(AreaStrategy):
         # queda en 0 por defecto. Toda la mora del area Laboral ya esta resuelta
         # en el evento SANCION_MORATORIA -- pasar un rate_provider aqui
         # duplicaria el castigo por mora.
+
+        if obligacion.aplica_indexacion_ipc and hay_mora:
+            resultado = self._agregar_alerta(
+                resultado,
+                "Doble Actualización Prohibida: hay indemnización moratoria (Art. 65 CST) "
+                "vigente sobre las prestaciones sociales de este contrato -- la indexación "
+                "IPC no se aplicó sobre el mismo rubro/periodo (la moratoria prevalece).",
+            )
+        return resultado
 
     def _validar_obligacion_laboral(self, obligacion) -> None:
         if obligacion.tipo.value != "PUNTUAL":
@@ -1112,11 +1285,26 @@ class SancionatorioStrategy(AreaStrategy):
     si es anterior a 2020-01-01, UVT (tabla historica 2006-2026) si es posterior.
 
     No soporta obligaciones RECURRENTE (una multa es un hecho unico).
-    No es compatible con indexacion IPC: el monto ya esta expresado en una unidad
-    actualizada (SMLMV/UVT), indexarlo otra vez seria doble indexacion.
+
+    Indexacion IPC (Sprint 43, respuesta del despacho -- condicional, la conversion
+    SMLMV/UVT prevalece): la prohibicion general del despacho ("bloquear IPC si el
+    rubro esta parametrizado en UVT/SMLMV actualizado a la fecha de pago") no es
+    alcanzable con el motor actual -- `resolver_base_sancion` (arriba) SIEMPRE
+    resuelve la unidad SMLMV/UVT segun `fecha_origen` (la fecha DEL HECHO, no la de
+    pago; no existe en este motor un modo que reconvierta la multa a la unidad
+    vigente en la fecha de pago/corte), asi que toda obligacion sancionatoria cae
+    siempre en la EXCEPCION del despacho ("el valor de la multa se anclo a UVT/SMLMV
+    a la fecha del hecho -- faltas antiguas"), donde IPC SI es valido, desde la
+    exigibilidad (aqui, `fecha_origen`, a falta de un campo propio de "firmeza del
+    acto") hasta el pago efectivo (aqui, la fecha de corte). Mismo criterio que
+    `CivilFamiliaStrategy` ya documenta para su propia combinacion inalcanzable: no
+    se agrega un guard en tiempo de ejecucion para una rama que el modelo de datos
+    actual no puede producir. Si en el futuro se modela una reconversion a la
+    unidad vigente en la fecha de pago, esta nota deja de ser valida y hay que
+    revisar este bloqueo.
     """
 
-    soporta_indexacion_ipc = False
+    soporta_indexacion_ipc = True
 
     @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
@@ -1130,7 +1318,7 @@ class SancionatorioStrategy(AreaStrategy):
             obligaciones=obligaciones,
             abonos=abonos,
             fecha_corte=fecha_corte,
-            eventos_fn=self._eventos_de_obligacion,
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
             rate_provider_fn=self._construir_rate_provider_obligacion,
         )
 
@@ -1146,7 +1334,7 @@ class SancionatorioStrategy(AreaStrategy):
                 f"'cantidad_smlmv_uvt' para liquidar."
             )
 
-    def _eventos_de_obligacion(self, obligacion) -> list[Event]:
+    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
         monto_pesos = resolver_base_sancion(obligacion.fecha_origen, obligacion.cantidad_smlmv_uvt)
         eventos = [
             Event(
@@ -1155,6 +1343,15 @@ class SancionatorioStrategy(AreaStrategy):
                 event_type=obligacion.categoria,
             )
         ]
+        if obligacion.aplica_indexacion_ipc:
+            eventos.append(
+                self._evento_indexacion_ipc(
+                    fecha_causacion=obligacion.fecha_origen,
+                    capital=monto_pesos,
+                    concepto=obligacion.concepto,
+                    fecha_corte=fecha_corte,
+                )
+            )
         evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=monto_pesos)
         if evento_costas is not None:
             eventos.append(evento_costas)
@@ -1187,10 +1384,43 @@ class HonorariosStrategy(AreaStrategy):
       se bloquea la liquidacion con una alerta de riesgo disciplinario ("Honorarios
       Desproporcionados - Art. 35 Num. 4 Ley 1123/2007").
 
-    No soporta obligaciones RECURRENTE. No es compatible con indexacion IPC.
+    No soporta obligaciones RECURRENTE.
+
+    Indexacion IPC (Sprint 43, respuesta del despacho -- SI, habilitada por defecto
+    [checkbox visible, no oculto], compatible con el interes civil): formula EXACTA
+    exigida por el despacho --
+        Capital_Honorarios x (IPC_Final / IPC_Inicial)
+            + Interés_Civil_6%_Anual(Capital_Actualizado)
+    -- IPC_Inicial es el indice del mes en que la obligacion se hizo exigible o se
+    presento la cuenta de cobro, que en este modelo es `fecha_origen` (mismo campo
+    que ya representa esa fecha para el resto de esta clase). Implementacion:
+    cuando `aplica_indexacion_ipc` esta marcado, se agrega un evento de indexacion
+    IPC sobre `total_honorarios` (primer termino) y la liquidacion corre en modo
+    Suma Unica (`usar_suma_unica`, interes sobre capital YA indexado) con una tasa
+    civil FIJA del 6% anual (`_tasa_civil_anual_pct`, Art. 1617 C.C. -- NO la
+    `tasa_efectiva_anual` pactada de esta obligacion, que el despacho no menciona en
+    la formula) para el segundo termino. Sin el checkbox marcado, el comportamiento
+    es identico a antes de este sprint (tasa pactada, sin indexar).
+
+    Limitaciones conocidas, documentadas en vez de construidas (fuera de alcance
+    razonable de este sprint, ver docs/Pendientes.md Sprint 43):
+    - "De oficio" (automatico, sin checkbox, en etapa declarativa/restitucion de
+      mutuos) vs. "a peticion de parte" (con checkbox, en etapa ejecutiva): este
+      modelo no tiene un concepto de "etapa procesal" del expediente, asi que el
+      checkbox queda siempre a discrecion del abogado (equivalente al caso "a
+      peticion de parte") en vez de auto-marcarse en la etapa declarativa.
+    - Alerta "Improcedente por acumulación" (titulo sin IPC previsto + intereses
+      comerciales cobrados en etapa ejecutiva): esta clase no distingue "tipo de
+      interes" (civil vs. comercial) ni tiene un campo de "IPC previsto en el
+      titulo", asi que esta alerta especifica no se genera.
+    - La pregunta de seguimiento sobre si es juridicamente valido cobrar el interes
+      civil SOBRE el capital ya indexado sigue abierta
+      (`Preguntas-Para-Abogado-Abiertas.md`, "Sprint 43 (seguimiento)") -- esta
+      clase implementa la formula tal cual la dio el despacho, sin ajustes
+      especulativos.
     """
 
-    soporta_indexacion_ipc = False
+    soporta_indexacion_ipc = True
 
     @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
@@ -1204,8 +1434,9 @@ class HonorariosStrategy(AreaStrategy):
             obligaciones=obligaciones,
             abonos=abonos,
             fecha_corte=fecha_corte,
-            eventos_fn=self._eventos_de_obligacion,
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
             rate_provider_fn=self._construir_rate_provider_obligacion,
+            usar_suma_unica_fn=lambda obligacion: bool(obligacion.aplica_indexacion_ipc),
         )
 
     def _validar_obligacion_honorarios(self, obligacion) -> None:
@@ -1240,7 +1471,7 @@ class HonorariosStrategy(AreaStrategy):
     def _cuota_litis_monto(self, obligacion) -> Decimal:
         return obligacion.beneficio_obtenido * obligacion.cuota_litis_pactada_pct / Decimal("100")
 
-    def _eventos_de_obligacion(self, obligacion) -> list[Event]:
+    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
         cuota_litis_monto = self._cuota_litis_monto(obligacion)
         total_honorarios = obligacion.honorarios_fijos_pactados + cuota_litis_monto
 
@@ -1251,6 +1482,15 @@ class HonorariosStrategy(AreaStrategy):
                 event_type=obligacion.categoria,
             )
         ]
+        if obligacion.aplica_indexacion_ipc:
+            eventos.append(
+                self._evento_indexacion_ipc(
+                    fecha_causacion=obligacion.fecha_origen,
+                    capital=total_honorarios,
+                    concepto=obligacion.concepto,
+                    fecha_corte=fecha_corte,
+                )
+            )
         evento_costas = _evento_costas_procesales(
             obligacion, pretensiones_reconocidas=obligacion.beneficio_obtenido
         )
@@ -1261,6 +1501,16 @@ class HonorariosStrategy(AreaStrategy):
     def _construir_rate_provider_obligacion(
         self, obligacion, fecha_corte: date
     ) -> MemoryRateProvider:
+        # Sprint 43: con IPC activo, el segundo termino de la formula del despacho es
+        # una tasa civil FIJA del 6% anual (Art. 1617 C.C.), no la tasa_efectiva_anual
+        # pactada de esta obligacion -- ver docstring de la clase.
+        if obligacion.aplica_indexacion_ipc:
+            return self._rate_provider_tasa_plana(
+                obligacion.fecha_origen,
+                fecha_corte,
+                self._tasa_civil_anual_pct(obligacion.fecha_origen),
+                source="Interés civil puro (Art. 1617 C.C.) — capital ya indexado por IPC",
+            )
         return self._rate_provider_tasa_plana(
             obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual
         )
@@ -1288,28 +1538,28 @@ class TributarioStrategy(AreaStrategy):
     expediente admite como maximo una obligacion "RENTA_LIQUIDA" (un solo periodo gravable
     por liquidacion).
 
-    No es compatible con indexacion IPC (soporta_indexacion_ipc = False). El PDF (pag. 40)
-    advierte que no se pueden cobrar simultaneamente intereses moratorios y actualizacion
-    monetaria si eso conduce a una tasa usuraria o doble pago por el mismo concepto (mismo
-    criterio ya exigido en Sprint 2 para la incompatibilidad interes-comercial + IPC). Aqui
-    esa combinacion no requiere un guard en tiempo de ejecucion: el formulario de la GUI
-    oculta el checkbox "aplica indexacion IPC" para el area TRIBUTARIO (ver obligaciones.py)
-    y _evento_de_obligacion, a diferencia de CivilFamiliaStrategy, nunca lee
-    obligacion.aplica_indexacion_ipc -- por lo que ninguna obligacion tributaria puede
-    generar a la vez el interes automatico E.T. 635 y un evento de correccion monetaria IPC
-    sobre el mismo hecho. La advertencia del PDF no aplica por construccion, no por una
-    validacion explicita en tiempo de ejecucion.
-
-    Concurrencia especial para mora > 3 años (Art. 867-1 E.T., corregido Sprint 15,
-    2026-08-01, respuesta del despacho -- Sentencia C-549/1993: interes moratorio e
-    indexacion tienen naturalezas distintas y SI pueden concurrir):
-    - "Impuesto" (IMPUESTO_A_CARGO): conserva el interes E.T. 635 y ADEMAS se indexa por
-      IPC, topando la suma (interes + indexacion) al interes que produciria la tasa de
-      usura PLENA (sin el descuento de 2 puntos del art. 635) sobre el mismo capital y
-      periodo -- ver app/engine/tax/actualizacion_867_1.py.
-    - "Sanciones" (SANCION_*): NO se liquida interes moratorio -- se reemplaza
-      integramente por la indexacion IPC.
-    - Mora <= 3 años: sin cambios para ningun rubro.
+    Indexacion IPC (Sprint 43, respuesta del despacho -- SI, pero intrinsecamente
+    ligada al Art. 867-1 E.T., NO como opcion paralela libre): a diferencia de
+    Civil/Familia, aqui no hay un checkbox manual -- IPC se activa automaticamente
+    por el trigger de mora (`aplica_actualizacion_867_1`, mora > 3 años / 1095 dias,
+    equivalente a la "mora > 36 meses" del despacho) y es mutuamente excluyente con
+    el interes de mora en su componente inflacionario:
+    - "Sanciones" (SANCION_*): bloquea el interes de mora, aplica EXCLUSIVAMENTE el
+      factor IPC (ver `_construir_rate_provider_obligacion`, ya devuelve 0% para
+      este caso desde el Sprint 15).
+    - "Impuesto" (IMPUESTO_A_CARGO): intereses de mora + actualizacion IPC (AMBOS),
+      topando la tasa combinada al techo de usura PLENA -- `calcular_indexacion_867_1_topada`
+      (Sprint 15, ya implementado y aprobado por el despacho con su propio calculo de
+      usura basado en tramos historicos de IBC, `calcular_interes_usura_plena`, NO
+      `usury_validator.calcular_tope_usura` -- ese motor exige `ibc_vigente_anual`,
+      un campo que Tributario no captura; se reutiliza el mecanismo de techo que YA
+      existe para esta area en vez de duplicar otro). Lo que agrega este sprint es
+      la ALERTA no bloqueante cuando el techo realmente recorta la indexacion (ver
+      `liquidar()`, "Techo de usura alcanzado").
+    - Prohibicion de doble cobro: si la obligacion ya incorpora su propia proteccion
+      inflacionaria (`protegida_inflacion_uvr`, ej. UVR), se bloquea con ValueError
+      si ademas se dispararia la indexacion IPC del Art. 867-1 (ver `liquidar()`).
+    - Mora <= 3 años: sin cambios para ningun rubro (solo interes E.T. 635, sin IPC).
 
     Esto exige que cada obligacion corra en su propio LiquidationCore (via
     _liquidar_por_obligacion, mismo patron que Comercial/CivilFamilia desde el Sprint 21):
@@ -1317,7 +1567,7 @@ class TributarioStrategy(AreaStrategy):
     0% de interes a una sancion y la tasa E.T. 635 al impuesto al mismo tiempo.
     """
 
-    soporta_indexacion_ipc = False
+    soporta_indexacion_ipc = True
 
     @cache_de_liquidacion()
     def liquidar(self, obligaciones: list, abonos: list, fecha_corte: date) -> LiquidationResult:
@@ -1334,6 +1584,18 @@ class TributarioStrategy(AreaStrategy):
         obligaciones_deuda = [o for o in obligaciones if o.categoria != "RENTA_LIQUIDA"]
         for obligacion in obligaciones_deuda:
             self._validar_obligacion_tributaria(obligacion)
+            # Prohibicion de doble cobro (Sprint 43): si esta obligacion ya incorpora su
+            # propia proteccion inflacionaria (ej. UVR), no se puede ademas indexar por
+            # IPC via el Art. 867-1 sobre el mismo capital.
+            if obligacion.protegida_inflacion_uvr and aplica_actualizacion_867_1(
+                obligacion.fecha_origen, fecha_corte
+            ):
+                raise ValueError(
+                    f"La obligacion tributaria '{obligacion.concepto}' ya incorpora "
+                    f"protección inflacionaria propia (ej. UVR) -- no se puede aplicar "
+                    f"ADEMÁS la indexación IPC del Art. 867-1 E.T. sobre el mismo capital "
+                    f"(prohibición de doble cobro)."
+                )
 
         resultado = _liquidar_por_obligacion(
             obligaciones=obligaciones_deuda,
@@ -1342,6 +1604,11 @@ class TributarioStrategy(AreaStrategy):
             eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
             rate_provider_fn=self._construir_rate_provider_obligacion,
         )
+
+        for obligacion in obligaciones_deuda:
+            alerta = self._alerta_techo_usura_867_1(obligacion, fecha_corte)
+            if alerta is not None:
+                resultado = self._agregar_alerta(resultado, alerta)
 
         if obligaciones_renta_liquida:
             obligacion_renta = obligaciones_renta_liquida[0]
@@ -1355,6 +1622,36 @@ class TributarioStrategy(AreaStrategy):
             resultado = replace(resultado, renta_liquida=renta_liquida)
 
         return resultado
+
+    def _alerta_techo_usura_867_1(self, obligacion, fecha_corte: date) -> str | None:
+        """Detecta si el techo de usura (Art. 867-1 E.T., `calcular_indexacion_867_1_topada`)
+        realmente recorto la indexacion IPC de esta obligacion -- solo aplica al rubro
+        "Impuesto" (unico que suma interes de mora + IPC, ver docstring de la clase). Retorna
+        el mensaje de alerta si hubo recorte, None si no aplica o si la indexacion bruta no
+        excedia el techo. Sprint 43: el recorte en si ya lo hacia
+        `calcular_indexacion_867_1_topada` desde el Sprint 15 -- esto solo agrega la
+        alerta no bloqueante que pedia el despacho."""
+        if obligacion.categoria != "IMPUESTO_A_CARGO":
+            return None
+        if not aplica_actualizacion_867_1(obligacion.fecha_origen, fecha_corte):
+            return None
+
+        capital = obligacion.valor
+        interes_ya_liquidado = calcular_interes_moratorio_tributario(
+            capital, obligacion.fecha_origen, fecha_corte
+        )
+        indexacion_bruta = calcular_indexacion_867_1(capital, obligacion.fecha_origen, fecha_corte)
+        indexacion_topada = calcular_indexacion_867_1_topada(
+            capital, obligacion.fecha_origen, fecha_corte, interes_ya_liquidado
+        )
+        if indexacion_topada >= indexacion_bruta:
+            return None
+        return (
+            f"Techo de usura alcanzado en '{obligacion.concepto}': la indexación IPC "
+            f"(Art. 867-1 E.T.) se topó de {indexacion_bruta} a {indexacion_topada} para que "
+            f"la tasa combinada (interés de mora + indexación) no supere la tasa de usura "
+            f"plena."
+        )
 
     def _validar_obligacion_tributaria(self, obligacion) -> None:
         if obligacion.tipo.value != "PUNTUAL":

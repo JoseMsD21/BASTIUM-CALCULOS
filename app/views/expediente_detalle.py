@@ -669,6 +669,14 @@ class ExpedienteDetallePage(QWidget):
     def _on_liquidar_completado(self, resultado) -> None:
         self._finalizar_liquidacion_en_curso()
         self._refrescar_historial()
+        # Alertas no bloqueantes (Sprint 43): "Doble Actualización Prohibida" en
+        # Laboral, "Techo de usura alcanzado" en Tributario, etc. -- ver
+        # LiquidationResult.alertas. Se muestran con el mismo mecanismo de toast del
+        # Sprint 36 (tipo "warning", mas duradero que el default de 3s porque el
+        # texto es mas largo que una confirmacion tipica) en vez de un QMessageBox
+        # modal: la liquidacion ya se completo, no hay nada que bloquear.
+        for alerta in resultado.alertas:
+            mostrar_toast(self, alerta, tipo="warning", duracion_ms=6000)
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
         self.liquidacion_finalizada.emit()

@@ -41,7 +41,12 @@ corregidos (concepto "PAYMENT" ilegible en la cronología, subestimación de "In
 expedientes con 2+ obligaciones, tabla de cronología del PDF/Word desbordando los márgenes de la página, y
 el combo "Reajuste anual" sin precargar al editar una obligación) más el paso "Generar cuotas" documentado
 en la guía de usuario; queda 1 pregunta abierta sobre la fórmula de tasa diaria del Art. 1617 (ver
-`Preguntas-Para-Abogado-Abiertas.md`, Sprint 76).
+`Preguntas-Para-Abogado-Abiertas.md`, Sprint 76). Sprint 43 (indexación IPC, respuesta del despacho recibida
+2026-08-13): habilitada con su propia regla de exclusión/coexistencia por área en Tributario (ligada al Art.
+867-1 E.T.), Comercial (XOR con la tasa comercial, solo con pacto expreso), Honorarios (compatible con el
+interés civil, fórmula exacta del despacho), Laboral (excluyente con la indemnización moratoria, con
+alerta) y Sancionatorio (condicional, ya cubierto por la excepción del despacho con el motor actual) — antes
+solo existía para Civil/Familia.
 
 ### Added
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
@@ -117,6 +122,15 @@ en la guía de usuario; queda 1 pregunta abierta sobre la fórmula de tasa diari
   desde el historial de cada clave en Configuraciones → Parámetros.
 - Campo "Unidad" como desplegable (con opción "Otros...") al agregar un valor de parámetro.
 - Tooltips ⓘ en todos los campos del formulario de parámetros y en las columnas de la tabla.
+- Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario (Sprint 43), cada una con su
+  propia regla de exclusión/coexistencia en vez de un solo flag genérico: XOR real en Comercial (nuevo campo
+  `pacto_expreso_indexacion`, capital indexado + interés civil 6% puro en vez de la tasa comercial); fórmula
+  exacta del despacho en Honorarios (`Capital × IPC_Final/IPC_Inicial + Interés_Civil_6%(Capital_Actualizado)`);
+  excluyente con la indemnización moratoria en Laboral, con alerta no bloqueante "Doble Actualización
+  Prohibida" si coinciden; nuevo campo `protegida_inflacion_uvr` en Tributario (prohibición de doble cobro
+  sobre el Art. 867-1 E.T.) y alerta "Techo de usura alcanzado" cuando el tope combinado recorta la
+  indexación. Nuevo `LiquidationResult.alertas` (feedback no bloqueante, mostrado con el mismo `toast` del
+  Sprint 36) para las alertas que no bloquean la liquidación.
 
 ### Fixed
 - El combo "Reajuste anual" de una obligación Recurrente Civil/Familia no se precargaba al editar (Sprint

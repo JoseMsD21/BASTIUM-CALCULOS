@@ -257,6 +257,28 @@ class Obligacion(Base):
         server_default=TipoRecurrencia.MENSUAL.value,
     )
     fechas_anuales_fijas: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # pacto_expreso_indexacion / protegida_inflacion_uvr (Sprint 43, indexacion IPC en
+    # Comercial/Laboral/Honorarios/Sancionatorio/Tributario -- ver
+    # docs/Preguntas-Para-Abogado-Respondidas.md, seccion Sprint 43):
+    #
+    # pacto_expreso_indexacion: solo relevante en COMERCIAL. El despacho exige que el
+    # modo "(b) capital indexado + interes civil puro 6% anual" (en vez de la tasa
+    # comercial, que ya incorpora inflacion) solo sea valido si el titulo trae un
+    # pacto expreso que lo autorice -- ver ComercialStrategy._validar_obligacion_comercial,
+    # que bloquea con ValueError si aplica_indexacion_ipc esta marcado sin este flag
+    # (el XOR "tasa comercial O IPC+civil" del despacho).
+    #
+    # protegida_inflacion_uvr: solo relevante en TRIBUTARIO. Marca que el
+    # titulo/tasa de esta obligacion ya incorpora su propia proteccion inflacionaria
+    # (ej. UVR) -- el despacho exige bloquear con error si ademas se intenta aplicar
+    # la indexacion IPC del Art. 867-1 E.T. sobre el mismo capital (prohibicion de
+    # doble cobro). Ver TributarioStrategy._validar_obligacion_tributaria.
+    pacto_expreso_indexacion: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    protegida_inflacion_uvr: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(

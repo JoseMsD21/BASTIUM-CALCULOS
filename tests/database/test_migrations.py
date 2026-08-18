@@ -269,6 +269,52 @@ def test_aplicar_migraciones_pendientes_agrega_columnas_del_sprint_73(tmp_path):
     assert "fechas_anuales_fijas" in columnas
 
 
+def test_aplicar_migraciones_pendientes_agrega_columnas_del_sprint_43(tmp_path):
+    """Complemento del patron del Sprint 73: aplicar_migraciones_pendientes()
+    tambien debe agregar pacto_expreso_indexacion/protegida_inflacion_uvr
+    (Sprint 43 -- indexacion IPC en Comercial/Tributario) a una base sin ellas."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_sprint43.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN pacto_expreso_indexacion")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN protegida_inflacion_uvr")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "pacto_expreso_indexacion" in columnas
+    assert "protegida_inflacion_uvr" in columnas
+
+
+def test_migracion_indexacion_ipc_areas_sprint43_es_idempotente(tmp_path):
+    from scripts.migrate_indexacion_ipc_areas_sprint43 import migrar
+
+    db_path = tmp_path / "indexacion_ipc_sprint43.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    assert migrar(db_path) is False  # las columnas ya existen via el modelo actual
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN pacto_expreso_indexacion")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN protegida_inflacion_uvr")
+    con.commit()
+    con.close()
+
+    assert migrar(db_path) is True
+    assert migrar(db_path) is False  # segunda corrida: ya no hay nada que alterar
+
+
 def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path):
     """Sprint 52: ya no hace falta _apuntar_session_module_a -- desde el fix,
     migrate_parametros_legales.migrar(db_path) siembra directamente en

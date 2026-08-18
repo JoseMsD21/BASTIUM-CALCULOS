@@ -57,6 +57,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_creado_por_sistema import migrar as migrar_creado_por_sistema
     from scripts.migrate_es_smmlv_laboral import migrar as migrar_es_smmlv
     from scripts.migrate_fechas_anuales_fijas import migrar as migrar_fechas_anuales_fijas
+    from scripts.migrate_indexacion_ipc_areas_sprint43 import (
+        migrar as migrar_indexacion_ipc_areas_sprint43,
+    )
     from scripts.migrate_interes_sobre_capital_indexado import (
         migrar as migrar_interes_capital_indexado,
     )
@@ -86,6 +89,10 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # nuevas independientes en la misma tabla, ninguna de las dos siembra
     # datos via ORM).
     migrar_fechas_anuales_fijas(ruta)
+    # Sprint 43: agrega pacto_expreso_indexacion/protegida_inflacion_uvr a
+    # obligaciones -- columnas nuevas independientes, sin dependencia de orden con
+    # las migraciones de arriba.
+    migrar_indexacion_ipc_areas_sprint43(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     # Se llama ANTES de migrar_parametros_legales/migrar_ipc_variacion_anual

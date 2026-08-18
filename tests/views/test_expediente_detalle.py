@@ -657,6 +657,41 @@ def test_liquidar_area_laboral_con_mora_incluye_sancion_moratoria(qtbot, monkeyp
     assert resultado.final_balance().principal > Decimal("7860000.00")
 
 
+def test_liquidar_area_laboral_con_mora_e_indexacion_ipc_muestra_toast_de_alerta(
+    qtbot, monkeypatch
+):
+    # Sprint 43: cuando la liquidacion trae LiquidationResult.alertas no vacio (ej.
+    # "Doble Actualización Prohibida" en Laboral), _on_liquidar_completado debe
+    # mostrarlas via mostrar_toast (tipo "warning") -- mismo mecanismo del Sprint 36,
+    # no un QMessageBox modal (la liquidacion ya se completo sin bloquear nada).
+    expediente_id = _expediente_laboral_con_mora_fase1(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    obligacion.aplica_indexacion_ipc = True
+    session.commit()
+    session.close()
+
+    toasts_mostrados = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.mostrar_toast",
+        lambda parent, mensaje, tipo="success", duracion_ms=3000: toasts_mostrados.append(
+            (mensaje, tipo)
+        ),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
+
+    assert len(toasts_mostrados) == 1
+    mensaje, tipo = toasts_mostrados[0]
+    assert "Doble Actualización Prohibida" in mensaje
+    assert tipo == "warning"
+
+
 def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbot, monkeypatch):
     expediente_id = _expediente_laboral_pagado_a_tiempo(monkeypatch)
 

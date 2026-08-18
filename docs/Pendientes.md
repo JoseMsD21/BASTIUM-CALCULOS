@@ -191,7 +191,7 @@ botón real que los dispare).
 - [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) ✅ Completado](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas--completado)
 - [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono ✅ Completado](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono--completado)
 - [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación ✅ Completado](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación--completado)
-- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🔵 Bloqueado — pendiente de decisión](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--bloqueado--pendiente-de-decisión)
+- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) ✅ Completado](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--completado)
 - [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte ✅ Completado](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte--completado)
 - [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente ✅ Completado](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente--completado)
 - [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado ✅ Completado](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--completado)
@@ -3662,7 +3662,7 @@ tests tras el merge final).
 
 ---
 
-## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🟡 Desbloqueado — respuesta recibida, pendiente de programar
+## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) ✅ Completado
 
 **Prioridad sugerida:** Media — no es un bug, es un límite de alcance documentado desde el Sprint 8, pero el
 usuario pide explícitamente que la indexación sea "opcional para cualquier liquidación de cualquier área",
@@ -3716,6 +3716,54 @@ con moratorios, con dos excepciones) y condicional en Sancionatorio (excluyente 
 con una excepción para faltas antiguas). Detalle completo en `Preguntas-Para-Abogado-Respondidas.md`,
 sección Sprint 43. Nada de esto está implementado todavía: son 5 mecanismos de exclusión/coexistencia
 distintos, no una sola bandera — queda pendiente de programar como sprint(s) de implementación.
+
+**Cierre de implementación (2026-08-17):** Completado, las 5 áreas. `AreaStrategy.soporta_indexacion_ipc`
+pasa a `True` en `TributarioStrategy`, `HonorariosStrategy`, `LaboralStrategy` y `SancionatorioStrategy`
+(`ComercialStrategy` se mantiene `False` por diseño — no es un add-on libre, ver abajo). El checkbox
+`check_aplica_indexacion_ipc` (`app/views/obligaciones.py`) ahora es visible en Civil/Familia, Comercial,
+Laboral, Sancionatorio y Honorarios; TRIBUTARIO se deja oculto a propósito porque su IPC es automático (Art.
+867-1 E.T., ya construido desde el Sprint 15), no una elección manual.
+
+- **Tributario:** el trigger de mora > 3 años (`aplica_actualizacion_867_1`) y el techo de usura combinado
+  (`calcular_indexacion_867_1_topada`) ya existían desde el Sprint 15 y se reutilizaron tal cual — lo nuevo
+  es (1) una alerta no bloqueante ("Techo de usura alcanzado") cuando el techo realmente recorta la
+  indexación, y (2) el nuevo campo `protegida_inflacion_uvr` (Obligacion), que bloquea con `ValueError` si
+  se dispararía IPC sobre una obligación que ya trae su propia protección inflacionaria (ej. UVR).
+- **Comercial:** XOR real, no solo documentado — nuevo campo `pacto_expreso_indexacion` (Obligacion). Marcar
+  "Aplica indexación IPC" sin ese pacto se bloquea con `ValueError`. Con ambos marcados, la obligación (solo
+  PUNTUAL, alcance reducido) liquida en modo (b): capital indexado por IPC + interés civil 6% puro sobre el
+  capital ya indexado (Suma Única con tasa civil fija), en vez de la tasa comercial — la sanción por usura
+  del Sprint 2 se salta esas obligaciones (la tasa realmente cobrada ya no es la pactada).
+- **Honorarios:** fórmula exacta del despacho implementada tal cual (`Capital × IPC_Final/IPC_Inicial +
+  Interés_Civil_6%(Capital_Actualizado)`), reutilizando Suma Única + una tasa civil fija
+  (`AreaStrategy._tasa_civil_anual_pct`, clave `CIVIL_ANNUAL_RATE`) en vez de la tasa pactada de la
+  obligación. Limitaciones documentadas en el docstring de la clase (no construidas): la distinción "de
+  oficio"/"a petición de parte" (no existe un concepto de etapa procesal en el modelo) y la alerta
+  "Improcedente por acumulación" (no existe un campo de "tipo de interés" civil/comercial en esta área). La
+  pregunta abierta sobre el interés civil cobrado sobre capital ya indexado sigue sin resolverse
+  (`Preguntas-Para-Abogado-Abiertas.md`).
+- **Laboral:** excluyente con la indemnización moratoria del Art. 65 CST sobre el mismo rubro/periodo. Sin
+  mora (excepción 1, buena fe) se indexa `monto_prestaciones`; con mora, la moratoria prevalece y se agrega
+  la alerta no bloqueante "Doble Actualización Prohibida" (la liquidación no se bloquea). Excepción 2
+  (reliquidaciones pensionales) queda documentada como limitación conocida, no construida: `calcular_ibl`
+  (`app/engine/labor/ibl.py`, Sprint 17) ya indexa por IPC pero es una función aislada, nunca conectada a
+  `AreaRegistry`/`LiquidationResult` — no existe un concepto de "reliquidación" como operación de liquidar()
+  distinta de una liquidación normal. `LaboralStrategy` queda en estado limpio para el Sprint 47b (que
+  tocará únicamente su lógica de densidad pensional en este mismo archivo).
+- **Sancionatorio:** la prohibición general del despacho (IPC excluyente con SMLMV/UVT actualizado a la
+  fecha de pago) resultó inalcanzable con el motor actual — `resolver_base_sancion` siempre resuelve la
+  unidad según la fecha DEL HECHO, nunca la de pago, así que toda obligación cae en la excepción del
+  despacho (documentado en el docstring de la clase, mismo criterio que ya usaba `CivilFamiliaStrategy` para
+  su propia combinación inalcanzable). IPC se indexa desde `fecha_origen` hasta la fecha de corte sobre el
+  capital ya convertido a pesos.
+
+Mecanismo nuevo compartido: `LiquidationResult.alertas` (lista de strings, default vacía) para el "feedback
+no bloqueante" que pedía el despacho en Laboral/Tributario — la vista (`expediente_detalle.py`) los muestra
+con `mostrar_toast(tipo="warning")`, reutilizando el mecanismo del Sprint 36 en vez de inventar uno nuevo.
+2 columnas nuevas en `Obligacion` (`pacto_expreso_indexacion`, `protegida_inflacion_uvr`), migradas via
+`scripts/migrate_indexacion_ipc_areas_sprint43.py`. `IPC_INDICE_ACUMULADO`/`IPC_VARIACION_ANUAL`/
+`CIVIL_ANNUAL_RATE` ampliadas en `app/services/areas_parametro.py` para que Parámetros muestre la fila
+correcta de áreas. Suite completa en verde (1251 tests).
 
 ---
 
