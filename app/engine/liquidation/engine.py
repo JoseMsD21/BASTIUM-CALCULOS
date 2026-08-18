@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -6,7 +7,12 @@ from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.provider import RateProvider
 from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.balance import BalanceEngine
-from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
+from app.engine.liquidation.models import (
+    LiquidationItem,
+    PaymentAllocation,
+    PendingDebt,
+    RunningBalance,
+)
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.schedulers.base import Event
 
@@ -30,12 +36,16 @@ class LiquidationCore:
         default_daily_rate: Rate = _TASA_CERO,
         rate_provider: RateProvider | None = None,
         usar_suma_unica: bool = False,
+        estrategia_imputacion: Callable[
+            [Decimal, PendingDebt, date], tuple[PaymentAllocation, PendingDebt, Decimal]
+        ] = AllocationEngine.allocate,
     ):
         self._current_debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
         self._history: list[LiquidationItem] = []
         self._default_rate = default_daily_rate
         self._rate_provider = rate_provider
         self._usar_suma_unica = usar_suma_unica
+        self._estrategia_imputacion = estrategia_imputacion
         self._last_event_date: date | None = None
 
         # Diccionario de rubros jurídicos reconocidos como Capital Base
@@ -185,7 +195,7 @@ class LiquidationCore:
 
         elif event.event_type == "PAYMENT":
             amount = Decimal(str(event.payload.get("amount", "0.00")))
-            allocation, new_debt, remainder = AllocationEngine.allocate(
+            allocation, new_debt, remainder = self._estrategia_imputacion(
                 amount, self._current_debt, event.date
             )
             self._current_debt = new_debt
