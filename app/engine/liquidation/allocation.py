@@ -62,3 +62,57 @@ class AllocationEngine:
         )
 
         return allocation, new_debt, remainder
+
+    @staticmethod
+    def allocate_capital_primero(
+        payment_amount: Decimal, current_debt: PendingDebt, payment_date: date
+    ) -> tuple[PaymentAllocation, PendingDebt, Decimal]:
+        """Cascada especial para cuotas-hija generadas por recurrencia (Sprint 75):
+        capital primero, luego interes, luego indexacion -- orden inverso al de
+        allocate() de arriba. Los intereses no cubiertos quedan "congelados" (no
+        se les aplica el pago, pero tampoco se les suma nada nuevo aqui -- eso lo
+        decide quien acumula interes despues, no este metodo). Ver
+        docs/superpowers/specs/2026-08-14-sprint75-cuotas-recurrentes-cascada-design.md,
+        decisiones 2 y 5."""
+        remainder = payment_amount
+
+        if remainder >= current_debt.principal:
+            to_principal = current_debt.principal
+            remainder -= to_principal
+            new_principal = Decimal("0.00")
+        else:
+            to_principal = remainder
+            new_principal = current_debt.principal - remainder
+            remainder = Decimal("0.00")
+
+        if remainder >= current_debt.interest:
+            to_interest = current_debt.interest
+            remainder -= to_interest
+            new_interest = Decimal("0.00")
+        else:
+            to_interest = remainder
+            new_interest = current_debt.interest - remainder
+            remainder = Decimal("0.00")
+
+        if remainder >= current_debt.indexation:
+            to_indexation = current_debt.indexation
+            remainder -= to_indexation
+            new_indexation = Decimal("0.00")
+        else:
+            to_indexation = remainder
+            new_indexation = current_debt.indexation - remainder
+            remainder = Decimal("0.00")
+
+        allocation = PaymentAllocation(
+            payment_date=payment_date,
+            total_payment=payment_amount - remainder,
+            to_interest=to_interest,
+            to_indexation=to_indexation,
+            to_principal=to_principal,
+        )
+
+        new_debt = PendingDebt(
+            principal=new_principal, interest=new_interest, indexation=new_indexation
+        )
+
+        return allocation, new_debt, remainder
