@@ -692,6 +692,66 @@ def test_liquidar_area_laboral_con_mora_e_indexacion_ipc_muestra_toast_de_alerta
     assert tipo == "warning"
 
 
+def test_reconstruir_desde_historial_con_mora_e_indexacion_ipc_muestra_toast_de_alerta(
+    qtbot, monkeypatch
+):
+    # Revision de calidad tras el Sprint 43: el toast de alertas solo se probaba en el
+    # camino de liquidacion en vivo (_liquidar) -- _reconstruir_desde_historial (doble
+    # clic en una fila del historial de auditoria) usa un camino de codigo distinto
+    # (reconstruir_liquidacion -> deserializar_resultado) que tambien debe mostrar las
+    # mismas alertas, ahora que LiquidationResult.alertas sobrevive el round-trip de
+    # serializacion (commit 1906ebe). Sin este test, una regresion futura en
+    # _reconstruir_desde_historial pasaria desapercibida aunque
+    # test_liquidar_area_laboral_con_mora_e_indexacion_ipc_muestra_toast_de_alerta
+    # (arriba, camino en vivo) siguiera en verde.
+    expediente_id = _expediente_laboral_con_mora_fase1(monkeypatch)
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    obligacion.aplica_indexacion_ipc = True
+    session.commit()
+
+    # Corre y registra la liquidacion (mismo flujo que _liquidar(), pero sincrono aqui
+    # para no depender del hilo de fondo) -- deja una fila real en AuditLog con
+    # alertas ya serializadas, exactamente como quedaria despues de un _liquidar()
+    # real.
+    obligaciones = list(expediente.obligaciones)
+    estrategia = AreaRegistry.get_strategy(expediente.area_derecho.value)
+    resultado = estrategia.liquidar(
+        obligaciones=obligaciones, abonos=[], fecha_corte=expediente.fecha_corte_default
+    )
+    assert resultado.alertas  # confirma que el caso de prueba realmente genera la alerta
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_id,
+        area_derecho=expediente.area_derecho.value,
+        fecha_corte=expediente.fecha_corte_default,
+        resultado=resultado,
+        usuario="jsilva",
+    )
+    session.close()
+
+    toasts_mostrados = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.mostrar_toast",
+        lambda parent, mensaje, tipo="success", duracion_ms=3000: toasts_mostrados.append(
+            (mensaje, tipo)
+        ),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_historial.rowCount() == 1
+
+    page._reconstruir_desde_historial(0, 0)
+
+    assert len(toasts_mostrados) == 1
+    mensaje, tipo = toasts_mostrados[0]
+    assert "Doble Actualización Prohibida" in mensaje
+    assert tipo == "warning"
+
+
 def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbot, monkeypatch):
     expediente_id = _expediente_laboral_pagado_a_tiempo(monkeypatch)
 

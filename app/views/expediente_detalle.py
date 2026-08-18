@@ -379,6 +379,7 @@ class ExpedienteDetallePage(QWidget):
         session = session_module.get_session()
         resultado = reconstruir_liquidacion(session, audit_log_id)
         session.close()
+        self._mostrar_alertas_de_liquidacion(resultado)
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
 
@@ -666,17 +667,29 @@ class ExpedienteDetallePage(QWidget):
         self._dialogo_progreso_liquidar.close()
         self.boton_liquidar.setEnabled(True)
 
+    def _mostrar_alertas_de_liquidacion(self, resultado) -> None:
+        """Alertas no bloqueantes (Sprint 43): "Doble Actualización Prohibida" en
+        Laboral, "Techo de usura alcanzado" en Tributario, etc. -- ver
+        `LiquidationResult.alertas`. Se muestran con el mismo mecanismo de toast del
+        Sprint 36 (tipo "warning", mas duradero que el default de 3s porque el texto
+        es mas largo que una confirmacion tipica) en vez de un `QMessageBox` modal: la
+        liquidacion ya se completo, no hay nada que bloquear.
+
+        Compartido entre `_on_liquidar_completado` (liquidacion en vivo) y
+        `_reconstruir_desde_historial` (reconstruccion desde `AuditLog`, revision de
+        code quality tras el Sprint 43): ambos caminos terminan con un
+        `LiquidationResult` que puede traer alertas, y un abogado reabriendo una
+        liquidacion historica de Laboral/Tributario debe ver la misma advertencia que
+        vio quien la corrio la primera vez -- el dato ya sobrevive el round-trip de
+        auditoria (`app/engine/audit/serialization.py`), lo que faltaba era mostrarlo
+        tambien en este segundo camino."""
+        for alerta in resultado.alertas:
+            mostrar_toast(self, alerta, tipo="warning", duracion_ms=6000)
+
     def _on_liquidar_completado(self, resultado) -> None:
         self._finalizar_liquidacion_en_curso()
         self._refrescar_historial()
-        # Alertas no bloqueantes (Sprint 43): "Doble Actualización Prohibida" en
-        # Laboral, "Techo de usura alcanzado" en Tributario, etc. -- ver
-        # LiquidationResult.alertas. Se muestran con el mismo mecanismo de toast del
-        # Sprint 36 (tipo "warning", mas duradero que el default de 3s porque el
-        # texto es mas largo que una confirmacion tipica) en vez de un QMessageBox
-        # modal: la liquidacion ya se completo, no hay nada que bloquear.
-        for alerta in resultado.alertas:
-            mostrar_toast(self, alerta, tipo="warning", duracion_ms=6000)
+        self._mostrar_alertas_de_liquidacion(resultado)
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
         self.liquidacion_finalizada.emit()
