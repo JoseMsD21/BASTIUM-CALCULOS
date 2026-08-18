@@ -1186,17 +1186,11 @@ class TestComercialStrategy:
 
         cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
         assert len(cuotas) == 3
-        for cuota in cuotas:
-            # generar_cuotas_mensuales (Sprint 41/75) es generico a todas las areas
-            # y solo copia los campos comunes de Obligacion -- no conoce los campos
-            # exclusivos de ComercialStrategy (_validar_obligacion_comercial exige
-            # tasa_moratoria_anual/fecha_vencimiento/ibc_vigente_anual en TODAS las
-            # obligaciones, incluidas las cuotas hijas). Se completan aqui a mano,
-            # igual que haria el flujo real de generacion de cuotas para un
-            # expediente Comercial.
-            cuota.tasa_moratoria_anual = obligacion_recurrente.tasa_moratoria_anual
-            cuota.fecha_vencimiento = cuota.fecha_origen
-            cuota.ibc_vigente_anual = obligacion_recurrente.ibc_vigente_anual
+        # generar_cuotas_mensuales (Sprint 41/75, fix posterior de revision de
+        # codigo) ya copia tasa_moratoria_anual/ibc_vigente_anual del padre y
+        # setea fecha_vencimiento == fecha_origen en cada cuota hija -- no hace
+        # falta completarlos a mano (ver test_reajuste_anual.py::
+        # test_genera_cuotas_copia_campos_requeridos_por_comercial).
 
         resultado = ComercialStrategy().liquidar(
             obligaciones=[obligacion_recurrente, *cuotas],
@@ -1253,10 +1247,10 @@ class TestComercialStrategy:
 
         cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
         assert len(cuotas) == 3
-        for cuota in cuotas:
-            cuota.tasa_moratoria_anual = obligacion_recurrente.tasa_moratoria_anual
-            cuota.fecha_vencimiento = cuota.fecha_origen
-            cuota.ibc_vigente_anual = obligacion_recurrente.ibc_vigente_anual
+        # generar_cuotas_mensuales ya copia tasa_moratoria_anual/ibc_vigente_anual
+        # del padre y setea fecha_vencimiento == fecha_origen en cada cuota hija
+        # (ver comentario equivalente en
+        # test_no_duplica_capital_del_padre_cuando_ya_tiene_cuotas_generadas arriba).
 
         resultado_combinado = ComercialStrategy().liquidar(
             obligaciones=[obligacion_recurrente, *cuotas],

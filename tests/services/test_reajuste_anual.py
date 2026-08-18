@@ -317,3 +317,56 @@ def test_genera_cuotas_con_capital_constante_al_cruzar_ano_cuando_no_hay_reajust
     assert por_fecha[date(2024, 1, 1)] == Decimal("500000.00")
     assert por_fecha[date(2024, 2, 1)] == Decimal("500000.00")
     assert all(cuota.valor == Decimal("500000.00") for cuota in cuotas)
+
+
+def test_genera_cuotas_copia_campos_requeridos_por_comercial():
+    """Hallazgo de revision de codigo posterior al Sprint 75 (Task 1/Task 3):
+    generar_cuotas_mensuales es generico a todas las areas, pero antes de este
+    fix solo copiaba al hijo PUNTUAL los campos comunes (categoria,
+    tasa_efectiva_anual, aplica_indexacion_ipc, interes_sobre_capital_indexado,
+    obligacion_padre_id) -- no los tres campos que
+    ComercialStrategy._validar_obligacion_comercial exige en TODA obligacion
+    comercial: tasa_moratoria_anual, fecha_vencimiento, ibc_vigente_anual. Sin
+    ellos, liquidar() de una obligacion Comercial real generada via el flujo de
+    GUI (boton "Generar cuotas") fallaria con ValueError.
+
+    tasa_moratoria_anual/ibc_vigente_anual son parametros de contrato (no
+    dependen de fecha): se copian verbatim del padre a cada cuota, igual que ya
+    ocurre con tasa_efectiva_anual. fecha_vencimiento, en cambio, es especifico
+    de cada cuota mensual individual -- el valor correcto es su propia
+    fecha_origen (cada cuota vence el mismo dia que se causa y empieza a correr
+    en mora al dia siguiente si no se paga), no el fecha_vencimiento del padre
+    RECURRENTE."""
+    session = session_module.get_session()
+    expediente_id = _expediente_civil(session, area=AreaDerecho.COMERCIAL)
+    obligacion_recurrente = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="CUOTAS DE PAGARE A PLAZOS",
+        categoria="CAPITAL_PAGARE",
+        fecha_origen=date(2024, 1, 1),
+        fecha_inicio=date(2024, 1, 1),
+        fecha_fin=date(2024, 3, 1),
+        dia_pago=1,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tasa_moratoria_anual=Decimal("24.00"),
+        fecha_vencimiento=date(2024, 1, 1),
+        ibc_vigente_anual=Decimal("20.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    session.add(obligacion_recurrente)
+    session.commit()
+    obligacion_id = obligacion_recurrente.id
+    session.close()
+
+    session = session_module.get_session()
+    padre = session.get(Obligacion, obligacion_id)
+    cuotas = generar_cuotas_mensuales(padre, fecha_corte=date(2024, 3, 1))
+    session.close()
+
+    assert len(cuotas) == 3
+    for cuota in cuotas:
+        assert cuota.tasa_moratoria_anual == Decimal("24.00")
+        assert cuota.ibc_vigente_anual == Decimal("20.00")
+        assert cuota.fecha_vencimiento == cuota.fecha_origen

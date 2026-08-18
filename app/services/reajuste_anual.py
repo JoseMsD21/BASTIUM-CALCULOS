@@ -114,6 +114,13 @@ def generar_cuotas_mensuales(
     tasa_efectiva_anual = obligacion_recurrente.tasa_efectiva_anual
     aplica_indexacion_ipc = obligacion_recurrente.aplica_indexacion_ipc
     interes_sobre_capital_indexado = obligacion_recurrente.interes_sobre_capital_indexado
+    # Sprint 75 (hallazgo de revision de codigo): tasa_moratoria_anual e
+    # ibc_vigente_anual son parametros de contrato, no dependen de la fecha de
+    # cada cuota -- se copian verbatim del padre, igual que tasa_efectiva_anual.
+    # ComercialStrategy._validar_obligacion_comercial (app/services/area_strategy.py)
+    # los exige en TODA obligacion comercial, incluidas las cuotas hijas PUNTUAL.
+    tasa_moratoria_anual = obligacion_recurrente.tasa_moratoria_anual
+    ibc_vigente_anual = obligacion_recurrente.ibc_vigente_anual
     dia_pago = obligacion_recurrente.dia_pago
     fecha_inicio = obligacion_recurrente.fecha_origen
     fecha_fin = obligacion_recurrente.fecha_fin
@@ -164,6 +171,14 @@ def generar_cuotas_mensuales(
                 aplica_indexacion_ipc=aplica_indexacion_ipc,
                 interes_sobre_capital_indexado=interes_sobre_capital_indexado,
                 obligacion_padre_id=obligacion_padre_id,
+                tasa_moratoria_anual=tasa_moratoria_anual,
+                ibc_vigente_anual=ibc_vigente_anual,
+                # Cada cuota mensual vence el mismo dia que se causa: es su
+                # propia fecha_vencimiento, no la del padre RECURRENTE (ver
+                # docstring de esta funcion y ComercialStrategy
+                # ._construir_rate_provider_obligacion para el split
+                # remuneratoria/moratoria por cuota).
+                fecha_vencimiento=cuota_fecha,
             )
             session.add(cuota)
             cuotas_nuevas.append(cuota)
