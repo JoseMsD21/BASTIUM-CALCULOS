@@ -295,6 +295,14 @@ llenes.
 En la Lista de Expedientes, haz **doble clic** sobre la fila del expediente que quieres abrir. Se abre la
 pantalla de Detalle de ese expediente.
 
+**Nota sobre el tamaño de la ventana (Sprint 72):** el formulario "Agregar obligación" abre con las
+secciones "Datos básicos" y "Tasas e intereses" una junto a la otra (2 columnas), no una debajo de la otra
+como antes, y con un tamaño fijo que deja el botón "Guardar" siempre visible sin necesidad de agrandar la
+ventana. Si el contenido de una sección no cabe en el ancho de la ventana (pasa sobre todo en Civil/
+Familia, por el nombre largo de la casilla "Interés sobre capital ya indexado"), aparece una barra de
+desplazamiento horizontal dentro de esa sección — es normal, desplázate hacia la derecha para ver el resto
+de los campos.
+
 ### 5.3. Agregar una obligación puntual (una deuda de una sola vez)
 
 Usa este tipo cuando la deuda es un monto único con una sola fecha (ej. "gastos médicos de una vez").

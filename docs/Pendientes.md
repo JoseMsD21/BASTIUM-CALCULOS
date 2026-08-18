@@ -5477,8 +5477,11 @@ visual y el tamaño por defecto.
 - Suite completa en verde.
 
 **Cierre (2026-08-17, commits `6b3ffea`/`1be69c5`):** `layout_principal` pasó a `QGridLayout` (Datos básicos
-arriba-izquierda, Honorarios y costas abajo-izquierda, Tasas e intereses a la derecha con `rowSpan`,
-Guardar abajo abarcando las 2 columnas). La primera versión (`6b3ffea`) fijaba `self.resize(900, 650)`, pero
+arriba-izquierda, Honorarios y costas abajo-izquierda, Tasas e intereses a la derecha; la primera versión
+(`6b3ffea`) le daba `rowSpan=2` para alinearla con las dos filas de la izquierda, pero el fix `1be69c5`
+quitó ese `rowSpan` — ver el motivo abajo — así que en el estado final Tasas e intereses ocupa solo la fila
+0, igual que Datos básicos; Guardar queda abajo abarcando las 2 columnas). La primera versión (`6b3ffea`)
+fijaba `self.resize(900, 650)`, pero
 el code review encontró que Qt recalcula el ancho mínimo real al mostrar el diálogo (`.exec()`), y 4 de 6
 áreas terminaban más anchas que 1366px (hasta 1660px en Honorarios) — peor que el layout de una sola
 columna que tenía antes. La corrección (`1be69c5`) envolvió las 3 secciones en un `QScrollArea`
