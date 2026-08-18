@@ -1212,6 +1212,70 @@ class TestComercialStrategy:
         assert total_esperado == Decimal("1500000.00")
         assert resultado.final_balance().principal == total_esperado
 
+    def test_no_duplica_sancion_de_usura_del_padre_cuando_ya_tiene_cuotas_generadas(self):
+        """Hallazgo de revision de codigo posterior al fix de
+        test_no_duplica_capital_del_padre_cuando_ya_tiene_cuotas_generadas (arriba): ese fix
+        solo se aplico al path principal de liquidar() (la lambda eventos_fn que pasa
+        ids_con_cuotas_generadas a _eventos_de_obligacion). _calcular_sancion_usura llama
+        a self._eventos_de_obligacion(obligacion, fecha_corte) con solo 2 argumentos
+        posicionales -- ids_con_cuotas_generadas nunca llega ahi, asi que para una
+        obligacion RECURRENTE con cuotas hijas ya generadas y una tasa por encima del tope
+        de usura, esa liquidacion sombra vuelve a expandir el padre via FamilyScheduler
+        (capital fantasma) y produce una sancion adicional que se suma, via
+        _aplicar_sanciones_usura, al MISMO resultado consolidado que ya incluye la sancion
+        real de cada cuota hija -- la sancion de usura queda doblemente aplicada.
+
+        tasa_moratoria_anual = 60% supera el tope (1.5 x ibc 20% = 30%); cada cuota hija
+        vence el mismo dia que se causa (fecha_vencimiento == fecha_origen), asi que la
+        tasa moratoria corre desde el dia 1 -- Comercial evalua la sancion de usura sobre
+        cada cuota real. Sin el fix, el padre RECURRENTE contribuye una sancion fantasma
+        extra encima de esas 3 sanciones reales."""
+        session = session_module.get_session()
+        obligacion_recurrente = Obligacion(
+            expediente_id=1,
+            tipo=TipoObligacion.RECURRENTE,
+            concepto="CUOTAS DE PAGARE A PLAZOS",
+            categoria="CAPITAL_PAGARE",
+            fecha_origen=date(2024, 1, 1),
+            fecha_inicio=date(2024, 1, 1),
+            fecha_fin=date(2024, 3, 1),
+            dia_pago=1,
+            valor=Decimal("500000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            tasa_moratoria_anual=Decimal("60.00"),
+            fecha_vencimiento=date(2024, 1, 1),
+            ibc_vigente_anual=Decimal("20.00"),
+            tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+        )
+        session.add(obligacion_recurrente)
+        session.commit()
+        session.close()
+
+        cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
+        assert len(cuotas) == 3
+        for cuota in cuotas:
+            cuota.tasa_moratoria_anual = obligacion_recurrente.tasa_moratoria_anual
+            cuota.fecha_vencimiento = cuota.fecha_origen
+            cuota.ibc_vigente_anual = obligacion_recurrente.ibc_vigente_anual
+
+        resultado_combinado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_recurrente, *cuotas],
+            abonos=[],
+            fecha_corte=date(2024, 3, 1),
+        )
+        resultado_solo_cuotas = ComercialStrategy().liquidar(
+            obligaciones=cuotas,
+            abonos=[],
+            fecha_corte=date(2024, 3, 1),
+        )
+
+        # El padre RECURRENTE no debe aportar capital NI sancion de usura adicional una
+        # vez que sus cuotas hijas ya fueron generadas -- liquidar padre+cuotas debe dar
+        # el mismo saldo final que liquidar solo las cuotas hijas. Sin el fix, el saldo
+        # combinado tiene una sancion de usura extra (mas negativa / mas favorable al
+        # deudor) que el de solo las cuotas.
+        assert resultado_combinado.final_balance() == resultado_solo_cuotas.final_balance()
+
     def test_soporta_indexacion_ipc_es_false(self):
         assert ComercialStrategy().soporta_indexacion_ipc is False
 

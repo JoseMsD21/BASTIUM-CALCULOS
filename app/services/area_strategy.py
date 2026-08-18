@@ -524,7 +524,9 @@ class ComercialStrategy(AreaStrategy):
         ajustes_usura = []
         for obligacion in obligaciones:
             abonos_obligacion = [abono for abono in abonos if abono.obligacion_id == obligacion.id]
-            ajuste = self._calcular_sancion_usura(obligacion, abonos_obligacion, fecha_corte)
+            ajuste = self._calcular_sancion_usura(
+                obligacion, abonos_obligacion, fecha_corte, ids_con_cuotas_generadas
+            )
             if ajuste is not None:
                 ajustes_usura.append(ajuste)
 
@@ -533,7 +535,13 @@ class ComercialStrategy(AreaStrategy):
 
         return resultado
 
-    def _calcular_sancion_usura(self, obligacion, abonos: list, fecha_corte: date) -> dict | None:
+    def _calcular_sancion_usura(
+        self,
+        obligacion,
+        abonos: list,
+        fecha_corte: date,
+        ids_con_cuotas_generadas: set | None = None,
+    ) -> dict | None:
         """Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 2): una tasa
         pactada por encima de la usura NO se rechaza ni se recorta silenciosamente.
         Se liquida con la tasa realmente pactada y, aparte, se calcula:
@@ -546,12 +554,19 @@ class ComercialStrategy(AreaStrategy):
         recortadas a ese tope -- una liquidacion sombra que nunca se devuelve al
         usuario, solo se usa como referencia de cuanto interes habria causado la tasa
         legal. Retorna None si ninguna de las dos tasas (remuneratoria/moratoria)
-        excede el tope."""
+        excede el tope.
+
+        `ids_con_cuotas_generadas` (hallazgo de revision de codigo posterior al Sprint 75
+        Task 3): se propaga tal cual a _eventos_de_obligacion, igual que en liquidar(),
+        para que esta liquidacion sombra tambien salte la expansion efimera via
+        FamilyScheduler de una obligacion RECURRENTE que ya tiene cuotas hijas reales
+        generadas -- de lo contrario la sancion se calcularia dos veces: una vez sobre el
+        capital fantasma del padre (aqui) y otra vez sobre cada cuota hija real."""
         tope = calcular_tope_usura(obligacion.ibc_vigente_anual, obligacion.fecha_origen)
         if obligacion.tasa_efectiva_anual <= tope and obligacion.tasa_moratoria_anual <= tope:
             return None
 
-        eventos = self._eventos_de_obligacion(obligacion, fecha_corte)
+        eventos = self._eventos_de_obligacion(obligacion, fecha_corte, ids_con_cuotas_generadas)
         pagos = [
             Payment(
                 date=abono.fecha,
