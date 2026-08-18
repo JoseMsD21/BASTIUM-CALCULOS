@@ -59,6 +59,10 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_fecha_providencia_costas import (
         migrar as migrar_fecha_providencia_costas,
     )
+    from scripts.migrate_fechas_anuales_fijas import migrar as migrar_fechas_anuales_fijas
+    from scripts.migrate_indexacion_ipc_areas_sprint43 import (
+        migrar as migrar_indexacion_ipc_areas_sprint43,
+    )
     from scripts.migrate_interes_sobre_capital_indexado import (
         migrar as migrar_interes_capital_indexado,
     )
@@ -68,6 +72,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
     from scripts.migrate_reajuste_anual_familia import migrar as migrar_reajuste_anual_familia
     from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
+    from scripts.migrate_sprint47_recalculo_historico import (
+        migrar as migrar_recalculo_historico_sprint47,
+    )
     from scripts.migrate_tributario import migrar as migrar_tributario
 
     ruta = db_path if db_path is not None else _resolve_db_path()
@@ -81,6 +88,15 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     migrar_fecha_providencia_costas(ruta)
     migrar_interes_capital_indexado(ruta)
     migrar_reajuste_anual_familia(ruta)
+    # Sprint 73: agrega tipo_recurrencia/fechas_anuales_fijas a obligaciones --
+    # sin dependencia de orden con migrar_reajuste_anual_familia (columnas
+    # nuevas independientes en la misma tabla, ninguna de las dos siembra
+    # datos via ORM).
+    migrar_fechas_anuales_fijas(ruta)
+    # Sprint 43: agrega pacto_expreso_indexacion/protegida_inflacion_uvr a
+    # obligaciones -- columnas nuevas independientes, sin dependencia de orden con
+    # las migraciones de arriba.
+    migrar_indexacion_ipc_areas_sprint43(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     # Se llama ANTES de migrar_parametros_legales/migrar_ipc_variacion_anual
@@ -120,3 +136,8 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # directamente), asi que correria igual de bien antes o despues de
     # migrar_parametros_area_unidad.
     migrar_ipc_variacion_anual(ruta)
+    # Sprint 47: agrega expedientes.estado_procesal y las 3 columnas de
+    # recalculo historico en audit_logs -- sin dependencia de orden con las
+    # migraciones de arriba (columnas nuevas en tablas ya existentes, no
+    # siembra de datos via ORM).
+    migrar_recalculo_historico_sprint47(ruta)

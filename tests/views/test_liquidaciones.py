@@ -160,6 +160,64 @@ def test_oculta_saldo_a_favor_cuando_no_hay_sobrepago(qtbot):
     assert not view.etiqueta_saldo_a_favor.isVisible()
 
 
+def _resultado_con_alertas() -> LiquidationResult:
+    resultado = _resultado_de_prueba()
+    return LiquidationResult(
+        items=resultado.items,
+        alertas=[
+            "Doble Actualización Prohibida: hay indemnización moratoria vigente.",
+            "Techo de usura alcanzado en 'Impuesto de renta 2024'.",
+        ],
+    )
+
+
+def test_muestra_alertas_no_bloqueantes_cuando_estan_presentes(qtbot):
+    # Revision de calidad tras el Sprint 43: un toast (expediente_detalle.py) se
+    # desvanece a los 6 segundos -- esta etiqueta deja las alertas legalmente
+    # relevantes (LiquidationResult.alertas) visibles de forma durable mientras el
+    # resultado siga en pantalla, mismo criterio que ya usa el marcado de una
+    # obligacion prescrita (prefijo "⚠").
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_con_alertas(), expediente_id=1)
+
+    assert view.etiqueta_alertas.isVisible()
+    texto = view.etiqueta_alertas.text()
+    assert "⚠" in texto
+    assert "Doble Actualización Prohibida" in texto
+    assert "Techo de usura alcanzado" in texto
+
+
+def test_oculta_alertas_cuando_no_hay_ninguna(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.etiqueta_alertas.isVisible()
+    assert view.etiqueta_alertas.text() == ""
+
+
+def test_mostrar_de_nuevo_sin_alertas_oculta_las_del_resultado_anterior(qtbot):
+    # Regresion: mostrar() se reutiliza para cada liquidacion nueva en la misma
+    # instancia de la vista -- si el resultado anterior tenia alertas y el nuevo no,
+    # la etiqueta debe ocultarse (no quedarse pegada con el texto viejo).
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_con_alertas(), expediente_id=1)
+    assert view.etiqueta_alertas.isVisible()
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.etiqueta_alertas.isVisible()
+    assert view.etiqueta_alertas.text() == ""
+
+
 def test_muestra_bloque_de_renta_liquida_cuando_esta_presente(qtbot):
     from app.engine.tax.renta_liquida import RentaLiquidaGravableResult
 

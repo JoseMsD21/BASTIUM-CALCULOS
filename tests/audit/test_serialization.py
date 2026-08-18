@@ -259,3 +259,71 @@ def test_round_trip_preserva_saldo_a_favor_cuando_esta_presente():
     reconstruido = deserializar_resultado(serializar_resultado(resultado))
 
     assert reconstruido.items[0].saldo_a_favor == Decimal("3000000.00")
+
+
+def test_round_trip_sin_alertas_preserva_lista_vacia():
+    resultado = LiquidationResult(items=[_item_de_prueba()])
+
+    reconstruido = deserializar_resultado(serializar_resultado(resultado))
+
+    assert reconstruido.alertas == []
+
+
+def test_round_trip_preserva_alertas_no_bloqueantes():
+    # Sprint 43: "Doble Actualización Prohibida" (Laboral), "Techo de usura alcanzado"
+    # (Tributario), etc. -- estas alertas son legalmente relevantes (son literalmente
+    # lo que pidio el despacho) y deben sobrevivir intactas al reconstruir una
+    # liquidacion historica desde AuditLog (ej. recalcular_liquidacion, Sprint 47),
+    # no perderse en silencio.
+    resultado = LiquidationResult(
+        items=[_item_de_prueba()],
+        alertas=[
+            "Doble Actualización Prohibida: hay indemnización moratoria vigente.",
+            "Techo de usura alcanzado en 'Impuesto de renta 2024'.",
+        ],
+    )
+
+    reconstruido = deserializar_resultado(serializar_resultado(resultado))
+
+    assert reconstruido.alertas == [
+        "Doble Actualización Prohibida: hay indemnización moratoria vigente.",
+        "Techo de usura alcanzado en 'Impuesto de renta 2024'.",
+    ]
+
+
+def test_deserializar_snapshot_antiguo_sin_clave_alertas_no_lanza_keyerror():
+    # Snapshot como los que ya existen en bastium.db, guardados ANTES del Sprint 43 --
+    # no tienen la clave "alertas" en el JSON. deserializar_resultado debe seguir
+    # funcionando (mismo criterio que renta_liquida/rate_source/saldo_a_favor arriba,
+    # Sprint 23).
+    import json
+
+    snapshot_antiguo = json.dumps(
+        {
+            "items": [
+                {
+                    "date": "2026-01-01",
+                    "concept": "Abono a capital",
+                    "capital_base": "1000000.00",
+                    "interest_rate": "0.00",
+                    "interest_amount": "0.00",
+                    "indexation_amount": "0.00",
+                    "payment_amount": "0.00",
+                    "rate_source": "N/A",
+                    "balance": {
+                        "date": "2026-01-01",
+                        "debt": {
+                            "principal": "1000000.00",
+                            "interest": "0.00",
+                            "indexation": "0.00",
+                        },
+                        "event_type": "IMPUESTO_A_CARGO",
+                    },
+                }
+            ]
+        }
+    )
+
+    reconstruido = deserializar_resultado(snapshot_antiguo)
+
+    assert reconstruido.alertas == []

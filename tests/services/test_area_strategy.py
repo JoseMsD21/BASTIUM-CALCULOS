@@ -28,6 +28,7 @@ from app.services.area_strategy import (
     TributarioStrategy,
     _evento_costas_procesales,
 )
+from app.services.recurrencia_fechas_fijas import serializar_fechas_anuales
 from database.models import (
     Abono,
     Base,
@@ -35,6 +36,7 @@ from database.models import (
     ParametroLegal,
     TipoObligacion,
     TipoReajusteAnual,
+    TipoRecurrencia,
 )
 
 
@@ -131,6 +133,12 @@ def _parametros_legales_en_memoria(monkeypatch):
         # usaban fecha_corte == fecha_origen) -- construir_rate_provider_moratorio_tributario
         # nunca llegaba a leer esta clave. Los tests nuevos de mora > 3 anios si la necesitan.
         "ET635_PUNTOS_DESCUENTO": Decimal("2"),
+        # CIVIL_ANNUAL_RATE (Sprint 43): HonorariosStrategy (segundo termino de su
+        # formula IPC) y ComercialStrategy (modo b, capital indexado + interes civil
+        # puro) ahora leen esta clave via AreaStrategy._tasa_civil_anual_pct. Valor
+        # identico al que siembra scripts/migrate_parametros_legales.py
+        # (LegalRates.CIVIL_ANNUAL_RATE, fraccion 0.06 = 6% anual).
+        "CIVIL_ANNUAL_RATE": Decimal("0.06"),
     }.items():
         session.add(
             ParametroLegal(
@@ -420,6 +428,80 @@ def test_civil_familia_recurrente_con_reajuste_pero_sin_cuotas_generadas_usa_exp
     # 3 cuotas efimeras de 500000 (enero, febrero, marzo), igual que la obligacion
     # sin reajuste -- mismo comportamiento previo a este sprint.
     assert resultado.final_balance().principal == Decimal("1500000.00")
+
+
+def test_civil_familia_fechas_fijas_sin_cuotas_generadas_usa_expansion_efimera_por_fechas():
+    """Sprint 73: una obligacion RECURRENTE con tipo_recurrencia
+    FECHAS_ANUALES_FIJAS, liquidada ANTES de presionar "Generar cuotas" (sin
+    hijas persistidas todavia), debe expandirse efimeramente en las fechas
+    MM-DD configuradas -- NUNCA en 12 cuotas mensuales (que es justo el bug
+    que este sprint corrige: antes de este cambio, el fallback de
+    _eventos_de_obligacion solo sabia expandir mensualmente)."""
+    strategy = CivilFamiliaStrategy()
+    obligacion = Obligacion(
+        id=30,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Gastos de vestuario",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 12, 31),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas=serializar_fechas_anuales(["06-15", "12-15", "03-22"]),
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 12, 31)
+    )
+
+    # Exactamente 3 ocurrencias de 150000 (450000 total) -- no 12 cuotas
+    # mensuales (que habrian dado 1800000).
+    assert resultado.final_balance().principal == Decimal("450000.00")
+
+
+def test_civil_familia_fechas_fijas_con_cuotas_generadas_no_duplica_capital():
+    """Complemento del test anterior: una vez que existen cuotas hijas reales
+    (obligacion_padre_id apuntando a la RECURRENTE padre), la obligacion padre
+    no debe aportar capital propio -- mismo criterio ya probado para
+    reajuste SMMLV/IPC (Sprint 41), ahora generalizado a cualquier obligacion
+    con cuotas hijas persistidas, sin importar el generador que las creo."""
+    strategy = CivilFamiliaStrategy()
+    padre = Obligacion(
+        id=31,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Gastos de vestuario",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 12, 31),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas=serializar_fechas_anuales(["06-15", "12-15", "03-22"]),
+    )
+    cuota_marzo = Obligacion(
+        id=32,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos de vestuario - 22/03/2026",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 3, 22),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        obligacion_padre_id=31,
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[padre, cuota_marzo], abonos=[], fecha_corte=date(2026, 12, 31)
+    )
+
+    # Solo la cuota hija real (150000) -- ni las 3 fantasma de la expansion
+    # efimera (450000), ni el capital propio de la obligacion padre.
+    assert resultado.final_balance().principal == Decimal("150000.00")
 
 
 def test_civil_familia_puntual_sin_indexacion_no_genera_evento_indexation():
@@ -1046,6 +1128,123 @@ class TestComercialStrategy:
     def test_soporta_indexacion_ipc_es_false(self):
         assert ComercialStrategy().soporta_indexacion_ipc is False
 
+    def test_aplica_indexacion_ipc_sin_pacto_expreso_lanza_value_error(self):
+        # Sprint 43, regla XOR: la tasa comercial ya incorpora inflacion, asi que
+        # marcar IPC sin un pacto expreso en el titulo se bloquea.
+        obligacion = _obligacion_comercial()
+        obligacion.aplica_indexacion_ipc = True
+        obligacion.pacto_expreso_indexacion = False
+
+        with pytest.raises(ValueError, match="[Pp]acto expreso"):
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 1)
+            )
+
+    def test_modo_ipc_con_pacto_expreso_recurrente_lanza_value_error(self):
+        # Sprint 43: el modo (b) queda reducido a PUNTUAL (mismo alcance que
+        # anatocismo en esta clase) -- RECURRENTE no modela un pacto expreso por
+        # cuota individual.
+        obligacion = Obligacion(
+            id=2,
+            expediente_id=1,
+            tipo=TipoObligacion.RECURRENTE,
+            concepto="Cuotas de pagare a plazos",
+            categoria="CAPITAL_PAGARE",
+            fecha_origen=date(2025, 1, 1),
+            valor=Decimal("500000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            tasa_moratoria_anual=Decimal("24.00"),
+            fecha_vencimiento=date(2025, 1, 1),
+            ibc_vigente_anual=Decimal("20.00"),
+            dia_pago=5,
+            fecha_inicio=date(2025, 1, 1),
+            fecha_fin=date(2025, 3, 5),
+            aplica_indexacion_ipc=True,
+            pacto_expreso_indexacion=True,
+        )
+
+        with pytest.raises(ValueError, match="PUNTUAL"):
+            ComercialStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 3, 5)
+            )
+
+    def test_modo_ipc_con_pacto_expreso_indexa_capital_y_usa_interes_civil_en_vez_de_comercial(
+        self,
+    ):
+        # Sprint 43, modo (b): capital indexado por IPC + interes civil puro 6% anual
+        # sobre el capital ya indexado, EN VEZ DE la tasa comercial (remuneratoria 6%/
+        # moratoria 24%) que trae _obligacion_comercial(). Mismas fechas/capital que
+        # test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto_correcto
+        # (indexacion ya verificada ahi: 1,000,000 -> +77,633.53) para no tener que volver
+        # a calcular el IPC a mano.
+        obligacion = _obligacion_comercial(
+            valor=Decimal("1000000.00"),
+            fecha_origen=date(2024, 7, 1),
+            fecha_vencimiento=date(2024, 8, 1),
+        )
+        obligacion.aplica_indexacion_ipc = True
+        obligacion.pacto_expreso_indexacion = True
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+        )
+
+        # Equivalente exacto: la misma obligacion liquidada por CivilFamiliaStrategy con
+        # Suma Unica (aplica_indexacion_ipc + interes_sobre_capital_indexado) y la tasa
+        # civil legal (6.00% -- CIVIL_ANNUAL_RATE sembrado en la fixture de este archivo)
+        # como tasa_efectiva_anual debe dar EXACTAMENTE el mismo saldo, porque el modo (b)
+        # de Comercial reutiliza tal cual el mismo mecanismo (Suma Unica + tasa civil
+        # plana) -- no un calculo paralelo.
+        obligacion_equivalente_civil = Obligacion(
+            id=1,
+            expediente_id=1,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto="Capital de pagare",
+            categoria="CAPITAL_PAGARE",
+            fecha_origen=date(2024, 7, 1),
+            valor=Decimal("1000000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            aplica_indexacion_ipc=True,
+            interes_sobre_capital_indexado=True,
+        )
+        resultado_civil_equivalente = CivilFamiliaStrategy().liquidar(
+            obligaciones=[obligacion_equivalente_civil], abonos=[], fecha_corte=date(2025, 12, 31)
+        )
+
+        assert resultado.final_balance().principal == Decimal("1000000.00")
+        assert resultado.final_balance().indexation == Decimal("77633.53")
+        assert resultado.final_balance().interest > Decimal("0.00")
+        assert (
+            resultado.final_balance().interest
+            == resultado_civil_equivalente.final_balance().interest
+        )
+        assert (
+            resultado.final_balance().indexation
+            == resultado_civil_equivalente.final_balance().indexation
+        )
+
+    def test_modo_ipc_activo_no_dispara_sancion_por_usura(self):
+        # Sprint 43: la tasa realmente cobrada en modo (b) es la civil legal (nunca
+        # usuraria), asi que tasa_efectiva_anual/tasa_moratoria_anual (aunque el
+        # formulario las siga exigiendo como campos obligatorios) no deben disparar la
+        # sancion por usura del Sprint 2 -- esa tasa nunca se usa para cobrar nada en
+        # este modo.
+        obligacion = _obligacion_comercial(
+            valor=Decimal("1000000.00"),
+            fecha_origen=date(2024, 7, 1),
+            fecha_vencimiento=date(2024, 8, 1),
+            tasa_remuneratoria=Decimal("9999.00"),  # muy por encima de cualquier usura
+            tasa_moratoria=Decimal("9999.00"),
+        )
+        obligacion.aplica_indexacion_ipc = True
+        obligacion.pacto_expreso_indexacion = True
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2024, 9, 1)
+        )
+
+        assert all("usura" not in item.concept.lower() for item in resultado.items)
+
     def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
         fecha_corte = date(2025, 1, 11)  # antes del vencimiento (2025-06-01) de ambas
         obligacion_a = _obligacion_comercial(
@@ -1505,8 +1704,54 @@ class TestSancionatorioStrategy:
 
         assert resultado.final_balance().interest > Decimal("0.00")
 
-    def test_soporta_indexacion_ipc_es_false(self):
-        assert SancionatorioStrategy().soporta_indexacion_ipc is False
+    def test_soporta_indexacion_ipc_es_true(self):
+        # Sprint 43: SancionatorioStrategy ahora SI soporta IPC (condicional,
+        # la conversion SMLMV/UVT ya anclada a la fecha del hecho es siempre la
+        # excepcion del despacho con el motor actual -- ver docstring de la clase).
+        assert SancionatorioStrategy().soporta_indexacion_ipc is True
+
+    def test_sin_indexacion_ipc_no_genera_evento_indexation(self):
+        obligacion = _obligacion_sancionatoria()  # aplica_indexacion_ipc no seteado -> falsy
+
+        resultado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2020, 6, 1)
+        )
+
+        assert resultado.final_balance().indexation == Decimal("0.00")
+        assert all(item.balance.event_type != "INDEXATION" for item in resultado.items)
+
+    def test_aplica_indexacion_ipc_indexa_el_capital_ya_convertido_a_pesos(self):
+        # Sprint 43: la excepcion del despacho (multa anclada a SMLMV/UVT a la fecha
+        # DEL HECHO) siempre aplica con este motor -- ver docstring de la clase. El
+        # capital que se indexa es el YA CONVERTIDO a pesos (2 SMLMV 2019 =
+        # 1,656,232.00, ver test_liquida_multa_pre_2020_convirtiendo_smlmv_a_pesos),
+        # desde fecha_origen (exigibilidad) hasta la fecha de corte (pago efectivo).
+        from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
+        from app.engine.indexation.ipc import IPCIndexation
+
+        fecha_origen = date(2019, 6, 1)
+        fecha_corte = date(2020, 6, 1)
+        obligacion = _obligacion_sancionatoria(fecha_origen=fecha_origen)
+        obligacion.aplica_indexacion_ipc = True
+
+        resultado = SancionatorioStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        capital_convertido = Decimal("1656232.00")
+        monto_esperado = IPCIndexation.calculate(
+            capital=capital_convertido,
+            initial_index=get_ipc_interpolado_for_date(fecha_origen),
+            final_index=get_ipc_interpolado_for_date(fecha_corte),
+        )
+        eventos_indexacion = [
+            item for item in resultado.items if item.balance.event_type == "INDEXATION"
+        ]
+        assert len(eventos_indexacion) == 1
+        assert monto_esperado > Decimal("0.00")
+        assert eventos_indexacion[0].indexation_amount == monto_esperado
+        assert resultado.final_balance().indexation == monto_esperado
+        assert resultado.final_balance().principal == capital_convertido
 
     def test_sancionatorio_genera_evento_de_costas_si_esta_configurado(self):
         # cantidad_smlmv_uvt=1000 con el fecha_origen por defecto del fixture
@@ -1822,8 +2067,76 @@ class TestHonorariosStrategy:
                 obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
             )
 
-    def test_soporta_indexacion_ipc_es_false(self):
-        assert HonorariosStrategy().soporta_indexacion_ipc is False
+    def test_soporta_indexacion_ipc_es_true(self):
+        # Sprint 43: HonorariosStrategy ahora SI soporta IPC, habilitado por
+        # defecto (incondicional, compatible con el interes civil).
+        assert HonorariosStrategy().soporta_indexacion_ipc is True
+
+    def test_sin_indexacion_ipc_usa_la_tasa_pactada_sin_indexar(self):
+        # Regresion: sin el checkbox marcado, comportamiento identico a antes del
+        # Sprint 43 (tasa pactada, capital nominal, sin evento INDEXATION).
+        obligacion = _obligacion_honorarios(
+            honorarios_fijos_pactados=Decimal("1000000.00"),
+            cuota_litis_pactada_pct=Decimal("0.00"),
+            fecha_origen=date(2024, 7, 1),
+            tasa_efectiva_anual=Decimal("12.00"),
+        )
+
+        resultado = HonorariosStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+        )
+
+        assert resultado.final_balance().indexation == Decimal("0.00")
+        assert all(item.balance.event_type != "INDEXATION" for item in resultado.items)
+
+    def test_aplica_indexacion_ipc_sigue_la_formula_exacta_del_despacho(self):
+        # Sprint 43, formula EXACTA:
+        #   Capital_Honorarios x (IPC_Final / IPC_Inicial)
+        #     + Interés_Civil_6%_Anual(Capital_Actualizado)
+        # honorarios_fijos_pactados=1,000,000 + cuota_litis 0% = total_honorarios
+        # 1,000,000 -- mismo capital/fechas que
+        # test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto_correcto
+        # (indexacion ya verificada ahi: +77,633.53) para no recalcular el IPC a mano.
+        # tasa_efectiva_anual=99.00 (deliberadamente distinta del 6% civil) prueba que la
+        # formula usa la tasa civil FIJA, no la tasa pactada de esta obligacion.
+        obligacion = _obligacion_honorarios(
+            honorarios_fijos_pactados=Decimal("1000000.00"),
+            cuota_litis_pactada_pct=Decimal("0.00"),
+            fecha_origen=date(2024, 7, 1),
+            tasa_efectiva_anual=Decimal("99.00"),
+        )
+        obligacion.aplica_indexacion_ipc = True
+
+        resultado = HonorariosStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+        )
+
+        # Segundo termino: equivalente exacto a CivilFamiliaStrategy en Suma Unica con
+        # tasa_efectiva_anual=6.00 (la tasa civil legal sembrada en la fixture de este
+        # archivo) -- mismo mecanismo reutilizado tal cual, no un calculo paralelo.
+        obligacion_civil_equivalente = Obligacion(
+            id=1,
+            expediente_id=1,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto="Honorarios proceso ejecutivo",
+            categoria="HONORARIOS_PROFESIONALES",
+            fecha_origen=date(2024, 7, 1),
+            valor=Decimal("1000000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            aplica_indexacion_ipc=True,
+            interes_sobre_capital_indexado=True,
+        )
+        resultado_civil_equivalente = CivilFamiliaStrategy().liquidar(
+            obligaciones=[obligacion_civil_equivalente], abonos=[], fecha_corte=date(2025, 12, 31)
+        )
+
+        assert resultado.final_balance().principal == Decimal("1000000.00")
+        assert resultado.final_balance().indexation == Decimal("77633.53")
+        assert resultado.final_balance().interest > Decimal("0.00")
+        assert (
+            resultado.final_balance().interest
+            == resultado_civil_equivalente.final_balance().interest
+        )
 
     def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
         fecha_corte = date(2026, 1, 11)
@@ -2008,8 +2321,53 @@ class TestLaboralStrategy:
         )
         assert resultado.final_balance().principal == monto_prestaciones + mora_esperada.total
 
-    def test_soporta_indexacion_ipc_es_false(self):
-        assert LaboralStrategy().soporta_indexacion_ipc is False
+    def test_soporta_indexacion_ipc_es_true(self):
+        # Sprint 43: LaboralStrategy ahora SI soporta IPC (condicional,
+        # excluyente con la indemnizacion moratoria del Art. 65 CST).
+        assert LaboralStrategy().soporta_indexacion_ipc is True
+
+    def test_sin_mora_con_indexacion_ipc_indexa_las_prestaciones(self):
+        # Sprint 43, excepcion 1 (buena fe probada): pagado el mismo dia de
+        # terminacion -> sin mora (ver
+        # test_liquida_sin_mora_si_se_pago_el_mismo_dia_de_terminacion,
+        # mismo monto_prestaciones ya verificado ahi: 7,860,000.00). Con
+        # aplica_indexacion_ipc marcado, se indexa ese valor desde fecha_fin
+        # (2020-12-31) hasta la fecha de corte (2021-06-01).
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
+        obligacion.aplica_indexacion_ipc = True
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SANCION_MORATORIA" not in tipos_evento
+        assert "INDEXATION" in tipos_evento
+        assert resultado.final_balance().indexation > Decimal("0.00")
+        assert resultado.alertas == []
+
+    def test_con_mora_e_indexacion_ipc_alerta_doble_actualizacion_prohibida(self):
+        # Sprint 43, regla de exclusion: pagado 30 dias tarde -> SI hay mora (ver
+        # test_liquida_con_mora_solo_fase1). Con aplica_indexacion_ipc marcado a la
+        # vez, la moratoria prevalece (no se indexa el mismo rubro/periodo dos
+        # veces) y se agrega la alerta no bloqueante "Doble Actualización
+        # Prohibida" -- la liquidacion NO se bloquea.
+        obligacion = _obligacion_laboral(fecha_pago_total=date(2021, 1, 30))
+        obligacion.aplica_indexacion_ipc = True
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SANCION_MORATORIA" in tipos_evento
+        assert "INDEXATION" not in tipos_evento
+        assert resultado.final_balance().indexation == Decimal("0.00")
+        assert len(resultado.alertas) == 1
+        assert "Doble Actualización Prohibida" in resultado.alertas[0]
+        # El saldo (mora incluida) es identico al caso sin IPC marcado -- la
+        # alerta es puramente informativa, no cambia ningun numero.
+        assert resultado.final_balance().principal == Decimal("10860000.00")
 
     def test_incluir_seguridad_social_sin_nivel_riesgo_lanza_value_error(self):
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
@@ -2827,6 +3185,43 @@ class TestTributarioStrategy:
         assert saldo.interest + saldo.indexation == Decimal(
             "130933902.61"
         )  # == techo de usura plena
+        # Sprint 43: el recorte anterior ya existia desde el Sprint 15 -- lo nuevo es la
+        # alerta no bloqueante que pide el despacho cuando el techo realmente recorta.
+        assert len(resultado.alertas) == 1
+        assert "Techo de usura alcanzado" in resultado.alertas[0]
+
+    def test_impuesto_protegido_por_uvr_bloquea_indexacion_867_1_con_error(self):
+        # Sprint 43, prohibicion de doble cobro: mismo caso de mora > 3 anios de arriba,
+        # pero la obligacion ya trae su propia proteccion inflacionaria (ej. UVR) -- no se
+        # puede aplicar ADEMAS la indexacion IPC del Art. 867-1 sobre el mismo capital.
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("100000000.00"),
+            fecha_origen=date(2018, 5, 10),
+        )
+        impuesto.protegida_inflacion_uvr = True
+
+        with pytest.raises(ValueError, match="protección inflacionaria"):
+            TributarioStrategy().liquidar(
+                obligaciones=[impuesto], abonos=[], fecha_corte=date(2023, 5, 10)
+            )
+
+    def test_impuesto_protegido_por_uvr_sin_mora_larga_liquida_normal(self):
+        # protegida_inflacion_uvr no bloquea nada si el Art. 867-1 nunca se dispara
+        # (mora <= 3 anios) -- no hay indexacion IPC con la que colisionar.
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("100000000.00"),
+            fecha_origen=date(2020, 5, 10),
+        )
+        impuesto.protegida_inflacion_uvr = True
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[impuesto], abonos=[], fecha_corte=date(2023, 5, 10)
+        )
+
+        assert resultado.final_balance().principal == Decimal("100000000.00")
+        assert resultado.alertas == []
 
     def test_impuesto_con_mora_de_3_anios_o_menos_no_indexa(self):
         impuesto = _obligacion_tributaria(
@@ -2915,8 +3310,10 @@ class TestTributarioStrategy:
                 obligaciones=[renta_1, renta_2], abonos=[], fecha_corte=date(2024, 3, 1)
             )
 
-    def test_soporta_indexacion_ipc_es_false(self):
-        assert TributarioStrategy().soporta_indexacion_ipc is False
+    def test_soporta_indexacion_ipc_es_true(self):
+        # Sprint 43: TributarioStrategy ahora SI soporta IPC -- ligada al Art.
+        # 867-1 E.T. (automatica por el trigger de mora, sin checkbox propio).
+        assert TributarioStrategy().soporta_indexacion_ipc is True
 
 
 def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():

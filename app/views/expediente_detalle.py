@@ -34,6 +34,7 @@ from app.engine.audit.service import (
 )
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.reajuste_anual import generar_cuotas_mensuales
+from app.services.recurrencia_fechas_fijas import generar_cuotas_fechas_fijas
 from app.views.abonos import AbonoFormDialog
 from app.views.concurrency import TareaEnHilo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
@@ -379,6 +380,7 @@ class ExpedienteDetallePage(QWidget):
         session = session_module.get_session()
         resultado = reconstruir_liquidacion(session, audit_log_id)
         session.close()
+        self._mostrar_alertas_de_liquidacion(resultado)
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
 
@@ -531,7 +533,15 @@ class ExpedienteDetallePage(QWidget):
         RECURRENTE seleccionada en `tabla_obligaciones` (debe tener
         tipo_reajuste_anual SMMLV/IPC activo -- ver ObligacionFormDialog). Llamarlo
         de nuevo sobre la misma obligacion es seguro: generar_cuotas_mensuales es
-        idempotente (retorna las cuotas ya persistidas en vez de duplicarlas)."""
+        idempotente (retorna las cuotas ya persistidas en vez de duplicarlas).
+
+        Sprint 73: si la obligacion tiene tipo_recurrencia FECHAS_ANUALES_FIJAS
+        (ej. gastos de vestuario en junio/diciembre/cumpleanos), despacha a
+        generar_cuotas_fechas_fijas en vez de generar_cuotas_mensuales -- mismo
+        boton, mismo flujo, distinto generador segun la cadencia configurada en
+        ObligacionFormDialog. tipo_recurrencia puede venir None en filas legacy
+        (mismo criterio tolerante que area_strategy.py) -- se trata igual que
+        MENSUAL."""
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
             QMessageBox.warning(
@@ -548,8 +558,16 @@ class ExpedienteDetallePage(QWidget):
         fecha_corte = expediente.fecha_corte_default
         session.close()
 
+        es_fechas_fijas = (
+            obligacion.tipo_recurrencia is not None
+            and obligacion.tipo_recurrencia.value == "FECHAS_ANUALES_FIJAS"
+        )
+
         try:
-            cuotas = generar_cuotas_mensuales(obligacion, fecha_corte=fecha_corte)
+            if es_fechas_fijas:
+                cuotas = generar_cuotas_fechas_fijas(obligacion, fecha_corte=fecha_corte)
+            else:
+                cuotas = generar_cuotas_mensuales(obligacion, fecha_corte=fecha_corte)
         except ValueError as error:
             QMessageBox.warning(self, "No se pudo generar cuotas", str(error))
             return
@@ -650,9 +668,29 @@ class ExpedienteDetallePage(QWidget):
         self._dialogo_progreso_liquidar.close()
         self.boton_liquidar.setEnabled(True)
 
+    def _mostrar_alertas_de_liquidacion(self, resultado) -> None:
+        """Alertas no bloqueantes (Sprint 43): "Doble Actualización Prohibida" en
+        Laboral, "Techo de usura alcanzado" en Tributario, etc. -- ver
+        `LiquidationResult.alertas`. Se muestran con el mismo mecanismo de toast del
+        Sprint 36 (tipo "warning", mas duradero que el default de 3s porque el texto
+        es mas largo que una confirmacion tipica) en vez de un `QMessageBox` modal: la
+        liquidacion ya se completo, no hay nada que bloquear.
+
+        Compartido entre `_on_liquidar_completado` (liquidacion en vivo) y
+        `_reconstruir_desde_historial` (reconstruccion desde `AuditLog`, revision de
+        code quality tras el Sprint 43): ambos caminos terminan con un
+        `LiquidationResult` que puede traer alertas, y un abogado reabriendo una
+        liquidacion historica de Laboral/Tributario debe ver la misma advertencia que
+        vio quien la corrio la primera vez -- el dato ya sobrevive el round-trip de
+        auditoria (`app/engine/audit/serialization.py`), lo que faltaba era mostrarlo
+        tambien en este segundo camino."""
+        for alerta in resultado.alertas:
+            mostrar_toast(self, alerta, tipo="warning", duracion_ms=6000)
+
     def _on_liquidar_completado(self, resultado) -> None:
         self._finalizar_liquidacion_en_curso()
         self._refrescar_historial()
+        self._mostrar_alertas_de_liquidacion(resultado)
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
         self.liquidacion_finalizada.emit()

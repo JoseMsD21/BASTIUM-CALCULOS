@@ -17,25 +17,35 @@ def _encode(value):
 
 
 def serializar_resultado(resultado: LiquidationResult) -> str:
-    """Snapshot JSON exacto de un LiquidationResult, para reconstrucción sin recalcular."""
+    """Snapshot JSON exacto de un LiquidationResult, para reconstrucción sin recalcular.
+
+    `alertas` (Sprint 43): lista de strings, ya JSON-serializable tal cual (no pasa por
+    `_encode` -- no son Decimal ni date). Sin este campo, reconstruir una liquidacion
+    historica via `AuditLog` (ej. `recalcular_liquidacion`, Sprint 47) perderia en
+    silencio advertencias legalmente relevantes como "Doble Actualización Prohibida" o
+    "Techo de usura alcanzado"."""
     items = [asdict(item) for item in resultado.items]
     renta_liquida = (
         asdict(resultado.renta_liquida) if resultado.renta_liquida is not None else None
     )
     return json.dumps(
-        {"items": items, "renta_liquida": renta_liquida}, default=_encode, ensure_ascii=False
+        {"items": items, "renta_liquida": renta_liquida, "alertas": resultado.alertas},
+        default=_encode,
+        ensure_ascii=False,
     )
 
 
 def deserializar_resultado(json_str: str) -> LiquidationResult:
     """Reconstruye un LiquidationResult exactamente desde un snapshot de serializar_resultado.
-    Usa .get() para 'renta_liquida' porque los snapshots guardados antes del Sprint 15 no
-    tienen esa clave -- debe seguir reconstruyendo sin KeyError (misma cautela que ya motivo
-    el bug de auditoria documentado en el Sprint 23)."""
+    Usa .get() para 'renta_liquida' y 'alertas' porque los snapshots guardados antes del
+    Sprint 15/Sprint 43 respectivamente no tienen esas claves -- debe seguir reconstruyendo
+    sin KeyError (misma cautela que ya motivo el bug de auditoria documentado en el
+    Sprint 23)."""
     data = json.loads(json_str)
     items = [_item_desde_dict(item) for item in data["items"]]
     renta_liquida = _renta_liquida_desde_dict(data.get("renta_liquida"))
-    return LiquidationResult(items=items, renta_liquida=renta_liquida)
+    alertas = data.get("alertas", [])
+    return LiquidationResult(items=items, renta_liquida=renta_liquida, alertas=alertas)
 
 
 def _item_desde_dict(data: dict) -> LiquidationItem:

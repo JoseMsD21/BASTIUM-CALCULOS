@@ -231,3 +231,68 @@ def test_generate_no_agrega_columna_de_saldo_a_favor_sin_sobrepago(tmp_path, mon
     datos_cronologia = llamadas[1]
     assert "Saldo a favor" not in datos_cronologia[0]
     assert len(datos_cronologia[0]) == 10
+
+
+def _diferencia_recalculo():
+    return {
+        "audit_log_anterior": "AuditLog #12",
+        "monto_anterior": "$7,830,000.00",
+        "monto_recalculado": "$7,860,000.00",
+        "diferencia_monto": "+$30,000.00 pesos",
+        "dias_cubiertos_anterior": "1",
+        "dias_cubiertos_recalculado": "1",
+        "resumen": "Diferencia recuperada: +$30,000.00 pesos",
+    }
+
+
+def test_generate_incluye_bloque_de_diferencia_recalculo_cuando_se_provee(tmp_path, monkeypatch):
+    # Sprint 47: log de diferencias del recalculo historico post-Sprint-30,
+    # mismo patron aditivo que renta_liquida (Sprint 15) -- una tabla nueva
+    # que solo aparece cuando se provee el dato.
+    llamadas = _capturar_tablas(monkeypatch)
+    ruta = tmp_path / "memorial_diferencia.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate(
+        "MEMORIAL DE ACTUALIZACIÓN/CORRECCIÓN DE LIQUIDACIÓN",
+        _summary(),
+        _table_data(),
+        diferencia_recalculo=_diferencia_recalculo(),
+    )
+
+    assert ruta.exists()
+    # llamadas[0] resumen ejecutivo, [1] cronologia, [2] diferencia de recalculo.
+    datos_diferencia = llamadas[2]
+    assert ["Valor Anterior (Sprint 30, pre-corrección)", "$7,830,000.00"] in datos_diferencia
+    assert ["Valor Recalculado", "$7,860,000.00"] in datos_diferencia
+    assert ["Diferencia Recuperada", "+$30,000.00 pesos"] in datos_diferencia
+
+
+def test_generate_sin_diferencia_recalculo_no_agrega_el_bloque(tmp_path, monkeypatch):
+    llamadas = _capturar_tablas(monkeypatch)
+    ruta = tmp_path / "liquidacion_sin_diferencia.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    # Solo 2 tablas: resumen ejecutivo y cronologia.
+    assert len(llamadas) == 2
+
+
+def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):
+    # Sprint 47: parrafo de fundamento legal para los memoriales de
+    # recalculo (Art. 53 C.P. / Art. 151 CPACA), mismo patron aditivo.
+    ruta = tmp_path / "memorial_cuerpo_legal.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate(
+        "MEMORIAL DE CORRECCIÓN DE ERROR ARITMÉTICO (ART. 151 CPACA)",
+        _summary(),
+        _table_data(),
+        cuerpo_legal="Solicito la corrección del error aritmético, Art. 151 CPACA.",
+    )
+
+    assert ruta.exists()
+    assert ruta.stat().st_size > 0

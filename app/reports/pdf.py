@@ -143,6 +143,8 @@ class JudicialPDFGenerator:
         table_data: list,
         encabezado: dict | None = None,
         renta_liquida: dict | None = None,
+        diferencia_recalculo: dict | None = None,
+        cuerpo_legal: str | None = None,
     ):
         """Genera el dictamen a partir de la salida del motor LiquidationCore
         (ReportSummaryBuilder.build_summary + ReportTableBuilder.build_matrix)."""
@@ -174,6 +176,14 @@ class JudicialPDFGenerator:
                 elementos.append(
                     Paragraph(f"Juzgado: {encabezado['juzgado']}", self.styles["Normal"])
                 )
+            elementos.append(Spacer(1, 12))
+
+        # Sprint 47: parrafo de fundamento legal para los memoriales de
+        # recalculo historico (Art. 53 C.P. / Art. 151 CPACA) -- mismo patron
+        # aditivo que diferencia_recalculo/renta_liquida, opcional y sin
+        # efecto en ningun reporte de liquidacion normal.
+        if cuerpo_legal:
+            elementos.append(Paragraph(cuerpo_legal, self.styles["Normal"]))
             elementos.append(Spacer(1, 12))
 
         # Tabla de resumen ejecutivo
@@ -325,5 +335,55 @@ class JudicialPDFGenerator:
                 )
             )
             elementos.append(tabla_renta_liquida)
+
+        # Sprint 47: log de diferencias del recalculo historico post-Sprint-30
+        # (memoriales de actualizacion/correccion y de correccion de error
+        # aritmetico Art. 151 CPACA, ver app/engine/reports/memoriales.py) --
+        # mismo patron aditivo que renta_liquida arriba (Sprint 15): un bloque
+        # nuevo que solo aparece cuando el llamador lo provee.
+        if diferencia_recalculo is not None:
+            elementos.append(Spacer(1, 30))
+            elementos.append(
+                Paragraph(
+                    "<b>Log de Diferencias — Recálculo Histórico (Sprint 30)</b>",
+                    self.styles["BastiumTitle"],
+                )
+            )
+            datos_diferencia = [
+                ["Rubro", "Valor"],
+                [
+                    "Liquidación Anterior",
+                    diferencia_recalculo["audit_log_anterior"],
+                ],
+                [
+                    "Valor Anterior (Sprint 30, pre-corrección)",
+                    diferencia_recalculo["monto_anterior"],
+                ],
+                ["Valor Recalculado", diferencia_recalculo["monto_recalculado"]],
+                ["Diferencia Recuperada", diferencia_recalculo["diferencia_monto"]],
+                [
+                    "Días Cubiertos (Anterior → Recalculado)",
+                    f"{diferencia_recalculo['dias_cubiertos_anterior']} → "
+                    f"{diferencia_recalculo['dias_cubiertos_recalculado']}",
+                ],
+            ]
+            tabla_diferencia = Table(datos_diferencia, colWidths=[250, 150])
+            tabla_diferencia.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                        ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
+                        ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
+                        ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                        ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                    ]
+                )
+            )
+            elementos.append(tabla_diferencia)
+            elementos.append(Spacer(1, 12))
+            elementos.append(Paragraph(diferencia_recalculo["resumen"], self.styles["Normal"]))
 
         doc.build(elementos)

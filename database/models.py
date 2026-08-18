@@ -73,6 +73,28 @@ class TipoReajusteAnual(enum.Enum):
     NINGUNO = "NINGUNO"
 
 
+class TipoRecurrencia(enum.Enum):
+    """Cadencia de una obligacion RECURRENTE (Sprint 73). MENSUAL (default)
+    preserva el comportamiento de siempre: una cuota cada mes (cuota
+    alimentaria tipica), generada por app.services.reajuste_anual (Sprint 41)
+    o por RecurringScheduler en su forma efimera. FECHAS_ANUALES_FIJAS es un
+    patron distinto reportado por el usuario (gastos de vestuario en
+    junio/diciembre/cumpleanos del beneficiario, no una cuota mes a mes):
+    solo se causan obligaciones en las fechas MM-DD listadas en
+    `Obligacion.fechas_anuales_fijas`, cada año, via
+    app.services.recurrencia_fechas_fijas.generar_cuotas_fechas_fijas.
+
+    El cumpleanos del beneficiario se ingresa como una entrada MM-DD manual
+    mas dentro de esa lista -- NO se deriva automaticamente de una fecha de
+    nacimiento de beneficiario, porque ese dato (entidad Beneficiario/fecha de
+    nacimiento) no existe todavia en el modelo (Sprint 74, bloqueado por una
+    pregunta legal pendiente de respuesta del despacho). Revisar esta
+    limitacion cuando el Sprint 74 aterrice."""
+
+    MENSUAL = "MENSUAL"
+    FECHAS_ANUALES_FIJAS = "FECHAS_ANUALES_FIJAS"
+
+
 class TipoEventoLaboral(enum.Enum):
     SUSPENSION = "SUSPENSION"
     INCAPACIDAD_COMUN = "INCAPACIDAD_COMUN"
@@ -85,6 +107,35 @@ class MotivoSuspension(enum.Enum):
     DISCIPLINARIA = "DISCIPLINARIA"
 
 
+class EstadoProcesal(enum.Enum):
+    """Estado procesal de un Expediente (Sprint 47) -- no existia ningun campo
+    de estado procesal en el modelo antes de este sprint. Se agrega como
+    columna aditiva minima con los 3 valores que exige el protocolo de
+    recalculo historico del despacho (docs/Preguntas-Para-Abogado-Respondidas.md,
+    Sprint 47): EN_TRAMITE dispara recalculo obligatorio + "Memorial de
+    Actualizacion/Correccion"; PRESENTADO_JUZGADO_CPACA dispara recalculo +
+    memorial de correccion de error aritmetico (Art. 151 CPACA);
+    COSA_JUZGADA bloquea el recalculo automatico (se mantiene el valor por
+    seguridad juridica). Ver app/services/recalculo_historico.py.
+
+    Default EN_TRAMITE para expedientes existentes/nuevos: es la opcion mas
+    conservadora frente a la instruccion "es obligatorio recalcular" del
+    despacho (dispara el protocolo de recalculo+memorial en vez de omitirlo
+    por silencio) -- PERO debe revisarse manualmente expediente por
+    expediente antes de una corrida masiva del script de recalculo
+    (scripts/recalcular_historicas_sprint30.py), en particular para marcar
+    correctamente los que ya estan en cosa juzgada y no deben tocarse. No hay
+    UI de edicion para este campo todavia (fuera de alcance de este sprint,
+    que se confino a database/models.py + scripts/ + app/services/ +
+    app/engine/reports/ sin tocar app/views/expedientes.py) -- se ajusta
+    directo en BD o via un script puntual hasta que un sprint de UI lo
+    exponga."""
+
+    EN_TRAMITE = "EN_TRAMITE"
+    PRESENTADO_JUZGADO_CPACA = "PRESENTADO_JUZGADO_CPACA"
+    COSA_JUZGADA = "COSA_JUZGADA"
+
+
 class Expediente(Base):
     __tablename__ = "expedientes"
 
@@ -95,6 +146,18 @@ class Expediente(Base):
     area_derecho: Mapped[AreaDerecho] = mapped_column(SAEnum(AreaDerecho))
     juzgado: Mapped[str | None] = mapped_column(String(200), nullable=True)
     fecha_corte_default: Mapped[date] = mapped_column(Date)
+    # estado_procesal (Sprint 47): ver docstring de EstadoProcesal arriba para
+    # el porque del default EN_TRAMITE y la advertencia de revision manual.
+    # server_default (ademas de default de Python) porque hay codigo/tests
+    # existentes que insertan filas en `expedientes` via SQL crudo, sin pasar
+    # por el ORM -- sin un DEFAULT a nivel de DDL, SQLite rechazaria esos
+    # INSERT con "NOT NULL constraint failed" en cuanto esta columna existe.
+    estado_procesal: Mapped[EstadoProcesal] = mapped_column(
+        SAEnum(EstadoProcesal),
+        nullable=False,
+        default=EstadoProcesal.EN_TRAMITE,
+        server_default=EstadoProcesal.EN_TRAMITE.value,
+    )
 
     obligaciones: Mapped[list[Obligacion]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
@@ -181,6 +244,49 @@ class Obligacion(Base):
     # el riesgo de migracion. La relacion logica (hija -> padre) se resuelve en
     # Python filtrando por este entero, no via relationship() de SQLAlchemy.
     obligacion_padre_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # tipo_recurrencia/fechas_anuales_fijas (Sprint 73): aditivo, solo relevante
+    # para una obligacion RECURRENTE. tipo_recurrencia default MENSUAL preserva
+    # el comportamiento de todas las obligaciones RECURRENTE creadas antes de
+    # este sprint. fechas_anuales_fijas guarda una lista JSON de fechas "MM-DD"
+    # (ej. '["06-15", "12-15", "03-22"]') como TEXT en una columna String --
+    # mismo patron ya usado por ParametroLegal.areas_derecho (Sprint 57, ver
+    # app/services/areas_parametro.py) en vez de inventar un tipo de columna
+    # JSON nuevo. Solo se llena cuando tipo_recurrencia ==
+    # FECHAS_ANUALES_FIJAS; ver app/services/recurrencia_fechas_fijas.py para
+    # la (de)serializacion y el generador de cuotas hijas real.
+    # server_default (ademas de default de Python), mismo motivo que
+    # EstadoProcesal arriba: hay tests/scripts existentes que insertan filas en
+    # `obligaciones` via SQL crudo sin pasar por el ORM -- sin un DEFAULT a
+    # nivel de DDL, SQLite rechazaria esos INSERT con "NOT NULL constraint
+    # failed" en cuanto esta columna existe.
+    tipo_recurrencia: Mapped[TipoRecurrencia] = mapped_column(
+        SAEnum(TipoRecurrencia),
+        default=TipoRecurrencia.MENSUAL,
+        server_default=TipoRecurrencia.MENSUAL.value,
+    )
+    fechas_anuales_fijas: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # pacto_expreso_indexacion / protegida_inflacion_uvr (Sprint 43, indexacion IPC en
+    # Comercial/Laboral/Honorarios/Sancionatorio/Tributario -- ver
+    # docs/Preguntas-Para-Abogado-Respondidas.md, seccion Sprint 43):
+    #
+    # pacto_expreso_indexacion: solo relevante en COMERCIAL. El despacho exige que el
+    # modo "(b) capital indexado + interes civil puro 6% anual" (en vez de la tasa
+    # comercial, que ya incorpora inflacion) solo sea valido si el titulo trae un
+    # pacto expreso que lo autorice -- ver ComercialStrategy._validar_obligacion_comercial,
+    # que bloquea con ValueError si aplica_indexacion_ipc esta marcado sin este flag
+    # (el XOR "tasa comercial O IPC+civil" del despacho).
+    #
+    # protegida_inflacion_uvr: solo relevante en TRIBUTARIO. Marca que el
+    # titulo/tasa de esta obligacion ya incorpora su propia proteccion inflacionaria
+    # (ej. UVR) -- el despacho exige bloquear con error si ademas se intenta aplicar
+    # la indexacion IPC del Art. 867-1 E.T. sobre el mismo capital (prohibicion de
+    # doble cobro). Ver TributarioStrategy._validar_obligacion_tributaria.
+    pacto_expreso_indexacion: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    protegida_inflacion_uvr: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(
@@ -259,6 +365,40 @@ class AuditLog(Base):
     fecha_corte: Mapped[date] = mapped_column(Date)
     area_derecho: Mapped[str] = mapped_column(String(50))
     resultado_json: Mapped[str] = mapped_column(Text)
+    # Sprint 47 (recalculo historico post-Sprint-30) -- las 3 columnas de abajo
+    # son append-only/aditivas, no cambian el significado de ninguna fila
+    # existente (todas nacen en False/NULL para filas legadas via el script de
+    # migracion, ver scripts/migrate_sprint47_recalculo_historico.py).
+    #
+    # obsoleto_requiere_recalculo: flag literal "OBSOLETO - REQUIERE RECALCULO"
+    # exigido por el despacho -- True cuando esta fila se genero antes del
+    # cierre del Sprint 30 (commit 5c4cc9a, 2026-08-04) y por lo tanto pudo
+    # calcularse con la logica defectuosa de fecha_interrupcion_efectiva/
+    # dias_trabajados. Puesto por
+    # app.services.recalculo_historico.marcar_obsoletas -- NUNCA se
+    # sobrescribe el resultado_json de la fila marcada (append-only, ver
+    # liquidacion_anterior_id).
+    obsoleto_requiere_recalculo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    # liquidacion_anterior_id: mecanismo tecnico ya decidido con el usuario
+    # (ver docs/Pendientes.md, Sprint 47) -- una liquidacion recalculada NUNCA
+    # sobrescribe la fila obsoleta, se guarda como una fila AuditLog nueva que
+    # apunta a la anterior via este campo (misma AuditLog, auto-referencial).
+    # Deliberadamente SIN sqlalchemy.ForeignKey(): mismo motivo documentado en
+    # Obligacion.obligacion_padre_id de arriba -- SQLite no permite
+    # "ALTER TABLE ... DROP COLUMN" sobre una columna que participa en una FK
+    # de tabla, lo que bloquearia migraciones futuras que necesiten recrear
+    # esta columna; la app tampoco activa PRAGMA foreign_keys=ON. La relacion
+    # logica se resuelve en Python (session.get(AuditLog, ...)), no via
+    # relationship() de SQLAlchemy.
+    liquidacion_anterior_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # motivo_recalculo: texto libre -- en la fila VIEJA marcada obsoleta
+    # siempre es el flag literal exigido por el despacho
+    # ("OBSOLETO - REQUIERE RECALCULO"); en la fila NUEVA que la recalcula
+    # describe de que recalculo se trata y cual fila reemplaza (referencia
+    # legible, ademas de liquidacion_anterior_id).
+    motivo_recalculo: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     expediente: Mapped[Expediente] = relationship(back_populates="audit_logs")
 
