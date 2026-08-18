@@ -1150,6 +1150,68 @@ class TestComercialStrategy:
         # 3 cuotas de 500000 causadas: enero, febrero, marzo
         assert resultado.final_balance().principal == Decimal("1500000.00")
 
+    def test_no_duplica_capital_del_padre_cuando_ya_tiene_cuotas_generadas(self):
+        """Bug analogo al ya corregido en CivilFamiliaStrategy (Sprint 75, ver
+        test_civil_familia_recurrente_sin_reajuste_y_cuotas_generadas_no_duplica_capital
+        en este mismo archivo): ComercialStrategy soporta obligaciones RECURRENTE
+        via FamilyScheduler (mismo mecanismo que Civil/Familia usaba antes del
+        Sprint 41), pero -- antes de este fix -- no detecta cuando esa obligacion
+        ya tiene cuotas-hija reales generadas y persistidas
+        (generar_cuotas_mensuales, app/services/reajuste_anual.py, Sprint 75 Task 1
+        extendio esta funcion para soportar tambien tipo_reajuste_anual = NINGUNO).
+        Si el padre RECURRENTE y sus cuotas hijas reales se liquidan juntos (mismo
+        expediente), el capital se duplicaba: una vez via cada cuota real (tratada
+        como PUNTUAL independiente) y otra vez via la expansion efimera de
+        FamilyScheduler sobre el padre."""
+        session = session_module.get_session()
+        obligacion_recurrente = Obligacion(
+            expediente_id=1,
+            tipo=TipoObligacion.RECURRENTE,
+            concepto="CUOTAS DE PAGARE A PLAZOS",
+            categoria="CAPITAL_PAGARE",
+            fecha_origen=date(2024, 1, 1),
+            fecha_inicio=date(2024, 1, 1),
+            fecha_fin=date(2024, 3, 1),
+            dia_pago=1,
+            valor=Decimal("500000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            tasa_moratoria_anual=Decimal("24.00"),
+            fecha_vencimiento=date(2024, 1, 1),
+            ibc_vigente_anual=Decimal("20.00"),
+            tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+        )
+        session.add(obligacion_recurrente)
+        session.commit()
+        session.close()
+
+        cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
+        assert len(cuotas) == 3
+        for cuota in cuotas:
+            # generar_cuotas_mensuales (Sprint 41/75) es generico a todas las areas
+            # y solo copia los campos comunes de Obligacion -- no conoce los campos
+            # exclusivos de ComercialStrategy (_validar_obligacion_comercial exige
+            # tasa_moratoria_anual/fecha_vencimiento/ibc_vigente_anual en TODAS las
+            # obligaciones, incluidas las cuotas hijas). Se completan aqui a mano,
+            # igual que haria el flujo real de generacion de cuotas para un
+            # expediente Comercial.
+            cuota.tasa_moratoria_anual = obligacion_recurrente.tasa_moratoria_anual
+            cuota.fecha_vencimiento = cuota.fecha_origen
+            cuota.ibc_vigente_anual = obligacion_recurrente.ibc_vigente_anual
+
+        resultado = ComercialStrategy().liquidar(
+            obligaciones=[obligacion_recurrente, *cuotas],
+            abonos=[],
+            fecha_corte=date(2024, 3, 1),
+        )
+
+        # Solo las 3 cuotas hijas reales (500000 x 3 = 1500000) -- el padre
+        # RECURRENTE no debe aportar un capital fantasma adicional via
+        # FamilyScheduler encima de las cuotas ya generadas. Sin el fix, esto da
+        # 3000000.00 (el doble).
+        total_esperado = sum((cuota.valor for cuota in cuotas), Decimal("0.00"))
+        assert total_esperado == Decimal("1500000.00")
+        assert resultado.final_balance().principal == total_esperado
+
     def test_soporta_indexacion_ipc_es_false(self):
         assert ComercialStrategy().soporta_indexacion_ipc is False
 

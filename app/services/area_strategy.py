@@ -498,11 +498,25 @@ class ComercialStrategy(AreaStrategy):
         for obligacion in obligaciones:
             self._validar_obligacion_comercial(obligacion)
 
+        # Sprint 75 Task 3 -- mismo patron que CivilFamiliaStrategy (ver
+        # docstring de _eventos_de_obligacion abajo): ids de obligaciones
+        # RECURRENTE que ya tienen al menos una cuota hija persistida
+        # (generar_cuotas_mensuales, app/services/reajuste_anual.py). `obligaciones`
+        # ya trae esas cuotas como filas independientes del mismo expediente, asi
+        # que basta con leer obligacion_padre_id de cada una.
+        ids_con_cuotas_generadas = {
+            obligacion.obligacion_padre_id
+            for obligacion in obligaciones
+            if obligacion.obligacion_padre_id is not None
+        }
+
         resultado = _liquidar_por_obligacion(
             obligaciones=obligaciones,
             abonos=abonos,
             fecha_corte=fecha_corte,
-            eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
+            eventos_fn=lambda obligacion: self._eventos_de_obligacion(
+                obligacion, fecha_corte, ids_con_cuotas_generadas
+            ),
             rate_provider_fn=self._construir_rate_provider_obligacion,
             monto_abono_fn=self._monto_abono_en_pesos,
         )
@@ -741,7 +755,9 @@ class ComercialStrategy(AreaStrategy):
             fecha_evento += timedelta(days=365)
         return eventos
 
-    def _eventos_de_obligacion(self, obligacion, fecha_corte: date) -> list[Event]:
+    def _eventos_de_obligacion(
+        self, obligacion, fecha_corte: date, ids_con_cuotas_generadas: set | None = None
+    ) -> list[Event]:
         valor_pesos = self._valor_en_pesos(obligacion)
         if obligacion.tipo.value == "PUNTUAL":
             eventos = [
@@ -760,6 +776,26 @@ class ComercialStrategy(AreaStrategy):
             return eventos
 
         # RECURRENTE
+        # Sprint 75 Task 3 -- mismo patron y misma razon que
+        # CivilFamiliaStrategy._eventos_de_obligacion (ver el comentario extenso
+        # de esa clase mas arriba en este archivo): si esta obligacion ya tiene
+        # cuotas mensuales reales generadas y persistidas (Obligacion PUNTUAL
+        # hijas, generar_cuotas_mensuales), esas cuotas ya vienen incluidas en
+        # `obligaciones` como filas independientes -- la obligacion RECURRENTE
+        # padre NO debe generar NINGUN evento de capital propio en ese caso,
+        # o el capital se duplicaria (una vez via la expansion efimera de
+        # FamilyScheduler de abajo, otra vez via cada cuota hija real). El
+        # criterio de skip es unicamente la membresia en
+        # ids_con_cuotas_generadas (obligacion_padre_id real, ver liquidar()
+        # arriba) -- NO depende de tipo_reajuste_anual: ComercialStrategy
+        # tambien puede tener cuotas hijas generadas con tipo_reajuste_anual =
+        # NINGUNO (Sprint 75 Task 1), asi que exigir reajuste activo ademas de
+        # la membresia reintroduciria el mismo bug ya corregido en
+        # CivilFamiliaStrategy (ver
+        # test_civil_familia_recurrente_sin_reajuste_y_cuotas_generadas_no_duplica_capital).
+        if obligacion.id in (ids_con_cuotas_generadas or set()):
+            return []
+
         scheduler = FamilyScheduler()
         scheduler.add_monthly_obligation(
             amount=valor_pesos,
