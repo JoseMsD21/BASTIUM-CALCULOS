@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
@@ -6,7 +7,9 @@ from app.core.exceptions import ParametroNoDisponibleError
 from app.domain.obligation.payment import Payment
 from app.engine.financial.rate import Rate
 from app.engine.interest.provider import RateProvider
+from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.engine import LiquidationCore
+from app.engine.liquidation.models import PaymentAllocation, PendingDebt
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.prescripcion import TipoAccion, filtrar_cuotas_prescritas
 from app.engine.temporal.schedulers.base import Event
@@ -33,6 +36,9 @@ class UniversalLiquidationService:
         rate_provider: RateProvider | None = None,
         usar_suma_unica: bool = False,
         tipo_accion: TipoAccion = TipoAccion.EJECUTIVA,
+        estrategia_imputacion: Callable[
+            [Decimal, PendingDebt, date], tuple[PaymentAllocation, PendingDebt, Decimal]
+        ] = AllocationEngine.allocate,
     ) -> LiquidationResult:
 
         # 1. Configurar la política de mora
@@ -59,6 +65,7 @@ class UniversalLiquidationService:
             default_daily_rate=tasa_mora,
             rate_provider=rate_provider,
             usar_suma_unica=usar_suma_unica,
+            estrategia_imputacion=estrategia_imputacion,
         )
 
         # 5. Ejecución del procesamiento temporal implacable

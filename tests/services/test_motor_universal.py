@@ -3,6 +3,7 @@ from datetime import datetime as _dt
 from decimal import Decimal
 
 import database.session as session_module
+from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.engine import LiquidationCore
 from app.engine.temporal.prescripcion import TipoAccion
 from app.engine.temporal.schedulers.base import Event
@@ -219,3 +220,22 @@ def test_liquidar_acepta_tipo_accion_explicito_para_calcular_prescripcion():
 
     assert resultado_default.items[0].prescrita is True
     assert resultado_ordinaria.items[0].prescrita is False
+
+
+def test_universal_liquidation_service_propaga_estrategia_capital_primero():
+    from app.domain.obligation.payment import Payment
+
+    eventos = [
+        Event(date=date(2024, 1, 1), payload={"amount": Decimal("100000.00")}, event_type="INSTALLMENT"),
+        Event(date=date(2024, 2, 1), payload={"amount": Decimal("5000.00")}, event_type="INTEREST"),
+    ]
+    pagos = [Payment(date=date(2024, 3, 1), amount=Decimal("100000.00"), reference="")]
+    resultado = UniversalLiquidationService().liquidar(
+        eventos_causacion=eventos,
+        pagos=pagos,
+        fecha_corte=date(2024, 3, 1),
+        estrategia_imputacion=AllocationEngine.allocate_capital_primero,
+    )
+    saldo = resultado.final_balance()
+    assert saldo.principal == Decimal("0.00")
+    assert saldo.interest == Decimal("5000.00")
