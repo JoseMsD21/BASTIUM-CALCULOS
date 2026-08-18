@@ -14,23 +14,21 @@ coinciden siempre, sin un numero precalculado aparte (decision 5 de la spec).
 
 from datetime import date
 from decimal import Decimal
-from typing import TypeVar
 
 from app.domain.obligation.payment import Payment
 from app.engine.interest.provider import RateProvider
 from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.models import PendingDebt
 from app.engine.temporal.schedulers.base import Event
+from app.services.area_strategy import CivilFamiliaStrategy
 from app.services.motor_universal import UniversalLiquidationService
 
-_T = TypeVar("_T")
 
-
-def distribuir_pago_en_cascada(
-    cuotas_y_deuda: list[tuple[_T, PendingDebt]],
+def distribuir_pago_en_cascada[T](
+    cuotas_y_deuda: list[tuple[T, PendingDebt]],
     monto_total: Decimal,
     fecha_pago: date,
-) -> tuple[list[tuple[_T, Decimal]], Decimal]:
+) -> tuple[list[tuple[T, Decimal]], Decimal]:
     """`cuotas_y_deuda` debe venir ordenada de la cuota mas reciente a la mas
     antigua (lo decide el caller, segun el rango/seleccion del usuario en la
     UI). Retorna (asignaciones, remanente_sin_cubrir): asignaciones es una
@@ -38,7 +36,7 @@ def distribuir_pago_en_cascada(
     (> 0); remanente_sin_cubrir es lo que sobro despues de recorrer todas las
     cuotas de la lista (0 si el monto se reparte exacto)."""
     remanente = monto_total
-    asignaciones: list[tuple[_T, Decimal]] = []
+    asignaciones: list[tuple[T, Decimal]] = []
     for cuota, deuda in cuotas_y_deuda:
         if remanente <= Decimal("0.00"):
             break
@@ -60,19 +58,40 @@ def deuda_pendiente_cuota(
     mismo motor (UniversalLiquidationService) y la misma estrategia
     (allocate_capital_primero) que se usara despues al liquidar de verdad los
     Abono que cree la cascada -- no persiste nada (pagos=[] o los abonos ya
-    existentes de esa cuota, nunca los que la cascada esta a punto de crear)."""
-    evento = Event(
-        date=cuota.fecha_origen,
-        payload={"amount": cuota.valor, "label": cuota.concepto},
-        event_type=cuota.categoria,
-    )
+    existentes de esa cuota, nunca los que la cascada esta a punto de crear).
+
+    aplica_indexacion_ipc (Sprint 75, hallazgo de revision de codigo): es un
+    juicio legal del abogado independiente de tipo_reajuste_anual --
+    generar_cuotas_mensuales (app/services/reajuste_anual.py) lo copia del
+    padre RECURRENTE a cada cuota-hija, y CivilFamiliaStrategy
+    ._eventos_de_obligacion (rama PUNTUAL, app/services/area_strategy.py)
+    agrega un segundo evento INDEXATION cuando esta activo. Reutiliza
+    CivilFamiliaStrategy._evento_indexacion tal cual (en vez de reimplementar
+    el calculo) para que esta proyeccion y la liquidacion real de produccion
+    nunca puedan divergir."""
+    eventos = [
+        Event(
+            date=cuota.fecha_origen,
+            payload={"amount": cuota.valor, "label": cuota.concepto},
+            event_type=cuota.categoria,
+        )
+    ]
+    if cuota.aplica_indexacion_ipc:
+        eventos.append(
+            CivilFamiliaStrategy()._evento_indexacion(
+                fecha_causacion=cuota.fecha_origen,
+                capital=cuota.valor,
+                concepto=cuota.concepto,
+                fecha_corte=fecha_pago,
+            )
+        )
     pagos = [
         Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
         for abono in abonos_existentes
         if abono.obligacion_id == cuota.id
     ]
     resultado = UniversalLiquidationService().liquidar(
-        eventos_causacion=[evento],
+        eventos_causacion=eventos,
         pagos=pagos,
         fecha_corte=fecha_pago,
         rate_provider=rate_provider,
