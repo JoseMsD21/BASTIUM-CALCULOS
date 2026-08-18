@@ -28,6 +28,7 @@ from app.services.area_strategy import (
     TributarioStrategy,
     _evento_costas_procesales,
 )
+from app.services.reajuste_anual import generar_cuotas_mensuales
 from database.models import (
     Abono,
     Base,
@@ -391,6 +392,75 @@ def test_civil_familia_recurrente_con_reajuste_y_cuotas_generadas_no_duplica_cap
     # habria generado por su cuenta (que habria dado 2500000: 1000000 de las
     # cuotas reales + 1500000 fantasma).
     assert resultado.final_balance().principal == Decimal("1000000.00")
+
+
+def _obligacion_civil_familia_recurrente_persistida(
+    valor: Decimal,
+    fecha_inicio: date,
+    tasa_efectiva_anual: Decimal,
+    tipo_reajuste_anual: TipoReajusteAnual,
+    expediente_id: int = 1,
+) -> Obligacion:
+    """Persiste una obligacion RECURRENTE de Civil/Familia en la sesion en memoria
+    (fixture autouse `_parametros_legales_en_memoria` de este archivo) -- necesario
+    porque `generar_cuotas_mensuales` (Sprint 41/75) requiere una obligacion con `id`
+    real para poder generar y persistir las cuotas hijas."""
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="CUOTA ALIMENTARIA",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=fecha_inicio,
+        fecha_inicio=fecha_inicio,
+        dia_pago=fecha_inicio.day,
+        valor=valor,
+        tasa_efectiva_anual=tasa_efectiva_anual,
+        tipo_reajuste_anual=tipo_reajuste_anual,
+    )
+    session.add(obligacion)
+    session.commit()
+    session.close()
+    return obligacion
+
+
+def test_civil_familia_cuota_hija_usa_capital_primero_en_su_propio_abono():
+    # Sprint 75, Task 2: toda cuota-hija (Obligacion PUNTUAL generada por
+    # generar_cuotas_mensuales, obligacion_padre_id seteado) debe liquidar sus
+    # propios abonos con capital-primero -- sin este wiring, un abono directo
+    # sobre la cuota (fuera de la cascada, ej. via AbonoFormDialog) usaria por
+    # error el orden legal general (interes antes que capital).
+    obligacion_recurrente = _obligacion_civil_familia_recurrente_persistida(
+        valor=Decimal("150000.00"),
+        fecha_inicio=date(2022, 4, 1),
+        tasa_efectiva_anual=Decimal("12.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 4, 1))
+    cuota_marzo = next(c for c in cuotas if c.fecha_origen == date(2024, 3, 1))
+    assert cuota_marzo.obligacion_padre_id == obligacion_recurrente.id
+
+    # Abono que cubre el capital de esa cuota individual (150000.00) mas solo una
+    # parte de su interes de mora (aprox. 444.00 causados en 31 dias al 12% EA) --
+    # calibrado para que el resultado sea distinto segun el orden de imputacion:
+    # capital-primero deja saldo en INTERES; interes-primero (el orden legal
+    # general) dejaria saldo en CAPITAL.
+    abono = Abono(obligacion_id=cuota_marzo.id, fecha=date(2024, 4, 1), monto=Decimal("151000.00"))
+
+    # Se liquida SOLO la cuota-hija (no el expediente completo con el padre y las
+    # demas 24 cuotas hermanas) para poder verificar, sin ruido, el saldo final
+    # propio de esta cuota -- liquidar el expediente completo consolida el
+    # capital_base de TODAS las obligaciones del expediente en cada fila
+    # (_fusionar_resultados), lo que enmascararia esta verificacion puntual.
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[cuota_marzo],
+        abonos=[abono],
+        fecha_corte=date(2024, 4, 1),
+    )
+
+    saldo = resultado.final_balance()
+    assert saldo.principal == Decimal("0.00")
+    assert saldo.interest > Decimal("0.00")
 
 
 def test_civil_familia_recurrente_con_reajuste_pero_sin_cuotas_generadas_usa_expansion_efimera():

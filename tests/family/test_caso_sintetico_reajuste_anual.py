@@ -12,6 +12,13 @@ Task 4 (CivilFamiliaStrategy usa las cuotas hijas reales, sin duplicar el
 capital de la obligacion padre) -> abono capturado contra el obligacion_id de
 UNA cuota especifica (mismo mecanismo que usa AbonoFormDialog, sin campo
 nuevo en Abono).
+
+Actualizado en el Sprint 75 (Task 2, orden de imputacion intercambiable): el
+abono de este escenario recae sobre una cuota-hija real (obligacion_padre_id
+seteado), asi que desde ese sprint se liquida con capital-primero
+(AllocationEngine.allocate_capital_primero) en vez de la imputacion legal
+general (indexacion -> intereses -> capital) -- ver el comentario junto al
+abono mas abajo.
 """
 
 from datetime import date, datetime, timedelta
@@ -130,12 +137,16 @@ def test_caso_sintetico_capital_correcto_por_anio_y_mora_independiente_con_abono
     # --- Abono parcial sobre UNA sola cuota (la de noviembre 2023) -----------
     # Capturado contra el obligacion_id de esa cuota especifica -- mismo
     # mecanismo que AbonoFormDialog, sin ningun campo nuevo en Abono. Monto
-    # deliberadamente menor al interes ya causado por esa cuota en la fecha del
-    # abono (ver la asercion mas abajo), para que la imputacion legal
-    # (indexacion -> intereses -> capital, AllocationEngine) quede
-    # integramente en intereses y el capital de la cuota no se toque -- asi la
-    # comparacion contra el calculo aislado es exacta y no depende de
-    # reconstruir la prelacion de pagos a mano.
+    # deliberadamente menor tanto al interes ya causado como al capital de esa
+    # cuota (ver la asercion mas abajo). Antes del Sprint 75 esto habria
+    # importado para garantizar que la imputacion legal general (indexacion ->
+    # intereses -> capital) dejara el abono integramente en intereses -- pero
+    # desde el Sprint 75 (Task 2), toda cuota-hija (Obligacion PUNTUAL generada
+    # por generar_cuotas_mensuales, obligacion_padre_id seteado, como
+    # cuota_noviembre aqui) liquida sus propios abonos con capital-primero
+    # (AllocationEngine.allocate_capital_primero), sin importar el monto: el
+    # abono se aplica integramente al capital (5000.00 < 500000.00 de capital),
+    # el interes ya causado queda intacto ("congelado").
     cuota_noviembre = por_fecha[date(2023, 11, 5)]
     fecha_abono = date(2024, 1, 15)
     monto_abono = Decimal("5000.00")
@@ -143,6 +154,7 @@ def test_caso_sintetico_capital_correcto_por_anio_y_mora_independiente_con_abono
         cuota_noviembre.valor, cuota_noviembre.fecha_origen, fecha_abono
     )
     assert monto_abono < interes_causado_cuota_noviembre_al_abono
+    assert monto_abono < cuota_noviembre.valor
 
     session = session_module.get_session()
     session.add(
@@ -171,31 +183,48 @@ def test_caso_sintetico_capital_correcto_por_anio_y_mora_independiente_con_abono
     assert resultado.total_payments_applied() == monto_abono
 
     # Capital: la obligacion RECURRENTE padre no aporta nada (Task 4 -- ya
-    # tiene cuotas hijas generadas), y el abono se absorbio integramente en
-    # intereses -- el capital de las 4 cuotas queda intacto.
+    # tiene cuotas hijas generadas). Desde el Sprint 75 (Task 2), el abono se
+    # absorbe integramente en CAPITAL (capital-primero para cuotas-hija) --
+    # el capital consolidado de las 4 cuotas queda reducido exactamente en el
+    # monto del abono.
     capital_esperado = sum((cuota.valor for cuota in cuotas), Decimal("0.00"))
     assert capital_esperado == Decimal("2100000.00")
-    assert resultado.final_balance().principal == capital_esperado
+    assert resultado.final_balance().principal == capital_esperado - monto_abono
 
-    # Mora independiente por cuota: el interes final consolidado debe ser
-    # exactamente la suma de los 4 calculos aislados por cuota, MENOS el
-    # monto del abono (que redujo integramente el interes ya causado de la
-    # cuota de noviembre, sin afectar en nada a las otras 3 -- ni su capital
-    # ni su propio interes, que sigue acumulando sobre el mismo capital sin
-    # importar cuando se pago el interes de OTRA cuota. Este es el mismo
-    # principio verificado en la Task 3
+    # Mora independiente por cuota: el interes final consolidado debe ser la
+    # suma de los 4 calculos aislados por cuota -- las otras 3 cuotas no se
+    # tocan (ni su capital ni su propio interes). La cuota de noviembre es la
+    # unica excepcion: como el abono (capital-primero) redujo SU capital de
+    # 500000.00 a 495000.00 desde fecha_abono en adelante, su interes aislado
+    # se calcula en dos tramos (capital pleno hasta fecha_abono, capital
+    # reducido de fecha_abono a fecha_corte) -- el interes ya causado antes
+    # del abono no se ve afectado (capital-primero lo deja "congelado", ver
+    # AllocationEngine.allocate_capital_primero), pero el interes que sigue
+    # corriendo DESPUES del abono si corre sobre el capital ya reducido. Este
+    # es el mismo principio verificado en la Task 3
     # (tests/family/test_interes_autonomo_por_cuota.py), aqui extendido a un
     # escenario con reajuste anual real y un abono parcial de por medio.
-    interes_aislado_total_sin_abonos = sum(
+    interes_noviembre_antes_del_abono = _interes_aislado_dia_a_dia(
+        cuota_noviembre.valor, cuota_noviembre.fecha_origen, fecha_abono
+    )
+    interes_noviembre_despues_del_abono = _interes_aislado_dia_a_dia(
+        cuota_noviembre.valor - monto_abono, fecha_abono, fecha_corte
+    )
+    interes_otras_cuotas = sum(
         (
             _interes_aislado_dia_a_dia(cuota.valor, cuota.fecha_origen, fecha_corte)
             for cuota in cuotas
+            if cuota.id != cuota_noviembre.id
         ),
         Decimal("0.00"),
     )
-    interes_consolidado_esperado = interes_aislado_total_sin_abonos - monto_abono
+    interes_consolidado_esperado = (
+        interes_noviembre_antes_del_abono
+        + interes_noviembre_despues_del_abono
+        + interes_otras_cuotas
+    )
     assert resultado.final_balance().interest == interes_consolidado_esperado
     # Cifra concreta (verificada a mano, ver el comentario del modulo): sirve
     # de ancla adicional si algun cambio futuro en el motor altera el redondeo
     # dia a dia sin que ninguna de las asercions de arriba lo capture.
-    assert resultado.final_balance().interest == Decimal("10015.93")
+    assert resultado.final_balance().interest == Decimal("14999.13")

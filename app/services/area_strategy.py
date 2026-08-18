@@ -24,6 +24,7 @@ from app.engine.interest.usury_validator import calcular_tope_usura
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.seguridad_social import SeguridadSocialCalculator
+from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.tax.actualizacion_867_1 import (
@@ -89,6 +90,16 @@ def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> 
     )
 
 
+def _estrategia_imputacion_por_obligacion(obligacion):
+    """Capital-primero para toda cuota-hija generada por recurrencia
+    (obligacion_padre_id no nulo, Sprint 75); orden legal general
+    (indexacion->interes->capital) para el resto -- ver decision 2 de
+    docs/superpowers/specs/2026-08-14-sprint75-cuotas-recurrentes-cascada-design.md."""
+    if obligacion.obligacion_padre_id is not None:
+        return AllocationEngine.allocate_capital_primero
+    return AllocationEngine.allocate
+
+
 def _liquidar_por_obligacion(
     obligaciones: list,
     abonos: list,
@@ -97,6 +108,7 @@ def _liquidar_por_obligacion(
     rate_provider_fn: Callable[[object, date], MemoryRateProvider],
     usar_suma_unica_fn: Callable[[object], bool] = lambda obligacion: False,
     monto_abono_fn: Callable[[object, object], Decimal] = lambda obligacion, abono: abono.monto,
+    estrategia_imputacion_fn: Callable[[object], Callable] = _estrategia_imputacion_por_obligacion,
 ) -> LiquidationResult:
     """Corre un LiquidationCore independiente por obligacion -- cada una con su propia
     tasa (via rate_provider_fn) y solo sus propios abonos (Abono.obligacion_id) -- y
@@ -144,6 +156,7 @@ def _liquidar_por_obligacion(
                 fecha_corte=fecha_corte,
                 rate_provider=rate_provider_fn(obligacion, fecha_corte),
                 usar_suma_unica=usar_suma_unica_fn(obligacion),
+                estrategia_imputacion=estrategia_imputacion_fn(obligacion),
             )
         )
 
