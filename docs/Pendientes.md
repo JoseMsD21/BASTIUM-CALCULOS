@@ -2204,7 +2204,7 @@ campo `saldo_a_favor` como algo ya existente.
 
 ---
 
-## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados 📋 Pendiente
+## Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado
 
 **Prioridad sugerida:** Alta — hoy es posible guardar datos absurdos (tasas negativas, fechas invertidas,
 tramos de parámetros solapados) sin ningún aviso, y el error solo aparece más tarde como un resultado de
@@ -2258,6 +2258,16 @@ liquidación incorrecto sin explicación.
 - Test que confirma que `parametro_service.agregar_valor` rechaza un valor negativo para una clave de
   tasa/indicador, y rechaza un tramo `TRAMO_CERRADO` que se solape con uno existente.
 - Suite completa en verde.
+
+**Cierre (2026-08-17, hallazgo al auditar el código antes de arrancar los Sprints 72/73/43/47):** este sprint
+ya estaba completo en el código, solo nunca se marcó aquí. `ObligacionFormDialog._validar_rango`/
+`_validar_concepto_no_vacio`/`_validar_fecha_no_posterior_a_corte` (`app/views/obligaciones.py`) y la
+validación compartida de `parametro_service.agregar_valor`/`editar_valor` (rango, positividad, solapamiento
+de tramos `TRAMO_CERRADO`, `vigente_hasta >= vigente_desde`) ya existían y ya tenían tests cubriendo
+exactamente esta Definición de Hecho — probablemente entraron como efecto colateral de la integración final
+de los Sprints 56-60 (ver el comentario "Revision final de integracion (Sprints 56-60)" en
+`parametro_service.py`) y del Sprint 34 (que ya citaba "reutilizando las reglas del Sprint 24" en su propio
+cierre, ver `CHANGELOG.md`). No se tocó código para cerrar este sprint, solo se confirmó y documentó.
 
 ---
 
@@ -3764,6 +3774,22 @@ con `mostrar_toast(tipo="warning")`, reutilizando el mecanismo del Sprint 36 en 
 `scripts/migrate_indexacion_ipc_areas_sprint43.py`. `IPC_INDICE_ACUMULADO`/`IPC_VARIACION_ANUAL`/
 `CIVIL_ANNUAL_RATE` ampliadas en `app/services/areas_parametro.py` para que Parámetros muestre la fila
 correcta de áreas. Suite completa en verde (1251 tests).
+
+**2 correcciones de code review, aplicadas antes de cerrar (2026-08-18):**
+1. `alertas` no se guardaba/recuperaba en la serialización de auditoría (`app/engine/audit/serialization.py`)
+   — una liquidación histórica reconstruida desde `AuditLog` siempre volvía con `alertas=[]`, aunque la
+   original sí tuviera advertencias. Corregido (commit `1906ebe`) con round-trip real, verificado con test.
+2. El toast de alertas solo se disparaba en el cálculo en vivo (`_on_liquidar_completado`), no al reabrir una
+   liquidación histórica (`_reconstruir_desde_historial`) ni en ningún lugar persistente. Corregido (commit
+   `cf84ae7`): helper compartido `_mostrar_alertas_de_liquidacion` llamado desde ambos flujos, más un banner
+   de advertencia persistente en `ResultadoLiquidacionView` (mismo patrón visual que el prefijo "⚠" ya usado
+   para obligaciones prescritas), que se limpia correctamente en cada `mostrar()` para no arrastrar alertas
+   de una liquidación anterior. **Quedó pendiente a propósito, documentado como seguimiento explícito, no
+   perdido en el commit:** `app/reports/pdf.py`/`word.py` siguen sin leer `.alertas` — un abogado que exporte
+   PDF/Word sin volver a abrir la app no ve advertencias como "Doble Actualización Prohibida" o "Techo de
+   usura alcanzado" en el documento. Ver Sprint 77.
+
+Suite completa en verde tras ambas correcciones (1258 tests).
 
 ---
 
@@ -5407,7 +5433,7 @@ marcables de `obligaciones.py`, o corregir la regla existente si el checkbox int
 
 ---
 
-## Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo 📋 Pendiente
+## Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado
 
 **Prioridad sugerida:** Media-alta — no es un bug de cálculo, pero afecta la usabilidad de la pantalla más
 usada del software (Sprint 56 ya permitió redimensionar el diálogo, pero no corrigió el tamaño inicial ni
@@ -5450,9 +5476,23 @@ visual y el tamaño por defecto.
   tamaño por defecto del diálogo.
 - Suite completa en verde.
 
+**Cierre (2026-08-17, commits `6b3ffea`/`1be69c5`):** `layout_principal` pasó a `QGridLayout` (Datos básicos
+arriba-izquierda, Honorarios y costas abajo-izquierda, Tasas e intereses a la derecha con `rowSpan`,
+Guardar abajo abarcando las 2 columnas). La primera versión (`6b3ffea`) fijaba `self.resize(900, 650)`, pero
+el code review encontró que Qt recalcula el ancho mínimo real al mostrar el diálogo (`.exec()`), y 4 de 6
+áreas terminaban más anchas que 1366px (hasta 1660px en Honorarios) — peor que el layout de una sola
+columna que tenía antes. La corrección (`1be69c5`) envolvió las 3 secciones en un `QScrollArea`
+(`area_desplazable_secciones`) para desacoplar el tamaño mínimo del contenido del tamaño de la ventana, y
+sacó el botón Guardar del grid hacia el layout exterior para que quede siempre visible sin importar el
+scroll. Con `self.resize(1300, 650)`, las 6 áreas quedan exactamente en 1300×650 (verificado con
+`QT_QPA_PLATFORM=offscreen` + `.show()`, igual que corre la CI) — Civil/Familia sigue necesitando scroll
+horizontal para ver todo "Tasas e intereses" (contenido ~1620px, sobre todo por la etiqueta larga del
+checkbox de interés sobre capital indexado), tradeoff aceptado en vez de restructurar ese `QFormLayout`
+interno (fuera de alcance de este sprint). Suite completa en verde (1196 tests en el momento del cierre).
+
 ---
 
-## Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) 📋 Pendiente
+## Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado
 
 **Prioridad sugerida:** Media — extiende un mecanismo ya construido (Sprint 41) a un patrón de recurrencia
 distinto, no es un bug.
@@ -5486,6 +5526,21 @@ de cumpleaños de X persona, cada año").
 - Una obligación de "gastos de vestuario" con fechas junio/diciembre/cumpleaños genera exactamente esas
   ocurrencias por año, no 12 cuotas mensuales.
 - Suite completa en verde.
+
+**Cierre (2026-08-17, commit `b03210d`):** decisión de diseño tomada — nuevo `TipoRecurrencia`
+(`MENSUAL`/`FECHAS_ANUALES_FIJAS`) con lista de fechas MM-DD en formato JSON (`Obligacion.fechas_anuales_fijas`,
+`String(300)`). El cumpleaños del beneficiario se ingresa como una fecha MM-DD manual más en la lista —
+**no** se deriva de una fecha de nacimiento, porque el Sprint 74 (intake de beneficiario/fecha de nacimiento)
+sigue sin implementar; documentado en 3 lugares (docstring del modelo, del servicio, y tooltip del campo) como
+limitación a revisar cuando el Sprint 74 se construya. `app/services/recurrencia_fechas_fijas.py` (nuevo)
+reutiliza genuinamente el contrato de `generar_cuotas_mensuales()` del Sprint 41 (mismo patrón de obligación
+hija/`obligacion_padre_id`, misma idempotencia, misma sesión propia) — el reajuste anual es opcional en este
+generador (a diferencia del mensual, donde es obligatorio), porque gastos de fecha fija como vestuario no
+necesariamente reajustan cada año. Verificado con test end-to-end: 3 fechas → exactamente 3 ocurrencias por
+año, no 12. Sin invasión de alcance del Sprint 73/74 (confirmado por grep: no se creó ninguna entidad
+`Beneficiario` ni campo de fecha de nacimiento). El nuevo combo/campo en `ObligacionFormDialog` es aditivo,
+no tocó el `QGridLayout`/`QScrollArea` que acababa de dejar el Sprint 72. Suite completa en verde (1230
+tests en el momento del cierre).
 
 ---
 
@@ -5649,6 +5704,65 @@ código, no solo por lectura. Suite completa tras los 4 fixes de código: 1147/1
 **Archivos tocados:** `app/services/motor_universal.py`, `app/services/area_strategy.py`,
 `app/reports/pdf.py`, `app/reports/word.py`, `app/views/obligaciones.py`,
 `tests/views/test_obligaciones.py`, `docs/GUIA_USUARIO.md`.
+
+---
+
+## Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 📋 Pendiente
+
+**Prioridad sugerida:** Media — no es un error de cálculo (ningún saldo queda mal), pero es la pérdida de una
+advertencia legal explícita que el despacho pidió (Sprint 43: "Doble Actualización Prohibida", "Techo de
+usura alcanzado") en el canal más probable de terminar en manos de un juzgado o un cliente.
+
+**Depende de:** Sprint 43 (ya completo — `LiquidationResult.alertas` existe, se serializa/deserializa
+correctamente, y se muestra en pantalla vía toast + banner persistente en `ResultadoLiquidacionView`).
+
+**Contexto:** durante el code review del Sprint 43 se encontró (y se corrigió parcialmente, commit `cf84ae7`)
+que las alertas no bloqueantes de liquidación no llegaban al usuario en todos los caminos. Se corrigieron los
+2 caminos de pantalla (cálculo en vivo y reconstrucción desde el historial de auditoría), pero
+`app/reports/pdf.py`/`app/reports/word.py` siguen sin leer `.alertas` — un abogado que exporte el PDF/Word de
+una liquidación con alertas y no vuelva a abrir la app nunca ve la advertencia.
+
+**Código nuevo a crear:** exponer `resultado.alertas` a `ReportSummaryBuilder`/`ReportTableBuilder` (o el
+mecanismo equivalente que ya arma el resumen ejecutivo de PDF/Word) y renderizarlas como una sección de
+advertencias visible en ambos formatos — mismo criterio visual que ya usa el "⚠" de obligaciones prescritas
+en esos mismos reportes (Sprint 42).
+
+**Definición de Hecho:**
+- Un PDF/Word exportado desde una liquidación con `alertas` no vacío muestra el texto de cada alerta.
+- Un PDF/Word sin alertas no muestra la sección (no agregar ruido visual cuando no aplica).
+- Suite completa en verde.
+
+---
+
+## Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 📋 Pendiente
+
+**Prioridad sugerida:** Baja — hallazgo de auditoría, no un reporte de bug del usuario; el código actual ya
+está verificado contra el caso de prueba real citado en el test existente.
+
+**Depende de:** Sprint 47 (parte B, ya completo — este sprint nace de un hallazgo hecho al confirmar la
+Sentencia SL138-2024 en `calcular_densidad_semanas`).
+
+**Contexto (hallazgo del cierre del Sprint 47 parte B, 2026-08-18):** la fórmula general de conteo de días
+que confirmó el despacho en el Sprint 3 es inclusiva: `Dias = (Fecha_Fin - Fecha_Inicio) + 1`. Sin embargo,
+`calcular_densidad_semanas` (`app/engine/labor/ibl.py`, Sprint 17) usa `(fin - inicio).days` directo, **sin**
+el `+1`. Esto coincide exactamente con el caso de prueba judicial citado en el test existente
+(`tests/engine/labor/test_ibl.py`, 348 días → 50 semanas, no 349) — es decir, el código de hoy está
+verificado contra una fuente real, no es un bug evidente. Pero tampoco está confirmado explícitamente con el
+despacho si la regla general "+1" del Sprint 3 aplica también aquí o si la densidad pensional es
+deliberadamente la excepción (dado que el caso de prueba citado ya funciona sin el +1).
+
+**Decisión de diseño a tomar con el despacho antes de tocar código:** ¿el conteo de días para densidad
+pensional (semanas cotizadas) debe ser inclusivo (`+1`, igual que el resto de las reglas del Sprint 3), o el
+caso de prueba judicial ya citado confirma que aquí NO aplica el +1? No cambiar el código sin esta
+confirmación — mismo criterio de rigor que el resto del proyecto (Sprints 5/7/18/70).
+
+**Definición de Hecho:**
+- Respuesta del despacho registrada en `Preguntas-Para-Abogado-Respondidas.md` o
+  `Preguntas-Para-Abogado-Abiertas.md` según corresponda.
+- Si se confirma que sí aplica el +1: corrección en `calcular_densidad_semanas` con test que verifique que
+  el caso de prueba judicial ya citado sigue dando el resultado correcto (o se documenta por qué ese caso
+  específico es una excepción).
+- Suite completa en verde.
 
 ---
 

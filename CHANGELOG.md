@@ -51,7 +51,12 @@ solo existía para Civil/Familia. Sprint 47 (recálculo histórico, respuesta de
 2 memoriales del protocolo (actualización/corrección y error aritmético Art. 151 CPACA) y log de diferencias
 numérico; confirmado que el módulo de densidad pensional (`calcular_densidad_semanas`) ya usaba días
 calendario reales desde el Sprint 17 y no requería el ajuste de la Sentencia SL138-2024 que el despacho pidió
-verificar.
+verificar. Sprint 24 (validación de datos): confirmado que ya estaba implementado desde una integración
+anterior (Sprints 34/56-60) — solo se corrigió el estado en `Pendientes.md`, sin cambios de código. Sprint 72
+(rediseño de "Agregar Obligación"): layout de 2 columnas con `QScrollArea` para que el botón Guardar siempre
+sea visible en 1366×768 sin importar el área elegida. Sprint 73 (obligaciones recurrentes con fechas
+personalizadas): nuevo tipo de recurrencia por lista de fechas fijas anuales (ej. gastos de vestuario en
+junio/diciembre/cumpleaños), alternativo a la cadencia mensual del Sprint 41.
 
 ### Added
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
@@ -135,9 +140,25 @@ verificar.
   Prohibida" si coinciden; nuevo campo `protegida_inflacion_uvr` en Tributario (prohibición de doble cobro
   sobre el Art. 867-1 E.T.) y alerta "Techo de usura alcanzado" cuando el tope combinado recorta la
   indexación. Nuevo `LiquidationResult.alertas` (feedback no bloqueante, mostrado con el mismo `toast` del
-  Sprint 36) para las alertas que no bloquean la liquidación.
+  Sprint 36, y con un banner persistente en la pantalla de resultado) para las alertas que no bloquean la
+  liquidación.
+- Recálculo de liquidaciones históricas afectadas por las correcciones del Sprint 30 (Sprint 47):
+  identificación/marcado vía `AuditLog` (flag "OBSOLETO - REQUIERE RECÁLCULO"), recálculo sin sobrescribir
+  el registro original (liquidación nueva vinculada a la anterior), log de diferencias numérico
+  ("Diferencia recuperada: +X días / +$Z pesos"), generación de los 2 tipos de memorial del protocolo del
+  despacho (Actualización/Corrección y corrección de error aritmético Art. 151 CPACA), y priorización por
+  cercanía de prescripción. Nunca recalcula un expediente en cosa juzgada.
+- Familia: obligaciones recurrentes con fechas anuales fijas en vez de mensuales (Sprint 73) — para gastos
+  que no se repiten mes a mes (ej. vestuario en junio/diciembre/cumpleaños), un nuevo tipo de recurrencia
+  genera exactamente las ocurrencias configuradas por año, reutilizando el mismo mecanismo de cuotas
+  hijas/abonos del Sprint 41.
 
 ### Fixed
+- El diálogo "Agregar obligación" era tan grande que el botón "Guardar" no aparecía a simple vista, y sus 3
+  secciones quedaban apiladas en una sola columna sin importar el tamaño de la ventana (Sprint 72).
+  Reorganizado en un `QGridLayout` de 2 columnas ("Tasas e intereses" a la derecha de "Datos básicos")
+  envuelto en un `QScrollArea`, con tamaño inicial fijo (1300×650) que deja el botón "Guardar" siempre
+  visible en una pantalla estándar (1366×768) en las 6 áreas del derecho.
 - El combo "Reajuste anual" de una obligación Recurrente Civil/Familia no se precargaba al editar (Sprint
   76): siempre mostraba "Ninguno" sin importar el valor real guardado, y volver a dar clic en "Guardar" sin
   tocar ese campo revertía silenciosamente `tipo_reajuste_anual` a `NINGUNO` en la base de datos (el

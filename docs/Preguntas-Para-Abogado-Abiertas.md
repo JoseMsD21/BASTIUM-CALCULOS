@@ -37,6 +37,7 @@ Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archi
 - [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt)
 - [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
 - [Sprint 76 — Fórmula de tasa diaria del Art. 1617 C.C.: ¿lineal (6%÷365) o efectiva compuesta?](#sprint-76--fórmula-de-tasa-diaria-del-art-1617-cc-lineal-6365-o-efectiva-compuesta)
+- [Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?](#sprint-78--conteo-de-días-para-densidad-pensional-semanas-cotizadas-aplica-el-1-inclusivo)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -251,6 +252,30 @@ clara de cuándo aplica cada una.
 `app/engine/interest/rate_conversion.py`, clase `EffectiveRateConverter`, método `annual_to_daily` —
 implementa hoy la Opción B. Cambiarla afecta a las 6 áreas del derecho (todas pasan por el mismo motor),
 no solo Civil/Familia.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?
+
+**Contexto:** el software cuenta días trabajados con la fórmula `Dias = (Fecha_Fin - Fecha_Inicio) + 1`
+(conteo inclusivo, el primer día cuenta) para prestaciones sociales y en general, según ya confirmaron
+ustedes en la respuesta del Sprint 3. Pero el módulo que calcula las semanas cotizadas para pensión (para
+saber si alguien cumple las 1.300 semanas mínimas) usa una resta simple de fechas, sin el "+1". Este cálculo
+ya está verificado contra un caso de prueba real citado en la documentación de la fórmula pensional (348 días
+→ 50 semanas, no 349) — es decir, no parece un error, pero tampoco está confirmado explícitamente si la regla
+general del "+1" también debería aplicar aquí o si el cálculo de semanas es, a propósito, la excepción.
+
+**Pregunta:** para contar los días que se convierten en "semanas cotizadas" de pensión, ¿debe sumarse 1 día
+al resultado de la resta de fechas (igual que para prestaciones), o el conteo sin ese "+1" es el correcto
+para este cálculo específico?
+
+**Qué necesito exactamente:** un sí/no sobre si aplica el "+1" a este cálculo puntual, y si la respuesta es
+"depende", una aclaración de cuándo sí y cuándo no.
 
 **Respuesta del despacho:**
 

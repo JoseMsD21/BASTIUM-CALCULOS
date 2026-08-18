@@ -111,14 +111,17 @@ vuelve a claro. Antes de borrar se crea automáticamente un backup de la base de
 que escribir "RESTABLECER" para habilitar la confirmación; no hay papelera ni deshacer más allá de
 restaurar ese backup a mano.
 
-🚧 **En desarrollo:** varios módulos más también están pendientes. La indexación IPC solo está disponible
-en Civil/Familia — falta decidir con el despacho, área por área, si tiene sentido ofrecerla también en
-Comercial/Laboral/Honorarios/Sancionatorio/Tributario sin duplicar el mecanismo propio que ya tienen
-Sancionatorio (SMLMV/UVT) y Tributario (Art. 867-1 E.T.). Las costas judiciales se ingresan como
-porcentaje manual (el que fijó el juez); el cálculo automático por tabla ya existe en el motor pero aún no
-tiene campos propios en pantalla — ver [Guía de Usuario](docs/GUIA_USUARIO.md#8-funciones-pendientes-o-en-desarrollo).
-El recálculo de liquidaciones históricas anteriores a las correcciones
-del Sprint 30 queda pendiente de que el despacho confirme si aplica. Las
+🚧 **En desarrollo:** varios módulos más también están pendientes. La indexación IPC ya está disponible en
+las 6 áreas (Sprint 43), cada una con su propia regla de exclusión/coexistencia confirmada por el
+despacho — Comercial exige pacto expreso y es excluyente con la tasa comercial, Tributario la aplica
+automáticamente vía Art. 867-1 E.T. sin casilla manual, Laboral y Sancionatorio son condicionales. Las
+costas judiciales se ingresan como porcentaje manual (el que fijó el juez); el cálculo automático por tabla
+ya existe en el motor pero aún no tiene campos propios en pantalla — ver [Guía de Usuario](docs/GUIA_USUARIO.md#8-funciones-pendientes-o-en-desarrollo).
+El recálculo de liquidaciones históricas anteriores a las correcciones del Sprint 30 ya está construido
+(Sprint 47: identificación/marcado, recálculo no destructivo, memoriales, log de diferencias), a la espera
+de correrse contra la base de datos real de producción con supervisión manual. Las advertencias legales no
+bloqueantes que puede generar una liquidación (ej. "Doble Actualización Prohibida") todavía no llegan a los
+PDF/Word exportados, solo a la pantalla — ver Sprint 77 en Pendientes.md. Las
 series históricas de SMLMV, IPC, IBC/Tasa de Usura y UVT (1984-2026, 1967-2025, 1997-2026 y 2006-2026
 respectivamente) ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en
 Comercial y en la fase 2 de la indemnización moratoria laboral, IPC ya está conectado a la indexación de
