@@ -21,7 +21,9 @@ from app.core.exceptions import ParametroNoDisponibleError
 from app.engine.audit.service import historial_de_expedientes
 from app.engine.temporal.prescripcion import (
     CLAVE_POR_TIPO_ACCION,
+    PLAZOS_CADUCIDAD_MESES_CONOCIDOS,
     TipoAccion,
+    calcular_caducidad,
     calcular_prescripcion,
 )
 from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
@@ -29,6 +31,27 @@ from database.models import AuditLog, Expediente
 
 DIAS_ALERTA_VENCIMIENTO = 90
 MAX_LIQUIDACIONES_RECIENTES = 10
+
+_VALORES_TIPO_ACCION = {tipo.value for tipo in TipoAccion}
+
+
+def _fecha_limite_obligacion(obligacion) -> date | None:
+    """Resuelve la fecha limite de prescripcion/caducidad de `obligacion` segun
+    su tipo_accion_proceso (Sprint 61). Si es None, se asume TipoAccion.EJECUTIVA
+    -- mismo comportamiento que antes de este sprint (unico caso conectado).
+    Retorna None si el tipo no es reconocido o el parametro no esta configurado
+    (mismo criterio que el ParametroNoDisponibleError que ya se ignoraba)."""
+    tipo = obligacion.tipo_accion_proceso
+    try:
+        if tipo is None:
+            return calcular_prescripcion(obligacion.fecha_origen, TipoAccion.EJECUTIVA)
+        if tipo in _VALORES_TIPO_ACCION:
+            return calcular_prescripcion(obligacion.fecha_origen, TipoAccion(tipo))
+        if tipo in PLAZOS_CADUCIDAD_MESES_CONOCIDOS:
+            return calcular_caducidad(obligacion.fecha_origen, tipo)
+        return None
+    except ParametroNoDisponibleError:
+        return None
 
 
 class DashboardView(QWidget):
@@ -203,47 +226,55 @@ class DashboardView(QWidget):
     def _refrescar_alertas_vencimiento(
         self, expedientes: list[Expediente], hoy: date
     ) -> None:
-        """Alerta si la prescripción de la acción ejecutiva (`TipoAccion.EJECUTIVA`
-        -- el mismo default que usa `filtrar_cuotas_prescritas` en
-        `app/engine/temporal/prescripcion.py`, ver Architecture del plan de este
-        sprint) de alguna obligación no pagada cae dentro de los próximos
+        """Alerta si la prescripcion/caducidad aplicable (segun
+        `obligacion.tipo_accion_proceso`, o `TipoAccion.EJECUTIVA` por defecto si
+        es None -- Sprint 61 generaliza lo que antes solo cubria EJECUTIVA) de
+        alguna obligación no pagada cae dentro de los próximos
         `DIAS_ALERTA_VENCIMIENTO` días, o ya venció.
 
-        Sprint 53: envuelve el bucle en `cache_de_liquidacion()` y precarga
-        PRESCRIPCION_EJECUTIVA_MESES con `precargar_parametro` (ambos en
-        `app/services/parametro_service.py`) antes de iterar. La cache sola
-        (mismo patrón que ya usan las `AreaStrategy` en
-        `app/services/area_strategy.py`) solo evita reabrir sesión cuando dos
-        obligaciones comparten la misma `fecha_origen` exacta -- en datos
-        reales cada obligación suele tener una fecha distinta, así que sin la
-        precarga cada fecha distinta seguiría abriendo su propia sesión
-        SQLAlchemy (`_resolver_fila`). `precargar_parametro` trae todas las
-        filas de la clave en una sola consulta y deja que `get_parametro`
+        Sprint 53: envuelve el bucle en `cache_de_liquidacion()` y precarga las
+        claves de parametro que realmente se van a necesitar con
+        `precargar_parametro` (ambos en `app/services/parametro_service.py`)
+        antes de iterar. La cache sola (mismo patrón que ya usan las
+        `AreaStrategy` en `app/services/area_strategy.py`) solo evita reabrir
+        sesión cuando dos obligaciones comparten la misma `fecha_origen` exacta
+        -- en datos reales cada obligación suele tener una fecha distinta, así
+        que sin la precarga cada fecha distinta seguiría abriendo su propia
+        sesión SQLAlchemy (`_resolver_fila`). `precargar_parametro` trae todas
+        las filas de la clave en una sola consulta y deja que `get_parametro`
         resuelva cualquier fecha en memoria contra ellas."""
         limite = hoy + timedelta(days=DIAS_ALERTA_VENCIMIENTO)
         alertas = []
         with cache_de_liquidacion():
-            precargar_parametro(CLAVE_POR_TIPO_ACCION[TipoAccion.EJECUTIVA])
+            claves_necesarias = {CLAVE_POR_TIPO_ACCION[TipoAccion.EJECUTIVA]}
+            for expediente in expedientes:
+                for obligacion in expediente.obligaciones:
+                    tipo = obligacion.tipo_accion_proceso
+                    if tipo in _VALORES_TIPO_ACCION:
+                        claves_necesarias.add(CLAVE_POR_TIPO_ACCION[TipoAccion(tipo)])
+                    elif tipo in PLAZOS_CADUCIDAD_MESES_CONOCIDOS:
+                        claves_necesarias.add(f"CADUCIDAD_{tipo}_MESES")
+            for clave in claves_necesarias:
+                precargar_parametro(clave)
+
             for expediente in expedientes:
                 for obligacion in expediente.obligaciones:
                     if obligacion.pagada:
                         continue
-                    try:
-                        fecha_limite = calcular_prescripcion(
-                            obligacion.fecha_origen, TipoAccion.EJECUTIVA
-                        )
-                    except ParametroNoDisponibleError:
-                        # Sin PRESCRIPCION_EJECUTIVA_MESES configurado en Parametros
-                        # no se puede calcular la fecha limite de esta obligacion --
-                        # se omite de las alertas en vez de tumbar todo el dashboard.
+                    # Sin PRESCRIPCION_EJECUTIVA_MESES (u otra clave aplicable)
+                    # configurada en Parametros no se puede calcular la fecha
+                    # limite de esta obligacion -- se omite de las alertas en vez
+                    # de tumbar todo el dashboard (ParametroNoDisponibleError ya
+                    # se captura dentro de _fecha_limite_obligacion).
+                    fecha_limite = _fecha_limite_obligacion(obligacion)
+                    if fecha_limite is None or fecha_limite > limite:
                         continue
-                    if fecha_limite <= limite:
-                        dias_restantes = (fecha_limite - hoy).days
-                        if dias_restantes < 0:
-                            estado = "Vencido"
-                        else:
-                            estado = f"Vence en {dias_restantes} días"
-                        alertas.append((expediente, obligacion, fecha_limite, estado))
+                    dias_restantes = (fecha_limite - hoy).days
+                    if dias_restantes < 0:
+                        estado = "Vencido"
+                    else:
+                        estado = f"Vence en {dias_restantes} días"
+                    alertas.append((expediente, obligacion, fecha_limite, estado))
 
         alertas.sort(key=lambda item: item[2])
 

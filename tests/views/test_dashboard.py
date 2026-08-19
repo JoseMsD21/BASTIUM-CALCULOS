@@ -42,10 +42,14 @@ def _crear_expediente(session, radicado: str, area: AreaDerecho) -> Expediente:
 
 
 def _sembrar_parametro_prescripcion_ejecutiva(session, meses: int = 60) -> None:
+    _sembrar_parametro(session, "PRESCRIPCION_EJECUTIVA_MESES", Decimal(meses))
+
+
+def _sembrar_parametro(session, clave: str, valor: Decimal) -> None:
     session.add(
         ParametroLegal(
-            clave="PRESCRIPCION_EJECUTIVA_MESES",
-            valor=Decimal(meses),
+            clave=clave,
+            valor=valor,
             vigente_desde=date(1900, 1, 1),
             vigente_hasta=None,
             usuario="test",
@@ -57,7 +61,11 @@ def _sembrar_parametro_prescripcion_ejecutiva(session, meses: int = 60) -> None:
 
 
 def _crear_obligacion(
-    session, expediente_id: int, fecha_origen: date, pagada: bool = False
+    session,
+    expediente_id: int,
+    fecha_origen: date,
+    pagada: bool = False,
+    tipo_accion_proceso: str | None = None,
 ) -> Obligacion:
     obligacion = Obligacion(
         expediente_id=expediente_id,
@@ -68,6 +76,7 @@ def _crear_obligacion(
         valor=Decimal("1000000.00"),
         tasa_efectiva_anual=Decimal("6.00"),
         pagada=pagada,
+        tipo_accion_proceso=tipo_accion_proceso,
     )
     session.add(obligacion)
     session.commit()
@@ -152,6 +161,50 @@ def test_dashboard_muestra_alerta_de_obligacion_proxima_a_prescribir(qtbot, monk
     assert view.tabla_alertas.item(0, 1).text() == "Capital pagare"
     assert view.tabla_alertas.item(0, 2).text() == fecha_limite.isoformat()
     assert view.tabla_alertas.item(0, 3).text() == "Vence en 30 días"
+
+
+def test_dashboard_alerta_prescripcion_ordinaria_no_solo_ejecutiva(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _sembrar_parametro(session, "PRESCRIPCION_ORDINARIA_MESES", Decimal("120"))
+    expediente = _crear_expediente(session, "2026-020", AreaDerecho.CIVIL_FAMILIA)
+    _crear_obligacion(
+        session, expediente.id, date(2016, 1, 4), tipo_accion_proceso="ordinaria"
+    )
+
+    fecha_limite = calcular_prescripcion(date(2016, 1, 4), TipoAccion.ORDINARIA)
+    hoy = fecha_limite - timedelta(days=30)
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+    view.refrescar(hoy=hoy)
+
+    assert view.tabla_alertas.rowCount() == 1
+    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.isoformat()
+
+
+def test_dashboard_alerta_caducidad_cheques(qtbot, monkeypatch):
+    from app.engine.temporal.prescripcion import calcular_caducidad
+
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _sembrar_parametro(session, "CADUCIDAD_CHEQUES_MESES", Decimal("6"))
+    expediente = _crear_expediente(session, "2026-021", AreaDerecho.COMERCIAL)
+    _crear_obligacion(
+        session, expediente.id, date(2026, 3, 1), tipo_accion_proceso="CHEQUES"
+    )
+
+    fecha_limite = calcular_caducidad(date(2026, 3, 1), "CHEQUES")
+    hoy = fecha_limite - timedelta(days=10)
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+    view.refrescar(hoy=hoy)
+
+    assert view.tabla_alertas.rowCount() == 1
+    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.isoformat()
 
 
 def test_dashboard_marca_vencido_cuando_la_fecha_limite_ya_paso(qtbot, monkeypatch):
