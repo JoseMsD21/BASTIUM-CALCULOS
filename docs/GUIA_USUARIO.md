@@ -5,7 +5,10 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-17 (Sprint 75) — "Generar cuotas" ahora también está disponible en
+> **Última actualización:** 2026-08-18 (Sprint 61) — nuevo campo "Tipo de acción/proceso" (opcional) en el
+> formulario de obligación, que conecta 12 tipos más de prescripción/caducidad a la alerta del Dashboard
+> (antes solo la ejecutiva); fallback automático a la tasa legal civil (`CIVIL_ANNUAL_RATE`) cuando la tasa
+> pactada se deja en 0. Antes, 2026-08-17 (Sprint 75) — "Generar cuotas" ahora también está disponible en
 > Comercial (antes solo Civil/Familia), y funciona incluso sin reajuste anual activo; agrega la nueva
 > sección 5.5.1 sobre pagar varias cuotas de una vez por rango, con imputación en cascada (capital de la
 > cuota más reciente primero). Antes, 2026-08-14 — agrega el paso "Generar cuotas" (obligatorio para que el
@@ -308,7 +311,9 @@ Usa este tipo cuando la deuda es un monto único con una sola fecha (ej. "gastos
    - **Valor**: el monto de la deuda en pesos, con decimales si aplica (ej. `427900.00`).
    - **Tasa efectiva anual (%)**: la tasa de interés anual, en porcentaje. Por defecto ya viene puesto
      `6.00` (el 6% anual que ordena el Artículo 1617 del Código Civil), pero puedes cambiarlo si el caso
-     tiene una tasa distinta pactada.
+     tiene una tasa distinta pactada. **Desde el Sprint 61**: si lo dejas explícitamente en `0`, el
+     programa usa automáticamente la tasa legal civil cargada en Parámetros bajo la clave
+     `CIVIL_ANNUAL_RATE` (sin necesidad de tocar nada más) — no queda con 0% de interés real.
    - **Fecha de origen**: la fecha en que nació esa deuda (ej. la fecha de la factura o el hecho).
    - **Aplica indexación IPC**: marca esta casilla si la obligación debe corregirse monetariamente por
      inflación (indexación, Art. corrección monetaria) además del interés. Es una decisión del abogado
@@ -1243,7 +1248,13 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
   excluye**, con una advertencia visual en pantalla, en el PDF y en el Word exportados — nunca bloquea la
   liquidación, solo la señala. La tabla "Plazos próximos a vencer" del Dashboard
   ([sección 4](#4-tour-de-la-aplicación)) usa el mismo motor para avisar con anticipación, antes de que la
-  obligación llegue a vencer (`Pendientes.md`, Sprint 7 y Sprint 42).
+  obligación llegue a vencer (`Pendientes.md`, Sprint 7 y Sprint 42). **Desde el Sprint 61**, la alerta del
+  Dashboard ya no se limita a la prescripción ejecutiva: en el formulario de "Agregar/Editar obligación"
+  (cualquier área) hay un campo nuevo, opcional, **"Tipo de acción/proceso"** — al elegir uno (ej.
+  "Prescripción ordinaria", "Prescripción cambiaria directa", "Caducidad: cheques"), la tabla de alertas
+  del Dashboard también avisa con anticipación sobre esa obligación específica, con el plazo legal
+  correspondiente cargado en Parámetros. Si se deja en "(Ninguno)" (el valor por defecto), la obligación
+  simplemente no se alerta — mismo comportamiento que antes del Sprint 61.
 - 🚧 **Calendario de días hábiles y términos procesales** — el motor ya existe y está probado
   (`CalendarUtils.es_dia_habil/sumar_dias_habiles/dias_habiles_entre/notificacion_surtida_el/
   vencimiento_calendario` en `app/engine/time/calendar.py`, y el modelador de términos con

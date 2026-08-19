@@ -18,7 +18,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-08-17)
+## Estado actual (2026-08-18)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -61,7 +61,9 @@ vigente menos dos puntos—, que nunca se pacta manualmente; y depuración de Re
 informativa, que se muestra aparte y no se suma al saldo de la deuda). Sancionatorio muestra en pantalla,
 de forma transparente, si la multa se aplicará como SMLMV o UVT según la fecha del hecho. Cualquier
 obligación cuyo plazo de prescripción/caducidad ya venció se marca (sin excluirla del cálculo) con
-advertencia visual en pantalla, PDF y Word. El resultado de cualquier
+advertencia visual en pantalla, PDF y Word — desde el Sprint 61, la alerta de vencimiento del Dashboard
+cubre 13 tipos de acción/proceso (antes solo la prescripción ejecutiva), elegibles por obligación desde un
+campo opcional en el formulario de captura. El resultado de cualquier
 liquidación se puede
 exportar a **PDF** y a **Word** desde la pantalla de Resultado de Liquidación, incluido el saldo a favor
 del deudor cuando un pago superó la deuda. Cada liquidación ejecutada

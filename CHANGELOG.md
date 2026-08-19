@@ -49,9 +49,21 @@ Detalle del expediente. Explícitamente fuera de alcance: Laboral, Sancionatorio
 esas áreas rechazan obligaciones recurrentes a propósito (una multa/sanción/impuesto es un hecho único por
 diseño) o son estructuralmente incompatibles (Laboral liquida un solo contrato por expediente, no una
 serie de cuotas) — queda pendiente confirmar con el despacho si tiene sentido legal extenderlas antes de
-construirlo.
+construirlo. Sprint 61 (bloqueado desde el Sprint 57, desbloqueado con el usuario el 2026-08-14): 12
+claves más de prescripción/caducidad (más `CIVIL_ANNUAL_RATE`) dejan de estar "sin wiring" — un campo
+nuevo y opcional "Tipo de acción/proceso" en el formulario de obligación (filtrado por área) alimenta la
+misma alerta de vencimiento que ya existía en el Dashboard, generalizada de "solo prescripción ejecutiva"
+a los 13 tipos; la tasa civil legal se resuelve automáticamente cuando la tasa pactada se deja en 0.
 
 ### Added
+- Wiring de 18 parámetros de prescripción/caducidad/tasa sin conectar (Sprint 61): columna nueva
+  `tipo_accion_proceso` en `Obligacion` (opcional, nulo por defecto), con un combo en el formulario de
+  obligación filtrado por área (`opciones_tipo_accion_proceso_por_area`, reutiliza el mapeo de área del
+  Sprint 57) que unifica los 6 tipos de prescripción y las 7 claves de caducidad conocidas en un solo
+  catálogo. La alerta de vencimiento del Dashboard, antes hardcodeada a la prescripción ejecutiva, ahora
+  resuelve el plazo aplicable de cada obligación según ese campo (o ejecutiva por defecto si se deja en
+  blanco, sin cambio de comportamiento). `CivilFamiliaStrategy` cae automáticamente a la tasa legal civil
+  (`CIVIL_ANNUAL_RATE`) cuando la tasa pactada de una obligación se deja en `0`, sin campo nuevo en la UI.
 - Cuotas recurrentes en Comercial y pago por rango con imputación en cascada (Sprint 75): `generar_cuotas_mensuales`
   ya no exige reajuste anual activo (SMMLV/IPC) — una obligación recurrente sin reajuste también genera
   cuotas mensuales reales, con capital constante. `ComercialStrategy` detecta cuotas-hija ya generadas
