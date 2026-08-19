@@ -16,18 +16,25 @@ CATALOGO_PARAMETROS (Sprint 57). Centraliza en un solo lugar:
   libreria) para que tanto la migracion (Task 4) como la UI (Task 5) lo
   importen sin duplicarlo.
 
-Las 18 claves marcadas en la spec como "sin wiring a produccion todavia"
-reciben la misma mejor-propuesta por nombre/articulo legal que el resto: si
-la inferencia resulta incorrecta se corrige cuando esa clave se conecte a una
-pantalla real (Sprint 61, placeholder). CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES
-recibe deliberadamente 2 areas (Civil/Familia y Comercial), por ser doctrina
-aplicable en las dos sin evidencia de codigo que incline a una sola."""
+Las claves de prescripcion/caducidad no-ejecutiva (mas CIVIL_ANNUAL_RATE) que
+estuvieron "sin wiring a produccion" quedaron conectadas en el Sprint 61 via
+`opciones_tipo_accion_proceso_por_area()` (el combo "Tipo de accion/proceso"
+de `ObligacionFormDialog`) y el fallback automatico de `CivilFamiliaStrategy`
+para CIVIL_ANNUAL_RATE -- ver docs/superpowers/specs/
+2026-08-14-sprint61-wiring-parametros-prescripcion-design.md.
+CADUCIDAD_ENRIQUECIMIENTO_SIN_CAUSA_MESES recibe deliberadamente 2 areas
+(Civil/Familia y Comercial), por ser doctrina aplicable en las dos sin
+evidencia de codigo que incline a una sola."""
 
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from database.models import AreaDerecho
+
+if TYPE_CHECKING:
+    from app.engine.temporal.prescripcion import TipoAccion
 
 _CF = AreaDerecho.CIVIL_FAMILIA
 _CO = AreaDerecho.COMERCIAL
@@ -95,3 +102,60 @@ def serializar_areas(areas: list[AreaDerecho]) -> str:
 
 def deserializar_areas(texto: str) -> list[AreaDerecho]:
     return [AreaDerecho(codigo) for codigo in json.loads(texto)]
+
+
+_ETIQUETA_CADUCIDAD: dict[str, str] = {
+    "IMPUGNACION_INEFICACIA_SOCIETARIA": "Caducidad: impugnación de ineficacia societaria",
+    "CHEQUES": "Caducidad: cheques",
+    "ENRIQUECIMIENTO_SIN_CAUSA": "Caducidad: enriquecimiento sin causa",
+    "TRANSPORTE": "Caducidad: transporte",
+    "SEGURO_ORDINARIA": "Caducidad: seguro (ordinaria)",
+    "SEGURO_EXTRAORDINARIA": "Caducidad: seguro (extraordinaria)",
+    "IMPUGNACION_ACTAS_SOCIALES": "Caducidad: impugnación de actas sociales",
+}
+
+
+def _etiqueta_tipo_accion(tipo_accion: TipoAccion) -> str:
+    from app.engine.temporal.prescripcion import TipoAccion as _TipoAccion
+
+    return {
+        _TipoAccion.EJECUTIVA: "Prescripción ejecutiva",
+        _TipoAccion.ORDINARIA: "Prescripción ordinaria",
+        _TipoAccion.HONORARIOS_PROFESIONALES: "Prescripción de honorarios profesionales",
+        _TipoAccion.CAMBIARIA_DIRECTA: "Prescripción cambiaria directa",
+        _TipoAccion.CAMBIARIA_REGRESO_TENEDOR: "Prescripción cambiaria de regreso (tenedor)",
+        _TipoAccion.CAMBIARIA_REGRESO_ENTRE_OBLIGADOS: (
+            "Prescripción cambiaria de regreso (entre obligados)"
+        ),
+    }[tipo_accion]
+
+
+def opciones_tipo_accion_proceso_por_area(area: AreaDerecho) -> list[tuple[str, str]]:
+    """(valor_a_guardar, etiqueta) para el combo "Tipo de acción/proceso" del
+    formulario de Obligacion (Sprint 61), filtrado a lo relevante para `area`
+    reutilizando el mapeo ya aprobado AREA_UNIDAD_POR_CLAVE (Sprint 57).
+    `valor_a_guardar` es TipoAccion.value (prescripcion, minuscula) o la clave
+    cruda de PLAZOS_CADUCIDAD_MESES_CONOCIDOS (caducidad, mayuscula) -- no hay
+    colision posible entre los dos catalogos.
+
+    Import perezoso de app.engine.temporal.prescripcion (no al inicio del
+    modulo): prescripcion.py importa app.services.parametro_service, que a su
+    vez importa serializar_areas de este mismo modulo -- un import a nivel de
+    modulo aqui crearia un ciclo (areas_parametro -> prescripcion ->
+    parametro_service -> areas_parametro)."""
+    from app.engine.temporal.prescripcion import (
+        CLAVE_POR_TIPO_ACCION,
+        PLAZOS_CADUCIDAD_MESES_CONOCIDOS,
+    )
+
+    opciones: list[tuple[str, str]] = []
+    for tipo_accion, clave in CLAVE_POR_TIPO_ACCION.items():
+        areas_clave, _ = AREA_UNIDAD_POR_CLAVE.get(clave, ([], ""))
+        if area in areas_clave:
+            opciones.append((tipo_accion.value, _etiqueta_tipo_accion(tipo_accion)))
+    for clave_caducidad in PLAZOS_CADUCIDAD_MESES_CONOCIDOS:
+        clave_parametro = f"CADUCIDAD_{clave_caducidad}_MESES"
+        areas_clave, _ = AREA_UNIDAD_POR_CLAVE.get(clave_parametro, ([], ""))
+        if area in areas_clave:
+            opciones.append((clave_caducidad, _ETIQUETA_CADUCIDAD[clave_caducidad]))
+    return opciones

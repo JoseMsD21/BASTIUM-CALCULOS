@@ -73,3 +73,43 @@ def test_area_unidad_por_clave_casos_conocidos_de_la_spec():
         [AreaDerecho.CIVIL_FAMILIA, AreaDerecho.COMERCIAL],
         "meses",
     )
+
+
+def test_opciones_civil_familia_incluye_ejecutiva_y_ordinaria_no_cambiaria():
+    from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
+
+    valores = {
+        valor for valor, _ in opciones_tipo_accion_proceso_por_area(AreaDerecho.CIVIL_FAMILIA)
+    }
+    assert "ejecutiva" in valores
+    assert "ordinaria" in valores
+    assert "cambiaria_directa" not in valores
+
+
+def test_opciones_comercial_incluye_cambiarias_y_caducidades_no_ordinaria():
+    from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
+
+    valores = {valor for valor, _ in opciones_tipo_accion_proceso_por_area(AreaDerecho.COMERCIAL)}
+    assert "cambiaria_directa" in valores
+    assert "cambiaria_regreso_tenedor" in valores
+    assert "cambiaria_regreso_entre_obligados" in valores
+    assert "CHEQUES" in valores
+    assert "IMPUGNACION_INEFICACIA_SOCIETARIA" in valores
+    assert "ordinaria" not in valores
+
+
+def test_opciones_honorarios_incluye_solo_su_prescripcion_propia():
+    from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
+
+    valores = {
+        valor for valor, _ in opciones_tipo_accion_proceso_por_area(AreaDerecho.HONORARIOS)
+    }
+    assert "honorarios_profesionales" in valores
+    assert "CHEQUES" not in valores
+
+
+def test_cada_opcion_trae_una_etiqueta_legible_no_vacia():
+    from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
+
+    for _valor, etiqueta in opciones_tipo_accion_proceso_por_area(AreaDerecho.COMERCIAL):
+        assert etiqueta.strip() != ""
