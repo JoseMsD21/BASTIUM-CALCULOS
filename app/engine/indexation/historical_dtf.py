@@ -12,9 +12,9 @@ _DTF_SEMANAL se genero parseando ese archivo con un script de una sola vez
 (no se transcribio a mano dado el volumen: 2198 filas semanales, del
 1984-01-20 al 2026-02-27 inclusive, sin huecos ni fechas fuera de orden --
 verificado programaticamente al generar esta tabla). Se verificaron ademas a
-mano 5 valores puntuales contra el archivo fuente (ver
+mano 6 valores puntuales contra el archivo fuente (ver
 tests/engine/indexation/test_historical_dtf.py): el primero (1984/01/20 =
-36.45), el mas reciente disponible (2026/02/27 = 9.59) y 3 valores
+36.45), el mas reciente disponible (2026/02/27 = 9.59) y 4 valores
 intermedios repartidos en la serie.
 
 La DTF es un dato SEMANAL: cada fecha certificada representa la tasa
@@ -2250,9 +2250,11 @@ _DTF_SEMANAL: dict[date, Decimal] = {
 
 # Lista ordenada de fechas certificadas para busqueda binaria (bisect), mismo
 # patron que MemoryRateProvider._buscar_periodo (app/engine/interest/provider.py):
-# _DTF_SEMANAL ya se genero en orden ascendente y sin duplicados (verificado
-# por el script de carga), asi que basta con tomar sus claves en orden.
-_DTF_FECHAS: list[date] = list(_DTF_SEMANAL.keys())
+# se ordena explicitamente en vez de asumir que el orden de insercion de
+# _DTF_SEMANAL coincide con el orden cronologico -- ese supuesto no lo
+# garantiza el lenguaje, solo un comentario, y se rompe silenciosamente si
+# alguien edita la tabla en el futuro sin mantener el orden.
+_DTF_FECHAS: list[date] = sorted(_DTF_SEMANAL)
 
 _PRIMERA_FECHA_DISPONIBLE = _DTF_FECHAS[0]
 
