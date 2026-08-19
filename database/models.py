@@ -182,6 +182,14 @@ class Obligacion(Base):
     # Python filtrando por este entero, no via relationship() de SQLAlchemy.
     obligacion_padre_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Sprint 61: tipo de accion (prescripcion, TipoAccion.value en minuscula,
+    # ej. "ordinaria") o de proceso (caducidad, clave de
+    # PLAZOS_CADUCIDAD_MESES_CONOCIDOS en mayuscula, ej. "CHEQUES") aplicable a
+    # esta obligacion -- nulo por defecto, no cambia el comportamiento de
+    # ninguna obligacion existente. Ver
+    # app.services.areas_parametro.opciones_tipo_accion_proceso_por_area.
+    tipo_accion_proceso: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"

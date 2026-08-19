@@ -566,3 +566,40 @@ def test_parametro_legal_tiene_columnas_areas_derecho_y_unidad():
 
     assert "areas_derecho" in ParametroLegal.__table__.columns
     assert "unidad" in ParametroLegal.__table__.columns
+
+
+def test_obligacion_admite_tipo_accion_proceso_nulo_y_con_valor(session):
+    expediente = Expediente(
+        radicado="2026-00200",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.COMERCIAL,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+
+    obligacion_sin = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Capital pagare",
+        categoria="CAPITAL_PAGARE",
+        fecha_origen=date(2024, 1, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    obligacion_con = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Cheque impago",
+        categoria="CAPITAL_CHEQUE",
+        fecha_origen=date(2024, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_accion_proceso="CHEQUES",
+    )
+    session.add_all([obligacion_sin, obligacion_con])
+    session.commit()
+
+    assert obligacion_sin.tipo_accion_proceso is None
+    assert obligacion_con.tipo_accion_proceso == "CHEQUES"
