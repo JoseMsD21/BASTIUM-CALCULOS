@@ -226,8 +226,14 @@ def test_universal_liquidation_service_propaga_estrategia_capital_primero():
     from app.domain.obligation.payment import Payment
 
     eventos = [
-        Event(date=date(2024, 1, 1), payload={"amount": Decimal("100000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2024, 2, 1), payload={"amount": Decimal("5000.00")}, event_type="INTEREST"),
+        Event(
+            date=date(2024, 1, 1),
+            payload={"amount": Decimal("100000.00")},
+            event_type="INSTALLMENT",
+        ),
+        Event(
+            date=date(2024, 2, 1), payload={"amount": Decimal("5000.00")}, event_type="INTEREST"
+        ),
     ]
     pagos = [Payment(date=date(2024, 3, 1), amount=Decimal("100000.00"), reference="")]
     resultado = UniversalLiquidationService().liquidar(

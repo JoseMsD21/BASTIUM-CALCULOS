@@ -393,7 +393,11 @@ def test_engine_evento_interest_explicito_se_suma_al_interes_causado_por_tiempo(
 
 def test_liquidation_core_usa_la_estrategia_de_imputacion_inyectada():
     eventos = [
-        Event(date=date(2024, 1, 1), payload={"amount": Decimal("100000.00")}, event_type="INSTALLMENT"),
+        Event(
+            date=date(2024, 1, 1),
+            payload={"amount": Decimal("100000.00")},
+            event_type="INSTALLMENT",
+        ),
     ]
     control_rate = Rate.from_percent(Decimal("0.0"))
     engine = LiquidationCore(
@@ -406,7 +410,9 @@ def test_liquidation_core_usa_la_estrategia_de_imputacion_inyectada():
         Event(date=date(2024, 2, 1), payload={"amount": Decimal("5000.00")}, event_type="INTEREST")
     )
     eventos.append(
-        Event(date=date(2024, 3, 1), payload={"amount": Decimal("100000.00")}, event_type="PAYMENT")
+        Event(
+            date=date(2024, 3, 1), payload={"amount": Decimal("100000.00")}, event_type="PAYMENT"
+        )
     )
     resultado = engine.process(eventos, cutoff_date=date(2024, 3, 1))
     saldo = resultado.final_balance()
@@ -416,9 +422,17 @@ def test_liquidation_core_usa_la_estrategia_de_imputacion_inyectada():
 
 def test_liquidation_core_sin_estrategia_mantiene_el_orden_por_defecto():
     eventos = [
-        Event(date=date(2024, 1, 1), payload={"amount": Decimal("100000.00")}, event_type="INSTALLMENT"),
-        Event(date=date(2024, 2, 1), payload={"amount": Decimal("5000.00")}, event_type="INTEREST"),
-        Event(date=date(2024, 3, 1), payload={"amount": Decimal("100000.00")}, event_type="PAYMENT"),
+        Event(
+            date=date(2024, 1, 1),
+            payload={"amount": Decimal("100000.00")},
+            event_type="INSTALLMENT",
+        ),
+        Event(
+            date=date(2024, 2, 1), payload={"amount": Decimal("5000.00")}, event_type="INTEREST"
+        ),
+        Event(
+            date=date(2024, 3, 1), payload={"amount": Decimal("100000.00")}, event_type="PAYMENT"
+        ),
     ]
     control_rate = Rate.from_percent(Decimal("0.0"))
     engine = LiquidationCore(default_daily_rate=control_rate)
