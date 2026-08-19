@@ -91,6 +91,10 @@ No edites sprints ya cerrados salvo para corregir un hallazgo de su propio cierr
 problema nuevo relacionado con un sprint cerrado, ábrelo como un hallazgo dentro de un sprint futuro
 en vez de reabrir el ya cerrado.
 
+Si tu sprint introduce o cambia una **decisión de arquitectura** (no un detalle de UI ni un bugfix
+puntual — ej. una librería nueva, un cambio en cómo se persisten los datos, una decisión de seguridad),
+agrégala como un ADR nuevo en [docs/ARQUITECTURA_ADR.md](docs/ARQUITECTURA_ADR.md).
+
 ## Al contribuir
 
 Al enviar una contribución (issue, pull request, o cualquier otro aporte), aceptas que se licencie

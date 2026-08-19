@@ -18,6 +18,9 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
+**¿Buscas un documento de proyecto en particular** (visión y alcance, requisitos, arquitectura, riesgos,
+QA, mantenimiento...)**?** Ver el [Mapa de documentación](docs/MAPA_DOCUMENTACION.md).
+
 ## Estado actual (2026-08-18)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
@@ -188,7 +191,17 @@ app/                    Código fuente (motor de cálculo, GUI, servicios)
 database/               Modelos y acceso a la base de datos (SQLite)
 tests/                  Suite de pruebas automatizadas (pytest)
 docs/
+  MAPA_DOCUMENTACION.md   Índice: qué documento cubre cada aspecto del proyecto
   GUIA_USUARIO.md         Guía de uso completa, para cualquier persona
+  VISION_Y_ALCANCE.md     Objetivo del producto, público, alcance actual y fuera de alcance
+  REQUISITOS_NO_FUNCIONALES.md
+                          Cómo debe comportarse el sistema (plataforma, disponibilidad, seguridad...)
+  ARQUITECTURA_ADR.md     Registro de decisiones de arquitectura (por qué, no qué)
+  DISENO_UI_UX.md         Sistema de diseño visual y patrones de interacción
+  GESTION_RIESGOS.md      Riesgos vigentes, por tipo, con mitigación y estado
+  PLAN_CALIDAD_PRUEBAS.md Estrategia de pruebas y criterios de aceptación
+  PLAN_MANTENIMIENTO_SOPORTE.md
+                          Versiones soportadas, backup/restauración, soporte, métricas
   specifications/         Documentación técnica de cada motor interno
   superpowers/specs/      Documento de diseño del MVP
   superpowers/plans/      Plan de implementación tarea por tarea (histórico)

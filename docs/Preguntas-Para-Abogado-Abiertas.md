@@ -36,9 +36,22 @@ Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archi
 - [Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?](#sprint-43-seguimiento--es-válido-cobrar-interés-civil-sobre-el-capital-ya-indexado-en-honorarios)
 - [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt)
 - [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
-- [Sprint 76 — Fórmula de tasa diaria del Art. 1617 C.C.: ¿lineal (6%÷365) o efectiva compuesta?](#sprint-76--fórmula-de-tasa-diaria-del-art-1617-cc-lineal-6365-o-efectiva-compuesta)
+- [Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?](#sprint-76--fórmula-de-tasa-del-art-16172232-cc-lineal-diaria-efectiva-compuesta-diaria-o-mensual-con-prorrateo-de-30-días)
 - [Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?](#sprint-78--conteo-de-días-para-densidad-pensional-semanas-cotizadas-aplica-el-1-inclusivo)
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
+- [Sprint 80 — Cobertura parcial de la serie mensual de IPC (2003-2026) y qué hacer con fechas anteriores](#sprint-80--cobertura-parcial-de-la-serie-mensual-de-ipc-2003-2026-y-qué-hacer-con-fechas-anteriores)
+- [Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?](#sprint-82--el-despacho-litiga-contra-entidades-públicas-condenas-administrativas-con-intereses-a-la-tasa-dtf)
+- [Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional](#sprint-8687--bono-pensional-y-cálculo-actuarial-de-cotizaciones-omisas-factores-de-reserva-y-tabla-dtf-pensional)
+- [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
+- [Sprint 91 (seguimiento del Sprint 70) — Tabla completa de tasa de reemplazo por régimen: 1993-2003, régimen de transición e invalidez](#sprint-91-seguimiento-del-sprint-70--tabla-completa-de-tasa-de-reemplazo-por-régimen-1993-2003-régimen-de-transición-e-invalidez)
+- [Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido?](#sprint-92--laboral-fecha-de-corte-real-entre-régimen-ley-501990-y-ley-7892002-para-la-indemnización-por-despido)
+- [Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?](#sprint-93--laboral-en-qué-procesos-se-usa-reajuste-por-ipc-vs-por-smmlv-para-salarios-dejados-de-percibir)
+- [Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio](#sprint-94--laboral-base-de-aportes-a-saludpensión-reclamables-en-contrato-realidad-y-regla-de-la-bonificación-por-servicio)
+- [Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)](#sprint-95--laboral-tabla-de-transición-de-la-ley-2466-de-2025-horario-nocturno-y-recargo-dominicalfestivo)
+- [Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?](#sprint-96--laboral-hay-diferencia-de-fórmula-no-solo-de-captura-para-trabajo-doméstico-tras-la-ley-17882016)
+- [Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?](#sprint-97--nueva-área-de-derecho-o-submodo-de-civilfamilia-para-indemnización-de-perjuicios)
+- [Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)](#sprint-98--tabla-completa-de-mortalidad-de-rentistas-resolución-1555-de-2010-superfinanciera)
+- [Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)](#sprint-102--ejemplo-numérico-resuelto-de-indexación-con-abonos-x9)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -141,6 +154,18 @@ distinguir de la misma forma?
 corresponde → a qué módulo del software aplica (pensional, laboral, otro). No hace falta que sea exhaustiva
 de una sola vez — puede empezar por las 3 leyes pensionales mencionadas y ampliarse después.
 
+**Actualización (2026-08-19) — borrador de punto de partida encontrado en una plantilla comercial del
+despacho, para confirmar o corregir (no tomar como definitivo):** `P9.TASA-DE-REEMPLAZO-LEY-797-2003.md`
+trae, además de la fórmula que ya implementa BASTIUM (`r = 65.5 − 0.5·s`, vigente "desde el año 2004 en
+adelante"), otras 2 tablas de tasa de reemplazo que el código de hoy NO cubre: una para "Ley 797 de 2003,
+desde 1993 hasta 2003" y otra para el "Régimen de Transición" (tasa fija 75%/90%/"la que corresponda"). La
+plantilla no deja ver la fórmula matemática completa de esas 2 tablas con datos de ejemplo, así que este
+hallazgo no reemplaza la pregunta original — solo confirma con una fuente adicional que faltan al menos 2
+fórmulas más, y da un punto de partida concreto para pedirlas. Ver Sprint 91 en `Pendientes.md`, que
+también añade a la lista 2 tablas de tasa de reemplazo para pensión de invalidez (grados 1 y 2) con cifras
+que sí se pudieron extraer completas de la misma plantilla (base 45%/54% + incrementos de 1,5%/2% cada 50
+semanas, tope 75%) — inclúyanlas también en la respuesta si aplican al alcance de BASTIUM.
+
 **Respuesta del despacho:**
 
 
@@ -176,7 +201,7 @@ captura del caso.
 
 ---
 
-## Sprint 76 — Fórmula de tasa diaria del Art. 1617 C.C.: ¿lineal (6%÷365) o efectiva compuesta?
+## Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?
 
 **Contexto (explicado desde cero, para quien no haya visto el código):**
 
@@ -236,18 +261,36 @@ vendría de que el Excel del despacho aproxima el interés mes a mes con un 0,50
 días exactos de cada mes) y redondea el porcentaje de reajuste del SMMLV (12,00%/9,53% en vez del dato
 exacto 12,07%/9,50%).
 
-**Pregunta:** para el interés civil del Art. 1617 (y, si aplica también a otras tasas pactadas por las
-partes en Civil/Familia y Comercial, siempre que no se haya pactado capitalización/anatocismo), ¿la
-conversión de la tasa anual a diaria debe hacerse con la fórmula **lineal** (`tasa_anual ÷ 365`, la que trae
-el documento de requisitos) o con la fórmula **efectiva compuesta** (`(1+tasa_anual)^(1/365) − 1`, la que
-usa el software hoy)? Y, relacionado: cuando el interés diario calculado NO se reinvierte en el capital
-(comportamiento por defecto del software, sin anatocismo), ¿tiene sentido jurídico seguir usando una tasa
-derivada asumiendo capitalización, o debería usarse siempre la lineal en ese caso?
+**Actualización (2026-08-19, Sprint 83) — aparece una tercera opción, y es la que usa el propio despacho:**
+al revisar la plantilla comercial que el despacho usa para este mismo interés civil del 6% (Art. 2232 C.C.,
+gemelo del Art. 1617), `i7.INTERESES-CIVILES-6-ANUAL.xlsm` de Ediciones Sistematizadas Equidad, encontramos
+que su fórmula real no es la A ni la B de arriba:
 
-**Qué necesito exactamente:** confirmación de cuál de las dos fórmulas (A o B) debe usar el software para
-el interés del Art. 1617 y para las tasas pactadas sin capitalización explícita — y, si la respuesta es "depende"
-(ej. depende de si la tasa fue certificada como "efectiva anual" en el título ejecutivo o no), una regla
-clara de cuándo aplica cada una.
+**Opción C — Tasa mensual nominal con prorrateo de 30 días, la que usa la plantilla del despacho:**
+
+`tasa_mensual = [(1+6%)^(1/12) − 1] × 12 = 0,4867%` mensual, y el interés de cada período se calcula como
+`capital × tasa_mensual × (días_del_período / 30)` — es decir, convierte el 6% EA a una tasa **mensual**
+(no diaria) usando la fórmula compuesta, pero luego reparte esa tasa mensual **linealmente** entre los días
+del mes, siempre sobre una base de 30 días fijos (no 28/29/30/31 reales). Verificado numéricamente contra
+la propia tabla de ejemplo de la plantilla: capital $5.000.000, interés de junio/2025 (30 días) =
+$24.500,00, interés de julio/2025 (31 días) = $24.500 × 31/30 = $25.316,67 — cifras que solo cuadran con
+esta fórmula, no con la A ni con la B.
+
+**Pregunta:** para el interés civil del Art. 1617/2232 C.C. (y, si aplica también a otras tasas pactadas por
+las partes en Civil/Familia y Comercial, siempre que no se haya pactado capitalización/anatocismo), ¿la
+conversión de la tasa anual debe hacerse con la fórmula **lineal diaria** (Opción A, `tasa_anual ÷ 365`, la
+que trae el documento de requisitos), la **efectiva compuesta diaria** (Opción B, `(1+tasa_anual)^(1/365) −
+1`, la que usa el software hoy), o la **mensual nominal con prorrateo de 30 días** (Opción C,
+`[(1+tasa_anual)^(1/12)−1]×12` repartida entre `días/30`, la que usa la propia plantilla comercial del
+despacho)? Y, relacionado: cuando el interés diario calculado NO se reinvierte en el capital (comportamiento
+por defecto del software, sin anatocismo), ¿tiene sentido jurídico seguir usando una tasa derivada asumiendo
+capitalización, o debería usarse siempre la lineal en ese caso?
+
+**Qué necesito exactamente:** confirmación de cuál de las tres fórmulas (A, B o C) debe usar el software
+para el interés del Art. 1617/2232 y para las tasas pactadas sin capitalización explícita — y, si la
+respuesta es "depende" (ej. depende de si la tasa fue certificada como "efectiva anual" en el título
+ejecutivo o no), una regla clara de cuándo aplica cada una. Ver también Sprint 83 en `Pendientes.md` para
+el detalle técnico completo de la Opción C.
 
 **Dónde vive esto en el código (para referencia del desarrollo, no hace falta leerlo para responder):**
 `app/engine/interest/rate_conversion.py`, clase `EffectiveRateConverter`, método `annual_to_daily` —
@@ -297,6 +340,282 @@ algoritmo, o las costas deberían sumarse al final del cálculo sin generar inte
 
 **Qué necesito exactamente:** un sí/no sobre si las costas deben incluirse en la base que genera interés
 bajo Suma Única.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 80 — Cobertura parcial de la serie mensual de IPC (2003-2026) y qué hacer con fechas anteriores
+
+**Contexto:** ya conseguimos la tabla real de índices IPC mensuales que el despacho pidió (ver respuesta al Sprint 8), pero con dos particularidades frente a lo que se había pedido: (1) viene en una sola base continua (diciembre 2018 = 100), ya "enlazada" oficialmente por el DANE, en vez de las dos bases separadas (2008 y 2018) con un Factor de Enlace que el software calculara; y (2) solo cubre desde enero de 2003 en adelante — no hay índice mensual disponible para fechas anteriores a 2003.
+
+**Pregunta:** (1) ¿La serie ya enlazada por el DANE en una sola base (diciembre 2018 = 100) es aceptable para indexar, o el despacho necesita específicamente las dos bases separadas con el Factor de Enlace calculado por el software? (2) Para liquidaciones con `fecha_origen` anterior a enero de 2003, ¿el software debe (a) bloquear la indexación IPC exigiendo que el usuario indique manualmente el índice, (b) usar la variación % anual ya cargada (interpolación anual, la misma que el despacho calificó de "jurídicamente inválida" para fechas recientes, pero aplicada aquí solo por falta de alternativa), o (c) alguna otra solución?
+
+**Qué necesito exactamente:** una confirmación de sí/no sobre la base única, y una instrucción clara sobre qué hacer con fechas anteriores a 2003 (aceptar el hueco, usar la variación anual como aproximación documentada, o conseguir otra fuente).
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?
+
+**Contexto:** encontramos que una de las plantillas del despacho (`i10.INTERESES-TASADOS-A-LA-DTF-CONDENAS-ADMINISTRATIVAS.md`) liquida intereses de mora en condenas o conciliaciones contra el Estado, a una tasa equivalente a la DTF durante los primeros 10 meses después de la ejecutoria (Art. 195 núm. 4 de la Ley 1437 de 2011), y luego a la tasa comercial. Ninguna de las 6 áreas actuales de BASTIUM (Civil/Familia, Comercial, Laboral, Sancionatorio, Honorarios, Tributario) contempla explícitamente litigios contra entidades públicas de esta naturaleza.
+
+**Pregunta:** ¿el despacho maneja casos de este tipo (demandas o conciliaciones contra el Estado con condena en dinero)? Si es así, ¿en cuál de las áreas actuales de BASTIUM encajarían, o se necesitaría un área/flujo nuevo?
+
+**Qué necesito exactamente:** un sí/no sobre si este escenario es relevante para el despacho, y si es así, a qué área debería asignarse (o confirmación de que se necesita una nueva).
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional
+
+**Contexto:** las plantillas comerciales de referencia (Ediciones Sistematizadas Equidad) para bono pensional (P12, P13, P14) y cálculo actuarial de
+cotizaciones omisas (P10) usan una fórmula de "Reserva Actuarial = (PR x F1 + AF x F2) x F3" basada en el Decreto 1296 de 2022, actualizada con la DTF
+Pensional (Decreto 1299 de 1994, Decreto 1887 de 1994). El desarrollo no pudo extraer con certeza, de la exportación a texto de esas plantillas, la
+definición exacta de los factores F1, F2, F3, ni la tabla histórica completa de tasas DTF Pensional mes a mes desde 1994.
+
+**Pregunta:** ¿puede el despacho aportar la definición exacta de los factores F1, F2 y F3 de la fórmula de reserva actuarial (Decreto 1296/2022), la
+definición de "AF", y la tabla histórica de DTF Pensional mensual desde enero de 1994? Alternativamente, ¿puede aportar los archivos Excel originales de
+estas plantillas (no la versión ya convertida a texto) para que el desarrollo los revise directamente?
+
+**Qué necesito exactamente:** la fórmula completa con cada factor definido, o el archivo Excel original de P12/P13/P14/P10 sin convertir.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)
+
+**Contexto:** las plantillas P15 e P16 calculan el IBL de un régimen distinto al de la Ley 100 (últimas 100 o 150 semanas cotizadas, con un factor fijo de
+4.33 y topes de 90%), pero ninguna de las dos cita el Acuerdo/Decreto específico que respalda esa fórmula ni el origen del factor 4.33.
+
+**Pregunta:** ¿cuál es la norma exacta (probablemente un Acuerdo del ISS anterior a la Ley 100 de 1993) que respalda la fórmula de IBL de 100/150 semanas
+con el factor 4.33 y el tope del 90%? ¿El despacho sigue liquidando casos bajo este régimen histórico?
+
+**Qué necesito exactamente:** cita de la norma exacta (número de Acuerdo/Decreto y artículo), y confirmación de si es una funcionalidad que el despacho
+realmente necesita hoy.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 91 (seguimiento del Sprint 70) — Tabla completa de tasa de reemplazo por régimen: 1993-2003, régimen de transición e invalidez
+
+**Contexto:** la plantilla comercial P9 (Tasa de Reemplazo Ley 797/2003) trae, además de la fórmula que ya implementa BASTIUM (r = 65.5 − 0.5·s, vigente
+desde 2004), otras 3 tablas para: el período 1993-2003, el régimen de transición (tasa fija 75%/90%/"la que corresponda"), y pensión de invalidez grados 1 y
+2 (bases 45%/54% con incrementos de 1,5%/2% cada 50 semanas). El desarrollo pudo extraer las cifras exactas de invalidez (confirmadas contra la propia
+tabla numérica de la plantilla), pero no la fórmula matemática completa de los otros dos regímenes (1993-2003 y transición), que la plantilla no deja ver
+con datos de ejemplo.
+
+**Pregunta:** ¿puede el despacho confirmar (a) la fórmula exacta de tasa de reemplazo aplicable a causantes de pensión entre 1993 y 2003, (b) la regla
+exacta de cuándo aplica 75% vs. 90% vs. "la que corresponda" en el régimen de transición, y (c) si las cifras de invalidez que trae la plantilla comercial
+(grado 1: 45% + 1,5%/50 semanas sobre 500, tope 75%; grado 2: 54% + 2%/50 semanas sobre 800, tope 75%) son correctas?
+
+**Qué necesito exactamente:** las 2 fórmulas faltantes con su fundamento normativo exacto, y una confirmación sí/no de las cifras de invalidez citadas.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido?
+
+**Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el
+despacho trae dos regímenes de indemnización por despido injustificado según cuándo ingresó el trabajador,
+pero cita la misma fecha ("27 de diciembre de 1.992") para ambos regímenes, atribuyéndosela una vez a la
+Ley 789 de 2002 y otra vez a la Ley 50 de 1990 — que es de 1990, no de 1992. Antes de programar las tablas
+de días de indemnización, necesito saber cuál es la fecha de corte legal real.
+
+**Pregunta:** ¿el corte entre el régimen "favorable" (45 días primer año + 15/20 días subsiguientes) y el
+régimen posterior (30 días primer año + 20 días subsiguientes) es el 1° de enero de 1991 (entrada en
+vigencia de la Ley 50 de 1990), o es realmente el 27 de diciembre de 1992 como cita la plantilla?
+
+**Qué necesito exactamente:** la fecha exacta de corte, y si aplica alguna fecha adicional distinta para el
+régimen de trabajadores con salario ≥10 SMMLV.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?
+
+**Contexto:** el despacho tiene dos plantillas casi idénticas para liquidar salarios y prestaciones dejadas
+de percibir durante un período sin contrato vigente — una reajusta el salario año a año según la inflación
+(IPC) y la otra según el incremento del salario mínimo (SMMLV). El software ya tiene ambos mecanismos de
+reajuste construidos (Sprint 41/75, para otras áreas), pero antes de conectarlos a Laboral necesito saber
+cuándo se usa cada uno.
+
+**Pregunta:** ¿la elección entre reajustar por IPC o por SMMLV depende del tipo de proceso (ej. reintegro
+por despido nulo vs. contrato realidad), es una decisión discrecional del abogado según lo que pida en la
+demanda, o depende de otro criterio? ¿Hay algún caso en que se deban aplicar ambos reajustes combinados?
+
+**Qué necesito exactamente:** una regla clara (o confirmación de que es libre elección del abogado) sobre
+cuándo usar cada índice.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio
+
+**Contexto:** en las plantillas de "contrato realidad" (privado y sector público), el aporte a salud/pensión
+reclamable se calcula con porcentajes (8.5%/12% en la privada, 8%/12% en la pública) distintos de los que ya
+usa el software para seguridad social laboral general (16% pensión + 12.5% salud, que corresponde al aporte
+total empleador+trabajador, confirmado con el despacho en el Sprint 16). Además, la plantilla del sector
+público trae una regla de la bonificación por servicio ("corresponde al 35%, pero hasta 2 smmlv, escriba
+50%") sin explicar de dónde sale ni sobre qué base se aplica.
+
+**Pregunta:** (1) en un reclamo de contrato realidad, ¿los aportes a salud/pensión que se reclaman son el
+total (empleador + trabajador, igual que el Sprint 16) o solo la porción a cargo del empleador (8.5%/8% y
+12%)? (2) ¿cuál es la regla completa de la bonificación por servicio del sector público (base de cálculo,
+por qué cambia de 35% a 50% con el tope de 2 SMMLV, y la norma que la respalda)?
+
+**Qué necesito exactamente:** confirmación del porcentaje/base de aportes aplicable, y la regla completa
+(con norma) de la bonificación por servicio.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)
+
+**Contexto:** el software no tiene hoy ningún cálculo de horas extra ni recargos, y antes de construirlo
+necesito los porcentajes vigentes. La reciente Ley 2466 de 2025 modificó progresivamente (2025-2027) tanto
+el horario que se considera "nocturno" como el porcentaje del recargo dominical/festivo, así que no basta
+con un solo porcentaje fijo — hace falta saber qué aplica según la fecha del hecho, igual que ya se hace con
+otras tasas legales del sistema (ej. tasa de usura).
+
+**Pregunta:** ¿pueden confirmar la tabla completa de transición de la Ley 2466/2025 — fechas de corte,
+horario nocturno vigente en cada tramo, y porcentaje del recargo dominical/festivo en cada tramo hasta
+2027 — y los porcentajes de horas extra (diurna/nocturna, ordinaria/festiva) que siguen vigentes sin cambio?
+
+**Qué necesito exactamente:** una tabla de fecha de corte → porcentaje/horario aplicable, para cada uno de
+los 7 conceptos de la plantilla L3 (horas extra diurnas/nocturnas ordinarias, recargo nocturno, horas extra
+diurnas/nocturnas festivas, recargo festivo diurno/nocturno).
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?
+
+**Contexto:** la plantilla de liquidación de prestaciones para empleada doméstica que usa el despacho tiene
+la misma estructura de cálculo (cesantías, intereses, prima, vacaciones) que la plantilla general — la única
+diferencia visible es que convierte un salario diario y días laborados por semana a un equivalente mensual
+antes de aplicar las mismas fórmulas. Antes de construir esto como un simple conversor de datos (sin motor
+nuevo), necesito confirmar que no hay ninguna diferencia de fórmula que la plantilla no esté mostrando.
+
+**Pregunta:** después de la Ley 1788 de 2016 (que unificó la prima de servicios para el servicio doméstico
+con el régimen general), ¿queda alguna diferencia de fórmula entre las prestaciones sociales de un
+trabajador doméstico y el régimen general de cesantías/intereses/prima/vacaciones, o son exactamente las
+mismas fórmulas aplicadas sobre una base salarial calculada distinto (diario→mensual)?
+
+**Qué necesito exactamente:** un sí/no sobre si hay diferencia de fórmula, y si la hay, cuál es.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?
+
+**Contexto:** el despacho envió 8 plantillas comerciales (daño emergente, lucro cesante en 6 variantes de
+beneficiario, y beneficio dejado de percibir como fruto civil) que usan una fórmula actuarial completa
+(anualidad + tabla de mortalidad de rentistas) que hoy no existe en BASTIUM. Lo que existe hoy en el
+software (categorías "Daño emergente" y "Lucro cesante consolidado" dentro de Civil/Familia) es solo una
+etiqueta de un capital plano con interés simple e indexación IPC — no reproduce ninguna de las fórmulas de
+las plantillas.
+
+**Pregunta:** ¿el despacho litiga habitualmente casos de responsabilidad civil extracontractual (daño
+emergente, lucro cesante de víctima incapacitada, de cónyuge/hijos o de padres de víctima fallecida), y
+quiere que BASTIUM construya este motor como una séptima área de derecho, o prefiere que se integre como
+una extensión de Civil/Familia? ¿De las 6 variantes de lucro cesante que trajeron las plantillas (víctima
+incapacitado, cónyuge e hijos, padres de víctima adulta, padres de hijo menor, pensionado de fondo privado,
+beneficio dejado de percibir), cuáles usa realmente el despacho?
+
+**Qué necesito exactamente:** confirmación de si esto es una prioridad real de uso (no solo material de
+referencia que llegó junto con las demás plantillas), y si es así, cuál de las 6 variantes conviene construir
+primero.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)
+
+**Contexto:** las plantillas de lucro cesante futuro (víctima incapacitada, cónyuge e hijos, padres,
+pensionado de fondo privado) necesitan la expectativa de vida de la víctima según su edad y sexo, tomada de
+la tabla de mortalidad de rentistas de la Resolución 1555 de 2010 de la Superintendencia Financiera. Las
+plantillas traen esta tabla incrustada como referencia (hoja `TablasMortalidad`), pero el material revisado
+solo cubre edades desde 15 hasta cerca de 38 años — no se confirmó si la tabla incrustada en las plantillas
+llega hasta la edad máxima que puede necesitarse (ej. hasta 100+ años) ni si hay alguna actualización
+posterior a 2010 que el despacho use en su lugar.
+
+**Pregunta:** ¿pueden aportar la tabla completa de mortalidad de rentistas de la Resolución 1555 de 2010
+(hombres y mujeres, todas las edades), o confirmar si el despacho usa una fuente/versión distinta?
+
+**Qué necesito exactamente:** la tabla completa (edad → años de expectativa de vida, separada por sexo)
+desde la edad mínima relevante hasta la máxima, en cualquier formato (Excel, PDF, o el enlace oficial de la
+Superfinanciera).
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)
+
+**Contexto:** la plantilla `X9.INDEXACION-CON-ABONOS.md` documenta un algoritmo de indexar un capital único,
+aplicar abonos parciales sucesivos, y reindexar el saldo restante tras cada abono. El desarrollo cree que el
+motor actual de BASTIUM (Suma Única + abonos, ya usado en Civil/Familia desde el Sprint 75) ya reproduce
+este comportamiento, pero la plantilla en sí no trae ningún ejemplo con cifras reales resueltas — solo el
+formulario vacío — así que no hay forma de verificarlo sin datos.
+
+**Pregunta:** ¿el despacho tiene un caso real (o puede construir uno de ejemplo) con un capital inicial,
+2-3 abonos en fechas distintas, e IPC de cada fecha, ya resuelto en su Excel, para poder comparar contra el
+resultado de BASTIUM?
+
+**Qué necesito exactamente:** capital inicial + fecha, cada abono con su fecha y monto, los IPC usados en
+cada corte, y el resultado final esperado — igual que se hizo con el caso real usado para validar el
+Sprint 76.
 
 **Respuesta del despacho:**
 

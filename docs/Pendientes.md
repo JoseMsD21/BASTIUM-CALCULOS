@@ -146,6 +146,28 @@ completo/"Editar" que les faltaba, mismo patrón que ya tiene Eventos Laborales)
 sin implementar: conectar a futuro los 18 parámetros de prescripción/caducidad que hoy no tiene ningún
 botón real que los dispare).
 
+**Sprints 80-102 (nuevos, 2026-08-19): ~60 plantillas y documentos de referencia enviados por el despacho
+(Ediciones Sistematizadas Equidad + Superintendencia Financiera), convertidos a Markdown con
+[MarkItDown](https://github.com/microsoft/markitdown) y comparados contra el código real por 4
+investigaciones en paralelo.** Los originales y su conversión viven en
+`docs/Archivos de referencia abogado/` — **carpeta en `.gitignore`, nunca se sube al repo público**: trae
+material con copyright de terceros (prohíben su reproducción) y al menos un caso real de cliente con
+nombre completo; cada sprint de abajo cita la ruta exacta del archivo que hay que abrir localmente al
+trabajarlo. Resultado por bloque: **Sprints 80-84** (tasas históricas de interés: la serie mensual real de
+IPC 2003-2026 avanza el desbloqueo del Sprint 8; se descubrió que el interés civil del 6% que ya usa el
+despacho en sus propias plantillas no es ninguna de las 2 fórmulas que contemplaba la pregunta abierta del
+Sprint 76, sino una tercera — ver esa pregunta ampliada en `Preguntas-Para-Abogado-Abiertas.md`). **Sprints
+85-91** (módulo pensional: retroactivos, bono pensional, indemnización sustitutiva, RAIS, régimen ISS
+histórico y tasa de reemplazo para invalidez/1993-2003/transición — casi todo alcance jurídico nuevo,
+bloqueado a la espera de confirmación del despacho, salvo el retroactivo que sí reutiliza motor existente).
+**Sprints 92-96** (Laboral: indemnización por despido Art. 64 CST, salarios dejados de percibir con
+reajuste anual — reabre una exclusión que el propio Sprint 75 había dejado a propósito fuera de alcance —,
+contrato realidad, horas extra/recargos, y trabajo doméstico por jornada parcial). **Sprints 97-102**
+(dominio completamente nuevo de responsabilidad civil extracontractual/lucro cesante, hoy inexistente en
+BASTIUM — Sprint 97 es la decisión de arquitectura que bloquea 98-100 —, más 2 piezas menores de
+indexación IPC que sí se pueden construir sin esa decisión). El caso real que venía adjunto con las
+plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un caso nuevo.
+
 ---
 
 ## Índice de sprints
@@ -156,7 +178,7 @@ botón real que los dispare).
 - [Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado](#sprint-5--carga-de-datos-históricos-ipc-smlmv-ibc-tasa-de-usura-uvt--completado)
 - [Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado](#sprint-6--calendario-de-días-hábiles-judiciales-y-términos-procesales--completado)
 - [Sprint 7 — Motor de prescripción y caducidad ✅ Completado](#sprint-7--motor-de-prescripción-y-caducidad--completado)
-- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔴 Bug confirmado sin corregir](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--bug-confirmado-sin-corregir) — mecanismo mensual listo y probado; falta la fuente real del DANE (pregunta abierta)
+- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔵 Bloqueado — pendiente de confirmación](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--bloqueado--pendiente-de-confirmación) — mecanismo mensual listo y probado; ya se encontró la fuente real del DANE (Sprint 80), falta confirmar 2 detalles de alcance con el despacho
 - [Sprint 9 — Motor de auditoría / bitácora ✅ Completado](#sprint-9--motor-de-auditoría--bitácora--completado)
 - [Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado](#sprint-10--exportación-de-liquidación-a-pdfword--completado)
 - [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a) — ver corrección del Sprint 15 (11b)
@@ -215,6 +237,42 @@ botón real que los dispare).
 - [Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ ✅ Completado](#sprint-64--reorganizar-los-backups-de-bastiumdb-en-una-carpeta-backups--completado)
 - [Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" ✅ Completado](#sprint-65--lanzador-de-doble-clic-iniciar-bastiumbat--completado)
 - [Sprint 66 — Reorganizar "Parametros" en "Configuraciones" con submenú Parámetros/Apariencia ✅ Completado](#sprint-66--reorganizar-parametros-en-configuraciones-con-submenú-parámetrosapariencia--completado)
+- [Sprint 67 — Checkbox invisible en modo claro y oscuro (indicador de QCheckBox) ✅ Completado](#sprint-67--checkbox-invisible-en-modo-claro-y-oscuro-indicador-de-qcheckbox--completado)
+- [Sprint 68 — Parámetros: editar/eliminar de usuario, vigencia clara, unidad desplegable y tooltips homologados ✅ Completado](#sprint-68--parámetros-editareliminar-de-usuario-vigencia-clara-unidad-desplegable-y-tooltips-homologados--completado)
+- [Sprint 69 — Configuraciones: Restablecer datos de fábrica ✅ Completado](#sprint-69--configuraciones-restablecer-datos-de-fábrica--completado)
+- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🔵 Bloqueado — pendiente de confirmación](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt--bloqueado--pendiente-de-confirmación)
+- [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
+- [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
+- [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
+- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--pendiente)
+- [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
+- [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--completado-4-hallazgos-corregidos-1-pregunta-abierta)
+- [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 📋 Pendiente](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--pendiente)
+- [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 📋 Pendiente](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--pendiente)
+- [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 📋 Pendiente](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--pendiente)
+- [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--pendiente)
+- [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera 📋 Pendiente](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--pendiente)
+- [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 📋 Pendiente](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--pendiente)
+- [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) 📋 Pendiente](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--pendiente)
+- [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 📋 Pendiente](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--pendiente)
+- [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
+- [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--bloqueado--pendiente-de-confirmación)
+- [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--bloqueado--pendiente-de-confirmación)
+- [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
+- [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
+- [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--bloqueado--pendiente-de-confirmación)
+- [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--bloqueado--pendiente-de-confirmación)
+- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 📋 Pendiente](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--pendiente)
+- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
+- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
+- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
+- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 📋 Pendiente](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--pendiente)
+- [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--bloqueado--pendiente-de-confirmación)
+- [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--pendiente-de-confirmación)
+- [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
+- [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
+- [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 📋 Pendiente](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--pendiente)
+- [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--pendiente)
 
 ---
 
@@ -745,7 +803,7 @@ o caducadas sin advertirlo ni excluirlas. Ese gap de integración (no de cálcul
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔴 Bug confirmado sin corregir
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -853,6 +911,19 @@ el usuario filtra la pantalla de Parámetros por otra área (Comercial, Laboral,
 la fila de IPC no aparece en absoluto, lo cual puede ser otra causa de la misma percepción de "no aparecen
 los datos de IPC". Esa lista de áreas debe revisarse junto con el Sprint 43 cuando se activen las 5 áreas
 restantes.
+
+**Actualización (2026-08-19): se encontró la fuente real del DANE — ver Sprint 80.** El despacho envió,
+junto a un lote de plantillas de referencia, `docs/Archivos de referencia abogado/_markdown/Historico
+IPC.md`, que trae el índice IPC **mensual** real (no variación %) de enero de 2003 a abril de 2026, base
+diciembre 2018 = 100, fuente DANE — exactamente el dato que faltaba para poblar `_IPC_MENSUAL`
+(`historical_index.py`) y conectar `get_ipc_interpolado_mensual_for_date` en
+`CivilFamiliaStrategy._evento_indexacion`, el wiring que este sprint dejó pendiente. Se cambia el estado de
+🔴 (bug confirmado, sin corregir, bloqueado por falta total de dato) a 🔵 (bloqueado, pendiente de
+confirmación) porque ya no falta el dato — faltan dos detalles de alcance antes de conectar el wiring: (a)
+la tabla viene en una sola base ya enlazada por el DANE, no en las dos bases separadas con Factor de Enlace
+que pidió el despacho en su respuesta anterior; y (b) no cubre fechas anteriores a 2003. Ver Sprint 80 para
+el plan de implementación completo, y la pregunta nueva "Sprint 80" en `Preguntas-Para-Abogado-Abiertas.md`
+para esos dos detalles.
 
 ---
 
@@ -5488,6 +5559,14 @@ acotado que el que ya se hizo para parámetros, pero para fórmulas.
 necesita la tabla completa de leyes, fecha de vigencia y fórmula/cifra aplicable antes de codificar nada,
 mismo criterio de rigor que Sprint 5/7/18.
 
+**Actualización (2026-08-19):** el Sprint 91 encontró, en una plantilla comercial de referencia del
+despacho (`P9.TASA-DE-REEMPLAZO-LEY-797-2003.md`), un borrador de tabla con al menos 2 fórmulas de tasa de
+reemplazo pensional anteriores a la que ya implementa el código (vigente desde 2004) — exactamente el tipo
+de "caso de uso concreto" que este sprint necesitaba. La pregunta de este sprint en
+`Preguntas-Para-Abogado-Abiertas.md` se amplió con ese borrador para que el despacho lo confirme/corrija en
+vez de partir de cero. Sigue bloqueado — la fuente es una plantilla comercial de terceros, no verificación
+directa de la norma.
+
 ---
 
 ## Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado
@@ -5826,7 +5905,11 @@ sacó a la luz 5 hallazgos.
    trae la fórmula lineal `i/365` (`0,0164` diario). Verificado con el caso real: usando la fórmula lineal,
    BASTIUM queda a solo 0,04% del Excel del despacho, vs. 0,11% con la fórmula compuesta actual. 🔵
    **Pregunta abierta** — ver `Preguntas-Para-Abogado-Abiertas.md`, Sprint 76, con el desarrollo completo
-   pensado para que lo entienda alguien sin trasfondo técnico/financiero.
+   pensado para que lo entienda alguien sin trasfondo técnico/financiero. **Actualización (2026-08-19,
+   Sprint 83):** ninguna de las 2 opciones que contemplaba esta pregunta es, en realidad, la que usa el
+   propio despacho en su plantilla comercial para este mismo interés civil del 6% — es una tercera fórmula
+   (tasa mensual nominal con prorrateo de 30 días). La pregunta se amplió con esa "Opción C" en
+   `Preguntas-Para-Abogado-Abiertas.md`; ver Sprint 83 para el detalle técnico completo.
 
 **Verificación:** cada hallazgo se diagnosticó reproduciendo el caso real en un script aislado (sesión
 SQLite en memoria, mismas fechas/montos/configuración que el expediente del usuario) antes de tocar
@@ -5929,6 +6012,758 @@ esa base (sumadas al final, sin generar interés adicional)?
 
 ---
 
+## Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente
+
+**Prioridad sugerida:** Alta — Sprint 8 lleva bloqueado desde 2026-08-01 exclusivamente por falta de este dato real; esta serie lo resuelve para el 90%+ de los casos recientes.
+**Depende de:** Sprint 5 (series históricas), Sprint 8 (motor de interpolación mensual ya construido y probado, solo falta la tabla de datos).
+
+**Contexto:** `app/engine/indexation/historical_index.py`, líneas 234-257, documenta que `_IPC_MENSUAL: dict[tuple[int, int], Decimal] = {}` está deliberadamente vacía porque no se consiguió "una tabla transcribible con confianza" (nota del 2026-08-01 en el Sprint 8 de `Pendientes.md`, líneas 802-805). `docs/Archivos de referencia abogado/_markdown/Historico IPC.md`, hoja `IndicesIPC`, trae exactamente ese dato: una grilla Mes (filas Enero-Diciembre) × Año (columnas 2003-2026) del índice IPC del DANE, con la fila "Base Diciembre de 2018 = 100,00" confirmando la base (columna 2018, fila Diciembre = 100.00 exacto), y el pie "Índices - Serie de empalme 2003 - 2026 / Fuente: DANE / Actualizado el 9 de Abril de 2026". Cubre Enero-2003 (Enero=50.42) hasta Abril-2026 (Abril=149.66); mayo-diciembre 2026 vienen en blanco (aún no certificados). A diferencia de lo que pidió el despacho en su respuesta del Sprint 8 (dos bases, Dic-2008=100 y Dic-2018=100, enlazadas por un Factor de Enlace calculado por el software en el mes de traslape — `Preguntas-Para-Abogado-Respondidas.md`, Sprint 8), esta tabla **ya viene enlazada por el DANE en una sola base continua** (2018=100) — es decir, el trabajo de "Factor de Enlace" que el despacho pidió que el software hiciera ya está resuelto en el origen. No cubre 1967-2002: para esas fechas la única fuente que existe sigue siendo `_IPC_VARIACION_ANUAL` (variación % anual, ya cargada desde el Sprint 5).
+
+**Código existente a reutilizar:**
+- `app/engine/indexation/historical_index.py:260-270` — `get_ipc_mensual_for_month(anio, mes)`, ya implementada y probada, solo lee de `_IPC_MENSUAL`.
+- `app/engine/indexation/historical_index.py:273-295` — `get_ipc_interpolado_mensual_for_date(fecha)`, interpolación lineal por días dentro del mes, ya implementada exactamente como exige el despacho.
+- `app/services/area_strategy.py` (`CivilFamiliaStrategy._evento_indexacion`, referenciada en `Pendientes.md` línea 813) — hoy llama a `get_ipc_interpolado_for_date` (interpolación anual, inválida); este sprint la cambia a `get_ipc_interpolado_mensual_for_date` **solo para el rango cubierto**.
+
+**Código nuevo a crear:**
+- Poblar `_IPC_MENSUAL` con los 280 pares `(año, mes) → Decimal` de la tabla (2003-01 a 2026-04).
+- Lógica de fallback explícita para fechas fuera de rango (antes de 2003-01 o después del último mes cargado): decidir si se usa `IPCMensualNoDisponibleError` (bloquea la liquidación, seguro pero puede frustrar al usuario en casos viejos) o si se permite un fallback documentado a la interpolación anual solo para esas fechas — ver pregunta nueva en `Preguntas-Para-Abogado-Abiertas.md`, no asumir.
+- Actualizar el wiring de `CivilFamiliaStrategy._evento_indexacion` para usar la función mensual dentro del rango cubierto.
+
+**Definición de Hecho:**
+- `_IPC_MENSUAL` deja de estar vacía para 2003-01 a 2026-04, con valores verificables uno a uno contra `Historico IPC.md`.
+- Tests nuevos que verifiquen `get_ipc_interpolado_mensual_for_date` contra al menos 5 fechas reales de la tabla (incluyendo un 15 de mes, para probar la interpolación).
+- `CivilFamiliaStrategy` usa la función mensual para fechas dentro de rango; el comportamiento para fechas fuera de rango queda documentado explícitamente (no en silencio).
+- `docs/specifications/03_motor_indexacion.md` actualizado.
+- Suite completa en verde.
+
+---
+
+## Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera 📋 Pendiente
+
+**Prioridad sugerida:** Media — no bloquea nada activo, pero cierra una laguna real (1971-1997) con una fuente primaria verificable, y el rango actual (desde 1997-07-01) ya cubre la gran mayoría de casos de un despacho civil/comercial.
+**Depende de:** Sprint 5 (`_TRAMOS_IBC_USURA` ya existe y este sprint solo la extiende, no la rediseña).
+
+**Contexto:** `app/engine/indexation/historical_index.py:316-588` (`_TRAMOS_IBC_USURA`) empieza el 1997-07-01 (`TramoIBCUsura(date(1997, 7, 1), date(1997, 8, 31), Decimal("36.50"), Decimal("54.75"))`, línea 325). `docs/Archivos de referencia abogado/_markdown/Historicocertificacionsuperfinancieratasasdeinteres.md` trae una tabla con Resolución/Fecha/Vigencia Desde-Hasta/Tasa desde el **29-Oct-1971** (Resolución 2865, "CORRIENTE" 18.00%, "BANCARIO CORRIENTE" 14.00%, línea 12) hasta el 30-Abr-2026 (línea 446, IBC=17.84%, que coincide exacto con la Resolución 0517 de 2026 transcrita en `Ultima-Resolucion-que-certifica-tasas-de-interes-Superfinanciera.md`: "Certificar en un 17.84% efectivo anual el interés bancario corriente para la modalidad de crédito de consumo y ordinario", línea 80-81). Los valores de 1997-2006 de este archivo (ej. 2002-05: IBC=20.00%, línea 209) coinciden exacto con los ya cargados en `_TRAMOS_IBC_USURA` (`TramoIBCUsura(date(2002, 5, 1), date(2002, 5, 31), Decimal("20.00"), Decimal("30.00"))`, línea 383) — confirma que la fuente actual del código y este archivo son consistentes, no contradictorias. Antes de 1997 la tabla usa tres columnas distintas ("Corriente" / "Bancario Corriente" / "Créditos Ordinarios Libre Asignación") en vez de la columna única "Comercial→Consumo y Ordinario" que usa el código desde 1997 — requiere la misma decisión de mapeo de columnas que ya documentó el design spec del Sprint 5 para el cambio de estructura de 2007.
+
+**Código existente a reutilizar:**
+- `app/engine/indexation/historical_index.py:316-323` (`TramoIBCUsura` dataclass) y `:591-644` (`get_ibc_usura_for_date`, `get_tramos_ibc_usura_between`) — sin cambios de forma, solo más filas.
+
+**Código nuevo a crear:**
+- ~90 tramos nuevos en `_TRAMOS_IBC_USURA` para 1971-10-29 a 1997-06-30.
+- Decisión de diseño documentada: qué columna de la fuente pre-1997 (Corriente/Bancario Corriente/Créditos Ordinarios) mapea a la línea "IBC" que el motor usa hoy — probablemente "Bancario Corriente" por continuidad conceptual con el Art. 884 C.Co., pero debe quedar explícito en el design doc, no implícito.
+- Opcional (fuera de alcance salvo que el despacho lo pida): cargar también la línea "Microcrédito" como una serie paralela — el calculador `i13.INTERESES-CORRIENTES-Y-DE-MORA-PARA-MICROCREDITOS.md` la usa y hoy BASTIUM solo modela "Consumo y Ordinario" (documentado como fuera de alcance en `historical_index.py:304-307`).
+
+**Definición de Hecho:**
+- `_TRAMOS_IBC_USURA` cubre sin huecos desde 1971-10-29.
+- Tests que verifiquen al menos 3 tramos anteriores a 1997 contra el archivo fuente.
+- Suite completa en verde.
+
+---
+
+## Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 📋 Pendiente
+
+**Prioridad sugerida:** Baja — DTF no se usa hoy en ningún cálculo de BASTIUM; el único caso de uso identificado (`i10`, condenas administrativas) no tiene un área clara dentro de las 6 áreas actuales. Se propone cargar el dato de todas formas (bajo costo, fuente ya lista) pero sin construir el calculador hasta resolver la pregunta de área.
+**Depende de:** Nada para la carga de datos; el uso real depende de la respuesta a la pregunta nueva de este sprint.
+
+**Contexto:** `docs/Archivos de referencia abogado/_markdown/historicodtf.md`, hoja `Datos`, trae la serie semanal real "Tasa de Depósitos a Término Fijo (DTF) a 90 días" desde 1984-01-20 hasta 2026-02-27 (columna 2, ej. fila `1984/01/20 | 36.45`), con fuente "Banco de la República con información de la Superintendencia Financiera de Colombia" (hoja `Información`, línea 2209). Grep confirma que "DTF" no aparece en ningún archivo bajo `app/` salvo un comentario de lista en `app/engine/financial/rate.py:15` — es decir, no hay ningún motor de DTF hoy, ni placeholder. El calculador `i10.INTERESES-TASADOS-A-LA-DTF-CONDENAS-ADMINISTRATIVAS.md` usa esta serie para liquidar intereses de mora en condenas contra el Estado bajo el Art. 195 núm. 4 de la Ley 1437 de 2011 (CPACA) — un escenario de "litigio contra una entidad pública" que no encaja claramente en ninguna de las 6 áreas de BASTIUM (`CIVIL_FAMILIA, COMERCIAL, LABORAL, SANCIONATORIO, HONORARIOS, TRIBUTARIO`).
+
+**Código existente a reutilizar:**
+- `app/engine/interest/provider.py` (`MemoryRateProvider`/`RatePeriod`) — mismo patrón que ya usa `historical_index.py` para tramos con vigencia; DTF es semanal, no mensual, así que la resolución por fecha necesitaría redondear al viernes/semana vigente, no reutilizar tal cual `get_ibc_usura_for_date`.
+
+**Código nuevo a crear:**
+- `app/engine/indexation/historical_index.py` (o módulo nuevo `historical_dtf.py`): serie DTF semanal 1984-2026 + función `get_dtf_for_date(fecha) -> Decimal`.
+- Ningún calculador nuevo todavía — depende de la pregunta nueva de este sprint.
+
+**Alcance explícitamente excluido:** implementar el calculador de intereses DTF para condenas administrativas — eso requiere primero saber si el despacho litiga contra entidades públicas y en qué área de BASTIUM debería vivir ese flujo.
+
+**Definición de Hecho:**
+- Serie DTF cargada y consultable por fecha, con tests contra al menos 5 valores puntuales del archivo fuente.
+- Suite completa en verde.
+
+---
+
+## Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) 📋 Pendiente
+
+**Prioridad sugerida:** Alta — afecta directamente la pregunta abierta del Sprint 76 (que hoy solo contempla 2 opciones) y toca el motor central de conversión de tasas que usan las 6 áreas.
+**Depende de:** Sprint 76 (pregunta abierta existente — ampliada con este hallazgo).
+
+**Contexto:** `app/engine/interest/rate_conversion.py:14-20` (`EffectiveRateConverter.annual_to_daily`) implementa hoy `(1+i)^(1/365)-1` para TODAS las tasas anuales del sistema (civil, comercial, laboral, tributaria — confirmado por los 6 call-sites: `app/services/area_strategy.py:278,1017,1020`, `app/engine/labor/moratory_indemnity.py:67`, `app/engine/tax/moratory_interest.py:50`, `app/engine/tax/actualizacion_867_1.py:73`). Sin embargo, al leer los calculadores reales del despacho para exactamente el mismo interés civil del 6% (`i7.INTERESES-CIVILES-6-ANUAL.md`, hoja `Liquidación`, línea 956: *"TASA NOMINAL ANUAL=[(1+TASA EFECTIVA ANUAL)Elevada a la(1/12)-1) x 12]"*) y verificando numéricamente contra la tabla de ejemplo (capital $5.000.000, tasa mensual mostrada "0,49%", interés de junio/2025 (30 días) = $24.500,00, interés de julio/2025 (31 días) = $25.316,67 = $24.500×31/30), la fórmula real que aplican es: **tasa mensual nominal = `[(1+EA)^(1/12)-1]×12`, prorrateada por `días_del_período/30`** (no por 365 ni 366, un mes comercial fijo de 30 días) — ni la Opción A (lineal `÷365`) ni la Opción B (compuesta `^(1/365)`) que ya contempla la pregunta del Sprint 76. Se verificó el mismo patrón numérico en `i1` (365 días, línea 885-889), `i2` (360 días, línea 884-892 — idéntico a i1 pese al nombre distinto), `i9` (tasa pactada, línea 845-864) y `i13` (microcrédito). Solo `i3.INTERESES-CORRIENTES-Y-DE-MORA-TASA-DIARIA-LEGAL-VIGENTE.md` (línea 868, fórmula `TND=[(1+TEA)^(1/365)-1]`) coincide exactamente con la fórmula que BASTIUM usa hoy — pero **BASTIUM no distingue estos casos**: aplica la fórmula de `i3` a todo, incluyendo el escenario (civil 6%) donde el propio despacho usa la de `i7`. El motor `app/engine/interest/monthly_interest.py` (clase `MonthlyInterest`, fórmula `I = C × i × t` sobre una tasa mensual ya dada) existe en el código pero tiene **cero llamadores** en `app/` (confirmado por grep) — está construido pero nunca conectado, y tampoco existe un `EffectiveRateConverter.annual_to_monthly`.
+
+**Código existente a reutilizar:**
+- `app/engine/interest/monthly_interest.py` (`MonthlyInterest.calculate`) — ya implementa `I=C×i×t`, solo le falta quien le pase la tasa mensual correcta y quien lo invoque.
+- `app/engine/interest/rate_conversion.py` — agregar `annual_to_monthly` junto a `annual_to_daily`, mismo patrón.
+
+**Código nuevo a crear:**
+- `EffectiveRateConverter.annual_to_monthly(annual_percent) -> Rate` con la fórmula `[(1+EA)^(1/12)-1]×12` (nominal mensual), replicando `i1/i2/i7/i9/i13`.
+- Prorrateo por 30 días fijos para períodos parciales dentro de un mes (nueva función o parámetro en `MonthlyInterest`/`DailyInterest`).
+- Flag/config para decidir, por tipo de tasa, cuál de las 3 convenciones aplica — **no implementar el cambio de comportamiento real hasta tener respuesta del despacho** (ver Sprint 76).
+
+**Definición de Hecho:**
+- `annual_to_monthly` implementada y probada contra al menos 3 valores de `i1`/`i7` (ej. tasa mensual "0,49%" para EA=6%).
+- El hallazgo queda documentado en el código (docstring) y enlazado a la pregunta ampliada del Sprint 76 — sin cambiar el comportamiento real de ninguna área todavía (eso es un sprint de implementación posterior, condicionado a la respuesta del despacho).
+- Suite completa en verde.
+
+---
+
+## Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 📋 Pendiente
+
+**Prioridad sugerida:** Media — toca solo el área Tributario, pero es una discrepancia concreta y cuantificable entre lo que hace BASTIUM y lo que hacen las propias plantillas del despacho para el mismo escenario legal (E.T. art. 635 / Concepto DIAN 415 de 2021).
+**Depende de:** Sprint 11a (motor de interés tributario), Sprint 15 (techo de usura Art. 867-1).
+
+**Contexto:** `app/engine/tax/moratory_interest.py:1-9` documenta que el interés moratorio tributario es "tasa de usura vigente (línea Consumo y Ordinario) menos dos puntos porcentuales" — esto coincide exactamente con la premisa de `i4.INTERESES-DE-MORA-DIAN-ULTIMA-TASA-MENSUAL.md` e `i4A.INTERESES-DE-MORA-DIAN-DIFERENTES-TASAS-MENSUALES.md` (hoja `Liquidación`, línea 859/860: *"...a la tasa efectiva certificada por la superfinanciera, le resta 2 puntos y sin convertir esta tasa efectiva a nominal... la divide por 366 días"*). Pero el paso siguiente difiere: `moratory_interest.py:49-50` calcula `tasa_anual_tributaria = tramo.usura_anual - puntos_descuento` y luego `EffectiveRateConverter.annual_to_daily(tasa_anual_tributaria)` — es decir, aplica la fórmula **compuesta** de 365 días (`(1+i)^(1/365)-1`). Las plantillas i4/i4A del despacho, en cambio, dividen esa tasa (ya restados los 2 puntos) **linealmente entre 366** (verificado en i4A, línea 866: tasa diaria mostrada "-0.005479%" para una tasa mensual pactada baja — coherente con una división lineal simple, no compuesta). El propio archivo del despacho califica esta fórmula de "la ilógica matemática de la DIAN" (i4A línea 860), lo cual sugiere que el despacho **no necesariamente quiere que BASTIUM la replique** — pero si el objetivo es litigar/objetar liquidaciones DIAN usando la misma metodología que la autoridad tributaria aplica, la discrepancia (365-compuesto vs. 366-lineal) sí importa y debe ser una decisión explícita, no un accidente del motor genérico.
+
+**Código existente a reutilizar:**
+- `app/engine/tax/moratory_interest.py` completo — la resta de 2 puntos ya está correctamente implementada (`PUNTOS_DESCUENTO_ET_635`, línea 23, y el parámetro versionado `ET635_PUNTOS_DESCUENTO`, línea 48); solo la conversión anual→diaria (línea 50) está en discusión.
+
+**Código nuevo a crear:**
+- Ninguno hasta la respuesta del despacho — este sprint es de documentación/decisión, no de implementación (mismo criterio que Sprint 83).
+
+**Definición de Hecho:**
+- Discrepancia documentada en el docstring de `moratory_interest.py` con referencia cruzada a la pregunta nueva de este sprint.
+- Suite completa en verde (sin cambios de comportamiento).
+
+---
+
+## Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial
+
+**Prioridad sugerida:** Alta — es la funcionalidad más solicitada de las 16 plantillas (4 de 16 la implementan: P1, P1A, P2, P7) y reutiliza en un 60% código que ya existe.
+**Depende de:** Sprint 17 (IBL/tasa de reemplazo, ya implementado) y Sprint 13 (parametros_legales versionados).
+
+**Contexto:** las plantillas `P1.RETROACTIVO-PENSIONAL-SALARIO-MINIMO.md`, `P1A.RETROACTIVO-PENSIONAL-SALARIO-MINIMO-INDEXADO-O-INCREMENTO-PENSIONAL-DEL-14-o-7.md`,
+`P2.RETROACTIVO-PENSIONAL-CON-SALARIO-SUPERIOR-AL-MINIMO.md` y `P7.RELIQUIDACIÒN-PENSIONAL.md` comparten la misma estructura de 3 piezas, ninguna de las cuales
+existe hoy conectada a una liquidación real:
+1. **Recálculo mesada a mesada** de una pensión ya reconocida, ajustando cada mesada (incluida Mesada 13/14) contra el SMLMV vigente de cada año (P1, hoja `PH`,
+   fila 12: "Mesadas incrementadas a salario mínimo actual", tabla informativa SMMLV 1992–2026 embebida) o contra un incremento porcentual pactado (P1A, hoja
+   `PH`, fila 16: "Escriba al lado 100, si es la pensión completa o el porcentaje de incremento que corresponda (**conyuge: 14 — hijo: 7**)" — el incremento
+   pensional del 14%/7% de sustitución pensional; P1A cita las sentencias **SU-140-19 y SL-2334-19** para verificar vigencia de esa prestación, fila 6).
+2. **Indexación IPC de cada mesada** (Art. 21 Ley 100/1993) — esta pieza SÍ existe (`app/engine/indexation/ipc.py` → `IPCIndexation.calculate()`, ya reutilizado
+   por `calcular_ibl` en `app/engine/labor/ibl.py:9-26`), fórmula citada igual en las 4 plantillas ("Mesada x (IPCF / IPCI)", ej. P1.md línea 536).
+3. **Intereses de mora del Art. 141 Ley 100 de 1993** — "en caso de mora en el pago de las mesadas pensionales... la entidad reconocerá y pagará... la tasa
+   máxima de interés moratorio vigente en el momento en que se efectué el pago" (texto literal citado en las 4 plantillas, ej. P1.md línea 998, P7.md línea
+   1008). Esto **NO existe hoy** — es una tasa distinta al interés civil del 6% (Art. 1617 C.C.) o al usura comercial; es la tasa de usura vigente a la fecha
+   de pago (no de causación), aplicada a mesadas pensionales impagas.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** (a) ¿el recálculo mesada-por-mesada debe ser una función nueva independiente, o una
+extensión de `calcular_ibl`/nueva `retroactivo_pensional.py`? (b) confirmar que "tasa máxima de interés moratorio vigente al momento del pago" del Art. 141
+Ley 100 es equivalente al tope de usura que ya calcula `calcular_tope_usura` (ver abajo) y no una tasa distinta (interés bancario corriente puro, sin
+multiplicador); (c) el incremento 14%/7% de P1A — confirmar con el despacho si sigue vigente tras SU-140-19/SL-2334-19 antes de ofrecerlo como opción en la
+UI (la propia plantilla lo marca como dudoso).
+
+**Código existente a reutilizar:**
+- `app/engine/indexation/ipc.py` → `IPCIndexation.calculate()` (indexación IPC, ya usado en `ibl.py:24`).
+- `app/engine/indexation/historical_index.py:83` → `get_smlmv_for_year()` (tabla SMLMV, ya carga los mismos valores 1992–2026 que trae P1).
+- `app/engine/interest/usury_validator.py:13-24` → `calcular_tope_usura(ibc_vigente, fecha)` — ya resuelve "tasa máxima de interés moratorio vigente en
+  `fecha`" vía `parametro_service`/`USURA_MULTIPLICADOR`; es el candidato natural para el Art. 141, evitando construir una tabla de tasas nueva.
+
+**Código nuevo a crear:**
+- `app/engine/labor/retroactivo_pensional.py`: `calcular_retroactivo_mesadas(...)` (recálculo mesada a mesada contra SMLMV o incremento %) e
+  `interes_mora_pensional(mesadas_impagas, fecha_pago) -> Decimal` (Art. 141 Ley 100, reutilizando `calcular_tope_usura`).
+
+**Definición de Hecho:**
+- Test de recálculo de mesadas contra SMLMV histórico con al menos 3 años distintos.
+- Test de interés de mora Art. 141 comparado contra un caso con tasa de usura conocida.
+- Suite completa en verde.
+
+---
+
+## Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media-Alta — funcionalidad jurídica completamente nueva y de alta complejidad actuarial; no hay código previo del que partir.
+**Depende de:** Nada del código actual; comparte maquinaria potencial con Sprint 87 (ver nota de reutilización cruzada abajo).
+
+**Contexto:** `P12.BONO-PENSIONAL-TIPO-A-1.md`, `P13.BONO-PENSIONAL-TIPO-A-2.md` y `P14.CALCULO-BONO-PENSIONAL-CON-INTERESES.md` implementan el cálculo del
+bono pensional (título que reconoce el Estado a quien se traslada de régimen) con una fórmula de reserva actuarial:
+`Valor Reserva Actuarial a Fecha de corte = (PR x F1 + AF x F2) x F3` (P12.md línea 30), donde PR es la "pensión de referencia" calculada según la **fórmula
+financiera del Decreto 1296 de 2022** (P12.md línea 25). Los factores F1/F2/F3 y la definición exacta de AF **no se lograron extraer con certeza del export**
+(tabla de mortalidad y coeficientes actuariales, probablemente en columnas/hojas que el conversor Excel→Markdown no preservó con etiquetas claras) — esto es
+una limitación de lectura, no una confirmación de que no existan. El valor de la reserva se actualiza a la fecha de pago con la **DTF Pensional**
+(P12.md línea 53: "Reserva al corte x (DTFP(FP) / DTFP(FC))", **Art. 10 Decreto 1299 de 1994**, capitalización anual vía **Art. 7 Decreto 1887 de 1994**), y
+solo es liquidable desde enero de 1994 ("año desde donde se puede liquidar intereses a la DTF pensional", P12.md líneas 34-35; P14.md línea 4: "Liquida desde
+Enero de 1994, con la vigencia de la Ley 100"). También citan **Decreto 1748 de 1995** y **Art. 2 Decreto 2779 de 1994** (tabla de salarios medios
+nacionales) como soporte adicional. Esta es una de las funcionalidades **más grandes de alcance completamente ausente** del código — no hay ninguna mención
+de "bono pensional" en el repositorio.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** (a) conseguir del despacho o releer directamente el Excel original (no el .md) para extraer
+los factores F1/F2/F3, la tabla de mortalidad usada, y la tabla histórica completa de DTF Pensional mes a mes — sin esto no se puede codificar la fórmula
+central; (b) confirmar si el despacho realmente litiga bonos pensionales tipo A modalidad 1 y 2 con la frecuencia suficiente para justificar el esfuerzo
+(es la plantilla de mayor complejidad matemática de las 16).
+
+**Código nuevo a crear:** `app/engine/labor/bono_pensional.py` (bloqueado hasta resolver la decisión de diseño arriba).
+
+**Definición de Hecho:**
+- Reserva actuarial reproducida contra un caso de prueba real aportado por el despacho.
+- Suite completa en verde.
+
+---
+
+## Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media — feature nueva, pero de menor complejidad que Sprint 86 porque reutiliza gran parte de su misma maquinaria (reserva actuarial + DTF
+Pensional) y del motor de IBL ya existente.
+**Depende de:** Sprint 86 (comparte reserva actuarial + DTF Pensional) y Sprint 17 (IBL toda-la-vida-laboral, ver nota abajo).
+
+**Contexto:** agrupa 3 plantillas relacionadas — el empleador que **no pagó** cotizaciones a pensión (a diferencia de Sprint 86, donde el trabajador se traslada de
+régimen voluntariamente):
+- `P10.CALCULO-ACTUARIAL-DE-COTIZACIONES-OMISAS.md`: misma fórmula de reserva actuarial y DTF Pensional que P12-P14 (**Decreto 1296 de 2022**, **Art. 7
+  Decreto 1887 de 1994**, **Art. 10 Decreto 1299 de 1994**, **Art. 2 Decreto 2779 de 1994**) — código altamente reutilizable con Sprint 86 si Sprint 86 se construye
+  primero.
+- `P10.A-CALCULO-INTERESES-MORA-EN-COTIZACIONES-PENSIONES.md`: interés de mora simple día a día sobre el capital adeudado (tasa diaria fija, ej. 0.116822%),
+  y una fórmula de conversión de tasa efectiva a nominal: `TASA NOMINAL ANUAL=[(1+TASA EFECTIVA ANUAL)^(1/12)-1] x 12` **(Art. 2.2.3.3.1 Decreto 1833 de
+  2016)** — esta conversión ya tiene equivalente funcional en `app/engine/interest/rate_conversion.py` (`EffectiveRateConverter`, mencionado en la pregunta
+  abierta del Sprint 76), reutilizable directamente.
+- `P10B.CALCULO-DEL-SALARIO-BASICO-DEFLACTADO-ART-20-DECRETO 1225-DE 2024.md`: NO es una fórmula nueva — es la **misma metodología de promedio ponderado por
+  días de P4** (toda la vida laboral, indexado por IPC), simplemente re-etiquetada como insumo obligatorio de P10 bajo el Art. 20 del Decreto 1225 de 2024
+  (P10B.md línea 2: "TABLA PARA ESTABLECER EL SALARIO BASE DEFLACTADO (SB), DEL CÁLCULO ACTUARIAL, ESTABLECIDO EN EL ARTÍCULO 20 DEL DECRETO 1225 DE 2024").
+  Esto significa que **`calcular_ibl` de `app/engine/labor/ibl.py:9-26` ya puede producir este insumo sin cambios de fórmula**, siempre que se le pase el
+  historial completo de vida laboral en vez de acotado a 10 años (la propia función no filtra por fecha, según su docstring).
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** igual que Sprint 86 — se necesita la tabla histórica de DTF Pensional y confirmar si esta reserva
+actuarial comparte de verdad el mismo motor con Sprint 86 o si hay diferencias sutiles entre "bono pensional" y "cálculo de cotizaciones omisas" que ameriten
+motores separados.
+
+**Código existente a reutilizar:** `app/engine/labor/ibl.py:9-26` (`calcular_ibl`, para el salario básico deflactado de P10B), `app/engine/interest/rate_conversion.py`
+(`EffectiveRateConverter`, para la conversión EA→nominal de P10A).
+**Código nuevo a crear:** `app/engine/labor/cotizaciones_omisas.py` (bloqueado por la misma razón que Sprint 86: falta la tabla DTF Pensional completa y los
+factores de reserva actuarial).
+
+**Definición de Hecho:**
+- Caso de prueba real aportado por el despacho.
+- Suite completa en verde.
+
+---
+
+## Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media — feature nueva, autocontenida, y con la fórmula y todos los datos necesarios ya disponibles en la plantilla (no requiere
+factores actuariales indeterminados como Sprint 86/87).
+**Depende de:** Nada.
+
+**Contexto:** `P6.INDEMNIZACION-SUSTITUTIVA-DE-PENSION.md` implementa el **Art. 3 del Decreto 1730 de 2001** (que reglamentó el **Art. 37 de la Ley 100 de
+1993**): `I = SBC x SC x PPC`, donde SBC = salario base de cotización semanal promediado e indexado por IPC, SC = suma de semanas cotizadas, y PPC =
+promedio ponderado de los porcentajes de cotización histórica del afiliado (P6.md línea 465, fórmula completa transcrita literalmente). La plantilla trae
+una **tabla histórica de % de cotización a pensión por año, desde diciembre de 1966 hasta 2024** (P6.md líneas 466-495), citando **Art. 33 Decreto 3041 de
+1966, Art. 2 Decreto 2879 de 1985, Art. 1 Decreto 1476 de 1992, Art. 3 Decreto 1730 de 2001**, y dos sentencias de referencia (**SL-16178 del 24-01-2002**:
+aportes de 1985 al 6,5%; **SL-24369 del 25-05-2005**: aportes de 1995 al 12,5%). Esta tabla es un insumo puro de datos (no de fórmula) reutilizable también
+por Sprint 87 (cotizaciones omisas) si en algún punto se necesita el % de cotización histórico ahí también.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** confirmar la tabla de % de cotización 1966-2024 contra la fuente oficial (Decreto por
+Decreto) antes de codificarla como cifra legal, siguiendo el mismo rigor que el Sprint 14 (tabla UVT) — la plantilla es de un tercero comercial, no fuente
+primaria.
+
+**Código nuevo a crear:** `app/engine/labor/indemnizacion_sustitutiva.py`: `calcular_indemnizacion_sustitutiva(historial_ibc, historial_pct_cotizacion) ->
+Decimal`.
+
+**Definición de Hecho:**
+- Test contra un caso con historial de cotización sintético cubriendo al menos 2 tramos de % distintos.
+- Tabla de % de cotización por año confirmada contra fuente oficial (no solo la plantilla comercial).
+- Suite completa en verde.
+
+---
+
+## Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media — el propio Sprint 17 excluyó explícitamente RAIS de su alcance ("Régimen de Ahorro Individual con Solidaridad (RAIS) — el PDF
+solo describe Prima Media"), así que esto cierra un hueco ya documentado, no una feature imprevista.
+**Depende de:** Nada.
+
+**Contexto:** `P11.MONTO-MENSUAL-DE-PENSION-REGIMEN-AHORRO-INDIVIDUAL.md` calcula una anualidad financiera clásica:
+`MMP = VP x i x (1+i)^n / ((1+i)^n - 1)`, donde VP = valor ahorrado en la cuenta individual, i = interés técnico (**4% EA, fijado por Resolución 0610 de
+1994 de la Superfinanciera**, actualizada por Resolución 1555 de 2010), n = años de disfrute proyectados según **tabla de mortalidad de rentistas**
+(hombres/mujeres, edad 15-110, P11.md líneas 328-429, tabla completa transcrita). Soporte jurídico: **Ley 100 Arts. 80 y 81** (P11.md línea 35). La propia
+plantilla se autocalifica como "SIMPLE SIMULACIÓN APROXIMADA... que puede presentar variaciones con la liquidación hecha por el Fondo de Pensiones y no está
+ajustada a la compleja fórmula descrita en la **Resolución 3023 de 2017** del Ministerio de Hacienda" (P11.md línea 4) — es decir, incluso la fuente
+comercial admite que es una aproximación, no la fórmula regulatoria completa.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** ¿el despacho necesita la fórmula completa de la Resolución 3023/2017 (más precisa, más
+compleja), o basta la anualidad simplificada de esta plantilla para los casos que maneja? Si se acepta la simplificada, debe quedar documentado como
+limitación conocida en el código, igual que la propia plantilla lo advierte.
+
+**Código nuevo a crear:** `app/engine/labor/rais.py`: `calcular_monto_mensual_pension_rais(valor_ahorro, interes_tecnico, edad, sexo) -> Decimal`
+(tabla de mortalidad de rentistas como constante del módulo).
+
+**Definición de Hecho:**
+- Test con al menos 2 combinaciones edad/sexo usando la tabla de mortalidad.
+- Suite completa en verde.
+
+---
+
+## Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Baja-Media — régimen histórico (aplica a hechos generadores anteriores a 1994), menos frecuente que el resto pero con una fórmula
+genuinamente distinta a la que ya existe.
+**Depende de:** Sprint 70 (vigencia de leyes por año) — es exactamente el tipo de "fórmula histórica distinta según la fecha del hecho" que ese sprint busca
+resolver de forma estructural; puede adelantarse igual sin esperar a Sprint 70 si se trata como caso puntual.
+
+**Contexto:** `P15.IBL-100-SEMANAS.md` y `P16.IBL-150-SEMANAS.md` implementan un mecanismo **completamente distinto** al de `calcular_ibl` actual: en vez de
+promediar salarios indexados por IPC, dividen la suma de los salarios de las últimas 100 (o 150) semanas cotizadas por 100 (o 150), multiplican por un
+**factor fijo de 4.33** (P15.md línea 32: "Factor por el que multiplica la 100ava parte"), y aplican una tasa base de **45%** más un adicional de **3% por
+cada 50 semanas adicionales** (P15) o **1,2% por cada 50 semanas adicionales** (P16), con tope del **90%** (no 80% como el resto) — "si el total supera el
+90% sobreescriba 90" (P15.md línea 37, P16.md línea 54). **Ninguna de las dos plantillas cita el artículo/decreto exacto** que respalda esta fórmula ni el
+origen del factor 4.33 — es presumiblemente el régimen del **ISS (Acuerdo 049 de 1990 o similar, anterior a la Ley 100/1993)**, pero esto necesita
+confirmación del despacho antes de codificar, no debe asumirse.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** (a) confirmar la norma exacta que respalda esta fórmula (el 90% de tope y el factor 4.33
+en particular); (b) confirmar en qué casos reales el despacho todavía liquida bajo este régimen (afiliados con historia laboral anterior a 1994).
+
+**Código nuevo a crear:** `app/engine/labor/ibl.py` (extender): `calcular_ibl_regimen_iss(salarios_ultimas_n_semanas, n, factor, pct_base, pct_adicional_por_50,
+tope) -> Decimal`.
+
+**Definición de Hecho:**
+- Norma legal exacta confirmada por el despacho antes de mergear.
+- Test de 100 semanas y test de 150 semanas con datos sintéticos.
+- Suite completa en verde.
+
+---
+
+## Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media-Alta — `calcular_tasa_reemplazo` de `app/engine/labor/ibl.py:60-89` **solo implementa la tabla "desde el año 2004 en
+adelante"** de la Ley 797/2003; las otras 3 variantes que trae la misma plantilla de referencia (P9) no están cubiertas y producirían resultados
+incorrectos si se aplicaran a un caso de invalidez o a un causante de 1993-2003.
+**Depende de:** Sprint 70 (parcialmente — ver nota de impacto) y Sprint 17.
+
+**Contexto:** `P9.TASA-DE-REEMPLAZO-LEY-797-2003.md` (hoja `Hoja1`) trae 5 tablas de tasa de reemplazo distintas, de las cuales el código de hoy solo
+implementa la primera:
+1. **"Con la Ley 797 de 2003, desde el año 2004 en adelante"** (P9.md fila 11): fórmula `r = 65.5 − 0.5·s`, con bono de 1,5% por cada 50 semanas — **esto
+   SÍ está implementado** en `calcular_tasa_reemplazo`.
+2. **"Con la Ley 797 de 2003, desde 1993 hasta 2003"** (P9.md fila 17): tabla sin columna SMLV/S×0,5 — **fórmula distinta, no implementada**.
+3. **"Régimen de Transición"** (P9.md fila 23): tasa fija ("75%, 90% o la que corresponda", Mesada = IBL × tasa fija) — **no implementada**.
+4. **Pensión de Invalidez Grado 1** (50%-65,99% de invalidez): base **45% del IBL + 1,5% por cada 50 semanas sobre las primeras 500, tope 75%**
+   (confirmado con cifras exactas en P9.md filas 59-91: 500 semanas→45,0%, 550→46,5%... 1500→75,0%, incrementos de 1,5 cada 50 semanas) — **no implementada**.
+5. **Pensión de Invalidez Grado 2** (≥66% de invalidez): base **54% del IBL + 2% por cada 50 semanas sobre las primeras 800, tope 75%** (P9.md filas 81-91:
+   800→54,0%... 1400→75,0%, incrementos de 2,0 cada 50 semanas) — **no implementada**.
+
+Nota positiva: la tabla de la tasa 2004+ (P9.md filas 184-535) **confirma exactamente** que `semanas_minimas_requeridas()` de `ibl.py:49-57` está bien
+implementada — verificado año por año contra el diccionario `_SEMANAS_MINIMAS_POR_ANIO` del código: 2005→1050, 2006→1075, 2007→1100, 2008→1125,
+2009→1150, 2010→1175, 2011→1200, 2012→1225 coinciden exactamente con "2005-1050", "2006-1075", "2007-1100"... de la plantilla. También se confirmó que el
+código **ya cumple** el criterio de la sentencia CSJ 3501/2022 citada por la plantilla ("contabilizar las semanas por encima de las 1800 y hasta un tope del
+80%"): `calcular_tasa_reemplazo` no trunca `semanas_cotizadas` en 1800, solo aplica el tope final de 80% al resultado — la tabla de P9 confirma esto contando
+bloques de 50 semanas sin cortar en 1800 (llega hasta 2200 semanas = 27,0% de bono en 2026).
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** (a) confirmar la fórmula exacta 1993-2003 (la plantilla no la deja ver con datos, solo la
+estructura de columnas); (b) confirmar los porcentajes fijos válidos del régimen de transición (75%/90%/"la que corresponda" — necesita la regla de cuándo
+aplica cada uno); (c) confirmar si el software debe ofrecer pensión de invalidez como un tipo de caso separado del de vejez (afecta a `LaboralStrategy` /
+futura `PensionalStrategy`).
+
+**Código existente a reutilizar:** `app/engine/labor/ibl.py:60-89` (`calcular_tasa_reemplazo`, patrón de piso/techo/bono a replicar para invalidez).
+**Código nuevo a crear:** `calcular_tasa_reemplazo_invalidez(ibl, grado, semanas_cotizadas) -> Decimal` en el mismo módulo.
+
+**Definición de Hecho:**
+- Tests de invalidez grado 1 y grado 2 reproduciendo exactamente las cifras de P9.md (ej. 800 semanas grado 2 → 54%, 1500 semanas grado 1 → 75%).
+- Fórmula 1993-2003 y régimen de transición confirmados con el despacho antes de codificar.
+- Suite completa en verde.
+
+---
+
+## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 📋 Pendiente
+
+**Prioridad sugerida:** Alta — es probablemente el tipo de proceso laboral más común (despido sin justa
+causa), y hoy BASTIUM lo omite silenciosamente pese a tener un archivo con nombre similar
+(`moratory_indemnity.py`) que podría hacer pensar que ya está cubierto.
+
+**Depende de:** Sprint 3 (Área Laboral, ya completo — extiende `LaboralStrategy`) y Sprint 5 (SMLMV
+histórico, ya completo — necesario para el umbral de 10 SMMLV que distingue las tablas).
+
+**Contexto:** `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` (hoja `Hoja1`) trae en realidad DOS
+cálculos distintos bajo el mismo nombre de archivo:
+1. **"Cálculo Sanción Moratoria"** (filas 64-70): un día de salario por cada día de mora hasta 24 meses,
+   luego intereses moratorios — esto SÍ está implementado, y coincide, en
+   `app/engine/labor/moratory_indemnity.py` (`MoratoryIndemnityCalculator`, límite `LIMITE_FASE1_DIAS = 720`
+   días, fase 2 con tasa de usura vía `get_ibc_usura_for_date`), wireado en
+   `app/services/area_strategy.py:1240-1257` como evento `SANCION_MORATORIA`.
+2. **"Indemnización por Despido"** (filas 4-60): esto es Art. 64 CST, un concepto legal completamente
+   distinto (compensación por terminación sin justa causa, no por mora en el pago), y **no existe en ningún
+   archivo del proyecto** (confirmado por `grep -i "despido"` en todo `app/`, único resultado en
+   `app/views/obligaciones.py` sin relación). La plantilla trae varios regímenes de días de salario según:
+   - Umbral de salario: menor o mayor/igual a 10 SMMLV.
+   - Duración del contrato: ≤1 año, entre 1-5 años, 5-10 años, >10 años.
+   - Fecha de ingreso relativa a la vigencia de la Ley 50/1990 (contratos anteriores tienen un régimen más
+     favorable que los posteriores, regidos por la Ley 789/2002).
+   - Ejemplos puntuales leídos directamente de la plantilla (no toda la tabla): término indefinido <10 SMMLV
+     post-Ley 789/2002 con >1 año: "30 Días de salario Básico" el primer año + "20 Días... por cada año
+     subsiguiente"; el mismo caso pre-Ley 50/1990: "45 Días... por el primer año y a 15 Días... por cada año
+     subsiguiente"; término fijo/obra-labor: "el tiempo que faltare para cumplir el plazo... la indemnización
+     no será inferior a quince (15) días".
+   - **Inconsistencia detectada en la propia plantilla, no resuelta en esta investigación**: dos secciones
+     citan la misma fecha "27 de diciembre de 1.992" pero una la atribuye a la "ley 789 de 2002" y la otra a
+     la "ley 50 de 1990" (la Ley 50 es de 1990, no de 1992) — antes de codificar, hay que confirmar con el
+     despacho la fecha de corte real (probablemente 1° de enero de 1991, vigencia de la Ley 50/1990).
+
+**Decisión de diseño a tomar con el usuario antes de codificar:**
+- Confirmar la fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 (ver inconsistencia arriba).
+- Cómo capturar los datos que hoy `Obligacion` no tiene: tipo de contrato (indefinido/fijo/obra-labor),
+  si el despido fue con o sin justa causa, y (para el régimen pre-1990) si el trabajador venía cotizando
+  antes de esa fecha.
+- Si esta indemnización coexiste con la `SANCION_MORATORIA` ya implementada (son conceptos distintos y
+  compatibles legalmente — el despido injustificado no impide que además haya mora en el pago de
+  prestaciones — pero conviene confirmarlo explícitamente antes de sumarlas en el mismo expediente).
+
+**Código existente a reutilizar:** `app/engine/labor/moratory_indemnity.py` como patrón de diseño (un
+calculador puro con `@dataclass(frozen=True)` de resultado); `app/engine/indexation/historical_index.py::get_smlmv_for_year`
+para el umbral de 10 SMMLV; `LaboralStrategy` (`area_strategy.py:1052`) para el wiring.
+
+**Código nuevo a crear:**
+- `app/engine/labor/dismissal_indemnity.py` (sugerido): `DismissalIndemnityCalculator` con los regímenes
+  de días por tramo de antigüedad/salario/fecha de ingreso.
+- Campos nuevos en `Obligacion` (o modelo aparte): tipo de contrato, si el despido fue injustificado,
+  fecha de ingreso para el corte legal.
+- Wiring en `LaboralStrategy.liquidar()` como nuevo evento (ej. `INDEMNIZACION_DESPIDO`).
+
+**Definición de Hecho:**
+- Tests para cada quiebre de tramo (1 año, 5 años, 10 años, umbral de 10 SMMLV, contrato a término fijo con
+  piso de 15 días).
+- Confirmación del despacho sobre la fecha de corte 1990/1992 registrada en `Preguntas-Para-Abogado-Abiertas.md`.
+- Suite completa en verde.
+
+---
+
+## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente
+
+**Prioridad sugerida:** Alta — reutiliza infraestructura que ya existe casi completa (bajo costo de
+implementación) para un tipo de proceso común (reintegros, salarios caídos).
+
+**Depende de:** Sprint 3 (Área Laboral), Sprint 41/75 (`app/services/reajuste_anual.py`, ya completos),
+Sprint 5 (series históricas IPC/SMLMV, ya completo).
+
+**Contexto:** `L5.SALARIOS-Y-PRESTACIONES-SOCIALES-DEJADAS-DE-PERCIBIR(incrementoinflacion).md` y
+`L6...(incremento-salario-minimo).md` (hoja `CALCULO-IPC` en ambos) NO liquidan el finiquito de un
+contrato — reconstruyen salario + prestaciones para un período en que el trabajador **no estuvo
+contratado** (típicamente reintegro por despido declarado nulo, o el período de "salarios caídos"), año por
+año, incrementando el salario anualmente según un índice. La estructura es idéntica en ambas plantillas
+(columnas DESDE/HASTA por año, SALARIO INCREMENTADO ANUALMENTE, # DE MESES, CESANTIAS/INTERESES A LAS
+CESANTIAS/PRIMAS/VACACIONES por bloque anual, sumado en un "GRAN TOTAL"), y solo difieren en el índice de
+reajuste: L5 usa la tabla de variación IPC anual (hoja `DATOS`, serie 1967-2025, idéntica a la ya cargada en
+`app/engine/indexation/historical_index.py` desde el Sprint 5); L6 usa la tabla histórica de SMMLV (hoja
+`DATOS`, serie 1980-2026, también ya cargada en el mismo archivo).
+
+El Sprint 75 (`docs/Pendientes.md`) excluyó a Laboral explícitamente de la generalización de
+"cuotas recurrentes con reajuste anual" con la razón: *"Laboral es estructuralmente incompatible: una
+obligación = un contrato completo, no una serie de cuotas"* — verificado en código,
+`_validar_obligacion_laboral` (`app/services/area_strategy.py:1323-1328`) efectivamente bloquea
+`TipoObligacion.RECURRENTE` con `ValueError`. Esa razón es correcta para el modelo del Sprint 3 (finiquito de
+un contrato vigente-hasta-fecha_fin), pero **no aplica al patrón de L5/L6**: ahí no hay "cuotas de un
+contrato", hay una reconstrucción retroactiva de lo que el trabajador habría devengado mes a mes si hubiera
+seguido activo, con reajuste el 1° de enero de cada año — exactamente la forma que
+`app/services/reajuste_anual.py::generar_cuotas_mensuales`/`reajustar_capital_anual` (Sprint 41/75) ya
+resuelve para Civil/Familia y Comercial. Más aún: `database/models.py` ya define
+`TipoReajusteAnual.IPC`/`TipoReajusteAnual.SMMLV` — exactamente las dos variantes que separan L5 de L6 — y
+`reajustar_capital_anual` (`app/services/reajuste_anual.py:58-86`) ya implementa ambas fórmulas
+(`IPCIndexation.calculate()` para IPC, `_pct_reajuste_smmlv` para SMMLV). Y los divisores 360/720 que usan
+las cesantías/intereses/prima/vacaciones de L5/L6 por bloque anual son los mismos que ya usa `LaborScheduler`
+(`app/engine/temporal/schedulers/labor.py`).
+
+**Decisión de diseño a tomar con el usuario antes de codificar:**
+- Cómo modelar esto sin romper el invariante "1 obligación = 1 contrato" del Sprint 3: ¿una categoría nueva
+  (ej. `SALARIOS_DEJADOS_DE_PERCIBIR`) que sí admita generación de cuotas anuales dentro de
+  `LaboralStrategy`, coexistiendo con `LIQUIDACION_CONTRATO_LABORAL` (`app/core/constants.py:25-27`) que
+  sigue igual? ¿o un tipo de expediente/obligación aparte?
+- Confirmar con el despacho en qué tipo de proceso se usa cada variante (reintegro con salarios caídos,
+  contrato realidad con período sin reconocimiento, otro) y si la elección IPC vs. SMMLV es discrecional del
+  abogado según el caso o depende de una regla fija.
+
+**Código existente a reutilizar:** `app/services/reajuste_anual.py` (`generar_cuotas_mensuales`,
+`reajustar_capital_anual`, `TipoReajusteAnual.IPC`/`SMMLV` ya soportados); `app/engine/temporal/schedulers/labor.py::LaborScheduler`
+(mismos divisores 360/720 por bloque anual); `app/engine/indexation/historical_index.py` (`get_ipc_for_date`,
+`get_smlmv_for_year`, Sprint 5, ya cubre los años de ambas tablas).
+
+**Código nuevo a crear:** adaptar/extender el generador de cuotas para producir bloques anuales de salario
+con `LaborScheduler` aplicado a cada bloque (en vez de una única liquidación de finiquito); nueva
+categoría/submodo en `LaboralStrategy`; relajar `_validar_obligacion_laboral` específicamente para este
+submodo nuevo (sin abrir `RECURRENTE` de forma general al área, que sigue siendo incorrecto para el resto de
+categorías Laboral).
+
+**Definición de Hecho:**
+- Test de integración que reproduzca un caso sintético multi-año con incrementos IPC conocidos, verificando
+  el "GRAN TOTAL" contra el patrón exacto de L5.
+- Mismo test para L6 con incrementos SMMLV conocidos.
+- Suite completa en verde.
+
+---
+
+## Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente
+
+**Prioridad sugerida:** Alta/Media — es un tipo de proceso muy frecuente en la práctica colombiana
+(relación laboral disfrazada de prestación de servicios), pero es una feature jurídica grande que necesita
+validación del despacho antes de codificar cifras.
+
+**Depende de:** Sprint 3 (Área Laboral), Sprint 16 (Seguridad social, ya completo — para comparar contra los
+porcentajes de aportes), Sprint 5/8 (series IPC históricas, ya completas).
+
+**Contexto:** `L7.LIQUIDACIÒN DEPRESTACIONESSOCIALESENCONTRATOREALIDAD.md` (privado) y
+`L8.LIQUIDACIONDEPRESTACIONESSOCIALESPUBLICOCONTRATOREALIDAD.md` (sector público) liquidan, año por año
+hasta un "AÑO FINAL HASTA DONDE SE INDEXA", todas las prestaciones sociales que un trabajador NUNCA recibió
+porque estaba disfrazado como contratista independiente, indexadas por IPC desde cada año hasta el año de
+cierre elegido. L7: cesantías, intereses, primas, vacaciones + "APORTE SALUD (8,5%)" + "APORTE PENSIÓN
+(12%)", todo indexado, consolidado en "TOTAL PRESTACIONES SOCIALES + SALARIOS". L8 (sector público) agrega
+un catálogo más largo, propio del empleo público: prima de servicio, prima de navidad, vacación, prima de
+vacación, bonificación por servicio, bonificación especial por recreación (todas indexadas), auxilios de
+transporte/alimentación indexados, y aportes salud (8%)/pensión (12%). La plantilla L8 trae además una
+anotación sin explicar del todo: la bonificación por servicio "corresponde al 35%, pero hasta 2 smmlv,
+escriba 50%" — una regla escalonada que no es autoexplicativa desde el propio Excel.
+
+`grep -i "contrato_realidad\|ContratoRealidad"` no encontró nada en `app/` — no existe ningún concepto de
+"contrato realidad" en el código hoy. `_capital_concepts` (`app/engine/liquidation/engine.py`) y
+`CATEGORIAS_LABORAL` (`app/core/constants.py:25-33`, una sola categoría: `LIQUIDACION_CONTRATO_LABORAL`) no
+tienen ningún concepto relacionado. Un matiz importante para no codificar a ciegas: `SeguridadSocialCalculator`
+(`app/engine/labor/seguridad_social.py`, Sprint 16) calcula la cotización **total** (empleador + trabajador,
+16% pensión + 12.5% salud, decisión explícita del Sprint 16), mientras que L7/L8 muestran cifras distintas y
+más bajas (8.5%/12% en L7, 8%/12% en L8) que parecen ser solo la porción del empleador — no son el mismo
+cálculo, y no es evidente desde el Excel cuál es la fórmula jurídicamente correcta para un reclamo de
+contrato realidad (el trabajador, como "independiente", ya pagaba su propio aporte completo por su cuenta).
+
+**Decisión de diseño a tomar con el usuario antes de codificar:**
+- Confirmar el fundamento y la fórmula exacta de la regla "35%/hasta 2 SMMLV escriba 50%" de la
+  bonificación por servicio (L8).
+- Confirmar si los aportes reclamables en un contrato realidad son el total (igual que Sprint 16) o solo la
+  porción del empleador (8.5%/12% en L7, 8%/12% en L8) — son cifras distintas, no auto-explicativas.
+- Decidir si esto se modela como una nueva categoría/submodo de `LaboralStrategy` (mismo patrón del Sprint
+  Sprint 93) o como un flujo completamente aparte, dado el tamaño del catálogo de conceptos (especialmente en L8).
+
+**Código existente a reutilizar:** motor de indexación IPC (`app/engine/indexation/historical_index.py`,
+`app/engine/indexation/ipc.py`) que ya soporta la serie 1971-2026 que traen L7/L8 (ya cargada desde
+Sprint 5/8); `LaborScheduler` como base de las prestaciones del régimen privado (L7); `SeguridadSocialCalculator`
+como referencia de comparación (no necesariamente reutilizable tal cual, ver decisión de diseño arriba).
+
+**Código nuevo a crear:** motor de "contrato realidad" — privado (L7: cesantías + intereses + primas +
+vacaciones + aportes salud/pensión, todo indexado IPC año a año) y público (L8: + prima de navidad, prima de
+vacación, bonificación por servicio con el tramo 35%/50%, bonificación especial de recreación, auxilios
+transporte/alimentación indexados).
+
+**Definición de Hecho:**
+- Tests con un caso sintético multi-año que verifique el consolidado contra el patrón L7 por separado del
+  patrón L8.
+- Confirmación del despacho sobre la regla de bonificación por servicio y sobre la base de aportes,
+  registrada en `Preguntas-Para-Abogado-Abiertas.md`.
+- Suite completa en verde.
+
+---
+
+## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente
+
+**Prioridad sugerida:** Media — gap real y acotado, pero no se debe fijar ningún porcentaje sin confirmar
+vigencia por fecha, dado que la Ley 2466 de 2025 (reforma laboral) está migrando progresivamente entre
+2025-2027 tanto el horario nocturno como el recargo dominical/festivo.
+
+**Depende de:** Sprint 3 (Área Laboral, ya completo).
+
+**Contexto:** `L3.HORASEXTRASYRECARGOS.md` (hoja `Hoja1`) liquida, a partir de un salario básico mensual y
+número de horas laboradas al mes, siete conceptos independientes (cada uno con "Valor por hora" / "No. Horas
+Laboradas Mensualmente" / "Valor Total"): Horas Extras Ordinarias Diurnas, Horas Extras Ordinarias
+Nocturnas, Recargo Nocturno x Hora, Horas Extras Festivas Diurnas, Horas Extras Festivas Nocturnas, Recargo
+Festivo Diurno x hora, Recargo Festivo Nocturno x hora. `grep -i "hora_extra\|recargo"` no encontró ningún
+resultado en todo `app/` — es un gap total, no una variación de algo existente.
+
+Los porcentajes legales tradicionales (HED 25%, HEN 75%, recargo nocturno 35%, HEFD 100%, HEFN 150%, recargo
+dominical/festivo 75%) vienen de los Arts. 168-179 CST, pero la Ley 2466 de 2025 cambió recientemente tanto
+la definición de "hora nocturna" (corrimiento progresivo del inicio de la jornada nocturna) como el
+porcentaje del recargo dominical/festivo (subiendo escalonadamente hasta 100% en 2027) — por lo que fijar un
+solo porcentaje sin vigencia por fecha replicaría el mismo tipo de error que ya se evitó en otras partes del
+sistema (ej. tasa de usura por tramos de fecha, Sprint 5).
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** confirmar la tabla de transición exacta de
+la Ley 2466/2025 (fechas de corte y porcentajes/horarios en cada tramo 2025-2027), siguiendo el mismo patrón
+de "vigencia por fecha" que ya usa `parametro_service.py` para otros porcentajes legales.
+
+**Código nuevo a crear:** `app/engine/labor/horas_extra.py` (calculador puro de los 7 conceptos); catálogo
+de porcentajes con vigencia por fecha en `app/services/parametro_service.py`; campos nuevos para capturar
+horas por concepto; wiring en `LaboralStrategy`.
+
+**Definición de Hecho:**
+- Tests para los 7 conceptos, con al menos 2 vigencias distintas de porcentaje si se confirma la transición
+  de la Ley 2466/2025.
+- Confirmación del despacho registrada en `Preguntas-Para-Abogado-Abiertas.md`.
+- Suite completa en verde.
+
+---
+
+## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 📋 Pendiente
+
+**Prioridad sugerida:** Baja/Media — es principalmente un gap de captura de datos, no necesariamente de
+fórmula (pendiente de confirmar).
+
+**Depende de:** Sprint 3 (Área Laboral, ya completo).
+
+**Contexto:** `L2.COMPROBANTEDELIQUIDACIONDEPRESTACIONESSOCIALES.md` y
+`L2A...EMPLEADADOMESTICA.md` (ambos hoja `liquidacion`) comparten exactamente la misma estructura de
+CONCEPTO/DIAS/DEVENGADO para CESANTIAS/INTERESES CESANTIAS/VACACIONES/PRIMA — no se encontró ninguna fórmula
+distinta entre ambas plantillas. La diferencia real de L2A es de **captura de datos**: en vez de un salario
+mensual directo, pide "Salario diario" y "días laborados en la semana", y calcula un "Salario Base Mensual"
+= `salario_diario × días_laborados_semana / 7 × 30` (y lo mismo para el auxilio de transporte diario), con
+una nota explícita: *"El número de días corresponde a los días calendario que dura toda la relación laboral
+y no a los dias laborados"* (para cesantías) y el cierre: *"el valor del salario corresponde al que se
+recibe en el total por el mes, por lo tanto para efectos de prestaciones sociales se contabiliza como de 30
+días"*.
+
+`database/models.py` no tiene ningún campo `salario_diario`/`dias_laborados_semana` en `Obligacion`, y
+`LaborScheduler`/`LaboralStrategy` siempre esperan un único `valor` mensual ya resuelto. Hoy, un abogado que
+liquide un contrato de trabajo doméstico pagado por día (muy común: 1-3 días/semana) tiene que precalcular a
+mano el equivalente mensual fuera de BASTIUM antes de digitarlo — perdiendo el rastro de auditoría que el
+resto del sistema sí ofrece.
+
+**Decisión de diseño/pregunta al despacho a resolver antes de codificar:** ¿existe alguna diferencia de
+**fórmula** (no solo de captura de datos) entre las prestaciones de un trabajador doméstico y el régimen
+general, después de la Ley 1788 de 2016 (que unificó la prima de servicios para el servicio doméstico)? Si
+no hay diferencia de fórmula, este sprint es puramente de UX (agregar el conversor salario_diario→mensual al
+formulario, sin motor nuevo); si sí la hay, hace falta identificarla antes de construir.
+
+**Código nuevo a crear (si el despacho confirma que no hay diferencia de fórmula):** campos opcionales
+`salario_diario`/`dias_laborados_semana`/`auxilio_transporte_diario` en el formulario Laboral, con
+conversión automática al `valor` mensual que ya consume `LaborScheduler` — sin motor de cálculo nuevo.
+
+**Definición de Hecho:**
+- Confirmación del despacho sobre si hay diferencia de fórmula, registrada en
+  `Preguntas-Para-Abogado-Abiertas.md`.
+- Test de conversión salario_diario→mensual con el ejemplo de la plantilla L2A.
+- Suite completa en verde.
+
+---
+
+## Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Alta como decisión (bloquea Sprint 98-Sprint 100), Media como implementación — el despacho envió 8 plantillas completas (X1-X6, X8, X10) de un dominio jurídico que hoy no existe en BASTIUM ni siquiera como esqueleto activo.
+
+**Depende de:** Nada. Bloquea Sprint 98, Sprint 99 y Sprint 100.
+
+**Contexto:** BASTIUM hoy no tiene ningún soporte real para indemnización de perjuicios extracontractuales. Lo que existe (`DANO_EMERGENTE`, `LUCRO_CESANTE_CONSOLIDADO`, `DANOS_MORALES` en `app/core/constants.py` y `app/engine/liquidation/engine.py`) son solo etiquetas de un capital plano dentro de Civil/Familia — sin fórmula actuarial, sin tabla de mortalidad, sin distinción de beneficiario. `CivilIndemnityScheduler` (`app/engine/temporal/schedulers/civil.py`) es código muerto: su docstring habla de "sentencias de Responsabilidad Civil Extracontractual" pero ninguna `AreaStrategy` lo usa, solo aparece en `tests/temporal/test_civil.py` y `tests/integration/test_universal.py`.
+
+Las 8 plantillas de Ediciones Sistematizadas Equidad que cubren este dominio (`X1.DAÑO-EMERGENTE.md`, `X2.LUCRO-CESANTE-VICTIMA-INCAPACITADO.md`, `X3.LUCRO-CESANTE-CONYUGE-E-HIJO.md`, `X4.LUCRO-CESANTE-PADRES.md`, `X5.LUCRO-CESANTE-PADRES-HIJO-MENOR-FALLECIDO.md`, `X6.LIQUIDACION-BENEFICIO-DEJADO-DE-PERCIBIR-COMO-FRUTO-CIVIL.md`, `X8.INDEMNIZACION-PERJUCIOS-OCASIONADOS-AL-PENSIONADO-FONDO-PRIVADO.md`, `X10.LUCRO-CESANTE-X BENEFICIO DEJADO DE PERCIBIR.md`) comparten un núcleo matemático (hoja `CalculosIndemnizacion` en X2-X5/X8/X10, hoja `PH` en X1/X6) que BASTIUM no tiene: una fórmula financiera de anualidad (`S = Ra × [(1+i)ⁿ-1]/i` para el periodo consolidado, `S = Ra × [(1+i)ⁿ-1]/[i(1+i)ⁿ]` para el periodo futuro, donde `i` es la tasa judicial mensual equivalente al 6% EA — 0,4867% nominal mensual, Art. 2232 C.C.), combinada con tablas de mortalidad de rentistas (Resolución 1555 de 2010 Superfinanciera, hoja `TablasMortalidad`, tabla separada por sexo, edad → años de expectativa de vida) para proyectar el periodo futuro.
+
+**Código a reutilizar (ya existe, verificado):**
+- `app/engine/indexation/smmlv.py` — tabla histórica SMMLV, la usan X2-X5 para la "Renta Actualizada" cuando el ingreso es el mínimo.
+- `app/services/parametro_service.py` clave `CIVIL_ANNUAL_RATE` — el 6% EA del Art. 2232 C.C. ya es un parámetro versionado.
+- `app/engine/indexation/ipc.py` (`IPCIndexation`) — el paso de indexación previo (`Ra = Índice_Final/Índice_Inicial × R`) es el mismo cálculo del Sprint 8/20.
+
+**Código que NO existe y habría que construir desde cero:**
+- Conversión de tasa EA a **mensual** (hoy solo existe `annual_to_daily` en `app/engine/interest/rate_conversion.py`).
+- Fórmula financiera de anualidad (valor futuro y valor presente de renta), inexistente en cualquier forma en el motor.
+- Tabla de mortalidad de rentistas (Resolución 1555/2010) por sexo/edad → años de expectativa de vida.
+- Reglas de reparto por tipo de beneficiario: X3 usa 50%/cónyuge + 50%/hijo(s) (o 100% si solo se reclama para una parte) con 25% de descuento por "sostenimiento de la víctima"; X4/X5 usan 50%/padre + 50%/madre, cada uno con su propia expectativa de vida (tablas de mortalidad distintas por sexo); X5 además usa "años que le hacían falta a la víctima para 25" en vez de expectativa de vida de la víctima (hijo menor fallecido, no tenía ingreso propio, se usa SMMLV en vez de indexación IPC de un salario real).
+
+**Decisión de diseño a tomar con el usuario antes de codificar (obligatorio, es una posible área nueva):**
+1. ¿Esto se modela como una **7ª área de derecho** (`AreaDerecho.RESPONSABILIDAD_CIVIL` o similar) o como un **submodo dentro de CIVIL_FAMILIA** (reutilizando `DANO_EMERGENTE`/`LUCRO_CESANTE_CONSOLIDADO` pero dándoles un motor de cálculo propio en vez de tratarlos como capital plano)? Impacta el modelo de datos (`Obligacion`), la UI (`app/views/obligaciones.py`), y `AreaStrategy`/`AreaRegistry`.
+2. ¿El despacho realmente litiga estos 6 tipos de indemnización (víctima incapacitado, cónyuge e hijo, padres, padres de hijo menor fallecido, pensionado de fondo privado, beneficio dejado de percibir), o solo un subconjunto? Construir las 6 variantes de reparto de beneficiario de una sola vez es un esfuerzo grande — conviene priorizar por uso real.
+3. ¿Confirma el despacho que la tasa judicial a usar sigue siendo el mismo parámetro `CIVIL_ANNUAL_RATE` (6% EA, Art. 2232 C.C.) ya usado en Civil/Familia, o hay una tasa distinta para este dominio?
+4. La tabla de mortalidad capturada en las plantillas (edades 15 en adelante, ver `X2.LUCRO-CESANTE-VICTIMA-INCAPACITADO.md` hoja `TablasMortalidad`) necesita transcribirse completa (no se leyó hasta el límite superior de edad) — ver pregunta nueva más abajo.
+
+**Alcance explícitamente excluido de este sprint:** ninguna línea de código de cálculo — este sprint es solo la conversación de diseño (`superpowers:brainstorming`) y, si se aprueba, el esqueleto de arquitectura (modelo de datos, wiring de área/estrategia) sin las fórmulas de negocio, que quedan para Sprint 98/99/Sprint 100.
+
+**Definición de Hecho:**
+- Decisión documentada en `Preguntas-Para-Abogado-Respondidas.md` sobre área nueva vs. submodo de Civil/Familia, alcance real (qué variantes construir), y confirmación de tasa/tabla de mortalidad.
+- Si se aprueba, esqueleto de `AreaStrategy`/modelo de datos creado y testeado, sin fórmulas de negocio todavía.
+- Suite completa en verde.
+
+---
+
+## Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Alta una vez resuelto Sprint 97 — es el núcleo matemático compartido por 6 de las 8 plantillas del dominio.
+
+**Depende de:** Sprint 97 (decisión de arquitectura).
+
+**Contexto:** X2 (`X2.LUCRO-CESANTE-VICTIMA-INCAPACITADO.md`, hoja `CalculosIndemnizacion`), X3 (`X3.LUCRO-CESANTE-CONYUGE-E-HIJO.md`), X4 (`X4.LUCRO-CESANTE-PADRES.md`), X5 (`X5.LUCRO-CESANTE-PADRES-HIJO-MENOR-FALLECIDO.md`), X8 (`X8.INDEMNIZACION-PERJUCIOS-OCASIONADOS-AL-PENSIONADO-FONDO-PRIVADO.md`) y X10 (`X10.LUCRO-CESANTE-X BENEFICIO DEJADO DE PERCIBIR.md`) comparten literalmente la misma metodología documentada en su hoja `CalculosIndemnizacion` (texto idéntico en las 6 plantillas, filas ~36-38 de X2/X8):
+
+1. Indexar la renta histórica: `Ra = (IPC_Final / IPC_Inicial) × R`, más 25% de prestaciones sociales (cuando aplica ingreso laboral).
+2. Periodo consolidado (debido): `S = Ra × [(1+i)ⁿ - 1] / i`, con `i` = interés judicial mensual (6% EA convertido a nominal mensual, 0,4867%, `TNA = [(1+TEA)^(1/12) - 1] × 12`) y `n` = meses desde el hecho dañoso hasta la fecha de tasación.
+3. Periodo futuro (anticipado): `S = Ra × [(1+i)ⁿ - 1] / [i(1+i)ⁿ]`, con `n` = meses desde la tasación hasta el fin de la expectativa de vida de la víctima, tomada de la tabla de mortalidad de rentistas (Resolución 1555 de 2010 Superfinanciera, hoja `TablasMortalidad`: columnas Edad/Años esperados, separadas por sexo — vista hasta edad 38 en la lectura, la tabla completa no se transcribió).
+4. Total = Indemnización consolidada + Indemnización futura.
+
+Verificado con grep: **ninguna de estas piezas existe hoy** en `app/`. No hay conversión EA→mensual (solo EA→diaria en `app/engine/interest/rate_conversion.py`), no hay fórmula de anualidad/valor presente de renta en ningún módulo, y no hay tabla de mortalidad en ningún archivo de `app/` o `database/`.
+
+Diferencias entre las 6 variantes (todas reutilizan el mismo núcleo de arriba, cambia solo el reparto):
+- **X2** (víctima incapacitada): un solo beneficiario, aplica `% pérdida de capacidad laboral` sobre la renta actualizada.
+- **X3** (cónyuge e hijos): si se reclama para ambos, reparto 50%/50%; si solo una parte, 100%; a la renta actualizada se le resta 25% por "sostenimiento de la víctima" antes de repartir.
+- **X4** (padres, víctima adulta fallecida): reparto 50% padre/50% madre, cada uno con su propia expectativa de vida (tabla de mortalidad por sexo).
+- **X5** (padres, hijo menor fallecido): en vez de expectativa de vida de la víctima, usa "años que le hacían falta a la víctima para cumplir 25" para fijar la fecha de liquidación; como el menor no tenía ingreso propio, usa la tabla SMMLV en vez de un salario indexado por IPC.
+- **X8** (pensionado, fondo privado): la "renta" no es un salario sino la diferencia entre la mesada calculada para RPM y para RAI ("Diferencia entre mesadas... constituye la Renta sobre la cual se reclama la indemnización"), citando la Sentencia SL373-2021 CSJ Sala Laboral.
+- **X10** (beneficio dejado de percibir): mismo núcleo, sin verificar en detalle el reparto específico — pendiente de lectura completa antes de codificar.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** confirmar (a) que el despacho usa exactamente esta fórmula financiera y no otra variante jurisprudencial del lucro cesante; (b) qué variantes de beneficiario priorizar (¿construir las 6 de una vez o empezar por X2, la más simple, y extender?); (c) la tabla de mortalidad completa (ver pregunta nueva); (d) si el 25% de prestaciones sociales y el 25% de sostenimiento de la víctima son porcentajes fijos legales o parametrizables caso a caso.
+
+**Definición de Hecho:**
+- Módulo de conversión EA→mensual, con test que reproduce `0,4867%` a partir de `6%` EA.
+- Módulo de anualidad (consolidada y futura) con test contra al menos un ejemplo numérico manual verificado independientemente (ninguna plantilla trae el ejemplo resuelto — todas las hojas leídas tenían las celdas de resultado en cero/vacías, así que el ejemplo de verificación no puede salir de las plantillas mismas).
+- Tabla de mortalidad cargada y con lookup por sexo/edad, con test de al menos 3 edades contra la fuente oficial (Resolución 1555/2010 Superfinanciera).
+- Al menos la variante X2 (víctima incapacitado) implementada y testeada end-to-end.
+- Suite completa en verde.
+
+---
+
+## Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media — más simple que Sprint 98 (no usa fórmula de anualidad ni mortalidad), pero depende de la misma decisión de arquitectura.
+
+**Depende de:** Sprint 97.
+
+**Contexto:** `X1.DAÑO-EMERGENTE.md`, hoja `PH` (la hoja `IPC` es solo la tabla de índices, no la lógica). Estructura real (filas 21-24 en adelante): una tabla mensual con columnas `DESDE | HASTA | IPC Inicial | IPC Final | CONCEPTOS DE GASTOS | CAPITAL MENSUAL | INDEXACIÓN | CAPITAL INDEXADO` — cada mes es una línea independiente con su propio gasto y su propia indexación individual (`IPC_mes` hasta la fecha de corte), no un solo capital consolidado como hoy trata `DANO_EMERGENTE` en el motor genérico. La plantilla trae filas prellenadas para ~22 años de meses, todas vacías (sin datos reales, es la plantilla en blanco — no hay ejemplo numérico que verificar).
+
+Esto es estructuralmente distinto de la etiqueta `DANO_EMERGENTE` actual (`app/core/constants.py`), que trata todo como un único evento de capital en una fecha. Aquí cada "concepto de gasto" (ej. gastos médicos de enero, de febrero, etc.) es una entrada independiente con su propia fecha de causación y su propia indexación IPC desde esa fecha — en la práctica, esto **podría** lograrse hoy creando N obligaciones `PUNTUAL` (una por mes/gasto) con `aplica_indexacion_ipc=True`, sin necesidad de motor nuevo — solo falta confirmar si eso reproduce el resultado exacto de la plantilla, y si hace falta una UI dedicada (ledger mensual) en vez de obligar al abogado a crear N obligaciones sueltas.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** (a) ¿la reconstrucción vía N obligaciones `PUNTUAL` independientes (ya soportado por el motor genérico) es aceptable, o el despacho necesita una UI de ledger mensual de un solo formulario, como en la plantilla? (b) ¿hace falta capturar el "concepto de gasto" como texto libre por línea (ej. "medicamentos", "transporte") para el reporte final, o basta con el monto?
+
+**Definición de Hecho:**
+- Confirmado y testeado que N obligaciones `DANO_EMERGENTE` PUNTUAL con indexación IPC, una por mes de gasto, producen el mismo total que sumar manualmente la fórmula de la plantilla (`VA = VH × IPC_Final/IPC_Inicial` por línea).
+- Si el despacho pide UI de ledger dedicada: formulario nuevo que genera esas N obligaciones desde una sola pantalla.
+- Suite completa en verde.
+
+---
+
+## Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media/Baja — estructuralmente es el más parecido a mecánica ya existente en BASTIUM, pero sigue siendo una figura jurídica (frutos civiles) no modelada hoy.
+
+**Depende de:** Sprint 97.
+
+**Contexto:** `X6.LIQUIDACION-BENEFICIO-DEJADO-DE-PERCIBIR-COMO-FRUTO-CIVIL.md`, hoja `PH`. A diferencia de X1, esta plantilla parte de un `IBL:` y un `Porcentaje (%) Tasa de Reemplazo:` para fijar la `CUOTA Ó CAPITAL MENSUAL`, y luego repite la misma estructura de ledger mensual de X1 pero con una columna adicional `Incremento Anual` — es decir, la cuota mensual se reajusta una vez al año además de indexarse por IPC mes a mes.
+
+Este patrón (cuota mensual + reajuste anual + indexación IPC mensual) es muy cercano a lo que **ya existe** para obligaciones `RECURRENTE` en Civil/Familia (Sprint 41/75: `generar_cuotas_mensuales`, `app/services/reajuste_anual.py`, con reajuste SMMLV/IPC/NINGUNO), y el cálculo de `IBL × Tasa de Reemplazo` ya existe para el módulo pensional (Sprint 17, `app/engine/labor/ibl.py`). Es decir: X6 probablemente necesita mucho menos motor nuevo que Sprint 98/99 — la pieza que falta es conectar "IBL × tasa de reemplazo" (hoy solo usado en Laboral/pensional) con la generación de una obligación `RECURRENTE` bajo la figura de "fruto civil" en el dominio nuevo, no un algoritmo distinto.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** (a) confirmar que la mecánica de cuotas `RECURRENTE` + reajuste anual (Sprint 41/75) ya cubre este caso si se le agrega la fórmula `IBL × tasa de reemplazo` como origen de la cuota inicial; (b) confirmar la doctrina de "fruto civil" que sustenta esto (qué la distingue de una simple cuota alimentaria o pensional a efectos de reporte/etiquetado, si es que hay alguna diferencia legal más allá del nombre).
+
+**Definición de Hecho:**
+- Confirmado si el mecanismo `RECURRENTE` + reajuste anual existente reproduce la estructura de X6 sin motor nuevo, con test explícito.
+- Si hace falta código nuevo: conectar `IBL × tasa de reemplazo` (ya existente para Laboral) como generador de la cuota inicial en este dominio.
+- Suite completa en verde.
+
+---
+
+## Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 📋 Pendiente
+
+**Prioridad sugerida:** Baja — pieza pequeña y aislada, no requiere la decisión de dominio nuevo de Sprint 97 (es una extensión del motor de indexación IPC ya existente en Civil/Familia, no una figura jurídica nueva).
+
+**Depende de:** Nada nuevo — reutiliza `app/engine/indexation/ipc.py` (Sprint 8/20).
+
+**Contexto:** `X7.INDEXACION-CANTIDAD-UNICA.md`, hoja `Hoja1`, filas 19-32: "LIQUIDADOR PARA DESINDEXAR CANTIDAD ÚNICA (DEFLACTACIÓN)", fórmula `VA = VH × (IPC_Inicial / IPC_Final)` — el inverso exacto de la indexación normal (`VA = VH × IPC_Final/IPC_Inicial`, fila 13, que **ya está cubierto** por el Sprint 20/Suma Única).
+
+Verificado en el código: `IPCIndexation.calculate()` (`app/engine/indexation/ipc.py`, líneas 21-24) pone la deflación en cero deliberadamente ("Si hay deflación... la jurisprudencia dicta que no se castiga el capital histórico del acreedor"). Esa regla es correcta para su caso de uso (proteger al acreedor cuando el IPC baja durante la mora), pero es **distinta** al caso de uso de X7: aquí el usuario pide intencionalmente convertir una cifra a valor de una fecha **anterior** (deflactar hacia atrás), no protegerse de una deflación real durante la mora. No es un bug del código existente ni hay que tocarlo — es una calculadora nueva y aislada.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** confirmar el caso de uso real (¿para qué se usa la deflactación en la práctica del despacho? ej. ¿retrotraer una condena a la fecha del hecho para aplicarle luego otra fórmula?), y si debe vivir como una utilidad de reporte suelta (no ligada a ninguna `Obligacion`/liquidación) o integrarse al flujo de captura de una obligación existente.
+
+**Definición de Hecho:**
+- Función `IPCIndexation.deflactar()` (o similar, nombre a decidir) con fórmula `VA = VH × IPC_Inicial/IPC_Final`, sin el guard de "deflación = 0" de la función existente (son casos de uso distintos, documentado explícitamente en el docstring de ambas para que no se confundan).
+- Test con un ejemplo numérico verificado manualmente (la plantilla no trae ninguno resuelto).
+- Suite completa en verde.
+
+---
+
+## Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente
+
+**Prioridad sugerida:** Baja/exploratoria — probablemente ya funciona con el motor actual; este sprint es de verificación, no de motor nuevo.
+
+**Depende de:** Sprint 20 (Suma Única, ✅ Completado), Sprint 75 (abonos e imputación en cascada, ✅ Completado). No depende de Sprint 97.
+
+**Contexto:** `X9.INDEXACION-CON-ABONOS.md`, hoja `Hoja1`. El patrón (se repite por cada abono): indexar el capital inicial (`VA = VH × IPC_Final/IPC_Inicial`), restar el primer abono → `SALDO`, luego reindexar ese saldo desde la fecha del último movimiento hasta la fecha del siguiente abono, restar el siguiente abono, y así sucesivamente.
+
+Esto es, en esencia, la misma secuencia que el motor genérico ya produce cuando una obligación tiene `interes_sobre_capital_indexado=True` (Suma Única) y recibe varios pagos parciales a través de `AllocationEngine`/`_estrategia_imputacion` (mismo mecanismo usado y testeado desde el Sprint 75 para cuotas de Civil/Familia). No parece requerir un algoritmo nuevo — pero **no se ha verificado explícitamente** contra este patrón concreto de "reindexar-el-saldo-tras-cada-abono", porque la plantilla `X9` en sí no trae ningún ejemplo numérico resuelto (todas las celdas de resultado están en cero/placeholder), así que no hay cifra de referencia para comparar hoy.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:** ninguna decisión de alcance nueva — pero sí se necesita un ejemplo numérico real para poder verificar (ver pregunta nueva más abajo). Si el despacho no puede aportar uno, se puede construir un caso sintético a mano y validarlo con el abogado antes de darlo por bueno.
+
+**Definición de Hecho:**
+- Test de integración en Civil/Familia: una obligación con Suma Única activa y 2-3 abonos en fechas distintas, verificado contra un cálculo manual paso a paso siguiendo exactamente la mecánica de X9.
+- Si el test revela una discrepancia con el motor actual, documentar el gap y decidir si amerita un sprint de corrección aparte.
+- Suite completa en verde.
+
+---
+
 ## Notas de entorno (sin sprint asignado)
 
 - ~~Validar/enable Windows "Long Paths" en la máquina de desarrollo~~ — **resuelto** (2026-07-15): se
@@ -5947,3 +6782,6 @@ esa base (sumadas al final, sin generar interés adicional)?
   Sprint 27 los identificó como no usados y los quitó — son residuo de antes de esa limpieza, nunca se
   desinstalaron del entorno local. No afecta a CI (que instala `requirements.txt` desde cero), pero vale
   la pena recrear el `.venv` local en algún momento para que coincida exactamente con lo declarado.
+- El `.venv` local también tiene `markitdown[all]` y `pywin32` instalados desde 2026-08-19 (usados para
+  convertir a Markdown las plantillas de referencia del despacho, ver Sprints 80-102) — tampoco están en
+  `requirements.txt` porque no son dependencias de la app, solo herramienta puntual de conversión.

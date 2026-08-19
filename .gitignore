@@ -28,3 +28,9 @@ exports/*.pdf
 
 # Notas personales de uso local (guias para reuniones, etc.) - nunca al repo
 docs/local/
+
+# Plantillas del despacho (Ediciones Sistematizadas Equidad, con copyright que
+# prohibe reproduccion/comercializacion) y casos reales de clientes con datos
+# identificables (ej. liquidacion_cliente_ejemplo.xlsx) - repo es publico,
+# nunca subir esto
+docs/Archivos de referencia abogado/
