@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from PySide6.QtCore import QDate
@@ -15,6 +15,7 @@ from database.models import (
     Base,
     Expediente,
     Obligacion,
+    ParametroLegal,
     TipoObligacion,
     TipoReajusteAnual,
 )
@@ -26,6 +27,25 @@ def _sesion_en_memoria(monkeypatch):
     monkeypatch.setattr(
         session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
     )
+    # Sprint 61: tasa_efectiva_anual=0.00 (usada en todo este archivo para que
+    # el ejemplo sea deterministico) ahora activa el fallback a
+    # CIVIL_ANNUAL_RATE en CivilFamiliaStrategy -- se siembra en 0.00 para
+    # preservar exactamente el mismo comportamiento (cero interes) sin que
+    # _calcular_preview capture un ParametroNoDisponibleError.
+    session = session_module.get_session()
+    session.add(
+        ParametroLegal(
+            clave="CIVIL_ANNUAL_RATE",
+            valor=Decimal("0.00"),
+            vigente_desde=date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=datetime.now(),
+        )
+    )
+    session.commit()
+    session.close()
 
 
 def _obligacion_civil_familia_recurrente_helper(

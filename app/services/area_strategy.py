@@ -448,11 +448,21 @@ class CivilFamiliaStrategy(AreaStrategy):
             if obligacion.tipo.value == "PUNTUAL"
             else obligacion.fecha_inicio
         )
+        # Sprint 61: fallback silencioso a CIVIL_ANNUAL_RATE cuando la obligacion
+        # no trae tasa propia (0.00 -- mismo patron legitimo que ya usan
+        # Sancionatorio/Honorarios para "el campo de tasa no aplica", confirmado
+        # en el Sprint 24). Sin UI nueva: el campo de tasa del formulario ya
+        # acepta guardar 0 explicitamente hoy.
+        tasa = obligacion.tasa_efectiva_anual
+        source = "Tasa pactada en la obligación (Art. 1617 C.C.)"
+        if not tasa:
+            tasa = get_parametro("CIVIL_ANNUAL_RATE", fecha_corte)
+            source = "Tasa legal civil por defecto (CIVIL_ANNUAL_RATE, Art. 1617 C.C.)"
         return self._rate_provider_tasa_plana(
             fecha_inicio,
             fecha_corte,
-            obligacion.tasa_efectiva_anual,
-            source="Tasa pactada en la obligación (Art. 1617 C.C.)",
+            tasa,
+            source=source,
         )
 
 

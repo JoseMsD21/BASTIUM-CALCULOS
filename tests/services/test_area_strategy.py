@@ -275,6 +275,54 @@ def _obligacion_puntual(expediente_id=1, valor=Decimal("427900.00")):
     )
 
 
+def _sembrar_parametro(clave: str, valor: Decimal) -> None:
+    session = session_module.get_session()
+    session.add(
+        ParametroLegal(
+            clave=clave,
+            valor=valor,
+            vigente_desde=_date(1900, 1, 1),
+            vigente_hasta=None,
+            usuario="test",
+            motivo=None,
+            creado_en=_dt.now(),
+        )
+    )
+    session.commit()
+    session.close()
+
+
+def test_civil_familia_usa_civil_annual_rate_cuando_tasa_es_cero():
+    # Sprint 61: fallback silencioso -- una obligacion Civil/Familia sin tasa
+    # propia (0.00, el mismo criterio ya legitimo que usan Sancionatorio/
+    # Honorarios para "no aplica") debe resolver su interes con la tasa legal
+    # civil por defecto (CIVIL_ANNUAL_RATE), en vez de generar 0% de interes.
+    _sembrar_parametro("CIVIL_ANNUAL_RATE", Decimal("6.00"))
+    obligacion = _obligacion_puntual()
+    obligacion.tasa_efectiva_anual = Decimal("0.00")
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+    )
+
+    assert resultado.final_balance().interest > Decimal("0.00")
+
+
+def test_civil_familia_respeta_tasa_propia_cuando_no_es_cero():
+    # Con tasa propia > 0, get_parametro("CIVIL_ANNUAL_RATE", ...) no deberia
+    # ni consultarse -- si el fallback se activara indebidamente, este test
+    # fallaria con ParametroNoDisponibleError (CIVIL_ANNUAL_RATE no se siembra
+    # aqui a proposito).
+    obligacion = _obligacion_puntual()
+    obligacion.tasa_efectiva_anual = Decimal("12.00")
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
+    )
+
+    assert resultado.final_balance().interest > Decimal("0.00")
+
+
 def test_civil_familia_liquida_una_obligacion_puntual_sin_abonos():
     strategy = CivilFamiliaStrategy()
     obligacion = _obligacion_puntual()
@@ -652,6 +700,11 @@ def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
     # 1.300.000.00): punto medio exacto del tier menor cuantia (52.000.000 a
     # 195.000.000) -> pct = 7% -> costas = 8.645.000,00. Mismo caso de
     # referencia usado en Tasks 4, 11, 13 y 14.
+    # Sprint 61: tasa_efectiva_anual = 0.00 ahora activa el fallback a
+    # CIVIL_ANNUAL_RATE -- se siembra aqui (aunque este test no le importa el
+    # interes, fecha_corte == fecha_origen asi que nunca se acumula ninguno)
+    # solo para que la resolucion de tasa no lance ParametroNoDisponibleError.
+    _sembrar_parametro("CIVIL_ANNUAL_RATE", Decimal("6.00"))
     obligacion = _obligacion_puntual(valor=_Decimal("123500000.00"))
     obligacion.fecha_origen = _date(2024, 6, 1)
     obligacion.tasa_efectiva_anual = _Decimal("0.00")
