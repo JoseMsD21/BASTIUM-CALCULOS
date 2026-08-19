@@ -9,12 +9,14 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -32,6 +34,10 @@ from app.core.constants import (
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
 from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
+from app.services.recurrencia_fechas_fijas import (
+    deserializar_fechas_anuales,
+    serializar_fechas_anuales,
+)
 from app.views.form_utils import (
     agregar_ayuda,
     guardar_o_actualizar,
@@ -39,7 +45,14 @@ from app.views.form_utils import (
     set_row_visible,
 )
 from app.views.icons import icon
-from database.models import AreaDerecho, Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
+from database.models import (
+    AreaDerecho,
+    Expediente,
+    Obligacion,
+    TipoObligacion,
+    TipoReajusteAnual,
+    TipoRecurrencia,
+)
 
 
 class ObligacionFormDialog(QDialog):
@@ -62,6 +75,12 @@ class ObligacionFormDialog(QDialog):
         "anatocismo_demanda_judicial": False,
         "anatocismo_fecha_acuerdo": None,
         "tipo_reajuste_anual": TipoReajusteAnual.NINGUNO,
+        "tipo_recurrencia": TipoRecurrencia.MENSUAL,
+        "fechas_anuales_fijas": None,
+        # pacto_expreso_indexacion (Sprint 43): solo _parse_campos_comercial la
+        # sobreescribe; el resto de areas que pasan por guardar() (Civil/Familia,
+        # Sancionatorio, Honorarios) la dejan en False -- no tienen el checkbox.
+        "pacto_expreso_indexacion": False,
     }
 
     def __init__(
@@ -177,6 +196,32 @@ class ObligacionFormDialog(QDialog):
             "Opcional: si se deja en (Ninguno), la obligación no se alerta."
         )
 
+        # Tipo de recurrencia y fechas anuales fijas (Sprint 73): igual que el
+        # reajuste anual de arriba, solo aplica a una obligacion RECURRENTE de
+        # Civil/Familia -- ver _actualizar_campos_visibles. "Mensual" primero y
+        # preseleccionado: mismo comportamiento que antes de este sprint si el
+        # usuario no lo toca (default del modelo, TipoRecurrencia.MENSUAL).
+        self.combo_tipo_recurrencia = QComboBox()
+        self.combo_tipo_recurrencia.addItem("Mensual (cuota cada mes)", userData="MENSUAL")
+        self.combo_tipo_recurrencia.addItem(
+            "Fechas anuales fijas (ej. gastos de vestuario)", userData="FECHAS_ANUALES_FIJAS"
+        )
+        self.combo_tipo_recurrencia.setToolTip(
+            "Mensual: una cuota cada mes (cuota alimentaria tipica). Fechas anuales fijas: "
+            "solo se causan obligaciones en las fechas MM-DD indicadas abajo, no una cuota "
+            "mensual -- util para gastos que se repiten cada año en fechas concretas (ej. "
+            "gastos de vestuario en junio, diciembre y el cumpleaños del beneficiario)."
+        )
+        self.campo_fechas_anuales_fijas = QLineEdit()
+        self.campo_fechas_anuales_fijas.setPlaceholderText("06-15, 12-15, 03-22")
+        self.campo_fechas_anuales_fijas.setToolTip(
+            "Lista de fechas fijas por año en formato MM-DD, separadas por comas (ej. "
+            "'06-15, 12-15, 03-22' para gastos de vestuario en junio, diciembre y el "
+            "cumpleaños del beneficiario). El cumpleaños se ingresa aqui a mano -- todavia "
+            "no se deriva automaticamente de una fecha de nacimiento de beneficiario "
+            "(Sprint 74, no implementado)."
+        )
+
         self.campo_tasa_moratoria = QLineEdit("24.00")
         self.campo_tasa_moratoria.setToolTip(
             "Tasa de interes que se cobra automaticamente despues del vencimiento (mora), "
@@ -282,6 +327,32 @@ class ObligacionFormDialog(QDialog):
         self.check_interes_sobre_capital_indexado.setToolTip(
             "Calcula el interes sobre el capital ya indexado, en vez de sobre el capital "
             "historico (algoritmo de Suma Unica, Ley 80 de 1993)."
+        )
+        # pacto_expreso_indexacion (Sprint 43, solo Comercial): habilita el modo (b) de
+        # la regla XOR del despacho -- capital indexado por IPC + interes civil puro 6%
+        # anual, EN VEZ DE la tasa comercial (que ya incorpora inflacion). Sin este
+        # pacto, marcar "Aplica indexación IPC" en Comercial se rechaza al liquidar
+        # (ver ComercialStrategy._validar_obligacion_comercial).
+        self.check_pacto_expreso_indexacion = QCheckBox(
+            "Pacto expreso de indexación IPC en el título (Art. 884 C.Co.)"
+        )
+        self.check_pacto_expreso_indexacion.setToolTip(
+            "Solo con este pacto expreso en el titulo es valido reemplazar la tasa "
+            "comercial por capital indexado (IPC) + interes civil puro del 6% anual, en "
+            "vez de acumular IPC a la tasa comercial (que ya incorpora inflacion)."
+        )
+        # protegida_inflacion_uvr (Sprint 43, solo Tributario): prohibicion de doble
+        # cobro -- si el titulo/tasa de esta obligacion ya incorpora su propia
+        # proteccion inflacionaria (ej. UVR), no se puede aplicar ADEMAS la indexacion
+        # IPC automatica del Art. 867-1 E.T. sobre el mismo capital.
+        self.check_protegida_inflacion_uvr = QCheckBox(
+            "El título/tasa ya incorpora protección inflacionaria propia (ej. UVR)"
+        )
+        self.check_protegida_inflacion_uvr.setToolTip(
+            "Si esta obligacion ya esta protegida contra la inflacion por su propia tasa "
+            "o unidad (ej. UVR), la liquidacion bloquea con error cualquier intento de "
+            "aplicar ADEMAS la indexacion IPC del Art. 867-1 E.T. sobre el mismo capital "
+            "(evita doble cobro)."
         )
 
         self.campo_base_sancion = QLineEdit()
@@ -451,6 +522,13 @@ class ObligacionFormDialog(QDialog):
             "Tipo de acción/proceso", self.combo_tipo_accion_proceso
         )
         self.layout_datos_basicos.addRow(
+            "Tipo de recurrencia (Recurrente, Civil/Familia)", self.combo_tipo_recurrencia
+        )
+        self.layout_datos_basicos.addRow(
+            "Fechas anuales fijas MM-DD (Fechas anuales fijas)",
+            self.campo_fechas_anuales_fijas,
+        )
+        self.layout_datos_basicos.addRow(
             "Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt
         )
         self.layout_datos_basicos.addRow(
@@ -495,6 +573,13 @@ class ObligacionFormDialog(QDialog):
         )
         self.layout_tasas_intereses.addRow(self.check_aplica_indexacion_ipc)
         self.layout_tasas_intereses.addRow(self.check_interes_sobre_capital_indexado)
+        self.layout_tasas_intereses.addRow(self.check_pacto_expreso_indexacion)
+        # check_protegida_inflacion_uvr va en "Datos basicos", no en "Tasas e
+        # intereses": ese grupo completo queda oculto para TRIBUTARIO (ver
+        # grupo_tasas_intereses.setVisible mas abajo, "el interes es automatico, E.T.
+        # art. 635, nunca se pacta"), asi que un checkbox de Tributario ahi nunca
+        # llegaria a mostrarse.
+        self.layout_datos_basicos.addRow(self.check_protegida_inflacion_uvr)
 
         self.layout_honorarios_costas.addRow(
             "Honorarios fijos pactados", self.campo_honorarios_fijos
@@ -507,12 +592,60 @@ class ObligacionFormDialog(QDialog):
             "% Costas judiciales (opcional)", self.campo_costas_pct
         )
 
+        # Grid de 2 columnas en vez de una sola QVBoxLayout apilada (Sprint 72): con las
+        # 3 secciones en una sola columna, la ventana crecia tanto en alto que el boton
+        # "Guardar" quedaba fuera de la vista en pantallas estandar sin redimensionar a
+        # mano. "Tasas e intereses" pasa a la derecha de "Datos basicos" (misma fila 0,
+        # columna 1 -- SIN rowSpan: una version anterior la hacia abarcar 2 filas para
+        # alinearse con "Honorarios y costas", pero eso reservaba la altura de la fila 1
+        # en la columna 0 incluso cuando "Honorarios y costas" esta oculto -- ~300px de
+        # hueco vacio en 5 de las 6 areas -- asi que se descarto). "Honorarios y costas"
+        # queda debajo de "Datos basicos" en la fila 1, columna 0 -- solo es visible para
+        # el area Honorarios (ver grupo_honorarios_costas.setVisible mas abajo), asi que
+        # esa fila colapsa a 0 altura y no le resta espacio a las otras 5 areas.
+        grid_secciones = QGridLayout()
+        grid_secciones.addWidget(self.grupo_datos_basicos, 0, 0)
+        grid_secciones.addWidget(self.grupo_tasas_intereses, 0, 1)
+        grid_secciones.addWidget(self.grupo_honorarios_costas, 1, 0)
+
+        # Contenido del grid dentro de un QScrollArea (Sprint 72, fix tras code review):
+        # un QGridLayout de ancho fijo con 2 QGroupBox anchos lado a lado (ej. "Datos
+        # basicos" + "Tasas e intereses" en Civil/Familia, la combinacion mas ancha)
+        # pide, una vez el dialogo se muestra con `.show()`/`.exec()` y Qt activa el
+        # layout, mas de 1600px de ancho minimo -- verificado empiricamente para las 6
+        # areas -- porque un QDialog de nivel superior no puede quedar mas angosto que
+        # el minimo de su layout. Un simple `self.resize(...)` NO alcanza a evitar eso:
+        # Qt lo sobreescribe al mostrar el dialogo. El QScrollArea desacopla el tamaño
+        # minimo del contenido del tamaño minimo del dialogo -- el contenido que no
+        # quepa en el tamaño fijo elegido mas abajo se desplaza con scrollbars en vez de
+        # agrandar la ventana mas alla de una pantalla estandar (1366x768). Ademas
+        # "Guardar" queda FUERA del area desplazable (ver mas abajo), asi que sigue
+        # siempre visible sin importar la posicion del scroll.
+        contenido_grid = QWidget()
+        contenido_grid.setLayout(grid_secciones)
+        self.area_desplazable_secciones = QScrollArea()
+        self.area_desplazable_secciones.setWidget(contenido_grid)
+        self.area_desplazable_secciones.setWidgetResizable(True)
+        self.area_desplazable_secciones.setFrameShape(QScrollArea.Shape.NoFrame)
+
         layout_principal = QVBoxLayout()
-        layout_principal.addWidget(self.grupo_datos_basicos)
-        layout_principal.addWidget(self.grupo_tasas_intereses)
-        layout_principal.addWidget(self.grupo_honorarios_costas)
+        layout_principal.addWidget(self.area_desplazable_secciones)
         layout_principal.addWidget(self.boton_guardar)
         self.setLayout(layout_principal)
+        # Tamaño inicial fijo, con margen bajo 1366x768 (pantalla estandar objetivo) para
+        # que quepa con espacio de sobra para bordes/barra de tareas del sistema
+        # operativo -- antes no se fijaba ninguno y el dialogo se abria al tamaño que
+        # pidiera el layout apilado verticalmente (Sprint 72). 1300 en vez de 900: reduce
+        # cuanto hay que desplazar horizontalmente en las areas mas anchas (Sancionatorio
+        # y Honorarios, ~1270-1282px de contenido, caben casi completas) sin arriesgar
+        # que el dialogo exceda el ancho de pantalla -- Civil/Familia (~1620px de
+        # contenido, la mas ancha por el checkbox largo "Interes sobre capital ya
+        # indexado...") sigue necesitando scroll horizontal parcial, verificado
+        # empiricamente con QT_QPA_PLATFORM=offscreen + `.show()`. El tamaño se mantiene
+        # fijo en 1300x650 tras `.show()`/`.exec()` gracias al QScrollArea de arriba (sin
+        # el, quedaria sobreescrito -- ver comentario arriba). hacer_redimensionable() ya
+        # permite agrandarlo/maximizarlo si el usuario quiere ver todo sin scroll.
+        self.resize(1300, 650)
 
         es_comercial = self._area == "COMERCIAL"
         es_sancionatorio = self._area == "SANCIONATORIO"
@@ -571,8 +704,20 @@ class ObligacionFormDialog(QDialog):
         # etiqueta de texto separada) -- QFormLayout no genera QLabel para ellos, asi
         # que no sufren el bug de fila huerfana y pueden seguir usando setVisible()
         # directo (Sprint 39).
-        self.check_aplica_indexacion_ipc.setVisible(self._area == "CIVIL_FAMILIA")
+        # Indexacion IPC (Sprint 43): visible en toda area donde el despacho confirmo
+        # que aplica via un checkbox manual -- Civil/Familia (Sprint 8), Comercial
+        # (XOR con pacto expreso), Laboral (excluyente con moratorios), Sancionatorio
+        # (condicional, excepcion "fecha del hecho") y Honorarios (compatible con
+        # interes civil). TRIBUTARIO se deja fuera a proposito: ahi IPC es automatico
+        # (ligado al trigger de mora del Art. 867-1 E.T.), no una eleccion manual del
+        # abogado -- ver TributarioStrategy.
+        self.check_aplica_indexacion_ipc.setVisible(
+            self._area
+            in ("CIVIL_FAMILIA", "COMERCIAL", "LABORAL", "SANCIONATORIO", "HONORARIOS")
+        )
         self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
+        self.check_pacto_expreso_indexacion.setVisible(es_comercial)
+        self.check_protegida_inflacion_uvr.setVisible(es_tributario)
         self.check_es_smmlv.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
@@ -582,7 +727,13 @@ class ObligacionFormDialog(QDialog):
         # ocultas (Sprint 34) en vez de mostrar un grupo con todos sus campos
         # individualmente invisibles -- menos ruido visual para un abogado sin
         # conocimiento tecnico. "Datos basicos" siempre aplica, no se oculta nunca.
-        self.grupo_tasas_intereses.setVisible(not es_laboral and not es_tributario)
+        # LABORAL (Sprint 43): antes ocultaba el grupo completo ("Tasas e intereses")
+        # porque no usa tasa pactada -- ahora SI necesita mostrarlo, unicamente para
+        # el checkbox "Aplica indexación IPC" (todos los demas campos del grupo ya
+        # quedan individualmente ocultos para esta area por las reglas de arriba, asi
+        # que el grupo termina mostrando solo ese checkbox). TRIBUTARIO se mantiene
+        # oculto: ahi IPC es automatico, sin checkbox (ver mas arriba).
+        self.grupo_tasas_intereses.setVisible(not es_tributario)
         self.grupo_honorarios_costas.setVisible(es_honorarios)
 
         # campo_fecha_origen se reutiliza en Laboral como "fecha de inicio del contrato"
@@ -598,6 +749,7 @@ class ObligacionFormDialog(QDialog):
         # referencia (incluyendo los de Laboral: check_pagada, campo_fecha_pago_total)
         # ya existen antes de que la señal pueda dispararse.
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
+        self.combo_tipo_recurrencia.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_es_smmlv.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_incluir_seguridad_social.stateChanged.connect(self._actualizar_campos_visibles)
@@ -675,6 +827,21 @@ class ObligacionFormDialog(QDialog):
                 indice_reajuste = self.combo_tipo_reajuste_anual.findData(valor_reajuste)
                 if indice_reajuste >= 0:
                     self.combo_tipo_reajuste_anual.setCurrentIndex(indice_reajuste)
+                # Tipo de recurrencia y fechas anuales fijas (Sprint 73): mismo
+                # criterio tolerante que arriba -- obligacion.tipo_recurrencia puede
+                # venir None en filas legacy, se trata igual que MENSUAL.
+                valor_recurrencia = (
+                    obligacion.tipo_recurrencia.value
+                    if obligacion.tipo_recurrencia is not None
+                    else "MENSUAL"
+                )
+                indice_recurrencia = self.combo_tipo_recurrencia.findData(valor_recurrencia)
+                if indice_recurrencia >= 0:
+                    self.combo_tipo_recurrencia.setCurrentIndex(indice_recurrencia)
+                if obligacion.fechas_anuales_fijas:
+                    self.campo_fechas_anuales_fijas.setText(
+                        ", ".join(deserializar_fechas_anuales(obligacion.fechas_anuales_fijas))
+                    )
             else:
                 self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
 
@@ -707,6 +874,9 @@ class ObligacionFormDialog(QDialog):
                     self.campo_trm_fecha_referencia.setDate(
                         _qdate(obligacion.trm_fecha_referencia)
                     )
+                self.check_pacto_expreso_indexacion.setChecked(
+                    obligacion.pacto_expreso_indexacion
+                )
 
             elif self._area == "SANCIONATORIO":
                 if obligacion.cantidad_smlmv_uvt is not None:
@@ -755,6 +925,7 @@ class ObligacionFormDialog(QDialog):
                     self.campo_deducciones.setText(str(obligacion.deducciones))
                 if obligacion.rentas_exentas is not None:
                     self.campo_rentas_exentas.setText(str(obligacion.rentas_exentas))
+                self.check_protegida_inflacion_uvr.setChecked(obligacion.protegida_inflacion_uvr)
         finally:
             session.close()
 
@@ -786,6 +957,8 @@ class ObligacionFormDialog(QDialog):
             self.campo_fecha_inicio,
             self.campo_dia_pago,
             self.combo_tipo_reajuste_anual,
+            self.combo_tipo_recurrencia,
+            self.campo_fechas_anuales_fijas,
             self.campo_cantidad_smlmv_uvt,
             self.campo_base_sancion,
             self.campo_meses_extemporaneidad,
@@ -812,6 +985,8 @@ class ObligacionFormDialog(QDialog):
             self.campo_trm_fecha_referencia,
             self.check_aplica_indexacion_ipc,
             self.check_interes_sobre_capital_indexado,
+            self.check_pacto_expreso_indexacion,
+            self.check_protegida_inflacion_uvr,
             self.campo_honorarios_fijos,
             self.campo_cuota_litis_pct,
             self.campo_beneficio_obtenido,
@@ -898,6 +1073,8 @@ class ObligacionFormDialog(QDialog):
                     # liquidar, digitarlo a mano no serviria de nada.
                     self._contenedor_campo_valor: not self.check_es_smmlv.isChecked(),
                     self.combo_tipo_reajuste_anual: False,
+                    self.combo_tipo_recurrencia: False,
+                    self.campo_fechas_anuales_fijas: False,
                     self.campo_fecha_pago_total: self.check_pagada.isChecked(),
                     self.combo_nivel_riesgo_arl: self.check_incluir_seguridad_social.isChecked(),
                 },
@@ -910,18 +1087,31 @@ class ObligacionFormDialog(QDialog):
             return
 
         es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
+        es_civil_familia = self._area == "CIVIL_FAMILIA"
+        # Fechas anuales fijas (Sprint 73): mismo alcance que el reajuste anual
+        # arriba (solo Civil/Familia) -- gastos de vestuario u otros gastos que
+        # se repiten cada año en fechas concretas, no una cuota mensual.
+        es_fechas_fijas = self.combo_tipo_recurrencia.currentData() == "FECHAS_ANUALES_FIJAS"
         self._aplicar_visibilidad_filas(
             self.layout_datos_basicos,
             {
                 self.campo_fecha_pago_total: False,
                 self.campo_fecha_origen: not es_recurrente,
                 self.campo_fecha_inicio: es_recurrente,
-                self.campo_dia_pago: es_recurrente,
+                # Dia de pago no aplica cuando la recurrencia es de fechas anuales
+                # fijas: las fechas de cada cuota vienen de la lista MM-DD, no de un
+                # dia fijo del mes.
+                self.campo_dia_pago: es_recurrente
+                and not (es_civil_familia and es_fechas_fijas),
                 # Reajuste anual (Sprint 41): solo Civil/Familia -- Comercial tambien
                 # admite RECURRENTE pero el reajuste SMMLV/IPC es exclusivo de cuotas
                 # alimentarias (ver plan del Sprint 41, alcance excluido: Laboral queda
                 # para otro sprint, Comercial nunca lo pidio).
-                self.combo_tipo_reajuste_anual: es_recurrente and self._area == "CIVIL_FAMILIA",
+                self.combo_tipo_reajuste_anual: es_recurrente and es_civil_familia,
+                self.combo_tipo_recurrencia: es_recurrente and es_civil_familia,
+                self.campo_fechas_anuales_fijas: es_recurrente
+                and es_civil_familia
+                and es_fechas_fijas,
             },
         )
 
@@ -1142,9 +1332,26 @@ class ObligacionFormDialog(QDialog):
     def _parse_campos_civil_familia(self) -> dict:
         if self.combo_tipo.currentData() != "RECURRENTE":
             return {}
-        return {
-            "tipo_reajuste_anual": TipoReajusteAnual(self.combo_tipo_reajuste_anual.currentData())
+        tipo_recurrencia = TipoRecurrencia(self.combo_tipo_recurrencia.currentData())
+        campos = {
+            "tipo_reajuste_anual": TipoReajusteAnual(
+                self.combo_tipo_reajuste_anual.currentData()
+            ),
+            "tipo_recurrencia": tipo_recurrencia,
+            "fechas_anuales_fijas": None,
         }
+        if tipo_recurrencia == TipoRecurrencia.FECHAS_ANUALES_FIJAS:
+            fechas = [
+                parte.strip()
+                for parte in self.campo_fechas_anuales_fijas.text().split(",")
+                if parte.strip()
+            ]
+            # serializar_fechas_anuales valida formato/lista vacia y lanza
+            # ValueError -- _guardar_y_cerrar ya lo captura y lo muestra como
+            # "Datos invalidos" (mismo patron que el resto de validaciones de
+            # este dialogo).
+            campos["fechas_anuales_fijas"] = serializar_fechas_anuales(fechas)
+        return campos
 
     def _parse_campos_sancionatorio(self) -> dict:
         (cantidad_smlmv_uvt,) = self._parse_decimales(
@@ -1223,6 +1430,9 @@ class ObligacionFormDialog(QDialog):
             "trm_fecha_referencia": trm_fecha_referencia,
             "anatocismo_demanda_judicial": anatocismo_demanda_judicial,
             "anatocismo_fecha_acuerdo": anatocismo_fecha_acuerdo,
+            # pacto_expreso_indexacion (Sprint 43): habilita el modo (b) de la regla
+            # XOR de indexacion IPC -- ver ComercialStrategy._validar_obligacion_comercial.
+            "pacto_expreso_indexacion": self.check_pacto_expreso_indexacion.isChecked(),
         }
 
     def _guardar_laboral(self) -> int:
@@ -1282,6 +1492,10 @@ class ObligacionFormDialog(QDialog):
             nivel_riesgo_arl=nivel_riesgo_arl,
             es_smmlv=es_smmlv,
             tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
+            # aplica_indexacion_ipc (Sprint 43): antes de este sprint, _guardar_laboral
+            # nunca lo pasaba (el checkbox estaba oculto para LABORAL) -- ahora es
+            # visible, ver LaboralStrategy.
+            aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
         )
         session.close()
         return obligacion_id
@@ -1360,6 +1574,9 @@ class ObligacionFormDialog(QDialog):
             deducciones=deducciones,
             rentas_exentas=rentas_exentas,
             tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
+            # protegida_inflacion_uvr (Sprint 43): prohibicion de doble cobro -- ver
+            # TributarioStrategy.liquidar().
+            protegida_inflacion_uvr=self.check_protegida_inflacion_uvr.isChecked(),
         )
         session.close()
         return obligacion_id

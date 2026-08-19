@@ -658,6 +658,101 @@ def test_liquidar_area_laboral_con_mora_incluye_sancion_moratoria(qtbot, monkeyp
     assert resultado.final_balance().principal > Decimal("7860000.00")
 
 
+def test_liquidar_area_laboral_con_mora_e_indexacion_ipc_muestra_toast_de_alerta(
+    qtbot, monkeypatch
+):
+    # Sprint 43: cuando la liquidacion trae LiquidationResult.alertas no vacio (ej.
+    # "Doble Actualización Prohibida" en Laboral), _on_liquidar_completado debe
+    # mostrarlas via mostrar_toast (tipo "warning") -- mismo mecanismo del Sprint 36,
+    # no un QMessageBox modal (la liquidacion ya se completo sin bloquear nada).
+    expediente_id = _expediente_laboral_con_mora_fase1(monkeypatch)
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    obligacion.aplica_indexacion_ipc = True
+    session.commit()
+    session.close()
+
+    toasts_mostrados = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.mostrar_toast",
+        lambda parent, mensaje, tipo="success", duracion_ms=3000: toasts_mostrados.append(
+            (mensaje, tipo)
+        ),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
+
+    assert len(toasts_mostrados) == 1
+    mensaje, tipo = toasts_mostrados[0]
+    assert "Doble Actualización Prohibida" in mensaje
+    assert tipo == "warning"
+
+
+def test_reconstruir_desde_historial_con_mora_e_indexacion_ipc_muestra_toast_de_alerta(
+    qtbot, monkeypatch
+):
+    # Revision de calidad tras el Sprint 43: el toast de alertas solo se probaba en el
+    # camino de liquidacion en vivo (_liquidar) -- _reconstruir_desde_historial (doble
+    # clic en una fila del historial de auditoria) usa un camino de codigo distinto
+    # (reconstruir_liquidacion -> deserializar_resultado) que tambien debe mostrar las
+    # mismas alertas, ahora que LiquidationResult.alertas sobrevive el round-trip de
+    # serializacion (commit 1906ebe). Sin este test, una regresion futura en
+    # _reconstruir_desde_historial pasaria desapercibida aunque
+    # test_liquidar_area_laboral_con_mora_e_indexacion_ipc_muestra_toast_de_alerta
+    # (arriba, camino en vivo) siguiera en verde.
+    expediente_id = _expediente_laboral_con_mora_fase1(monkeypatch)
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    obligacion.aplica_indexacion_ipc = True
+    session.commit()
+
+    # Corre y registra la liquidacion (mismo flujo que _liquidar(), pero sincrono aqui
+    # para no depender del hilo de fondo) -- deja una fila real en AuditLog con
+    # alertas ya serializadas, exactamente como quedaria despues de un _liquidar()
+    # real.
+    obligaciones = list(expediente.obligaciones)
+    estrategia = AreaRegistry.get_strategy(expediente.area_derecho.value)
+    resultado = estrategia.liquidar(
+        obligaciones=obligaciones, abonos=[], fecha_corte=expediente.fecha_corte_default
+    )
+    assert resultado.alertas  # confirma que el caso de prueba realmente genera la alerta
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_id,
+        area_derecho=expediente.area_derecho.value,
+        fecha_corte=expediente.fecha_corte_default,
+        resultado=resultado,
+        usuario="jsilva",
+    )
+    session.close()
+
+    toasts_mostrados = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.mostrar_toast",
+        lambda parent, mensaje, tipo="success", duracion_ms=3000: toasts_mostrados.append(
+            (mensaje, tipo)
+        ),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    assert page.tabla_historial.rowCount() == 1
+
+    page._reconstruir_desde_historial(0, 0)
+
+    assert len(toasts_mostrados) == 1
+    mensaje, tipo = toasts_mostrados[0]
+    assert "Doble Actualización Prohibida" in mensaje
+    assert tipo == "warning"
+
+
 def test_liquidar_area_laboral_pagado_a_tiempo_no_incluye_sancion_moratoria(qtbot, monkeypatch):
     expediente_id = _expediente_laboral_pagado_a_tiempo(monkeypatch)
 
@@ -1281,6 +1376,105 @@ def _expediente_civil_con_obligacion_recurrente_con_reajuste(monkeypatch) -> tup
     obligacion_id = obligacion.id
     session.close()
     return expediente_id, obligacion_id
+
+
+def _expediente_civil_con_obligacion_recurrente_fechas_fijas(monkeypatch) -> tuple[int, int]:
+    """Sprint 73: expediente Civil/Familia con una obligacion RECURRENTE con
+    tipo_recurrencia=FECHAS_ANUALES_FIJAS (gastos de vestuario), lista para
+    'Generar cuotas' en la UI -- espejo de
+    _expediente_civil_con_obligacion_recurrente_con_reajuste (Sprint 41) pero
+    para la nueva cadencia. Retorna (expediente_id, obligacion_id)."""
+    from app.services.recurrencia_fechas_fijas import serializar_fechas_anuales
+    from database.models import TipoRecurrencia
+
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-081",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 12, 31),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="GASTOS DE VESTUARIO",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        fecha_inicio=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas=serializar_fechas_anuales(["06-15", "12-15", "03-22"]),
+    )
+    session.add(obligacion)
+    session.commit()
+    expediente_id = expediente.id
+    obligacion_id = obligacion.id
+    session.close()
+    return expediente_id, obligacion_id
+
+
+def test_generar_cuotas_dispatcha_a_fechas_fijas_segun_tipo_recurrencia(qtbot, monkeypatch):
+    """Definicion de Hecho del Sprint 73, verificada end-to-end a traves del
+    boton 'Generar cuotas' (no solo del servicio directamente): una obligacion
+    de gastos de vestuario con 3 fechas anuales fijas genera exactamente esas
+    3 cuotas -- no las 12 que produciria generar_cuotas_mensuales si el boton
+    no supiera distinguir el tipo_recurrencia."""
+    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_fechas_fijas(
+        monkeypatch
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    fila = page._obligacion_ids_por_fila.index(obligacion_id)
+    page.tabla_obligaciones.setCurrentCell(fila, 0)
+    page._generar_cuotas()
+
+    session = session_module.get_session()
+    cuotas = (
+        session.query(Obligacion).filter(Obligacion.obligacion_padre_id == obligacion_id).all()
+    )
+    session.close()
+    assert len(cuotas) == 3
+    assert {c.fecha_origen for c in cuotas} == {
+        date(2026, 3, 22),
+        date(2026, 6, 15),
+        date(2026, 12, 15),
+    }
+
+
+def test_generar_cuotas_fechas_fijas_dos_veces_no_duplica_filas(qtbot, monkeypatch):
+    expediente_id, obligacion_id = _expediente_civil_con_obligacion_recurrente_fechas_fijas(
+        monkeypatch
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    fila = page._obligacion_ids_por_fila.index(obligacion_id)
+    page.tabla_obligaciones.setCurrentCell(fila, 0)
+    page._generar_cuotas()
+    primer_conteo = page.tabla_obligaciones.rowCount()
+
+    fila = page._obligacion_ids_por_fila.index(obligacion_id)
+    page.tabla_obligaciones.setCurrentCell(fila, 0)
+    page._generar_cuotas()
+
+    assert page.tabla_obligaciones.rowCount() == primer_conteo
 
 
 def test_boton_generar_cuotas_visible_para_civil_familia_y_comercial_oculto_para_otras_areas(

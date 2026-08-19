@@ -144,6 +144,38 @@ def test_aplicar_migraciones_pendientes_agrega_es_smmlv(tmp_path):
     assert "es_smmlv" in columnas
 
 
+def test_aplicar_migraciones_pendientes_agrega_columnas_del_sprint_47(tmp_path):
+    """Sprint 47 (recalculo historico post-Sprint-30): una bastium.db creada
+    antes de este sprint no tiene expedientes.estado_procesal ni las 3
+    columnas nuevas de audit_logs -- aplicar_migraciones_pendientes() debe
+    agregarlas, mismo criterio que es_smmlv arriba."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_sprint47.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE expedientes DROP COLUMN estado_procesal")
+    con.execute("ALTER TABLE audit_logs DROP COLUMN obsoleto_requiere_recalculo")
+    con.execute("ALTER TABLE audit_logs DROP COLUMN liquidacion_anterior_id")
+    con.execute("ALTER TABLE audit_logs DROP COLUMN motivo_recalculo")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas_expedientes = {fila[1] for fila in con.execute("PRAGMA table_info(expedientes)")}
+    columnas_audit_logs = {fila[1] for fila in con.execute("PRAGMA table_info(audit_logs)")}
+    con.close()
+    assert "estado_procesal" in columnas_expedientes
+    assert "obsoleto_requiere_recalculo" in columnas_audit_logs
+    assert "liquidacion_anterior_id" in columnas_audit_logs
+    assert "motivo_recalculo" in columnas_audit_logs
+
+
 def test_migracion_reajuste_anual_agrega_columnas_con_default_ninguno_y_null(tmp_path):
     """Task 1 del Sprint 41: una fila de obligaciones ya existente (creada bajo el
     esquema viejo, sin tipo_reajuste_anual/obligacion_padre_id) debe quedar con
@@ -187,6 +219,124 @@ def test_migracion_reajuste_anual_agrega_columnas_con_default_ninguno_y_null(tmp
 
     # Idempotencia: correrla de nuevo no vuelve a alterar nada ni rompe.
     assert migrar(db_path) is False
+
+
+def test_migracion_fechas_anuales_fijas_agrega_columnas_con_default_mensual_y_null(tmp_path):
+    """Sprint 73: una fila de obligaciones ya existente (creada bajo el esquema
+    viejo, sin tipo_recurrencia/fechas_anuales_fijas) debe quedar con
+    tipo_recurrencia='MENSUAL' (mismo default que el modelo SQLAlchemy,
+    TipoRecurrencia.MENSUAL) y fechas_anuales_fijas=NULL despues de migrar --
+    mismo criterio que test_migracion_reajuste_anual_agrega_columnas_con_default_ninguno_y_null
+    (Sprint 41) para tipo_reajuste_anual/obligacion_padre_id."""
+    from scripts.migrate_fechas_anuales_fijas import migrar
+
+    db_path = tmp_path / "fechas_anuales_fijas.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN tipo_recurrencia")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fechas_anuales_fijas")
+    con.execute(
+        "INSERT INTO expedientes (radicado, demandante, demandado, area_derecho, "
+        "fecha_corte_default) VALUES ('X-1', 'A', 'B', 'CIVIL_FAMILIA', '2026-01-01')"
+    )
+    con.execute(
+        "INSERT INTO obligaciones (expediente_id, tipo, concepto, categoria, "
+        "fecha_origen, valor, tasa_efectiva_anual, pagada, aplica_indexacion_ipc, "
+        "interes_sobre_capital_indexado, moneda, anatocismo_demanda_judicial, "
+        "sancion_agravada, incluir_seguridad_social, es_smmlv, tipo_reajuste_anual) VALUES "
+        "(1, 'PUNTUAL', 'Cuota alimentaria', 'CHILD_SUPPORT', '2026-01-01', "
+        "'100000.00', '6.00', 0, 0, 0, 'COP', 0, 0, 0, 0, 'NINGUNO')"
+    )
+    con.commit()
+    con.close()
+
+    aplico = migrar(db_path)
+    assert aplico is True
+
+    con = sqlite3.connect(db_path)
+    fila = con.execute(
+        "SELECT tipo_recurrencia, fechas_anuales_fijas FROM obligaciones"
+    ).fetchone()
+    con.close()
+    assert fila == ("MENSUAL", None)
+
+    # Idempotencia: correrla de nuevo no vuelve a alterar nada ni rompe.
+    assert migrar(db_path) is False
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_del_sprint_73(tmp_path):
+    """Complemento del test anterior: aplicar_migraciones_pendientes() (el
+    punto de entrada real llamado en cada arranque de la app) tambien debe
+    agregar tipo_recurrencia/fechas_anuales_fijas, no solo el script suelto."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_sprint73.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN tipo_recurrencia")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fechas_anuales_fijas")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "tipo_recurrencia" in columnas
+    assert "fechas_anuales_fijas" in columnas
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_del_sprint_43(tmp_path):
+    """Complemento del patron del Sprint 73: aplicar_migraciones_pendientes()
+    tambien debe agregar pacto_expreso_indexacion/protegida_inflacion_uvr
+    (Sprint 43 -- indexacion IPC en Comercial/Tributario) a una base sin ellas."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_sprint43.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN pacto_expreso_indexacion")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN protegida_inflacion_uvr")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "pacto_expreso_indexacion" in columnas
+    assert "protegida_inflacion_uvr" in columnas
+
+
+def test_migracion_indexacion_ipc_areas_sprint43_es_idempotente(tmp_path):
+    from scripts.migrate_indexacion_ipc_areas_sprint43 import migrar
+
+    db_path = tmp_path / "indexacion_ipc_sprint43.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    assert migrar(db_path) is False  # las columnas ya existen via el modelo actual
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN pacto_expreso_indexacion")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN protegida_inflacion_uvr")
+    con.commit()
+    con.close()
+
+    assert migrar(db_path) is True
+    assert migrar(db_path) is False  # segunda corrida: ya no hay nada que alterar
 
 
 def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path):

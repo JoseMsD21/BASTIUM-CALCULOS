@@ -746,10 +746,20 @@ Instrucción de Desarrollo:
 
 **Fecha:** (no especificada por el despacho al copiar la respuesta)
 
-**Estado en el código:** no implementado. El mecanismo técnico ya decidido con el usuario (liquidación
-nueva vinculada a la anterior, sin sobrescribir; flag de notificación manual visible) sigue siendo
-compatible con las instrucciones del despacho, pero falta construir: (1) el script de identificación/marcado
-de liquidaciones afectadas vía `AuditLog`, (2) los documentos de "Memorial de Actualización/Corrección" y
-de "corrección de error aritmético" (no solo el recálculo numérico), (3) el log de diferencias, y (4)
-confirmar si `LaboralStrategy` (densidad pensional) ya usa días calendario reales tras el Sprint 30 o si la
-Sentencia SL138-2024 exige un ajuste adicional específico de ese módulo. Ver `Pendientes.md`, Sprint 47.
+**Estado en el código:** Implementado (Sprint 47, partes A y B). Parte A (commits `3147d62`/`5eb57bd`,
+2026-08-14): (1) el script de identificación/marcado de liquidaciones afectadas vía `AuditLog`
+(`app/services/recalculo_historico.py`, `scripts/recalcular_historicas_sprint30.py`), (2) los documentos de
+"Memorial de Actualización/Corrección" y de "corrección de error aritmético" (`app/engine/reports/memoriales.py`),
+y (3) el log de diferencias numérico, todos ya construidos y con el enforcer de cosa-juzgada corregido en
+revisión de código. Parte B (2026-08-18, este cierre): punto (4) confirmado **sin necesidad de corrección de
+código** — `calcular_densidad_semanas` (`app/engine/labor/ibl.py`) ya usa días calendario reales (365/366,
+`(fin - inicio).days`) desde que se creó en el Sprint 17, nunca la base comercial de 360 días; es una función
+aislada, sin conectar a `LaboralStrategy` ni a ninguna GUI (misma nota del Sprint 3), así que no había
+ninguna ruta de código real usando la base incorrecta para densidad pensional. Ya existía (y sigue en verde)
+`tests/engine/labor/test_ibl.py::test_densidad_semanas_calendario_real_vs_ano_comercial_360`, que compara
+explícitamente el resultado en calendario real contra el año comercial de 360 sobre un caso que cruza un año
+bisiesto (57 semanas vs. 56), documentando la diferencia numérica exigida por la Sentencia SL138-2024. La
+base de 360 días de `LaboralStrategy.liquidar` (prestaciones sociales, Sprint 30) no se tocó — es un rubro
+distinto y sigue siendo la base correcta para ese caso, por diseño (ver Sprint 3). Con esto, el script de
+recálculo histórico del Sprint 47a no necesita una fecha de corte adicional: no hubo cambio de código que
+afecte liquidaciones ya guardadas.

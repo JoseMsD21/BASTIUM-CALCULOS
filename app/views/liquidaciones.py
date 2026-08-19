@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
+from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.reports.summary import ReportSummaryBuilder
@@ -116,6 +117,20 @@ class ResultadoLiquidacionView(QWidget):
         self.etiqueta_saldo_a_favor = QLabel("Saldo a favor del deudor: 0.00")
         self.etiqueta_saldo_a_favor.setVisible(False)
 
+        # Alertas no bloqueantes (Sprint 43, agregado en revision de calidad):
+        # LiquidationResult.alertas ("Doble Actualización Prohibida" en Laboral,
+        # "Techo de usura alcanzado" en Tributario, etc.) ya se muestran como toast
+        # al terminar de liquidar (expediente_detalle.py), pero un toast se
+        # desvanece a los 6 segundos -- esta etiqueta las deja visibles de forma
+        # durable mientras el resultado siga en pantalla (y tambien al reabrir una
+        # liquidacion historica desde el historial de auditoria), mismo criterio que
+        # ya usa la fila de una obligacion prescrita (prefijo "⚠", ver mas abajo en
+        # mostrar()). Oculta por completo cuando no hay alertas.
+        self.etiqueta_alertas = QLabel()
+        self.etiqueta_alertas.setWordWrap(True)
+        self.etiqueta_alertas.setStyleSheet(f"color: {colores.ADVERTENCIA}; font-weight: bold;")
+        self.etiqueta_alertas.setVisible(False)
+
         self.grupo_renta_liquida = QGroupBox("Depuración de Renta Líquida Gravable")
         self.etiqueta_ingresos_netos = QLabel("Ingresos netos: -")
         self.etiqueta_renta_bruta = QLabel("Renta bruta: -")
@@ -146,6 +161,7 @@ class ResultadoLiquidacionView(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabla)
+        layout.addWidget(self.etiqueta_alertas)
         layout.addWidget(self.etiqueta_interes_total)
         layout.addWidget(self.etiqueta_pagos_total)
         layout.addWidget(self.etiqueta_saldo_final)
@@ -157,6 +173,13 @@ class ResultadoLiquidacionView(QWidget):
     def mostrar(self, resultado: LiquidationResult, expediente_id: int) -> None:
         self._resultado = resultado
         self._expediente_id = expediente_id
+
+        if resultado.alertas:
+            self.etiqueta_alertas.setText("\n".join(f"⚠ {alerta}" for alerta in resultado.alertas))
+            self.etiqueta_alertas.setVisible(True)
+        else:
+            self.etiqueta_alertas.setText("")
+            self.etiqueta_alertas.setVisible(False)
 
         self.tabla.setRowCount(len(resultado.items))
         for fila, item in enumerate(resultado.items):

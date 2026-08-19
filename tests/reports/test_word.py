@@ -239,3 +239,69 @@ def test_generate_no_agrega_columna_de_saldo_a_favor_sin_sobrepago(tmp_path):
     encabezados = [celda.text for celda in tabla_cronologia.rows[0].cells]
     assert "Saldo a favor" not in encabezados
     assert len(encabezados) == 10
+
+
+def _diferencia_recalculo():
+    return {
+        "audit_log_anterior": "AuditLog #12",
+        "monto_anterior": "$7,830,000.00",
+        "monto_recalculado": "$7,860,000.00",
+        "diferencia_monto": "+$30,000.00 pesos",
+        "dias_cubiertos_anterior": "1",
+        "dias_cubiertos_recalculado": "1",
+        "resumen": "Diferencia recuperada: +$30,000.00 pesos",
+    }
+
+
+def test_generate_incluye_bloque_de_diferencia_recalculo_cuando_se_provee(tmp_path):
+    # Sprint 47: log de diferencias del recalculo historico post-Sprint-30,
+    # mismo patron aditivo que renta_liquida (Sprint 15) -- una tabla nueva
+    # que solo aparece cuando se provee el dato.
+    ruta = tmp_path / "memorial_diferencia.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "MEMORIAL DE ACTUALIZACIÓN/CORRECCIÓN DE LIQUIDACIÓN",
+        _summary(),
+        _table_data(),
+        diferencia_recalculo=_diferencia_recalculo(),
+    )
+
+    documento = Document(str(ruta))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Diferencia recuperada: +$30,000.00 pesos" in texto_completo
+    tabla_diferencia = documento.tables[2]
+    filas = [(fila.cells[0].text, fila.cells[1].text) for fila in tabla_diferencia.rows]
+    assert ("Valor Anterior (Sprint 30, pre-corrección)", "$7,830,000.00") in filas
+    assert ("Valor Recalculado", "$7,860,000.00") in filas
+    assert ("Diferencia Recuperada", "+$30,000.00 pesos") in filas
+
+
+def test_generate_sin_diferencia_recalculo_no_agrega_el_bloque(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_diferencia.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    documento = Document(str(ruta))
+    assert len(documento.tables) == 2
+
+
+def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):
+    # Sprint 47: parrafo de fundamento legal para los memoriales de
+    # recalculo (Art. 53 C.P. / Art. 151 CPACA), mismo patron aditivo.
+    ruta = tmp_path / "memorial_cuerpo_legal.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "MEMORIAL DE CORRECCIÓN DE ERROR ARITMÉTICO (ART. 151 CPACA)",
+        _summary(),
+        _table_data(),
+        cuerpo_legal="Solicito la corrección del error aritmético, Art. 151 CPACA.",
+    )
+
+    documento = Document(str(ruta))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Solicito la corrección del error aritmético, Art. 151 CPACA." in texto_completo

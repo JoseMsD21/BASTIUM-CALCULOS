@@ -55,7 +55,7 @@ def _pct_reajuste_smmlv(anio: int) -> Decimal:
     return (smlmv_actual - smlmv_anterior) / smlmv_anterior * Decimal("100")
 
 
-def _reajustar_capital(capital: Decimal, anio: int, tipo: TipoReajusteAnual) -> Decimal:
+def reajustar_capital_anual(capital: Decimal, anio: int, tipo: TipoReajusteAnual) -> Decimal:
     """Capital reajustado al 1 de enero de `anio`, segun el indice elegido.
     SMMLV: aplica la formula del encabezado del plan
     (cuota_nueva = cuota_anterior + cuota_anterior * pct / 100) con el
@@ -66,7 +66,13 @@ def _reajustar_capital(capital: Decimal, anio: int, tipo: TipoReajusteAnual) -> 
     motor que ya usa CivilFamiliaStrategy para indexacion) en vez de
     reimplementar el calculo de variacion anual -- calculate() ya retorna el
     delta de indexacion redondeado a centavos (o 0.00 si hay deflacion, mismo
-    criterio jurisprudencial que el resto de la app)."""
+    criterio jurisprudencial que el resto de la app).
+
+    Publica (sin guion bajo) desde el Sprint 73: reutilizada tal cual por
+    app/services/recurrencia_fechas_fijas.py::generar_cuotas_fechas_fijas para
+    el reajuste anual OPCIONAL de una obligacion de fechas anuales fijas (a
+    diferencia de generar_cuotas_mensuales, que exige tipo_reajuste_anual
+    activo, generar_cuotas_fechas_fijas lo aplica solo si esta configurado)."""
     if tipo == TipoReajusteAnual.SMMLV:
         pct = _pct_reajuste_smmlv(anio)
         return Rounding.money(capital + capital * pct / Decimal("100"))
@@ -155,8 +161,15 @@ def generar_cuotas_mensuales(
             # ocurre exactamente una vez por transicion de año (nunca se saltan años),
             # siempre en enero.
             if anio_cursor != anio_capital:
+                # generar_cuotas_mensuales (a diferencia de generar_cuotas_fechas_fijas,
+                # Sprint 73) admite tipo_reajuste_anual = NINGUNO desde el Sprint 75 Task 1
+                # -- reajustar_capital_anual (renombrada, ex _reajustar_capital) sigue
+                # lanzando ValueError para NINGUNO (no le corresponde a ella decidir si
+                # reajusta o no, ver su propio docstring), asi que el guard vive aqui.
                 if tipo_reajuste != TipoReajusteAnual.NINGUNO:
-                    capital_actual = _reajustar_capital(capital_actual, anio_cursor, tipo_reajuste)
+                    capital_actual = reajustar_capital_anual(
+                        capital_actual, anio_cursor, tipo_reajuste
+                    )
                 anio_capital = anio_cursor
 
             concepto = f"{concepto_base} DE {_MESES_ES[mes_cursor]} {anio_cursor}"

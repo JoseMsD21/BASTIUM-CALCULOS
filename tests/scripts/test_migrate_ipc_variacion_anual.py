@@ -68,7 +68,15 @@ def test_migrar_areas_y_unidad_coinciden_con_ipc_indice_acumulado():
     assert fila.unidad == "%"
     from database.models import AreaDerecho
 
+    # Sprint 43: IPC_INDICE_ACUMULADO/IPC_VARIACION_ANUAL ahora alimentan las 6
+    # areas (indexacion IPC en Comercial/Laboral/Sancionatorio/Honorarios, ademas de
+    # Civil/Familia y Tributario que ya la usaban) -- ver
+    # app/services/areas_parametro.py, AREA_UNIDAD_POR_CLAVE.
     assert deserializar_areas(fila.areas_derecho) == [
         AreaDerecho.CIVIL_FAMILIA,
+        AreaDerecho.COMERCIAL,
+        AreaDerecho.LABORAL,
+        AreaDerecho.SANCIONATORIO,
+        AreaDerecho.HONORARIOS,
         AreaDerecho.TRIBUTARIO,
     ]

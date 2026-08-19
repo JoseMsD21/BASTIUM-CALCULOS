@@ -5,13 +5,18 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-18 (Sprint 61) — nuevo campo "Tipo de acción/proceso" (opcional) en el
-> formulario de obligación, que conecta 12 tipos más de prescripción/caducidad a la alerta del Dashboard
+> **Última actualización:** 2026-08-18 — nuevo campo "Tipo de acción/proceso" (opcional) en el formulario
+> de obligación (Sprint 61), que conecta 12 tipos más de prescripción/caducidad a la alerta del Dashboard
 > (antes solo la ejecutiva); fallback automático a la tasa legal civil (`CIVIL_ANNUAL_RATE`) cuando la tasa
-> pactada se deja en 0. Antes, 2026-08-17 (Sprint 75) — "Generar cuotas" ahora también está disponible en
-> Comercial (antes solo Civil/Familia), y funciona incluso sin reajuste anual activo; agrega la nueva
-> sección 5.5.1 sobre pagar varias cuotas de una vez por rango, con imputación en cascada (capital de la
-> cuota más reciente primero). Antes, 2026-08-14 — agrega el paso "Generar cuotas" (obligatorio para que el
+> pactada se deja en 0 (Sprint 61). "Generar cuotas" (Sprint 75) ahora también está disponible en Comercial
+> (antes solo Civil/Familia), y funciona incluso sin reajuste anual activo; agrega la nueva sección 5.5.1
+> sobre pagar varias cuotas de una vez por rango, con imputación en cascada (capital de la cuota más
+> reciente primero). También agrega la casilla "Aplica indexación IPC" (y sus reglas propias de
+> exclusión/coexistencia) a Comercial, Laboral, Sancionatorio y Honorarios, antes exclusiva de Civil/
+> Familia (Sprint 43); documenta el nuevo tipo de recurrencia "Fechas anuales fijas" para obligaciones que
+> no se repiten mes a mes (ej. gastos de vestuario, Sprint 73); y describe el nuevo layout de 2 columnas
+> del formulario "Agregar obligación". Antes, 2026-08-14 — agrega el paso "Generar cuotas" (obligatorio
+> para que el
 > reajuste anual de una obligación Recurrente tenga efecto real al liquidar) a la sección 5.4, y una nota
 > sobre la pregunta abierta con el despacho acerca de la fórmula de tasa diaria del Art. 1617 (sección
 > 7.1). Además, refleja el estado de Civil/Familia, Comercial, Sancionatorio,
@@ -297,6 +302,14 @@ llenes.
 En la Lista de Expedientes, haz **doble clic** sobre la fila del expediente que quieres abrir. Se abre la
 pantalla de Detalle de ese expediente.
 
+**Nota sobre el tamaño de la ventana (Sprint 72):** el formulario "Agregar obligación" abre con las
+secciones "Datos básicos" y "Tasas e intereses" una junto a la otra (2 columnas), no una debajo de la otra
+como antes, y con un tamaño fijo que deja el botón "Guardar" siempre visible sin necesidad de agrandar la
+ventana. Si el contenido de una sección no cabe en el ancho de la ventana (pasa sobre todo en Civil/
+Familia, por el nombre largo de la casilla "Interés sobre capital ya indexado"), aparece una barra de
+desplazamiento horizontal dentro de esa sección — es normal, desplázate hacia la derecha para ver el resto
+de los campos.
+
 ### 5.3. Agregar una obligación puntual (una deuda de una sola vez)
 
 Usa este tipo cuando la deuda es un monto único con una sola fecha (ej. "gastos médicos de una vez").
@@ -371,6 +384,28 @@ la fecha de corte, con el mismo capital cada mes — comportamiento sin cambios.
 embargo, también puedes hacer clic en "Generar cuotas" con "Reajuste anual" en "Ninguno": esto crea y
 guarda las cuotas reales igual (capital constante, sin escalar), lo que además habilita seleccionarlas en
 la tabla para pagarlas por rango — ver [sección 5.5.1](#551-pagar-varias-cuotas-de-una-vez-selección-por-rango).
+
+#### 5.4.1. Obligación recurrente con fechas fijas, no mensual (Sprint 73)
+
+Usa esta variante cuando la deuda **no** se repite cada mes, sino en fechas puntuales del año — el ejemplo
+típico es una cuota de vestuario que solo vence en junio, en diciembre, y en el cumpleaños del niño.
+
+1. Igual que en la sección 5.4, elige **Tipo = "Recurrente"** en un expediente Civil/Familia.
+2. En el campo nuevo **"Tipo de recurrencia"**, cambia de **"Mensual"** (el comportamiento de siempre) a
+   **"Fechas anuales fijas"**. El campo "Día de pago" desaparece (no aplica a este tipo) y aparece el campo
+   **"Fechas (MM-DD, separadas por coma)"**.
+3. Escribe las fechas en formato mes-día, separadas por coma — ej. `06-15, 12-15, 03-22` para el 15 de
+   junio, el 15 de diciembre y el 22 de marzo (el cumpleaños, en este ejemplo) de cada año.
+4. Haz clic en **"Guardar"** y luego, igual que con el reajuste mensual, selecciona la obligación y haz
+   clic en **"Generar cuotas"** — esto crea exactamente una cuota por cada fecha configurada, por cada año
+   dentro del rango de la obligación (3 fechas = 3 cuotas por año, no 12).
+5. El reajuste anual (SMMLV/IPC) es opcional para este tipo de obligación — actívalo solo si el título
+   también ordena reajustar el monto de estas fechas fijas cada enero.
+
+**Nota importante sobre el cumpleaños:** el programa **no** calcula el cumpleaños automáticamente a partir
+de una fecha de nacimiento — todavía no existe esa función (depende de un módulo de "beneficiario" que
+sigue pendiente, ver `Pendientes.md`, Sprint 74). Escribe la fecha del cumpleaños a mano en la lista de
+fechas MM-DD, igual que las demás.
 
 ### 5.5. Agregar un abono (registrar un pago)
 
@@ -1176,6 +1211,39 @@ distintas, con propósitos y momentos diferentes.
   histórico). Cada obligación decide por sí sola: un mismo expediente puede tener obligaciones con y sin
   esta casilla marcada, cada una liquida con su propio criterio (Art. 1617 C.C., Sprint 21: cada obligación
   se liquida por separado con su propia tasa).
+
+**Indexación IPC en las demás áreas (Sprint 43):** hasta el Sprint 43, la casilla "Aplica indexación IPC"
+solo existía en Civil/Familia. El despacho confirmó que en las otras áreas la indexación tiene sentido
+jurídico distinto, así que cada una tiene su propia regla — no es la misma casilla libre en todos lados:
+
+- **Comercial**: la casilla sigue existiendo, pero **no se puede marcar sola** — el programa exige además
+  marcar **"Pacto expreso de indexación en el título"**. Sin ese pacto expreso, intentar marcar "Aplica
+  indexación IPC" muestra un error de validación (son mutuamente excluyentes con la tasa comercial: o se
+  cobra la tasa comercial pactada, que ya incluye inflación, o se cobra capital indexado + interés civil
+  puro del 6% anual, nunca ambas). Con las dos casillas marcadas, la obligación deja de liquidarse con la
+  tasa comercial y pasa a liquidarse igual que Civil/Familia con "Suma Única".
+- **Honorarios**: la casilla viene **disponible por defecto** (es compatible con el interés civil que ya
+  cobra esta área) — fórmula `Capital × (IPC_final/IPC_inicial) + Interés civil 6% anual sobre el capital ya
+  actualizado`.
+- **Laboral**: la casilla es excluyente con la indemnización moratoria del Art. 65 CST. Si marcas ambas
+  sobre la misma obligación, el programa **no bloquea** la liquidación, pero muestra una advertencia
+  ("Doble Actualización Prohibida") — tanto en un aviso emergente al liquidar como en un recuadro de
+  advertencia visible en la pantalla de resultado, para que quede registro aunque cierres el aviso.
+- **Sancionatorio**: la casilla está disponible; el programa indexa desde la fecha de origen de la
+  obligación.
+- **Tributario**: **no hay casilla** — aquí la indexación IPC es automática cuando la mora supera 3 años
+  (Art. 867-1 E.T., ya construido desde el Sprint 15), no una elección manual del abogado. Si el tope de
+  usura recorta la indexación combinada con el interés de mora, aparece la misma advertencia visible
+  ("Techo de usura alcanzado"). Hay además una casilla nueva, **"Protegida por indexación inflacionaria
+  propia (UVR, etc.)"**, que bloquea con error si se intenta indexar por IPC una obligación que ya trae su
+  propia protección contra la inflación (para evitar doble corrección).
+
+**Dónde se ven las advertencias no bloqueantes:** un aviso emergente de 6 segundos al terminar de liquidar,
+y un recuadro de advertencia (⚠) en la parte superior de la pantalla de resultado, que se mantiene visible
+mientras esa liquidación esté en pantalla — incluyendo al reabrir una liquidación guardada desde el
+historial de un expediente. **Limitación conocida:** las exportaciones a PDF/Word todavía no incluyen estas
+advertencias (ver `Pendientes.md`, Sprint 77) — si necesitas dejar constancia escrita de una advertencia,
+revisa la pantalla de resultado antes de exportar.
 
 ### 7.8. TRM y obligaciones en moneda extranjera
 

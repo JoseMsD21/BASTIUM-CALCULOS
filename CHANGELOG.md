@@ -53,7 +53,33 @@ construirlo. Sprint 61 (bloqueado desde el Sprint 57, desbloqueado con el usuari
 claves más de prescripción/caducidad (más `CIVIL_ANNUAL_RATE`) dejan de estar "sin wiring" — un campo
 nuevo y opcional "Tipo de acción/proceso" en el formulario de obligación (filtrado por área) alimenta la
 misma alerta de vencimiento que ya existía en el Dashboard, generalizada de "solo prescripción ejecutiva"
-a los 13 tipos; la tasa civil legal se resuelve automáticamente cuando la tasa pactada se deja en 0.
+a los 13 tipos; la tasa civil legal se resuelve automáticamente cuando la tasa pactada se deja en 0. Sprint
+43 (indexación IPC, respuesta del despacho recibida 2026-08-13): habilitada con su propia regla de
+exclusión/coexistencia por área en Tributario (ligada al Art. 867-1 E.T.), Comercial (XOR con la tasa
+comercial, solo con pacto expreso), Honorarios (compatible con el interés civil, fórmula exacta del
+despacho), Laboral (excluyente con la indemnización moratoria, con alerta) y Sancionatorio (condicional, ya
+cubierto por la excepción del despacho con el motor actual) — antes solo existía para Civil/Familia. Sprint
+47 (recálculo histórico, respuesta del despacho recibida 2026-08-13): script de identificación/marcado de
+liquidaciones afectadas por el Sprint 30, generación de los 2 memoriales del protocolo (actualización/
+corrección y error aritmético Art. 151 CPACA) y log de diferencias numérico; confirmado que el módulo de
+densidad pensional (`calcular_densidad_semanas`) ya usaba días calendario reales desde el Sprint 17 y no
+requería el ajuste de la Sentencia SL138-2024 que el despacho pidió verificar. Sprint 24 (validación de
+datos): confirmado que ya estaba implementado desde una integración anterior (Sprints 34/56-60) — solo se
+corrigió el estado en `Pendientes.md`, sin cambios de código. Sprint 72 (rediseño de "Agregar Obligación"):
+layout de 2 columnas con `QScrollArea` para que el botón Guardar siempre sea visible en 1366×768 sin
+importar el área elegida. Sprint 73 (obligaciones recurrentes con fechas personalizadas): nuevo tipo de
+recurrencia por lista de fechas fijas anuales (ej. gastos de vestuario en junio/diciembre/cumpleaños),
+alternativo a la cadencia mensual del Sprint 41. Sprint 18 (ultraactividad CPC→CGP, 2026-08-14): campo
+opcional `fecha_providencia_costas` en Obligación — si la providencia que impone costas es anterior al 1°
+de enero de 2016 (Art. 627 CGP), el sistema no aproxima con la tabla granular vigente (no existe fuente
+confiable pre-CGP) y lanza un error explícito en vez de inventar una cifra; retrocompatible si el campo
+queda vacío. Sprint 71 (checkbox de indexación IPC invisible, seguimiento del Sprint 67, 2026-08-14): el
+`QGroupBox` marcable que contiene ese checkbox tampoco tenía estilo de indicador — reglas
+`QGroupBox::indicator` agregadas a los 2 temas, mismo patrón que el `QCheckBox::indicator` del Sprint 67.
+Sprint 62 (2026-08-14): 37 referencias rotas al archivo `Preguntas-Para-Abogado.md` (renombrado hace
+tiempo) corregidas en comentarios/docstrings de 20 archivos `.py`. Sprint 13 (2026-08-14): la sección de
+Parámetros en `docs/GUIA_USUARIO.md` gana un tono pedagógico dirigido a un perfil "Abogado Junior/Estudiante
+de Consultorio Jurídico", con ejemplos de cómo traducir un hecho del caso a una fila de la tabla.
 
 ### Added
 - Wiring de 18 parámetros de prescripción/caducidad/tasa sin conectar (Sprint 61): columna nueva
@@ -76,6 +102,10 @@ a los 13 tipos; la tasa civil legal se resuelve automáticamente cuando la tasa 
   (`AllocationEngine`/`LiquidationCore`), activándose la estrategia capital-primero automáticamente para
   cualquier cuota-hija sin afectar el orden legal general (indexación→interés→capital) del resto de
   obligaciones. Fuera de alcance de este sprint: Laboral, Sancionatorio, Honorarios y Tributario.
+- Ultraactividad CPC→CGP en costas judiciales (Sprint 18): campo opcional `fecha_providencia_costas` en
+  Obligación; si la providencia es anterior al 1° de enero de 2016 (Art. 627 CGP), lanza
+  `TarifaPreCGPNoDisponibleError` en vez de aplicar la tabla granular vigente (no existe tabla pre-CGP
+  confiable) — sin campo de captura en la GUI todavía, ver `Pendientes.md`.
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
   creados por el usuario (deja los de sistema intactos), con backup automático previo y confirmación
   escrita.
@@ -149,8 +179,37 @@ a los 13 tipos; la tasa civil legal se resuelve automáticamente cuando la tasa 
   desde el historial de cada clave en Configuraciones → Parámetros.
 - Campo "Unidad" como desplegable (con opción "Otros...") al agregar un valor de parámetro.
 - Tooltips ⓘ en todos los campos del formulario de parámetros y en las columnas de la tabla.
+- Indexación IPC en Comercial, Laboral, Honorarios, Sancionatorio y Tributario (Sprint 43), cada una con su
+  propia regla de exclusión/coexistencia en vez de un solo flag genérico: XOR real en Comercial (nuevo campo
+  `pacto_expreso_indexacion`, capital indexado + interés civil 6% puro en vez de la tasa comercial); fórmula
+  exacta del despacho en Honorarios (`Capital × IPC_Final/IPC_Inicial + Interés_Civil_6%(Capital_Actualizado)`);
+  excluyente con la indemnización moratoria en Laboral, con alerta no bloqueante "Doble Actualización
+  Prohibida" si coinciden; nuevo campo `protegida_inflacion_uvr` en Tributario (prohibición de doble cobro
+  sobre el Art. 867-1 E.T.) y alerta "Techo de usura alcanzado" cuando el tope combinado recorta la
+  indexación. Nuevo `LiquidationResult.alertas` (feedback no bloqueante, mostrado con el mismo `toast` del
+  Sprint 36, y con un banner persistente en la pantalla de resultado) para las alertas que no bloquean la
+  liquidación.
+- Recálculo de liquidaciones históricas afectadas por las correcciones del Sprint 30 (Sprint 47):
+  identificación/marcado vía `AuditLog` (flag "OBSOLETO - REQUIERE RECÁLCULO"), recálculo sin sobrescribir
+  el registro original (liquidación nueva vinculada a la anterior), log de diferencias numérico
+  ("Diferencia recuperada: +X días / +$Z pesos"), generación de los 2 tipos de memorial del protocolo del
+  despacho (Actualización/Corrección y corrección de error aritmético Art. 151 CPACA), y priorización por
+  cercanía de prescripción. Nunca recalcula un expediente en cosa juzgada.
+- Familia: obligaciones recurrentes con fechas anuales fijas en vez de mensuales (Sprint 73) — para gastos
+  que no se repiten mes a mes (ej. vestuario en junio/diciembre/cumpleaños), un nuevo tipo de recurrencia
+  genera exactamente las ocurrencias configuradas por año, reutilizando el mismo mecanismo de cuotas
+  hijas/abonos del Sprint 41.
 
 ### Fixed
+- El checkbox "Aplica indexación IPC" seguía invisible en Civil/Familia tras el fix del Sprint 67 (Sprint
+  71): el checkbox en sí ya estaba bien estilado, pero el `QGroupBox` marcable que lo contiene
+  (`grupo_tasas_intereses`) usa un subcontrol distinto (`QGroupBox::indicator`), no cubierto por esas
+  reglas — agregadas para los 3 `QGroupBox` marcables del proyecto, en ambos temas.
+- El diálogo "Agregar obligación" era tan grande que el botón "Guardar" no aparecía a simple vista, y sus 3
+  secciones quedaban apiladas en una sola columna sin importar el tamaño de la ventana (Sprint 72).
+  Reorganizado en un `QGridLayout` de 2 columnas ("Tasas e intereses" a la derecha de "Datos básicos")
+  envuelto en un `QScrollArea`, con tamaño inicial fijo (1300×650) que deja el botón "Guardar" siempre
+  visible en una pantalla estándar (1366×768) en las 6 áreas del derecho.
 - El combo "Reajuste anual" de una obligación Recurrente Civil/Familia no se precargaba al editar (Sprint
   76): siempre mostraba "Ninguno" sin importar el valor real guardado, y volver a dar clic en "Guardar" sin
   tocar ese campo revertía silenciosamente `tipo_reajuste_anual` a `NINGUNO` en la base de datos (el
