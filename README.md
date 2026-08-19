@@ -18,7 +18,7 @@ legal que se usaría en un juzgado.
 paso, sin dar nada por sabido: qué instalar, cómo abrir el programa, cómo usar cada pantalla, y dónde
 están los valores legales (como la tasa de interés) por si necesitas consultarlos o ajustarlos.
 
-## Estado actual (2026-08-13)
+## Estado actual (2026-08-17)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -26,16 +26,21 @@ abonos, indexación IPC opcional por obligación (Art. corrección monetaria; el
 aplica, con interpolación entre índices de cierre de año para fechas intermedias), con la opción de aplicar
 el algoritmo "Suma Única" (Art. corrección monetaria + interés civil, PDF pág. 21-22: interés sobre el
 capital ya indexado en vez de sobre el capital histórico, también válido para intereses de la Ley 80 de
-1993 en contratos estatales); las obligaciones recurrentes de cuota alimentaria admiten reajuste anual del
-capital según SMMLV o IPC cada 1 de enero, con cuotas mensuales generadas y abonables por separado),
-**Comercial** (Art. 884 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
+1993 en contratos estatales); las obligaciones recurrentes admiten reajuste anual del capital según SMMLV
+o IPC cada 1 de enero, con cuotas mensuales generadas y abonables por separado — o, desde el Sprint 75,
+con capital constante (sin reajuste) igual de generables como cuotas reales), **Comercial** (Art. 884
+C.Co., tasas remuneratoria y moratoria pactadas por obligación con
 split real antes/después del vencimiento, sanción del doble por exceso sobre el tope de usura 1.5×IBC
 (Ley 45/1990 art. 72, sin rechazar ni truncar la liquidación), obligaciones en USD
 convertidas a pesos con la TRM certificada por la Superintendencia Financiera en vivo, consultada por la
 fecha real de cada evento — capital en la fecha de origen, cada abono en su propia fecha de pago, sin TRM
-congelada (Art. 874 C.Co.); admite una TRM manual como anulación opcional, y anatocismo condicionado
+congelada (Art. 874 C.Co.); admite una TRM manual como anulación opcional, anatocismo condicionado
 (Art. 886 C.Co.: interés sobre interés, activado solo con demanda judicial o acuerdo posterior con al
-menos un año de intereses vencidos, capitalizado periódicamente — nunca por defecto)), **Sancionatorio**
+menos un año de intereses vencidos, capitalizado periódicamente — nunca por defecto), y, desde el Sprint
+75, obligaciones recurrentes con cuotas mensuales reales igual que Civil/Familia). Civil/Familia y
+Comercial comparten, desde el Sprint 75, un botón "Pagar cuotas seleccionadas" para pagar un rango de
+cuotas consecutivas con un solo abono, repartido en cascada (capital de la cuota más reciente primero,
+luego capital+interés de las anteriores). **Sancionatorio**
 (multas SIC/Penal/Ambiental/Urbano en SMLMV o UVT, Ley 1955/2019 art. 49, con la base convertida a pesos
 según la fecha del hecho: SMLMV antes del 2020-01-01 y UVT desde esa fecha (tabla histórica de UVT
 2006-2026 ya cargada)), **Honorarios / Litigio** (cobro de honorarios

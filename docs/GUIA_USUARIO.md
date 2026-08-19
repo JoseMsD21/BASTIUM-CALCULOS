@@ -5,7 +5,10 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-14 — agrega el paso "Generar cuotas" (obligatorio para que el
+> **Última actualización:** 2026-08-17 (Sprint 75) — "Generar cuotas" ahora también está disponible en
+> Comercial (antes solo Civil/Familia), y funciona incluso sin reajuste anual activo; agrega la nueva
+> sección 5.5.1 sobre pagar varias cuotas de una vez por rango, con imputación en cascada (capital de la
+> cuota más reciente primero). Antes, 2026-08-14 — agrega el paso "Generar cuotas" (obligatorio para que el
 > reajuste anual de una obligación Recurrente tenga efecto real al liquidar) a la sección 5.4, y una nota
 > sobre la pregunta abierta con el despacho acerca de la fórmula de tasa diaria del Art. 1617 (sección
 > 7.1). Además, refleja el estado de Civil/Familia, Comercial, Sancionatorio,
@@ -348,17 +351,21 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
 3. Haz clic en **"Guardar"**.
 4. **Si elegiste un Reajuste anual (SMMLV/IPC), hay un paso más, obligatorio:** de vuelta en el Detalle
    del expediente, selecciona (clic) la fila de esta obligación en la tabla de Obligaciones, y haz clic
-   en el botón **"Generar cuotas"** (junto a "Agregar obligación", solo visible en Civil/Familia). Esto
-   crea y guarda las cuotas mensuales reales, con el capital ya escalado cada enero — sin este paso, el
-   campo "Reajuste anual" queda guardado pero **no tiene ningún efecto al liquidar**: la obligación se
-   sigue calculando con el capital constante de siempre, como si "Reajuste anual" estuviera en "Ninguno".
-   Si editas el valor, la tasa o el reajuste de una obligación que ya tiene cuotas generadas, o si la
-   eliminas y la vuelves a crear, tienes que volver a hacer clic en "Generar cuotas" (es seguro repetirlo:
-   no duplica cuotas ya generadas, solo las confirma).
+   en el botón **"Generar cuotas"** (junto a "Agregar obligación", visible en Civil/Familia y Comercial —
+   las 2 áreas con obligaciones recurrentes por cuotas, desde el Sprint 75). Esto crea y guarda las cuotas
+   mensuales reales, con el capital ya escalado cada enero — sin este paso, el campo "Reajuste anual"
+   queda guardado pero **no tiene ningún efecto al liquidar**: la obligación se sigue calculando con el
+   capital constante de siempre, como si "Reajuste anual" estuviera en "Ninguno". Si editas el valor, la
+   tasa o el reajuste de una obligación que ya tiene cuotas generadas, o si la eliminas y la vuelves a
+   crear, tienes que volver a hacer clic en "Generar cuotas" (es seguro repetirlo: no duplica cuotas ya
+   generadas, solo las confirma).
 
-Si "Reajuste anual" quedó en "Ninguno" (o no le diste clic a "Generar cuotas"), el programa genera
-automáticamente una cuota por cada mes, desde la fecha de inicio hasta la fecha de corte del expediente,
-con el mismo capital cada mes.
+Si "Reajuste anual" quedó en "Ninguno" y no le diste clic a "Generar cuotas", el programa sigue generando
+automáticamente una cuota efímera por cada mes al liquidar (no persistida), desde la fecha de inicio hasta
+la fecha de corte, con el mismo capital cada mes — comportamiento sin cambios. **Desde el Sprint 75**, sin
+embargo, también puedes hacer clic en "Generar cuotas" con "Reajuste anual" en "Ninguno": esto crea y
+guarda las cuotas reales igual (capital constante, sin escalar), lo que además habilita seleccionarlas en
+la tabla para pagarlas por rango — ver [sección 5.5.1](#551-pagar-varias-cuotas-de-una-vez-selección-por-rango).
 
 ### 5.5. Agregar un abono (registrar un pago)
 
@@ -373,6 +380,36 @@ con el mismo capital cada mes.
 4. Haz clic en **"Guardar"**.
 
 Si el monto es cero o negativo, el programa avisa "Datos inválidos".
+
+#### 5.5.1. Pagar varias cuotas de una vez (selección por rango)
+
+**Desde el Sprint 75**, si un expediente de Civil/Familia o Comercial tiene una obligación Recurrente con
+cuotas ya generadas (ver [sección 5.4](#54-agregar-una-obligación-recurrente-una-cuota-que-se-repite-cada-mes)),
+puedes pagar varias cuotas consecutivas con un solo abono, en vez de repetir "Agregar abono" cuota por
+cuota:
+
+1. En la tabla de Obligaciones, selecciona un rango de filas consecutivas (clic en la primera cuota, luego
+   Shift+clic en la última) — todas deben ser cuotas hijas de la misma obligación recurrente. El botón
+   **"Pagar cuotas seleccionadas"** (junto a "Generar cuotas") se habilita solo cuando la selección
+   cumple esa condición.
+2. Haz clic en **"Pagar cuotas seleccionadas"**.
+3. Ingresa el **Monto total** del pago y la **Fecha del pago**. El programa muestra automáticamente una
+   vista previa: cuánto de ese monto le corresponde a cada cuota.
+4. Haz clic en **"Ok"** para confirmar — esto crea un abono real por cada cuota tocada (los ves después en
+   la tabla de Abonos, igual que si los hubieras cargado uno por uno).
+
+**Cómo se reparte el pago (imputación en cascada):** el monto se aplica primero a la cuota **más
+reciente**, cubriendo su capital antes que su interés; lo que sobra pasa a la cuota anterior, y así
+sucesivamente hacia atrás en el tiempo. Ejemplo: cuotas de $150.000 mensuales, un abono de $500.000 el
+1° de abril — cubre el capital completo de la cuota de abril, luego el capital **y** el interés de la
+cuota de marzo, y de la cuota de febrero solo alcanza a cubrir el capital y una parte de sus intereses (el
+resto de esos intereses queda debido, pero como el capital de febrero ya quedó pagado, no sigue generando
+intereses nuevos). Si el monto ingresado no alcanza a cubrir por completo las cuotas seleccionadas, el
+programa muestra cuánto sobra sin cubrir y no deja confirmar hasta que ajustes el monto o la selección.
+
+La selección cuota-por-cuota de "Agregar abono" ([sección 5.5](#55-agregar-un-abono-registrar-un-pago))
+sigue funcionando igual que siempre — el pago por rango es una forma más rápida de marcar varias cuotas a
+la vez, no la reemplaza.
 
 ### 5.6. Liquidar el expediente y leer el resultado
 

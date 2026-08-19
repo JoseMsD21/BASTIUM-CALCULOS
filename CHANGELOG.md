@@ -41,9 +41,29 @@ corregidos (concepto "PAYMENT" ilegible en la cronología, subestimación de "In
 expedientes con 2+ obligaciones, tabla de cronología del PDF/Word desbordando los márgenes de la página, y
 el combo "Reajuste anual" sin precargar al editar una obligación) más el paso "Generar cuotas" documentado
 en la guía de usuario; queda 1 pregunta abierta sobre la fórmula de tasa diaria del Art. 1617 (ver
-`Preguntas-Para-Abogado-Abiertas.md`, Sprint 76).
+`Preguntas-Para-Abogado-Abiertas.md`, Sprint 76). Sprint 75 (brainstorming completo con el usuario,
+2026-08-14): las cuotas recurrentes reales del Sprint 41 (antes exclusivas de Civil/Familia) se extienden a
+Comercial, con o sin reajuste anual activo; nueva imputación en cascada (capital de la cuota más reciente
+primero) para pagos que cubren varias cuotas a la vez, con un diálogo nuevo de selección por rango en el
+Detalle del expediente. Explícitamente fuera de alcance: Laboral, Sancionatorio, Honorarios y Tributario —
+esas áreas rechazan obligaciones recurrentes a propósito (una multa/sanción/impuesto es un hecho único por
+diseño) o son estructuralmente incompatibles (Laboral liquida un solo contrato por expediente, no una
+serie de cuotas) — queda pendiente confirmar con el despacho si tiene sentido legal extenderlas antes de
+construirlo.
 
 ### Added
+- Cuotas recurrentes en Comercial y pago por rango con imputación en cascada (Sprint 75): `generar_cuotas_mensuales`
+  ya no exige reajuste anual activo (SMMLV/IPC) — una obligación recurrente sin reajuste también genera
+  cuotas mensuales reales, con capital constante. `ComercialStrategy` detecta cuotas-hija ya generadas
+  igual que `CivilFamiliaStrategy`, evitando el doble conteo de capital. Nuevo botón "Pagar cuotas
+  seleccionadas" en el Detalle del expediente (Civil/Familia y Comercial): selecciona un rango de cuotas
+  consecutivas en la tabla, ingresa un monto total, y el pago se reparte automáticamente en cascada —
+  capital de la cuota más reciente primero, luego capital e interés de las anteriores, dejando los
+  intereses no cubiertos de la cuota más antigua "congelados" (no siguen generando interés nuevo sobre el
+  capital ya pagado). El orden de imputación es ahora intercambiable en el motor de liquidación
+  (`AllocationEngine`/`LiquidationCore`), activándose la estrategia capital-primero automáticamente para
+  cualquier cuota-hija sin afectar el orden legal general (indexación→interés→capital) del resto de
+  obligaciones. Fuera de alcance de este sprint: Laboral, Sancionatorio, Honorarios y Tributario.
 - Sección "Restablecer" en Configuraciones: borra todos los expedientes y los parámetros legales
   creados por el usuario (deja los de sistema intactos), con backup automático previo y confirmación
   escrita.
