@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
+from app.core.exceptions import IPCMensualNoDisponibleError, ParametroNoDisponibleError
 from app.services.area_strategy import CivilFamiliaStrategy, ComercialStrategy
 from app.services.cascada_cuotas import deuda_pendiente_cuota, distribuir_pago_en_cascada
 from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable
@@ -114,6 +115,16 @@ class PagoPorRangoDialog(QDialog):
                     cuota, abonos_existentes, fecha_pago, rate_provider
                 )
                 cuotas_y_deuda.append((cuota, deuda))
+        except (ParametroNoDisponibleError, IPCMensualNoDisponibleError) as error:
+            # Mismo criterio de fallo abierto que _refrescar_alertas_vencimiento en
+            # app/views/dashboard.py: una cuota con aplica_indexacion_ipc=True puede
+            # necesitar un parametro (IPC_INDICE_ACUMULADO, etc.) que el usuario no
+            # cargo todavia en Parametros. Como _calcular_preview corre en cada
+            # tecla (textChanged), esto no puede ser un QMessageBox por cada letra --
+            # se muestra inline, igual que los demas casos de entrada invalida de
+            # este metodo (monto vacio/negativo).
+            self.etiqueta_remanente.setText(f"No se pudo calcular la cascada: {error}")
+            return
         finally:
             session.close()
 

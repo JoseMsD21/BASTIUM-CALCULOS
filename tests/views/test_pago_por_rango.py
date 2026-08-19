@@ -145,6 +145,53 @@ def test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos(qtbot, m
     assert total_abonos == 0
 
 
+def test_pago_por_rango_dialog_sin_parametro_ipc_no_crashea(qtbot, monkeypatch):
+    """Una cuota con aplica_indexacion_ipc=True necesita IPC_INDICE_ACUMULADO
+    cargado en Parametros para proyectar su deuda (ver Task 4,
+    deuda_pendiente_cuota). Si no esta cargado, _calcular_preview no debe
+    propagar la excepcion (crashearia el slot conectado a textChanged) --
+    debe mostrarla en etiqueta_remanente, mismo criterio de fallo abierto
+    que dashboard.py::_refrescar_alertas_vencimiento."""
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-101",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2024, 4, 1),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion_recurrente = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="CUOTA ALIMENTARIA",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2024, 1, 1),
+        fecha_inicio=date(2024, 1, 1),
+        dia_pago=1,
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("0.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+        aplica_indexacion_ipc=True,
+    )
+    session.add(obligacion_recurrente)
+    session.commit()
+    session.close()
+
+    cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
+
+    dialogo = PagoPorRangoDialog(cuotas=cuotas, area="CIVIL_FAMILIA", parent=None)
+    qtbot.addWidget(dialogo)
+    dialogo.campo_monto.setText("150000")
+    dialogo._calcular_preview()  # no debe lanzar
+
+    assert dialogo.tabla_preview.rowCount() == 0
+    assert "No se pudo calcular la cascada" in dialogo.etiqueta_remanente.text()
+    assert dialogo._asignaciones == []
+
+
 def test_pago_por_rango_dialog_monto_invalido_no_crashea(qtbot, monkeypatch):
     _sesion_en_memoria(monkeypatch)
     obligacion_recurrente = _obligacion_civil_familia_recurrente_helper(
