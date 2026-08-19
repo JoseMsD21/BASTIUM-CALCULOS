@@ -209,7 +209,7 @@ botón real que los dispare).
 - [Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) ✅ Completado](#sprint-58--parámetros-presentación-inteligente-vigencia-ipc-crudo-vs-calculado-historial--completado)
 - [Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales ✅ Completado](#sprint-59--tooltips-de-ayuda-en-los-4-formularios-principales--completado)
 - [Sprint 60 — Editar/eliminar Obligaciones y Abonos ✅ Completado](#sprint-60--editareliminar-obligaciones-y-abonos--completado)
-- [Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión](#sprint-61--conectar-los-parámetros-de-prescripcióncaducidad-sin-wiring-a-pantallas-reales--bloqueado--pendiente-de-decisión)
+- [Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales ✅ Completado](#sprint-61--conectar-los-parámetros-de-prescripcióncaducidad-sin-wiring-a-pantallas-reales--completado)
 - [Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ 📋 Pendiente](#sprint-62--corregir-referencias-rotas-tras-mover-pendientespreguntas-para-abogadosecuritypdf-a-docs--pendiente)
 - [Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 📋 Pendiente](#sprint-63--documentar-en-readmeguia_usuario-las-funciones-de-los-sprints-52-60--pendiente)
 - [Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ ✅ Completado](#sprint-64--reorganizar-los-backups-de-bastiumdb-en-una-carpeta-backups--completado)
@@ -4883,28 +4883,61 @@ regresión sobre este sprint, no un gap nuevo.
 
 ---
 
-## Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales 🔵 Bloqueado — pendiente de decisión
+## Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales ✅ Completado
 
-**Prioridad sugerida:** Baja-media — ninguno de los 18 parámetros afectados bloquea el uso actual de la
-app (solo `PRESCRIPCION_EJECUTIVA_MESES`, el default de `UniversalLiquidationService`, está realmente
-conectado hoy).
+**Prioridad sugerida:** Baja-media — ninguno de los 18 parámetros afectados bloqueaba el uso actual de la
+app (solo `PRESCRIPCION_EJECUTIVA_MESES`, el default de `UniversalLiquidationService`, estaba realmente
+conectado antes de este sprint).
 
-**Depende de:** Nada técnicamente, pero requiere una conversación de alcance con el usuario antes de
+**Depende de:** Nada técnicamente, pero requería una conversación de alcance con el usuario antes de
 codificar — mismo patrón que otros gaps grandes de este proyecto (Sprints 13/16/20/41).
 
 **Contexto:** al investigar el Sprint 57 (área por parámetro) se confirmó que 18 de las 39 claves de
 `CATALOGO_PARAMETROS` (12 de prescripción/caducidad no-ejecutiva + `CIVIL_ANNUAL_RATE`, más el uso
-parcial de `IBC_CONSUMO_ORDINARIO`) tienen motores completos y probados
+parcial de `IBC_CONSUMO_ORDINARIO`) tenían motores completos y probados
 (`app/engine/temporal/prescripcion.py`, `app/engine/interest/legal_rates.py`) pero ningún botón de la
-app los dispara — solo se ejercitan en tests. El usuario pidió explícitamente que se cree este sprint
-placeholder para no perder de vista el pendiente, a trabajar en el futuro.
+app los disparaba — solo se ejercitaban en tests. Este sprint quedó como placeholder hasta retomarlo con
+el usuario.
 
-**Código nuevo a crear:** ninguno todavía — placeholder. Antes de codificar, decidir con el usuario
-área por área desde qué pantalla/flujo se debería invocar cada `TipoAccion`/`TipoProceso` (no se puede
-inferir solo del código, a diferencia del etiquetado informativo del Sprint 57).
+**Decisión de diseño tomada con el usuario (2026-08-14, brainstorming antes de codificar):** campo
+genérico único ("Tipo de acción/proceso") en el formulario de Obligación, en vez de 18 decisiones de
+pantalla independientes; generalizar la alerta ya existente del Dashboard (antes solo EJECUTIVA) en vez
+de construir una pantalla nueva; `CIVIL_ANNUAL_RATE` resuelto como fallback automático silencioso (sin
+campo nuevo) cuando la tasa pactada se deja en 0. Diseño completo en
+`docs/superpowers/specs/2026-08-14-sprint61-wiring-parametros-prescripcion-design.md`, plan de
+implementación en `docs/superpowers/plans/2026-08-14-sprint61-wiring-parametros-prescripcion.md`.
 
-**Definición de Hecho:** no aplica todavía — este sprint se cierra dividiéndose en sprints concretos el
-día que se retome.
+**Código nuevo:**
+- `scripts/migrate_tipo_accion_proceso.py` + columna `tipo_accion_proceso: str | None` en `Obligacion`
+  (`database/models.py`).
+- `app/services/areas_parametro.py::opciones_tipo_accion_proceso_por_area()`: unifica los 6 `TipoAccion`
+  de prescripción y las 7 claves de `PLAZOS_CADUCIDAD_MESES_CONOCIDOS`, filtrado por área reutilizando
+  `AREA_UNIDAD_POR_CLAVE` (Sprint 57). Import perezoso de `app.engine.temporal.prescripcion` para evitar
+  un ciclo de imports con `parametro_service.py`.
+- Combo "Tipo de acción/proceso" en `ObligacionFormDialog` (`app/views/obligaciones.py`), opcional,
+  poblado una vez por área al construir el diálogo.
+- `app/views/dashboard.py::_refrescar_alertas_vencimiento`: generalizada de EJECUTIVA fija a resolver
+  prescripción o caducidad según `obligacion.tipo_accion_proceso` (EJECUTIVA por defecto si es `None`,
+  mismo comportamiento que antes de este sprint).
+- `CivilFamiliaStrategy._construir_rate_provider_obligacion` (`app/services/area_strategy.py`): usa
+  `CIVIL_ANNUAL_RATE` cuando `tasa_efectiva_anual == 0`.
+
+**Definición de Hecho:**
+- Las 12 claves de prescripción/caducidad + `CIVIL_ANNUAL_RATE` son alcanzables desde una pantalla real.
+- Ninguna obligación existente cambia de comportamiento sin que el usuario elija explícitamente el campo
+  nuevo o deje la tasa en 0.
+- Suite completa en verde.
+
+**Cierre de implementación (2026-08-18):** Completado, vía `superpowers:subagent-driven-development` en
+worktree dedicado (`worktree-sprints-75-61`, compartido con el Sprint 75 — mismo worktree por tocar ambos
+`app/services/area_strategy.py`, ejecutados en secuencia, no en paralelo, para evitar conflictos). Al
+correr la suite completa después de este sprint se encontró y corrigió una interacción real entre ambos:
+los tests de `PagoPorRangoDialog` (Sprint 75) usaban `tasa_efectiva_anual=0.00` en cuotas de Civil/Familia
+para que el ejemplo fuera determinístico, sin saber que el fallback de `CIVIL_ANNUAL_RATE` de este sprint
+activaría una excepción capturada silenciosamente — corregido sembrando `CIVIL_ANNUAL_RATE=0.00` en esos
+tests para preservar el mismo comportamiento (cero interés). Suite completa en verde (1208 passed),
+`ruff check .` limpio (solo 3 errores `E501` preexistentes, ajenos a ambos sprints, confirmados con
+`git log -S`).
 
 ---
 
@@ -5539,13 +5572,13 @@ enteramente nueva, no una corrección.
 
 ---
 
-## Sprint 75 — Cuotas recurrentes en todas las áreas, con selección de pago por rango e imputación en cascada 📋 Pendiente
+## Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado
 
-**Prioridad sugerida:** Alta — extiende a las 6 áreas un mecanismo que hoy solo existe para Familia
-(Sprint 41), y agrega una capacidad de imputación de pagos parciales más rica que la que existe hoy en
+**Prioridad sugerida:** Alta — extiende a Comercial un mecanismo que antes solo existía para Familia
+(Sprint 41), y agrega una capacidad de imputación de pagos parciales más rica que la que existía antes en
 cualquier área.
 
-**Depende de:** Sprint 41 (generador de cuotas mensuales con reajuste anual, hoy exclusivo de Civil/
+**Depende de:** Sprint 41 (generador de cuotas mensuales con reajuste anual, antes exclusivo de Civil/
 Familia) y Sprint 44 punto 6 (extensión a Laboral, explícitamente excluida en su momento y dejada para
 "cuando el usuario decida extenderlo").
 
@@ -5561,39 +5594,61 @@ el capital de febrero ya quedó pagado, no sigue generando intereses nuevos); o 
 pagar solo una parte del capital de una cuota atrasada, los intereses ya generados hasta la fecha del abono
 se mantienen, pero los intereses nuevos se calculan sobre el capital insoluto restante.
 
-**Hallazgos (verificados leyendo el código, 2026-08-13):** el Sprint 41 ya construyó exactamente este
-mecanismo (generación de cuotas mensuales reales como `Obligacion` hijas, abonos por cuota individual), pero
-**limitado a Civil/Familia** — `CivilFamiliaStrategy` es la única que usa las cuotas hijas reales; las otras
-5 áreas siguen usando `RecurringScheduler`, que expande la obligación recurrente solo de forma efímera
-dentro de `liquidar()`, nunca como filas visibles antes de liquidar. Tampoco existe hoy: (1) una UI de
-selección de pago "por rango" (el Sprint 41 permite abono por cuota individual, no por rango de cuotas de
-una sola vez), ni (2) la lógica de imputación en cascada descrita por el usuario (capital de la cuota más
-reciente pagado primero, luego capital+intereses de las anteriores, con los intereses restantes "congelados"
-sin seguir generando sobre el capital ya pagado) — el motor de imputación general (`AllocationEngine`)
-tiene su propio orden de imputación (intereses primero, luego capital, mismo patrón del PDF pág. 63), que
-no es exactamente el descrito aquí.
+**Decisión de diseño tomada con el usuario (2026-08-14, brainstorming antes de codificar):** reajuste
+anual opcional al generalizar (una obligación sin reajuste también genera cuotas reales, con capital
+constante); la cascada capital-primero aplica solo a cuotas-hija (nunca al orden legal general de las
+demás obligaciones), activada automáticamente por tipo de obligación sin importar cómo se cargó el pago;
+la selección por rango convive con la selección individual del Sprint 41, sin reemplazarla; un `Abono`
+real por cuota tocada, sin cambiar el modelo `Abono`; orden de imputación intercambiable en el motor,
+calculado en el momento de liquidar (no precalculado aparte). **Alcance revisado durante la planeación**:
+al investigar el código real de las 5 estrategias restantes se confirmó que Sancionatorio/Honorarios/
+Tributario rechazan `RECURRENTE` a propósito (razón legal explícita: una multa/sanción/impuesto es un
+hecho único) y Laboral es estructuralmente incompatible (una obligación = un contrato completo, no una
+serie de cuotas) — este sprint generaliza únicamente a **Civil/Familia (ya existía) y Comercial (nuevo)**;
+las otras 4 áreas quedan pendientes, condicionadas a confirmar con el despacho si tiene sentido legal
+extenderlas. Diseño completo en `docs/superpowers/specs/2026-08-14-sprint75-cuotas-recurrentes-cascada-design.md`,
+plan de implementación en `docs/superpowers/plans/2026-08-14-sprint75-cuotas-recurrentes-cascada.md`.
 
-**Decisión de diseño a tomar con el usuario antes de codificar (alta complejidad, no asumir):**
-- ¿Se extiende el mecanismo del Sprint 41 (generación de cuotas hijas reales) a las 5 áreas restantes tal
-  cual, o cada área necesita su propia variante?
-- La lógica de imputación en cascada descrita por el usuario es distinta del orden de imputación general
-  que ya usa `AllocationEngine` (intereses primero, luego capital) — confirmar si esta cascada especial
-  aplica solo a obligaciones recurrentes por cuotas, o debe reemplazar el orden general en todas las áreas.
-- ¿La selección "por rango" reemplaza la selección cuota-por-cuota del Sprint 41, o se ofrecen ambas?
-
-**Código nuevo a crear (una vez tomada la decisión — conviene partir en sub-tareas con
-`superpowers:writing-plans` dado el tamaño):**
-- Generalizar el generador de cuotas del Sprint 41 a las 6 áreas (o a las que decida el usuario).
-- UI de selección de pago por rango de cuotas, además de la selección individual ya existente.
-- Motor de imputación en cascada específico para cuotas recurrentes, con capital/intereses tratados de
-  forma independiente por cuota tal como describe el ejemplo del usuario.
+**Código nuevo:**
+- `app/services/reajuste_anual.py::generar_cuotas_mensuales`: reajuste anual opcional (soporta
+  `TipoReajusteAnual.NINGUNO`); copia también `tasa_moratoria_anual`/`ibc_vigente_anual`/
+  `fecha_vencimiento` a cada cuota (bug encontrado en revisión: sin esto, generar cuotas para una
+  obligación Comercial real habría fallado al liquidar).
+- `AllocationEngine.allocate_capital_primero` (`app/engine/liquidation/allocation.py`) + parámetro
+  `estrategia_imputacion` intercambiable en `LiquidationCore`/`UniversalLiquidationService`, activado
+  automáticamente para toda cuota-hija vía `_estrategia_imputacion_por_obligacion`
+  (`app/services/area_strategy.py`).
+- `ComercialStrategy` detecta cuotas-hija ya generadas (mismo patrón que `CivilFamiliaStrategy`, cuyo
+  propio guard tenía un bug preexistente relacionado, corregido en el mismo sprint) — evita doble conteo
+  de capital y de la sanción de usura.
+- `app/services/cascada_cuotas.py` (nuevo): `distribuir_pago_en_cascada` (función pura) y
+  `deuda_pendiente_cuota` (reutiliza `UniversalLiquidationService`, incluye indexación IPC cuando aplica).
+- `app/views/pago_por_rango.py` (nuevo): `PagoPorRangoDialog`, con preview de la cascada antes de
+  confirmar. Selección múltiple contigua en `tabla_obligaciones` (primer precedente de este patrón en el
+  proyecto) y botón "Pagar cuotas seleccionadas" en `ExpedienteDetallePage`, visible para Civil/Familia y
+  Comercial (el botón "Generar cuotas" también se generalizó a esas 2 áreas, hallazgo de revisión
+  posterior a la Task 3 original).
 
 **Definición de Hecho:**
-- Un expediente de cualquier área con obligación recurrente genera el listado completo de cuotas antes de
-  liquidar, seleccionable por rango o individualmente.
+- Un expediente de Civil/Familia o Comercial con obligación recurrente genera el listado completo de
+  cuotas antes de liquidar, seleccionable por rango o individualmente.
 - El ejemplo numérico del usuario (abono de $500.000 el 1 de abril de 2024 sobre cuotas de $150.000
   mensuales desde el 1 de abril de 2022) se reproduce exactamente en un test de integración.
 - Suite completa en verde.
+
+**Cierre de implementación (2026-08-18):** Completado, vía `superpowers:subagent-driven-development` en
+worktree dedicado (`worktree-sprints-75-61`). Además de las 7 tareas del plan, las revisiones de spec/
+calidad encontraron y corrigieron 6 problemas reales antes del cierre: (1) guard obsoleto en
+`CivilFamiliaStrategy` que duplicaba capital para cuotas sin reajuste (efecto colateral de la Task 1); (2)
+la sanción de usura de `ComercialStrategy` se aplicaba dos veces sobre una obligación recurrente con
+cuotas ya generadas; (3) `generar_cuotas_mensuales` no copiaba los campos que Comercial exige, rompiendo
+el flujo real de "Generar cuotas" para esa área; (4) `deuda_pendiente_cuota` no incluía el evento de
+indexación IPC en su proyección, divergiendo de la liquidación real; (5) el botón "Generar cuotas" seguía
+oculto para Comercial pese a que el motor ya lo soportaba; (6) `PagoPorRangoDialog` podía propagar una
+excepción no capturada si faltaba un parámetro IPC, dado que `_calcular_preview` corre en cada tecla.
+Suite completa en verde (1208 passed, compartido con el cierre del Sprint 61), `ruff check .` limpio
+(incluye una limpieza de 3 líneas que superaban el límite de 99 columnas, coladas en un commit anterior
+sin que ninguna revisión previa corriera `ruff check .` sobre el repo completo).
 
 ---
 
