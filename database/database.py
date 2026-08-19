@@ -63,6 +63,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
         migrar as migrar_fecha_providencia_costas,
     )
     from scripts.migrate_fechas_anuales_fijas import migrar as migrar_fechas_anuales_fijas
+    from scripts.migrate_ibc_usura_1971_1997 import migrar as migrar_ibc_usura_1971_1997
     from scripts.migrate_indexacion_ipc_areas_sprint43 import (
         migrar as migrar_indexacion_ipc_areas_sprint43,
     )
@@ -138,6 +139,19 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # areas_derecho/unidad -- si esta migracion corriera antes, quedarian sin
     # completar hasta el siguiente arranque (Sprint 57).
     migrar_parametros_area_unidad(ruta)
+    # Sprint 81: extiende IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO con los
+    # tramos anteriores a 1997-07-01 (ver docstring del script). Debe correr
+    # DESPUES de migrar_creado_por_sistema y migrar_parametros_area_unidad
+    # (arriba) por la misma clase de bug documentada en el comentario de
+    # migrar_creado_por_sistema: este script tambien hace
+    # `session.add(ParametroLegal(..., creado_por_sistema=True, areas_derecho=...))`
+    # via el ORM, que exige que esas columnas ya existan fisicamente. Tambien
+    # DESPUES de migrar_parametros_legales: en una bastium.db nueva, ese script
+    # ya siembra la clave completa (incluidos los tramos pre-1997, porque ya
+    # estan en _TRAMOS_IBC_USURA) y este script debe encontrarla ya extendida
+    # para no duplicar filas -- ver su chequeo de idempotencia
+    # (`_clave_ya_extendida`).
+    migrar_ibc_usura_1971_1997(ruta)
     # Orden narrativo (Sprint 58 despues de Sprint 57) -- no hay dependencia
     # real de datos: migrar_ipc_variacion_anual siembra sus propias filas ya
     # con areas_derecho/unidad completos (lee AREA_UNIDAD_POR_CLAVE

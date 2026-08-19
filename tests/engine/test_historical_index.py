@@ -146,8 +146,11 @@ def test_ibc_usura_limite_solape_septiembre_2017():
 
 
 def test_ibc_usura_fuera_de_rango_lanza_value_error():
+    # Sprint 81: 1997-06-30 paso a estar DENTRO del rango (la serie ahora
+    # arranca en 1971-10-29) -- el limite inferior real ahora es un dia antes
+    # de esa fecha.
     with pytest.raises(ValueError):
-        get_ibc_usura_for_date(date(1997, 6, 30))
+        get_ibc_usura_for_date(date(1971, 10, 28))
     with pytest.raises(ValueError):
         get_ibc_usura_for_date(date(2026, 8, 1))
 
@@ -290,5 +293,8 @@ def test_tramos_fin_anterior_a_inicio_lanza_value_error():
 
 
 def test_tramos_fuera_de_rango_disponible_lanza_value_error():
+    # Sprint 81: 1990 paso a estar DENTRO del rango (la serie ahora arranca
+    # en 1971-10-29) -- se usa un rango anterior a eso para seguir probando
+    # "fuera de rango" de verdad.
     with pytest.raises(ValueError):
-        get_tramos_ibc_usura_between(date(1990, 1, 1), date(1990, 1, 5))
+        get_tramos_ibc_usura_between(date(1960, 1, 1), date(1960, 1, 5))

@@ -581,7 +581,16 @@ def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tm
 
     742 = 683 + 59 (Sprint 58: migrar_ipc_variacion_anual siembra
     IPC_VARIACION_ANUAL, una fila por año 1967-2025, ver
-    scripts/migrate_ipc_variacion_anual.py)."""
+    scripts/migrate_ipc_variacion_anual.py).
+
+    842 = 742 + 100 (Sprint 81: _TRAMOS_IBC_USURA gano ~50 tramos nuevos
+    anteriores a 1997-07-01; en una bastium.db nueva, migrar_parametros_legales
+    ya siembra la clave IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO completa
+    -- incluidos esos tramos nuevos, porque ya estan en _TRAMOS_IBC_USURA --
+    asi que migrar_ibc_usura_1971_1997 los encuentra ya sembrados y no agrega
+    nada mas; los 100 vienen de la siembra "desde cero" de esas dos claves con
+    50 filas nuevas cada una, no de esa migracion nueva. Ver
+    scripts/migrate_ibc_usura_1971_1997.py)."""
     from database.database import aplicar_migraciones_pendientes
 
     db_path = tmp_path / "nueva_area_unidad.db"
@@ -599,7 +608,7 @@ def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tm
     ).fetchone()[0]
     con.close()
 
-    assert total_filas == 742
+    assert total_filas == 842
     assert total_sin_migrar == 0
 
 

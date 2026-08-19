@@ -296,20 +296,43 @@ def get_ipc_interpolado_mensual_for_date(fecha: date) -> Decimal:
 
 
 # ---------------------------------------------------------------------------
-# IBC (Interes Bancario Corriente) y Tasa de Usura, 1997-07-01 a 2026-07-31.
-# Transcrito de las paginas 58-61 del PDF, linea de credito "Comercial"
-# (1997 - 4-ene-2007) que pasa a llamarse "Credito Comercial y de Consumo"
-# (5-ene-2007 a 31-mar-2007) y luego "Credito de Consumo y Ordinario"
-# (1-abr-2007 en adelante) -- es la linea general/por defecto que la SFC
-# certifica hoy, la mas cercana a lo que aplicaria a una obligacion sin
-# clasificacion especifica de microcredito o credito rural. Esas otras lineas
-# (Microcredito, Credito Popular Productivo Rural) NO estan modeladas aqui --
-# ver design spec, seccion "Fuera de alcance".
+# IBC (Interes Bancario Corriente) y Tasa de Usura, 1971-10-29 a 2026-07-31.
+# 1997-07-01 en adelante: transcrito de las paginas 58-61 del PDF, linea de
+# credito "Comercial" (1997 - 4-ene-2007) que pasa a llamarse "Credito
+# Comercial y de Consumo" (5-ene-2007 a 31-mar-2007) y luego "Credito de
+# Consumo y Ordinario" (1-abr-2007 en adelante) -- es la linea general/por
+# defecto que la SFC certifica hoy, la mas cercana a lo que aplicaria a una
+# obligacion sin clasificacion especifica de microcredito o credito rural.
+# Esas otras lineas (Microcredito, Credito Popular Productivo Rural) NO estan
+# modeladas aqui -- ver design spec, seccion "Fuera de alcance".
+#
+# 1971-10-29 a 1997-06-30 (Sprint 81): transcrito de docs/Archivos de
+# referencia abogado/_markdown/Historicocertificacionsuperfinancieratasasdeinteres.md,
+# la certificacion historica completa de la Superfinanciera. Antes de 1997 la
+# fuente trae 3 columnas de interes anual efectivo distintas por resolucion
+# ("CORRIENTE" / "BANCARIO CORRIENTE" / "CREDITOS ORDINARIOS LIBRE
+# ASIGNACION", con celdas "----" cuando esa columna no aplica a la resolucion
+# de esa fila -- cada resolucion certifica solo UNA de las tres). Se usa la
+# columna "BANCARIO CORRIENTE" como fuente de ibc_anual (decision de mapeo ya
+# tomada, no reabrir): continuidad conceptual con el Art. 884 C.Co., el mismo
+# criterio que ya usa la linea "Consumo y Ordinario" desde 1997 en adelante.
+# La tabla pre-1997 no trae una columna de usura separada -- usura_anual se
+# calcula como ibc_anual x 1.5 (Decimal, redondeado a 2 decimales con
+# ROUND_HALF_UP), el mismo multiplicador legal verificado en las 263 filas ya
+# existentes desde 1997 (invariante de la ley -- ver test
+# test_usura_es_1_5_veces_ibc_en_todos_los_tramos -- no una aproximacion
+# nueva de este sprint). Estos ~50 tramos pre-1997 solo estan sembrados en
+# parametros_legales via scripts/migrate_ibc_usura_1971_1997.py (necesario
+# porque scripts/migrate_parametros_legales.py es idempotente por clave
+# completa y esas dos claves ya tenian filas desde 1997 -- ver docstring de
+# ese script nuevo para el detalle completo).
 #
 # Extraido con reconocimiento de grilla (no lectura de texto lineal, que
 # mezcla las columnas de esta tabla especifica) y verificado: sin vacios en
-# todo el rango, un solo solape real en la fuente (ver nota en septiembre de
-# 2017 mas abajo), y usura_anual == 1.5 x ibc_anual en las 263 filas.
+# todo el rango, un solo solape real en la fuente 1997+ (ver nota en
+# septiembre de 2017 mas abajo; el rango pre-1997 no presento ningun solape
+# ni vacio, solo tramos consecutivos), y usura_anual == 1.5 x ibc_anual en
+# las 313 filas.
 # ---------------------------------------------------------------------------
 
 
@@ -322,6 +345,58 @@ class TramoIBCUsura:
 
 
 _TRAMOS_IBC_USURA: list[TramoIBCUsura] = [
+    # --- 1971-10-29 a 1997-06-30 (Sprint 81) -- ver docstring de la seccion ---
+    TramoIBCUsura(date(1971, 10, 29), date(1972, 2, 9), Decimal("14.00"), Decimal("21.00")),
+    TramoIBCUsura(date(1972, 2, 10), date(1973, 7, 30), Decimal("14.00"), Decimal("21.00")),
+    TramoIBCUsura(date(1973, 7, 31), date(1974, 3, 11), Decimal("14.00"), Decimal("21.00")),
+    TramoIBCUsura(date(1974, 3, 12), date(1975, 6, 22), Decimal("16.00"), Decimal("24.00")),
+    TramoIBCUsura(date(1975, 6, 23), date(1976, 6, 22), Decimal("16.00"), Decimal("24.00")),
+    TramoIBCUsura(date(1976, 6, 23), date(1977, 6, 27), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1977, 6, 28), date(1978, 7, 12), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1978, 7, 13), date(1979, 3, 5), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1979, 3, 6), date(1980, 8, 27), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1980, 8, 28), date(1981, 7, 23), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1981, 7, 24), date(1984, 10, 15), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1984, 10, 16), date(1986, 3, 25), Decimal("33.60"), Decimal("50.40")),
+    TramoIBCUsura(date(1986, 3, 26), date(1987, 5, 25), Decimal("33.81"), Decimal("50.72")),
+    TramoIBCUsura(date(1987, 5, 26), date(1988, 5, 19), Decimal("32.52"), Decimal("48.78")),
+    TramoIBCUsura(date(1988, 5, 20), date(1989, 5, 2), Decimal("34.04"), Decimal("51.06")),
+    TramoIBCUsura(date(1989, 5, 3), date(1990, 5, 24), Decimal("36.15"), Decimal("54.23")),
+    TramoIBCUsura(date(1990, 5, 25), date(1991, 2, 28), Decimal("34.27"), Decimal("51.41")),
+    TramoIBCUsura(date(1991, 3, 1), date(1992, 2, 27), Decimal("36.41"), Decimal("54.62")),
+    TramoIBCUsura(date(1992, 2, 28), date(1992, 4, 29), Decimal("42.41"), Decimal("63.62")),
+    TramoIBCUsura(date(1992, 4, 30), date(1992, 6, 30), Decimal("38.47"), Decimal("57.71")),
+    TramoIBCUsura(date(1992, 7, 1), date(1992, 8, 30), Decimal("38.18"), Decimal("57.27")),
+    TramoIBCUsura(date(1992, 8, 31), date(1992, 10, 31), Decimal("34.33"), Decimal("51.50")),
+    TramoIBCUsura(date(1992, 11, 1), date(1992, 12, 31), Decimal("32.15"), Decimal("48.23")),
+    TramoIBCUsura(date(1993, 1, 1), date(1993, 2, 28), Decimal("34.39"), Decimal("51.59")),
+    TramoIBCUsura(date(1993, 3, 1), date(1993, 4, 30), Decimal("34.74"), Decimal("52.11")),
+    TramoIBCUsura(date(1993, 5, 1), date(1993, 6, 30), Decimal("35.10"), Decimal("52.65")),
+    TramoIBCUsura(date(1993, 7, 1), date(1993, 8, 31), Decimal("35.43"), Decimal("53.15")),
+    TramoIBCUsura(date(1993, 9, 1), date(1993, 10, 31), Decimal("35.66"), Decimal("53.49")),
+    TramoIBCUsura(date(1993, 11, 1), date(1993, 12, 31), Decimal("35.87"), Decimal("53.81")),
+    TramoIBCUsura(date(1994, 1, 1), date(1994, 2, 28), Decimal("35.02"), Decimal("52.53")),
+    TramoIBCUsura(date(1994, 3, 1), date(1994, 4, 30), Decimal("35.42"), Decimal("53.13")),
+    TramoIBCUsura(date(1994, 5, 1), date(1994, 6, 30), Decimal("36.13"), Decimal("54.20")),
+    TramoIBCUsura(date(1994, 7, 1), date(1994, 8, 31), Decimal("36.25"), Decimal("54.38")),
+    TramoIBCUsura(date(1994, 9, 1), date(1994, 10, 31), Decimal("36.89"), Decimal("55.34")),
+    TramoIBCUsura(date(1994, 11, 1), date(1994, 12, 31), Decimal("38.76"), Decimal("58.14")),
+    TramoIBCUsura(date(1995, 1, 1), date(1995, 2, 28), Decimal("40.12"), Decimal("60.18")),
+    TramoIBCUsura(date(1995, 3, 1), date(1995, 4, 30), Decimal("42.74"), Decimal("64.11")),
+    TramoIBCUsura(date(1995, 5, 1), date(1995, 6, 30), Decimal("42.45"), Decimal("63.68")),
+    TramoIBCUsura(date(1995, 7, 1), date(1995, 8, 31), Decimal("43.84"), Decimal("65.76")),
+    TramoIBCUsura(date(1995, 9, 1), date(1995, 10, 31), Decimal("44.62"), Decimal("66.93")),
+    TramoIBCUsura(date(1995, 11, 1), date(1995, 12, 31), Decimal("42.72"), Decimal("64.08")),
+    TramoIBCUsura(date(1996, 1, 1), date(1996, 2, 29), Decimal("40.27"), Decimal("60.41")),
+    TramoIBCUsura(date(1996, 3, 1), date(1996, 4, 30), Decimal("41.37"), Decimal("62.06")),
+    TramoIBCUsura(date(1996, 5, 1), date(1996, 6, 30), Decimal("42.19"), Decimal("63.29")),
+    TramoIBCUsura(date(1996, 7, 1), date(1996, 8, 31), Decimal("42.94"), Decimal("64.41")),
+    TramoIBCUsura(date(1996, 9, 1), date(1996, 10, 31), Decimal("42.29"), Decimal("63.44")),
+    TramoIBCUsura(date(1996, 11, 1), date(1996, 12, 31), Decimal("41.37"), Decimal("62.06")),
+    TramoIBCUsura(date(1997, 1, 1), date(1997, 2, 28), Decimal("39.77"), Decimal("59.66")),
+    TramoIBCUsura(date(1997, 3, 1), date(1997, 4, 30), Decimal("38.95"), Decimal("58.43")),
+    TramoIBCUsura(date(1997, 5, 1), date(1997, 6, 30), Decimal("36.99"), Decimal("55.49")),
+    # --- 1997-07-01 en adelante (rango original, sin cambios) ---
     TramoIBCUsura(date(1997, 7, 1), date(1997, 8, 31), Decimal("36.50"), Decimal("54.75")),
     TramoIBCUsura(date(1997, 9, 1), date(1997, 9, 30), Decimal("31.84"), Decimal("47.76")),
     TramoIBCUsura(date(1997, 10, 1), date(1997, 10, 31), Decimal("31.33"), Decimal("46.99")),
