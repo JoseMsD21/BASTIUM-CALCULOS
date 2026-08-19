@@ -102,6 +102,60 @@ def test_guarda_obligacion_recurrente_con_dia_de_pago(qtbot, monkeypatch):
     session.close()
 
 
+def test_guarda_y_recupera_tipo_accion_proceso(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_tipo_accion_proceso.findData("CHEQUES")
+    assert indice >= 0, "CHEQUES debe estar disponible para Comercial"
+    dialog.combo_tipo_accion_proceso.setCurrentIndex(indice)
+
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Cheque impago")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 1, 1))
+    dialog.campo_tasa_moratoria.setText("24.00")
+    dialog.campo_ibc_vigente.setText("20.00")
+    dialog.campo_fecha_vencimiento.setDate(date(2024, 2, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(concepto="Cheque impago").one()
+    assert guardada.tipo_accion_proceso == "CHEQUES"
+    session.close()
+
+
+def test_combo_tipo_accion_proceso_no_ofrece_opciones_de_otra_area(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.HONORARIOS)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="HONORARIOS")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo_accion_proceso.findData("CHEQUES") == -1
+    assert dialog.combo_tipo_accion_proceso.findData("honorarios_profesionales") >= 0
+
+
+def test_combo_tipo_accion_proceso_deja_ninguno_sin_tocarlo(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("100000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 1, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo_accion_proceso is None
+    session.close()
+
+
 def test_guarda_obligacion_recurrente_civil_familia_con_reajuste_smmlv(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch)
 

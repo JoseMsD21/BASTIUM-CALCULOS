@@ -31,6 +31,7 @@ from app.core.constants import (
 )
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
+from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
 from app.views.form_utils import (
     agregar_ayuda,
     guardar_o_actualizar,
@@ -38,7 +39,7 @@ from app.views.form_utils import (
     set_row_visible,
 )
 from app.views.icons import icon
-from database.models import Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
+from database.models import AreaDerecho, Expediente, Obligacion, TipoObligacion, TipoReajusteAnual
 
 
 class ObligacionFormDialog(QDialog):
@@ -158,6 +159,22 @@ class ObligacionFormDialog(QDialog):
             "Si se activa, el capital de cada cuota mensual se reajusta el 1 de enero de "
             "cada año segun el indice elegido -- usar el boton 'Generar cuotas' del "
             "expediente despues de guardar para crear las cuotas mensuales reales."
+        )
+
+        # Tipo de accion/proceso (Sprint 61): unifica prescripcion (TipoAccion) y
+        # caducidad (PLAZOS_CADUCIDAD_MESES_CONOCIDOS) en un solo combo, filtrado por
+        # area -- el area no cambia dentro del ciclo de vida de este dialogo (viene
+        # fijo por el area del expediente), asi que se puebla una sola vez aqui, sin
+        # necesidad de re-filtrar en _actualizar_campos_visibles como
+        # combo_tipo_reajuste_anual (que ademas depende de si el tipo es RECURRENTE).
+        self.combo_tipo_accion_proceso = QComboBox()
+        self.combo_tipo_accion_proceso.addItem("(Ninguno)", userData=None)
+        for valor, etiqueta in opciones_tipo_accion_proceso_por_area(AreaDerecho(self._area)):
+            self.combo_tipo_accion_proceso.addItem(etiqueta, userData=valor)
+        self.combo_tipo_accion_proceso.setToolTip(
+            "Tipo de acción (prescripción) o de proceso (caducidad) aplicable a esta "
+            "obligación. Determina qué plazo usa la alerta de vencimiento del Dashboard. "
+            "Opcional: si se deja en (Ninguno), la obligación no se alerta."
         )
 
         self.campo_tasa_moratoria = QLineEdit("24.00")
@@ -431,6 +448,9 @@ class ObligacionFormDialog(QDialog):
             "Reajuste anual (Recurrente, Civil/Familia)", self.combo_tipo_reajuste_anual
         )
         self.layout_datos_basicos.addRow(
+            "Tipo de acción/proceso", self.combo_tipo_accion_proceso
+        )
+        self.layout_datos_basicos.addRow(
             "Cantidad SMLMV/UVT (Sancionatorio)", self.campo_cantidad_smlmv_uvt
         )
         self.layout_datos_basicos.addRow(
@@ -625,6 +645,11 @@ class ObligacionFormDialog(QDialog):
             self.campo_concepto.setText(obligacion.concepto)
             self.campo_valor.setText(str(obligacion.valor))
             self.campo_tasa.setText(str(obligacion.tasa_efectiva_anual))
+
+            indice_tipo_accion = self.combo_tipo_accion_proceso.findData(
+                obligacion.tipo_accion_proceso
+            )
+            self.combo_tipo_accion_proceso.setCurrentIndex(max(indice_tipo_accion, 0))
 
             def _qdate(valor):
                 return QDate(valor.year, valor.month, valor.day) if valor else QDate.currentDate()
@@ -969,6 +994,7 @@ class ObligacionFormDialog(QDialog):
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
             fecha_fin=None,
+            tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
             **campos_area,
         )
         session.close()
@@ -1255,6 +1281,7 @@ class ObligacionFormDialog(QDialog):
             incluir_seguridad_social=incluir_seguridad_social,
             nivel_riesgo_arl=nivel_riesgo_arl,
             es_smmlv=es_smmlv,
+            tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
         )
         session.close()
         return obligacion_id
@@ -1332,6 +1359,7 @@ class ObligacionFormDialog(QDialog):
             costos=costos,
             deducciones=deducciones,
             rentas_exentas=rentas_exentas,
+            tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
         )
         session.close()
         return obligacion_id
