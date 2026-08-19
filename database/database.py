@@ -68,6 +68,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
     from scripts.migrate_reajuste_anual_familia import migrar as migrar_reajuste_anual_familia
     from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
+    from scripts.migrate_tipo_accion_proceso import migrar as migrar_tipo_accion_proceso
     from scripts.migrate_tributario import migrar as migrar_tributario
 
     ruta = db_path if db_path is not None else _resolve_db_path()
@@ -120,3 +121,4 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # directamente), asi que correria igual de bien antes o despues de
     # migrar_parametros_area_unidad.
     migrar_ipc_variacion_anual(ruta)
+    migrar_tipo_accion_proceso(ruta)
