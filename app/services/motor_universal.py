@@ -52,7 +52,11 @@ class UniversalLiquidationService:
                 eventos_pago.append(
                     Event(
                         date=pago.date,
-                        payload={"amount": pago.amount, "reference": pago.reference, "label": label},
+                        payload={
+                            "amount": pago.amount,
+                            "reference": pago.reference,
+                            "label": label,
+                        },
                         event_type="PAYMENT",
                     )
                 )
