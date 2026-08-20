@@ -171,6 +171,59 @@ def test_migrar_es_idempotente_segunda_corrida_no_duplica():
     assert total == len(_TRAMOS_IBC_USURA)
 
 
+def test_migrar_sobre_bd_completamente_vacia_no_siembra_nada():
+    # Guarda contra el footgun reportado en code review: si alguien invoca
+    # este script suelto sobre una bastium.db nueva (sin ninguna fila
+    # todavia de IBC_CONSUMO_ORDINARIO/USURA_CONSUMO_ORDINARIO), ANTES de
+    # scripts/migrate_parametros_legales.py -- saltandose
+    # aplicar_migraciones_pendientes(), que ya respeta el orden correcto --
+    # este script debia abstenerse en vez de sembrar solo los tramos
+    # pre-1997. Sembrar solo esos dejaba la clave en un estado que
+    # migrate_parametros_legales.py ya no reconoce como "vacia" (su chequeo
+    # es "la clave tiene alguna fila"), y esa clave se saltaria ENTERA para
+    # siempre, sin que ningun otro script lo detectara ni corrigiera despues.
+    sembradas = migrar()
+
+    assert sembradas == 0
+    session = session_module.get_session()
+    total_ibc = (
+        session.query(ParametroLegal)
+        .filter(ParametroLegal.clave == "IBC_CONSUMO_ORDINARIO")
+        .count()
+    )
+    total_usura = (
+        session.query(ParametroLegal)
+        .filter(ParametroLegal.clave == "USURA_CONSUMO_ORDINARIO")
+        .count()
+    )
+    session.close()
+    assert total_ibc == 0
+    assert total_usura == 0
+
+
+def test_migrar_sobre_bd_vacia_no_bloquea_la_siembra_completa_posterior():
+    # Complemento del test anterior: confirma que abstenerse no deja la base
+    # en un estado peor -- si despues (como hace aplicar_migraciones_pendientes()
+    # en el orden correcto, o alguien que corrija el error de secuencia a mano)
+    # se corre migrate_parametros_legales.py, este SI encuentra la clave
+    # realmente vacia y siembra las 313 filas completas (1971-2026), sin que
+    # la corrida previa de migrate_ibc_usura_1971_1997 haya dejado ningun
+    # residuo pre-1997 a medias que estorbe.
+    from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
+
+    migrar()  # se abstiene (bd vacia) -- no debe dejar nada sembrado a medias
+    migrar_parametros_legales()
+
+    session = session_module.get_session()
+    total_ibc = (
+        session.query(ParametroLegal)
+        .filter(ParametroLegal.clave == "IBC_CONSUMO_ORDINARIO")
+        .count()
+    )
+    session.close()
+    assert total_ibc == len(_TRAMOS_IBC_USURA)
+
+
 def test_migrar_sobre_clave_ya_extendida_desde_cero_no_hace_nada():
     # Si la clave ya se sembro entera (ej. migrate_parametros_legales.migrar()
     # en una bastium.db nueva, que ahora incluye los tramos pre-1997 porque ya

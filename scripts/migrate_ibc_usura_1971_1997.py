@@ -43,7 +43,23 @@ scripts/ (se busco con grep antes de escribir este) -- este es el primero.
 
 Mismo patron que scripts/migrate_ipc_variacion_anual.py: db_path opcional,
 ORM via SQLAlchemy, creado_por_sistema=True, AREA_UNIDAD_POR_CLAVE/
-serializar_areas de app.services.areas_parametro para areas_derecho/unidad."""
+serializar_areas de app.services.areas_parametro para areas_derecho/unidad.
+
+ADVERTENCIA -- NO invocar este script suelto (`python
+scripts/migrate_ibc_usura_1971_1997.py`) fuera de
+database.database.aplicar_migraciones_pendientes() en una bastium.db nueva
+(sin filas todavia para estas dos claves): si corre ANTES que
+scripts/migrate_parametros_legales.py, sembraria solo los ~50 tramos
+pre-1997, dejando la clave "parcialmente sembrada" con un patron de fechas
+que scripts/migrate_parametros_legales.py YA NO reconoce como "vacia" (su
+chequeo es "la clave tiene alguna fila") -- ese script saltaria la clave
+ENTERA en su siguiente corrida y los tramos 1997+ nunca se sembrarian, sin
+que ningun otro script lo detecte o corrija despues. Por eso `migrar()`
+(abajo) se niega a sembrar si la clave esta completamente vacia -- ver
+`_clave_lista_para_extender`. El orden correcto (migrar_parametros_legales
+antes que migrar_ibc_usura_1971_1997) ya esta garantizado en
+aplicar_migraciones_pendientes(); usar ese entrypoint, no este archivo
+directamente."""
 
 import sys
 from pathlib import Path
@@ -93,10 +109,37 @@ def _clave_ya_extendida(session, clave: str) -> bool:
     )
 
 
+def _clave_completamente_vacia(session, clave: str) -> bool:
+    """True si `clave` no tiene NINGUNA fila todavia (ni siquiera las 1997+).
+    Distingue el escenario real (clave con filas 1997+ sembradas por
+    scripts/migrate_parametros_legales.py en un sprint anterior, a la que
+    este script le agrega las pre-1997 que le faltan) del escenario del
+    footgun documentado en el docstring del modulo (este script invocado
+    suelto sobre una bastium.db nueva, ANTES de
+    scripts/migrate_parametros_legales.py)."""
+    return session.query(ParametroLegal).filter(ParametroLegal.clave == clave).first() is None
+
+
+def _clave_lista_para_extender(session, clave: str) -> bool:
+    """True solo si `clave` ya tiene filas (1997+, sembradas por otro script)
+    Y todavia no tiene el rango pre-1997 -- el unico caso en el que este
+    script debe sembrar. Si la clave esta completamente vacia, se abstiene
+    (guarda contra el footgun de invocacion manual fuera de orden -- ver
+    docstring del modulo) y deja que scripts/migrate_parametros_legales.py
+    (via aplicar_migraciones_pendientes(), que ya respeta el orden correcto)
+    siembre la clave completa, tramos pre-1997 incluidos."""
+    if _clave_completamente_vacia(session, clave):
+        return False
+    return not _clave_ya_extendida(session, clave)
+
+
 def migrar(db_path: Path | None = None) -> int:
     """Siembra los tramos pre-1997 de IBC_CONSUMO_ORDINARIO/
     USURA_CONSUMO_ORDINARIO. Retorna cuantas filas se insertaron (0 si el
-    rango pre-1997 ya estaba sembrado en ambas claves).
+    rango pre-1997 ya estaba sembrado en ambas claves, O si alguna de las dos
+    claves esta completamente vacia todavia -- guarda contra invocar este
+    script suelto, fuera de orden, sobre una bastium.db nueva; ver ADVERTENCIA
+    en el docstring del modulo y `_clave_lista_para_extender`).
 
     Mismo patron db_path opcional que scripts/migrate_parametros_legales.py:
     sin db_path opera sobre el engine global (database.database.engine),
@@ -121,7 +164,7 @@ def migrar(db_path: Path | None = None) -> int:
 def _sembrar(session) -> int:
     sembradas = 0
     try:
-        if not _clave_ya_extendida(session, "IBC_CONSUMO_ORDINARIO"):
+        if _clave_lista_para_extender(session, "IBC_CONSUMO_ORDINARIO"):
             areas, unidad = AREA_UNIDAD_POR_CLAVE["IBC_CONSUMO_ORDINARIO"]
             areas_json = serializar_areas(areas)
             for tramo in _TRAMOS_PRE_1997:
@@ -141,7 +184,7 @@ def _sembrar(session) -> int:
                 )
             sembradas += len(_TRAMOS_PRE_1997)
 
-        if not _clave_ya_extendida(session, "USURA_CONSUMO_ORDINARIO"):
+        if _clave_lista_para_extender(session, "USURA_CONSUMO_ORDINARIO"):
             areas, unidad = AREA_UNIDAD_POR_CLAVE["USURA_CONSUMO_ORDINARIO"]
             areas_json = serializar_areas(areas)
             for tramo in _TRAMOS_PRE_1997:
