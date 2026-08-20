@@ -282,6 +282,9 @@ def recalcular_liquidacion(
     for obligacion in obligaciones:
         list(obligacion.eventos_laborales)
         list(obligacion.descuentos_laborales)
+        # idem (Sprint 74): CivilFamiliaStrategy lee obligacion.beneficiario para
+        # topar la vigencia de las cuotas RECURRENTE -- ver expediente_detalle.py.
+        _ = obligacion.beneficiario
 
     fecha_corte_final = fecha_corte or audit_log.fecha_corte
     estrategia = AreaRegistry.get_strategy(audit_log.area_derecho)
