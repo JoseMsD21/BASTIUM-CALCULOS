@@ -115,7 +115,14 @@ def calcular_vigencia_alimentos(
             EDAD_LIMITE_NINO_ESTUDIA if beneficiario.estudia else EDAD_LIMITE_NINO_NO_ESTUDIA
         )
         fecha_fin = _fecha_cumpleanos(beneficiario.fecha_nacimiento, edad_limite)
-        vigente = fecha_referencia < fecha_fin
+        # Inclusivo (fecha_referencia <= fecha_fin, no <): mismo criterio que
+        # `Obligacion.fecha_fin` en el resto del motor (ver
+        # CivilFamiliaStrategy._eventos_de_obligacion, `fin = obligacion.fecha_fin
+        # or fecha_corte` pasado tal cual a FamilyScheduler.generate(), que causa
+        # el evento CUYA fecha coincide exactamente con `end`) -- el dia exacto
+        # del cumpleanos limite todavia cuenta como vigente; deja de estarlo
+        # desde el dia siguiente.
+        vigente = fecha_referencia <= fecha_fin
         estudia_texto = "estudia" if beneficiario.estudia else "no estudia"
         return ResultadoVigencia(
             vigente=vigente,
@@ -123,7 +130,7 @@ def calcular_vigencia_alimentos(
             determinable_automaticamente=True,
             motivo=(
                 f"Nino sin discapacidad, {estudia_texto}: vigente hasta los "
-                f"{edad_limite} anos ({fecha_fin.isoformat()})."
+                f"{edad_limite} anos ({fecha_fin.isoformat()}, inclusive)."
             ),
         )
 

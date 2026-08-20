@@ -66,11 +66,23 @@ def test_nino_no_estudia_vigente_antes_de_cumplir_18():
     assert resultado.fecha_fin_vigencia == date(2028, 5, 10)
 
 
-def test_nino_no_estudia_deja_de_estar_vigente_al_cumplir_18():
+def test_nino_no_estudia_sigue_vigente_el_mismo_dia_que_cumple_18():
+    """Inclusivo -- mismo criterio que `Obligacion.fecha_fin` en el resto del
+    motor (ver CivilFamiliaStrategy/FamilyScheduler): el dia exacto del
+    cumpleanos limite todavia cuenta como vigente."""
     beneficiario = _beneficiario(
         fecha_nacimiento=date(2010, 5, 10), tipo=TipoBeneficiario.NINO, estudia=False
     )
     resultado = calcular_vigencia_alimentos(beneficiario, date(2028, 5, 10))
+    assert resultado.vigente is True
+    assert resultado.fecha_fin_vigencia == date(2028, 5, 10)
+
+
+def test_nino_no_estudia_deja_de_estar_vigente_al_dia_siguiente_de_cumplir_18():
+    beneficiario = _beneficiario(
+        fecha_nacimiento=date(2010, 5, 10), tipo=TipoBeneficiario.NINO, estudia=False
+    )
+    resultado = calcular_vigencia_alimentos(beneficiario, date(2028, 5, 11))
     assert resultado.vigente is False
     assert resultado.fecha_fin_vigencia == date(2028, 5, 10)
 
@@ -84,11 +96,11 @@ def test_nino_estudia_sigue_vigente_pasados_los_18():
     assert resultado.fecha_fin_vigencia == date(2035, 5, 10)
 
 
-def test_nino_estudia_deja_de_estar_vigente_al_cumplir_25():
+def test_nino_estudia_deja_de_estar_vigente_al_dia_siguiente_de_cumplir_25():
     beneficiario = _beneficiario(
         fecha_nacimiento=date(2010, 5, 10), tipo=TipoBeneficiario.NINO, estudia=True
     )
-    resultado = calcular_vigencia_alimentos(beneficiario, date(2035, 5, 10))
+    resultado = calcular_vigencia_alimentos(beneficiario, date(2035, 5, 11))
     assert resultado.vigente is False
     assert resultado.fecha_fin_vigencia == date(2035, 5, 10)
 

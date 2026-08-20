@@ -33,8 +33,10 @@ from app.services.recurrencia_fechas_fijas import serializar_fechas_anuales
 from database.models import (
     Abono,
     Base,
+    Beneficiario,
     Obligacion,
     ParametroLegal,
+    TipoBeneficiario,
     TipoObligacion,
     TipoReajusteAnual,
     TipoRecurrencia,
@@ -382,6 +384,111 @@ def test_civil_familia_expande_obligacion_recurrente_en_cuotas_mensuales():
     )
 
     # 3 cuotas de 500000 causadas: enero, febrero, marzo
+    assert resultado.final_balance().principal == Decimal("1500000.00")
+
+
+def test_civil_familia_recurrente_nino_beneficiario_deja_de_causar_cuotas_al_cumplir_18():
+    """Sprint 74: una obligacion RECURRENTE de Civil/Familia con un beneficiario
+    NINO sin discapacidad deja de generar cuotas (ephemeral, RecurringScheduler)
+    una vez el beneficiario cumple 18 anos, aunque la fecha de corte de la
+    liquidacion sea muy posterior. Beneficiario nace 2010-01-05, cumple 18 el
+    2028-01-05 -- cuota de dia_pago=5: la vigencia es inclusiva (mismo criterio
+    que `Obligacion.fecha_fin` en el resto del motor), asi que la cuota que cae
+    justo el dia del cumpleanos (2028-01-05) SI se causa; la de febrero 2028 ya
+    no."""
+    strategy = CivilFamiliaStrategy()
+    obligacion = Obligacion(
+        id=3,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2026, 1, 1),
+        beneficiario=Beneficiario(
+            nombre="Juan Perez",
+            fecha_nacimiento=date(2010, 1, 5),
+            tipo=TipoBeneficiario.NINO,
+            estudia=False,
+        ),
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2030, 1, 1)
+    )
+
+    # 25 cuotas: enero 2026 a enero 2028 inclusive (la de enero 2028 coincide
+    # con el cumpleanos 18, todavia vigente) -- sin el tope de vigencia, la
+    # fecha de corte 2030-01-01 habria generado 49 cuotas (enero 2026 a enero
+    # 2030).
+    assert resultado.final_balance().principal == Decimal("500000.00") * 25
+
+
+def test_civil_familia_recurrente_nino_discapacidad_permanente_no_se_corta_por_edad():
+    """Contraparte del test anterior: un NINO_DISCAPACIDAD permanente es
+    vitalicio -- la obligacion sigue generando cuotas hasta la fecha de corte,
+    igual que si no tuviera beneficiario capturado."""
+    strategy = CivilFamiliaStrategy()
+    obligacion = Obligacion(
+        id=4,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 3, 5),
+        beneficiario=Beneficiario(
+            nombre="Maria Perez",
+            fecha_nacimiento=date(2000, 1, 1),
+            tipo=TipoBeneficiario.NINO_DISCAPACIDAD,
+            discapacidad_permanente=True,
+        ),
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 5)
+    )
+
+    assert resultado.final_balance().principal == Decimal("1500000.00")
+
+
+def test_civil_familia_recurrente_conyuge_beneficiario_no_aplica_limite_de_edad():
+    """Definicion de Hecho del Sprint 74, punto 2: un caso con beneficiario
+    CONYUGE no debe aplicar el limite de edad de los ninos, sin importar que
+    fecha de nacimiento tenga capturada."""
+    strategy = CivilFamiliaStrategy()
+    obligacion = Obligacion(
+        id=5,
+        expediente_id=1,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Alimentos conyuge",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        dia_pago=5,
+        fecha_inicio=date(2026, 1, 1),
+        fecha_fin=date(2026, 3, 5),
+        beneficiario=Beneficiario(
+            nombre="Ana Perez",
+            # Si esta fecha se tratara como la de un NINO, ya tendria mas de 18
+            # años en 2026 -- confirma que el tope de edad de NINO no se aplica.
+            fecha_nacimiento=date(1990, 1, 1),
+            tipo=TipoBeneficiario.CONYUGE,
+        ),
+    )
+
+    resultado = strategy.liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 3, 5)
+    )
+
     assert resultado.final_balance().principal == Decimal("1500000.00")
 
 
