@@ -729,19 +729,27 @@ Superfinanciera).
 
 ## Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)
 
-**Contexto:** la plantilla `X9.INDEXACION-CON-ABONOS.md` documenta un algoritmo de indexar un capital único,
-aplicar abonos parciales sucesivos, y reindexar el saldo restante tras cada abono. El desarrollo cree que el
-motor actual de BASTIUM (Suma Única + abonos, ya usado en Civil/Familia desde el Sprint 75) ya reproduce
-este comportamiento, pero la plantilla en sí no trae ningún ejemplo con cifras reales resueltas — solo el
-formulario vacío — así que no hay forma de verificarlo sin datos.
+**Contexto (actualizado 2026-08-20, rutina autónoma):** la plantilla `X9.INDEXACION-CON-ABONOS.md`
+documenta un algoritmo de indexar un capital único, aplicar abonos parciales sucesivos, y reindexar el saldo
+restante tras cada abono. El Sprint 102 verificó con un caso sintético (`test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9`,
+`tests/services/test_area_strategy.py`) que el motor actual de BASTIUM **NO** reproduce este patrón — ver
+Sprint 104 en `Pendientes.md` para el detalle técnico completo y la cifra exacta de la brecha ($29.084,08 de
+diferencia en un caso de $1.000.000 con 2 abonos). Ya no se necesita el ejemplo del despacho para *confirmar*
+si hay discrepancia (ya está probada con IPC real); sigue haciendo falta para decidir **cuál** de los dos
+comportamientos es el correcto y, si es el de X9, confirmar la mecánica exacta con cifras reales del
+despacho antes de reescribir el motor.
 
-**Pregunta:** ¿el despacho tiene un caso real (o puede construir uno de ejemplo) con un capital inicial,
-2-3 abonos en fechas distintas, e IPC de cada fecha, ya resuelto en su Excel, para poder comparar contra el
-resultado de BASTIUM?
+**Pregunta:** confirmado que hoy BASTIUM indexa una sola vez (todo el delta hasta la fecha de corte final,
+aplicado desde el día de origen) en vez de reindexar el saldo después de cada abono como describe X9 — ¿cuál
+de los dos es el criterio correcto para liquidar una obligación con Suma Única y abonos parciales? Si es el
+de X9 (reindexar en cada abono), ¿el despacho tiene un caso real (o puede construir uno) con capital inicial,
+2-3 abonos en fechas distintas e IPC de cada fecha, ya resuelto en su Excel, para validar la reescritura del
+motor antes de darla por buena?
 
-**Qué necesito exactamente:** capital inicial + fecha, cada abono con su fecha y monto, los IPC usados en
-cada corte, y el resultado final esperado — igual que se hizo con el caso real usado para validar el
-Sprint 76.
+**Qué necesito exactamente:** confirmación de cuál mecánica aplica (indexación única a la fecha de corte
+final, o reindexación progresiva en cada abono) y, si es la segunda, capital inicial + fecha, cada abono con
+su fecha y monto, los IPC usados en cada corte, y el resultado final esperado — igual que se hizo con el
+caso real usado para validar el Sprint 76.
 
 **Respuesta del despacho:**
 

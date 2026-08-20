@@ -283,8 +283,9 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
-- [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--pendiente)
+- [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--completado-bug-de-dominio-confirmado-corrección-diferida-al-sprint-104)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
+- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🔵 Bloqueado — pendiente de confirmación](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--bloqueado--pendiente-de-confirmación)
 
 ---
 
@@ -6939,7 +6940,7 @@ passed.
 
 ---
 
-## Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente
+## Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)
 
 **Prioridad sugerida:** Baja/exploratoria — probablemente ya funciona con el motor actual; este sprint es de verificación, no de motor nuevo.
 
@@ -6955,6 +6956,20 @@ Esto es, en esencia, la misma secuencia que el motor genérico ya produce cuando
 - Test de integración en Civil/Familia: una obligación con Suma Única activa y 2-3 abonos en fechas distintas, verificado contra un cálculo manual paso a paso siguiendo exactamente la mecánica de X9.
 - Si el test revela una discrepancia con el motor actual, documentar el gap y decidir si amerita un sprint de corrección aparte.
 - Suite completa en verde.
+
+**Cierre (2026-08-20, rutina autónoma):** Completado. `tests/services/test_area_strategy.py::test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9`
+construye un caso sintético (capital $1.000.000, `fecha_origen=2024-07-01`, abonos de $400.000 el
+2025-01-01 y $300.000 el 2025-06-01, `fecha_corte=2025-12-31`, tasa de interés casi nula para aislar el
+efecto) y compara el resultado real del motor contra un cálculo manual paso a paso replicando exactamente
+la mecánica de X9 (indexar → restar abono → reindexar → restar abono → reindexar), usando IPC real
+(`get_ipc_interpolado_for_date`). **El motor NO reproduce el patrón X9**: emite un único evento
+`INDEXATION` con el delta completo hasta el `fecha_corte` global (no hasta cada abono), dejando el bucket
+de indexación disponible en su magnitud final desde el primer día. Diferencia confirmada: $377.633,53
+(motor) vs. $348.549,45 (X9) = $29.084,08 en este caso — no es redondeo. El hallazgo, junto con el detalle
+técnico completo y la decisión pendiente (mantener indexación al corte final vs. reescribir el motor para
+reindexar por tramo entre abonos), quedó documentado como **Sprint 104** (nuevo, 🔵 Bloqueado — pendiente de
+confirmación) — no se tocó código de `app/` en este sprint, solo el test de verificación. Pregunta del
+Sprint 102 en `Preguntas-Para-Abogado-Abiertas.md` actualizada con el hallazgo. Suite completa: 1427 passed.
 
 ---
 
@@ -6987,6 +7002,71 @@ comportamiento en `app/`.
 
 **Cierre (2026-08-20):** Completado. `tests/views/` completo: 471 passed en 33s (antes: cuelgue
 indefinido). Suite completa (`tests` menos `tests/views`): 857 passed en 41s. Sin cambios en `app/`.
+
+---
+
+## Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🔵 Bloqueado — pendiente de confirmación
+
+**Prioridad sugerida:** Media/Alta — es un bug de dominio confirmado con cifras exactas, no una hipótesis;
+afecta a cualquier obligación Civil/Familia con Suma Única activa (`interes_sobre_capital_indexado=True`)
+que reciba abonos parciales antes del `fecha_corte` de la liquidación — un escenario realista (pagos
+parciales durante un proceso largo).
+
+**Depende de:** Sprint 102 (verificación que encontró este hallazgo), Sprint 20 (Suma Única), Sprint 75
+(imputación en cascada).
+
+**Contexto (hallado por la rutina autónoma al trabajar el Sprint 102, 2026-08-20):**
+`AreaStrategy._evento_indexacion_ipc` (`app/services/area_strategy.py:306-325`) emite, para cada obligación
+PUNTUAL con `aplica_indexacion_ipc=True`, un **único** evento `INDEXATION` fechado en `fecha_causacion`
+(la fecha de origen de la obligación), cuyo monto ya es el delta **completo** de IPC entre `fecha_causacion`
+y el `fecha_corte` **global** de toda la liquidación — no hasta la fecha del abono más próximo. Ese bucket
+`PendingDebt.indexation` queda poblado por el monto final desde el primer día, y `AllocationEngine.allocate`
+(`app/engine/liquidation/allocation.py:16-64`) lo consume en la cascada legal (indexación → interés →
+capital) sin volver a llamar `IPCIndexation.calculate()` en la fecha de cada abono — es decir, nunca
+reindexa el saldo residual.
+
+Esto es distinto al algoritmo que documenta `X9.INDEXACION-CON-ABONOS.md`: indexar el capital hasta la
+fecha del primer abono, restar ese abono, reindexar el saldo resultante desde esa fecha hasta el siguiente
+abono, restar, y así sucesivamente. `tests/services/test_area_strategy.py::test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9`
+(Sprint 102) prueba la brecha con un caso sintético verificable a mano (capital $1.000.000,
+`fecha_origen=2024-07-01`, abono de $400.000 el 2025-01-01, abono de $300.000 el 2025-06-01,
+`fecha_corte=2025-12-31`, IPC real vía `get_ipc_interpolado_for_date`):
+- Motor actual (indexación única al corte global): saldo final = **$377.633,53**.
+- Patrón X9 (reindexar tras cada abono): saldo final = **$348.549,45**.
+- Diferencia: **$29.084,08** — no es ruido de redondeo, es un resultado de negocio distinto.
+
+**Por qué no se corrige en el Sprint 102:** rediseñar `_evento_indexacion_ipc`/`_eventos_de_obligacion` para
+emitir eventos de indexación fraccionados por tramo entre abonos (en vez de un evento único) es un cambio
+real de algoritmo, no una corrección mecánica — y además interactúa con la pregunta ya abierta del
+Sprint 76/83 sobre qué fórmula de interés aplica junto con la indexación (Suma Única todavía no tiene
+comportamiento real conectado a ningún área, ver Sprint 83). No se puede tocar código de cálculo jurídico sin
+la confirmación del despacho sobre cuál mecánica es la correcta.
+
+**Pregunta para el despacho:** ver Sprint 102 en `docs/Preguntas-Para-Abogado-Abiertas.md` (ampliada con
+este hallazgo) — confirmar si el criterio correcto es indexar una sola vez a la fecha de corte final
+(comportamiento actual) o reindexar progresivamente en cada abono (patrón X9), y si es este último, aportar
+un caso real resuelto para validar la reescritura del motor.
+
+**Código a tocar cuando haya respuesta:**
+- `app/services/area_strategy.py` (`AreaStrategy._evento_indexacion_ipc`, `CivilFamiliaStrategy._eventos_de_obligacion`):
+  generar un evento `INDEXATION` por tramo (entre cada par de fechas relevantes: origen→abono1,
+  abono1→abono2, ..., último abono→fecha_corte) en vez de uno solo con el delta completo — probablemente
+  requiere que `_eventos_de_obligacion` conozca las fechas de los abonos de la obligación, dato que hoy no
+  recibe (solo `LiquidationCore`/`AllocationEngine`, después de que ya se generaron los eventos de
+  causación).
+- Alternativa a evaluar con el despacho: dejar el comportamiento actual como está documentado (indexación
+  al corte final) si resulta ser el criterio jurídicamente correcto para este caso de uso — en ese caso este
+  sprint se cierra como "confirmado correcto, sin cambios" en vez de bug.
+
+**Definición de Hecho:**
+- Respuesta del despacho registrada en `Preguntas-Para-Abogado-Abiertas.md` (Sprint 102) sobre cuál mecánica
+  aplica.
+- Si aplica X9: `_evento_indexacion_ipc`/`_eventos_de_obligacion` reindexan por tramo entre abonos; el test
+  `test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9` se actualiza para verificar que el
+  motor SÍ reproduce el patrón X9 (saldo final = $348.549,45 en el caso de este sprint).
+- Si el comportamiento actual se confirma correcto: se documenta la razón jurídica en el docstring de
+  `_evento_indexacion_ipc` y se cierra sin cambios de código.
+- Suite completa en verde.
 
 ---
 
