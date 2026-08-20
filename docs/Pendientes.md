@@ -15,9 +15,10 @@ sacar el módulo correspondiente de la lista "🚧 en desarrollo"/"🚧 no todav
 igual que se documentó Civil/Familia. Estos dos documentos nunca deben quedar desactualizados respecto
 al código real.
 
-**Estados de sprint (2026-08-06):** cada título de sprint —tanto en este índice como en su propio
-encabezado `## Sprint N`— termina con exactamente uno de estos 5 estados, para que sea inmediato saber
-qué hacer sin tener que leer el cuerpo completo:
+**Estados de sprint (actualizado 2026-08-19):** cada título de sprint —tanto en este índice como en su
+propio encabezado `## Sprint N`— termina con exactamente uno de estos 7 estados, para que sea inmediato
+saber qué hacer sin tener que leer el cuerpo completo. El estado va siempre pegado al título, nunca como
+marca aparte dentro del cuerpo del sprint:
 
 - ✅ **Completado** — implementado, probado, sin ningún bug de dominio confirmado y sin corregir.
 - ⚠️ **Parcial** — una parte del alcance se implementó y funciona; el resto se difirió a propósito a
@@ -30,6 +31,16 @@ qué hacer sin tener que leer el cuerpo completo:
   explícita del usuario.
 - 📋 **Pendiente** — backlog puro: nadie lo ha empezado todavía, y no depende de ninguna respuesta o
   decisión externa para arrancar.
+- 🟡 **En proceso** — la rutina autónoma (ver
+  `docs/superpowers/specs/2026-08-19-rutina-autonoma-sprints-design.md`) lo empezó y no llegó a
+  cerrarlo en su ventana; tiene una rama propia ya abierta y debe retomarse ahí, nunca abandonarse por
+  empezar otro sprint nuevo.
+- 🟠 **Reabierto** — un 🔵 Bloqueado que el usuario o el despacho ya contestaron, o un ✅ Completado
+  donde apareció un bug/observación nueva después del cierre; entra a la cola de trabajo casi con la
+  misma prioridad que un sprint 🟡 En proceso, antes que el backlog 📋 nuevo.
+
+**Prioridad de la cola para trabajo autónomo:** 🟡 En proceso → 🟠 Reabierto → 🔴 Bug confirmado sin
+corregir → 📋 Pendiente. Los estados ⚠️ Parcial y 🔵 Bloqueado nunca se toman directamente.
 
 **Contexto ya construido (no repetir):**
 - `docs/superpowers/specs/2026-07-14-mvp-captura-liquidacion-civil-familia-design.md` — diseño del MVP.
