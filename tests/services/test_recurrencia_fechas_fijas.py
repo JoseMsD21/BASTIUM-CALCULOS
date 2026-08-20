@@ -11,9 +11,11 @@ from app.services.recurrencia_fechas_fijas import (
 )
 from database.models import (
     AreaDerecho,
+    Beneficiario,
     Expediente,
     Obligacion,
     ParametroLegal,
+    TipoBeneficiario,
     TipoObligacion,
     TipoReajusteAnual,
     TipoRecurrencia,
@@ -198,6 +200,41 @@ def test_generar_cuotas_fechas_fijas_respeta_fecha_fin_de_la_obligacion():
     cuotas = generar_cuotas_fechas_fijas(padre, fecha_corte=date(2027, 12, 31))
     session.close()
 
+    assert len(cuotas) == 2
+    assert {c.fecha_origen for c in cuotas} == {date(2026, 3, 22), date(2026, 6, 15)}
+
+
+def test_generar_cuotas_fechas_fijas_se_topa_por_la_vigencia_del_beneficiario_nino():
+    """Sprint 74: mismo criterio que generar_cuotas_mensuales -- un Beneficiario
+    NINO sin discapacidad topa la generacion en su fecha de fin de vigencia
+    (18 anos, no estudia), sin necesitar fecha_fin manual."""
+    session = session_module.get_session()
+    expediente_id = _expediente_civil(session)
+    obligacion = _obligacion_gastos_vestuario(
+        session, expediente_id, fecha_inicio=date(2026, 1, 1), fecha_fin=None
+    )
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Juan Perez",
+            # Cumple 18 el 2026-06-15 -- coincide exactamente con una ocurrencia.
+            fecha_nacimiento=date(2008, 6, 15),
+            tipo=TipoBeneficiario.NINO,
+            estudia=False,
+        )
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    session = session_module.get_session()
+    padre = session.get(Obligacion, obligacion_id)
+    cuotas = generar_cuotas_fechas_fijas(padre, fecha_corte=date(2027, 12, 31))
+    session.close()
+
+    # 06-15 coincide con el cumpleanos 18 (inclusive, todavia vigente); 12-15 ya
+    # no. Sin el tope de vigencia, fecha_corte 2027-12-31 habria generado 6
+    # cuotas (2 anios x 3 fechas).
     assert len(cuotas) == 2
     assert {c.fecha_origen for c in cuotas} == {date(2026, 3, 22), date(2026, 6, 15)}
 

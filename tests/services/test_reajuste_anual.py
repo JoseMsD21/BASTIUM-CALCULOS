@@ -7,9 +7,11 @@ import database.session as session_module
 from app.services.reajuste_anual import generar_cuotas_mensuales
 from database.models import (
     AreaDerecho,
+    Beneficiario,
     Expediente,
     Obligacion,
     ParametroLegal,
+    TipoBeneficiario,
     TipoObligacion,
     TipoReajusteAnual,
 )
@@ -116,6 +118,55 @@ def test_genera_cuotas_mensuales_con_capital_reajustado_por_smmlv_cada_enero(mon
 
     # No hay cuota de abril 2026: fecha_corte tope el 5 de marzo 2026.
     assert date(2026, 4, 5) not in por_fecha
+
+
+def test_genera_cuotas_mensuales_se_topa_por_la_vigencia_del_beneficiario_nino(monkeypatch):
+    """Sprint 74: si la obligacion tiene un Beneficiario NINO sin discapacidad
+    persistido, generar_cuotas_mensuales debe dejar de generar cuotas una vez el
+    beneficiario supera la edad limite (18, no estudia), aunque fecha_corte sea
+    posterior -- mismo criterio que la expansion efimera de CivilFamiliaStrategy."""
+    session = session_module.get_session()
+    expediente_id = _expediente_civil(session)
+    _sembrar_smlmv(session, {2024: Decimal("1000000.00")})
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="CUOTA ALIMENTARIA",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2024, 11, 5),
+        fecha_inicio=date(2024, 11, 5),
+        dia_pago=5,
+        valor=Decimal("100000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    session.add(obligacion)
+    session.flush()
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Juan Perez",
+            # Cumple 18 el 2024-12-05 -- exactamente la fecha de la segunda cuota.
+            fecha_nacimiento=date(2006, 12, 5),
+            tipo=TipoBeneficiario.NINO,
+            estudia=False,
+        )
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    session = session_module.get_session()
+    padre = session.get(Obligacion, obligacion_id)
+    cuotas = generar_cuotas_mensuales(padre, fecha_corte=date(2026, 3, 5))
+    session.close()
+
+    # Solo 2 cuotas: noviembre 2024 y diciembre 2024 (el cumpleanos 18 coincide
+    # con esta ultima -- inclusive, todavia vigente). Sin el tope de vigencia,
+    # fecha_corte 2026-03-05 habria generado 17 cuotas (igual que el test de
+    # arriba con las mismas fechas).
+    assert len(cuotas) == 2
+    assert {c.fecha_origen for c in cuotas} == {date(2024, 11, 5), date(2024, 12, 5)}
 
 
 def test_generar_cuotas_mensuales_es_idempotente_no_duplica(monkeypatch):

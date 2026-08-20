@@ -28,13 +28,16 @@ duplica) es lo que es genuinamente compartido:
   resultado de cualquiera de los dos generadores exactamente igual (cuotas
   hijas reales, sistema de abonos por cuota del Sprint 41 sin cambios).
 
-Limitacion conocida (Sprint 74, no implementado): el cumpleaños del
-beneficiario se ingresa aqui como una entrada "MM-DD" manual mas dentro de la
-lista -- NO se deriva automaticamente de una fecha de nacimiento de
-beneficiario, porque esa entidad no existe todavia en el modelo (bloqueado
-por una pregunta legal pendiente de respuesta del despacho, ver
-docs/Pendientes.md Sprint 74). Revisar este modulo cuando esa dependencia se
-resuelva, si el usuario pide la derivacion automatica en ese momento.
+Limitacion conocida (Sprint 74): el cumpleaños del beneficiario se sigue
+ingresando aqui como una entrada "MM-DD" manual mas dentro de la lista -- NO
+se deriva automaticamente de `Beneficiario.fecha_nacimiento` (la entidad SI
+existe desde el Sprint 74, ver database/models.py, pero esa derivacion
+automatica -- ej. agregar la fecha MM-DD del cumpleaños solo con marcar el
+beneficiario -- queda fuera del alcance de ese sprint). Lo que SI se agrego en
+el Sprint 74 es el tope de vigencia: si la obligacion tiene un Beneficiario
+NINO sin discapacidad, la generacion se corta en su fecha de fin de vigencia
+(18/25 años segun si estudia), igual que generar_cuotas_mensuales -- ver
+fecha_fin_efectiva_recurrente mas abajo.
 """
 
 from __future__ import annotations
@@ -47,7 +50,14 @@ from datetime import date
 import database.session as session_module
 from app.engine.time.calendar import CalendarUtils
 from app.services.reajuste_anual import reajustar_capital_anual
-from database.models import Obligacion, TipoObligacion, TipoReajusteAnual, TipoRecurrencia
+from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
+from database.models import (
+    Beneficiario,
+    Obligacion,
+    TipoObligacion,
+    TipoReajusteAnual,
+    TipoRecurrencia,
+)
 
 _PATRON_MM_DD = re.compile(r"^\d{2}-\d{2}$")
 # 2000 es bisiesto -- se usa solo como año de referencia para validar que el
@@ -154,7 +164,15 @@ def generar_cuotas_fechas_fijas(
         if cuotas_existentes:
             return cuotas_existentes
 
-        fin = min(fecha_fin, fecha_corte) if fecha_fin is not None else fecha_corte
+        # Vigencia por tipo de beneficiario (Sprint 74) -- mismo criterio que
+        # generar_cuotas_mensuales (app/services/reajuste_anual.py): se consulta
+        # directo por obligacion_padre_id dentro de esta misma sesion (evita
+        # depender de la relationship sobre un objeto potencialmente detached).
+        beneficiario = (
+            session.query(Beneficiario).filter_by(obligacion_id=obligacion_padre_id).first()
+        )
+        fin_vigencia = fecha_fin_efectiva_recurrente(fecha_fin, beneficiario, fecha_corte)
+        fin = min(fin_vigencia, fecha_corte) if fin_vigencia is not None else fecha_corte
 
         cuotas_nuevas: list[Obligacion] = []
         capital_actual = capital_inicial

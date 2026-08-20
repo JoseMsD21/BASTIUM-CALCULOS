@@ -25,7 +25,8 @@ from app.engine.indexation.historical_index import get_ipc_for_date, get_smlmv_f
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.math.rounding import Rounding
 from app.engine.time.calendar import CalendarUtils
-from database.models import Obligacion, TipoObligacion, TipoReajusteAnual
+from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
+from database.models import Beneficiario, Obligacion, TipoObligacion, TipoReajusteAnual
 
 _MESES_ES = {
     1: "ENERO",
@@ -144,7 +145,19 @@ def generar_cuotas_mensuales(
         if cuotas_existentes:
             return cuotas_existentes
 
-        fin = min(fecha_fin, fecha_corte) if fecha_fin is not None else fecha_corte
+        # Vigencia por tipo de beneficiario (Sprint 74): se consulta directo por
+        # obligacion_padre_id (en vez de usar la relationship `beneficiario` sobre
+        # el objeto `obligacion_recurrente` recibido, que puede venir detached de
+        # una sesion ya cerrada -- ver docstring de esta funcion) dentro de la
+        # sesion propia ya abierta arriba. NINO_DISCAPACIDAD permanente y
+        # CONYUGE/PADRES/OTRO nunca aportan fecha (ver vigencia_alimentos.py), asi
+        # que el comportamiento es identico al de antes de este sprint para esos
+        # casos.
+        beneficiario = (
+            session.query(Beneficiario).filter_by(obligacion_id=obligacion_padre_id).first()
+        )
+        fin_vigencia = fecha_fin_efectiva_recurrente(fecha_fin, beneficiario, fecha_corte)
+        fin = min(fin_vigencia, fecha_corte) if fin_vigencia is not None else fecha_corte
 
         cuotas_nuevas: list[Obligacion] = []
         capital_actual = capital_inicial
