@@ -108,6 +108,24 @@ class MotivoSuspension(enum.Enum):
     DISCIPLINARIA = "DISCIPLINARIA"
 
 
+class TipoContratoLaboral(enum.Enum):
+    """Tipo de contrato de trabajo de una obligacion Laboral (Sprint 92) --
+    determina que formula de indemnizacion por despido injustificado (Art. 64
+    CST) aplica DismissalIndemnityCalculator
+    (app/engine/labor/dismissal_indemnity.py): INDEFINIDO usa la tabla de dias
+    por año de antiguedad (regimen Ley 50/1990 o Ley 789/2002 segun
+    fecha_inicio de la obligacion); FIJO/OBRA_LABOR usan el valor de los
+    salarios del tiempo faltante para cumplir el plazo pactado, con piso de
+    15 dias -- ambos comparten formula, se distinguen solo para que el reporte
+    describa el tipo de contrato real. Default INDEFINIDO preserva el
+    comportamiento de toda obligacion Laboral creada antes de este sprint (sin
+    indemnizacion por despido, ver migrate_dismissal_indemnity_sprint92.py)."""
+
+    INDEFINIDO = "INDEFINIDO"
+    FIJO = "FIJO"
+    OBRA_LABOR = "OBRA_LABOR"
+
+
 class EstadoProcesal(enum.Enum):
     """Estado procesal de un Expediente (Sprint 47) -- no existia ningun campo
     de estado procesal en el modelo antes de este sprint. Se agrega como
