@@ -259,8 +259,8 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--completado-4-hallazgos-corregidos-1-pregunta-abierta)
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
-- [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 📋 Pendiente](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--pendiente)
-- [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 📋 Pendiente](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--pendiente)
+- [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🔵 Bloqueado — pendiente de confirmación](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--bloqueado--pendiente-de-confirmación)
+- [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--bloqueado--pendiente-de-confirmación)
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--pendiente)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera 📋 Pendiente](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--pendiente)
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 📋 Pendiente](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--pendiente)
@@ -6024,7 +6024,14 @@ confirmado reproduciéndolo también en `main`, sin relación con este cambio). 
 
 ---
 
-## Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 📋 Pendiente
+## Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🔵 Bloqueado — pendiente de confirmación
+
+**Nota de la rutina autónoma (2026-08-20):** revisado al llegarle el turno en la cola — el propio sprint
+ya dice explícitamente "no cambiar el código sin esta confirmación" y no hay ninguna pieza de código
+aislable que se pueda construir sin la respuesta del despacho (a diferencia de los Sprints 74/83/84/92/101,
+que sí tenían partes implementables). Se corrige el estado de `📋 Pendiente` a `🔵 Bloqueado` para que la
+cola no lo vuelva a tomar hasta que haya respuesta — la pregunta ya estaba registrada en
+`Preguntas-Para-Abogado-Abiertas.md` desde el cierre del Sprint 47 parte B, no es un hallazgo nuevo.
 
 **Prioridad sugerida:** Baja — hallazgo de auditoría, no un reporte de bug del usuario; el código actual ya
 está verificado contra el caso de prueba real citado en el test existente.
@@ -6056,7 +6063,15 @@ confirmación — mismo criterio de rigor que el resto del proyecto (Sprints 5/7
 
 ---
 
-## Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 📋 Pendiente
+## Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación
+
+**Nota de la rutina autónoma (2026-08-20):** revisado al llegarle el turno en la cola — la Definición de
+Hecho de este sprint exige registrar la respuesta real del despacho (confirmando SÍ o NO) antes de poder
+cerrarlo, sea cambiando código o documentando la decisión ya tomada; sin esa respuesta no hay ningún cierre
+honesto posible (documentar "comportamiento actual" como si fuera la decisión confirmada sería inventarla).
+Se corrige el estado de `📋 Pendiente` a `🔵 Bloqueado`. La pregunta ya estaba registrada en
+`Preguntas-Para-Abogado-Abiertas.md` (Sprint 79) desde la revisión cruzada del 2026-08-18, no es un hallazgo
+nuevo.
 
 **Prioridad sugerida:** Media — no es un bug confirmado (nadie ha dicho que esté mal), pero es un
 comportamiento no documentado explícitamente en ninguna de las dos fórmulas que lo producen.
