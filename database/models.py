@@ -136,6 +136,36 @@ class EstadoProcesal(enum.Enum):
     COSA_JUZGADA = "COSA_JUZGADA"
 
 
+class TipoBeneficiario(enum.Enum):
+    """Tipo de beneficiario de una obligacion alimentaria de Civil/Familia (Sprint 74)
+    -- determina el arbol de decision de vigencia (ver
+    app/services/vigencia_alimentos.py::calcular_vigencia_alimentos). Reglas
+    confirmadas como hecho conocido segun el reporte del usuario (2026-08-13, ver
+    docs/Pendientes.md, Sprint 74) -- NO son la pregunta abierta del sprint:
+
+    - NINO (sin discapacidad): vigente hasta los 18 anos si no estudia, o hasta los
+      25 si estudia una carrera profesional/tecnica/tecnologica.
+    - NINO_DISCAPACIDAD con `Beneficiario.discapacidad_permanente=True`: obligacion
+      vitalicia.
+
+    CONYUGE, PADRES y OTRO **no** tienen ningun criterio operacional/numerico
+    confirmado para calcular su vigencia automaticamente -- esa es justamente la
+    pregunta abierta sin responder del despacho (ver
+    docs/Preguntas-Para-Abogado-Abiertas.md, seccion Sprint 74: como se prueba que
+    un conyuge "supero su condicion de vulnerabilidad", que reglas puntuales
+    aplican a "otro" beneficiario, etc.). Para estos tipos (y para
+    NINO_DISCAPACIDAD sin marcar permanente) el sistema NUNCA aplica el limite de
+    edad de NINO ni inventa un plazo/edad -- declara la vigencia como no
+    determinable automaticamente, ver `ResultadoVigencia.determinable_automaticamente`
+    en vigencia_alimentos.py."""
+
+    NINO = "NINO"
+    NINO_DISCAPACIDAD = "NINO_DISCAPACIDAD"
+    CONYUGE = "CONYUGE"
+    PADRES = "PADRES"
+    OTRO = "OTRO"
+
+
 class Expediente(Base):
     __tablename__ = "expedientes"
 
@@ -306,6 +336,79 @@ class Obligacion(Base):
     descuentos_laborales: Mapped[list[DescuentoLaboral]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
+    # beneficiario (Sprint 74): relacion 1:1 opcional, solo relevante para una
+    # Obligacion RECURRENTE de Civil/Familia (cuota alimentaria) -- ver
+    # docstring de Beneficiario abajo para el porque de la entidad propia.
+    # uselist=False porque `Beneficiario.obligacion_id` es UNIQUE (a lo sumo un
+    # beneficiario por obligacion); cascade delete-orphan porque el
+    # beneficiario no tiene sentido sin la obligacion que describe.
+    beneficiario: Mapped[Beneficiario | None] = relationship(
+        back_populates="obligacion", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class Beneficiario(Base):
+    """Beneficiario real de una obligacion alimentaria RECURRENTE de Civil/Familia
+    (Sprint 74) -- entidad propia en vez de campos condicionales sueltos en
+    `Obligacion` (decision de diseno de este sprint, el propio backlog dejaba la
+    eleccion abierta): un expediente de alimentos puede tener el demandante mismo
+    como beneficiario o una persona distinta, y el arbol de decision pedido por el
+    usuario (niño / niño con discapacidad / conyuge / padres / otro) necesita
+    varios campos propios (nombre, fecha de nacimiento, tipo, si estudia, si la
+    discapacidad es permanente, relacion con el demandante) que no aplican a
+    ninguna otra area del derecho -- meterlos como columnas nullable sueltas en
+    `Obligacion` (que ya tiene mas de 30 columnas condicionales por area) habria
+    sido menos legible sin ganar nada. Una entidad propia ademas deja claro en el
+    esquema que el beneficiario es un dato de UNA obligacion puntual (relacion 1:1
+    via `obligacion_id` UNIQUE), no del expediente completo -- un mismo expediente
+    de Familia puede tener varias obligaciones RECURRENTE, cada una con un
+    beneficiario distinto (ej. dos hijos con cuotas alimentarias separadas).
+
+    Tabla enteramente nueva -- NO necesita script de migracion ALTER TABLE (mismo
+    criterio que `EventoLaboral`/`DescuentoLaboral`, Sprint 16/44: ninguna de esas
+    2 tablas nuevas tiene tampoco un scripts/migrate_*.py propio).
+    `Base.metadata.create_all()` (`init_db()`, llamada en cada arranque de la app
+    ANTES de `aplicar_migraciones_pendientes()`, ver database/database.py) ya crea
+    cualquier tabla del modelo actual que todavia no exista en una bastium.db real
+    -- un ALTER TABLE en scripts/migrate_*.py solo hace falta para una columna
+    nueva en una tabla que YA existia con un esquema mas viejo (ver
+    scripts/migrate_fechas_anuales_fijas.py para ese caso, que SI lo necesita)."""
+
+    __tablename__ = "beneficiarios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # UNIQUE (no solo index): a lo sumo un Beneficiario por Obligacion (relacion
+    # 1:1) -- Obligacion.beneficiario (relationship uselist=False) asume esto.
+    obligacion_id: Mapped[int] = mapped_column(
+        ForeignKey("obligaciones.id"), unique=True, index=True
+    )
+    nombre: Mapped[str] = mapped_column(String(200))
+    fecha_nacimiento: Mapped[date] = mapped_column(Date)
+    tipo: Mapped[TipoBeneficiario] = mapped_column(SAEnum(TipoBeneficiario))
+    # es_el_demandante: metadata descriptiva pedida por el reporte del usuario
+    # ("preguntar si existe un beneficiario distinto del demandante") -- no
+    # participa en ningun calculo de vigencia, solo documenta si el beneficiario
+    # capturado es la misma persona que `Expediente.demandante` o alguien
+    # distinto.
+    es_el_demandante: Mapped[bool] = mapped_column(Boolean, default=False)
+    # estudia: solo relevante si tipo == NINO (arbol de decision) -- determina si
+    # la vigencia se extiende de 18 a 25 anos. Queda en None para cualquier otro
+    # tipo (no se fuerza False, para no insinuar una respuesta que nunca se
+    # capturo).
+    estudia: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # discapacidad_permanente: solo relevante si tipo == NINO_DISCAPACIDAD -- es
+    # el UNICO caso con regla de vigencia automatica confirmada por el usuario
+    # (vitalicio). Si queda en False/None para este tipo, vigencia_alimentos.py
+    # NO reutiliza la regla de NINO sin discapacidad (18/25) -- esa regla nunca
+    # fue confirmada para discapacidad no permanente, se declara no determinable
+    # automaticamente en vez de inventarla.
+    discapacidad_permanente: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # relacion_demandante: descriptiva/libre (ej. "hijo", "conyuge", "madre") --
+    # no participa en el calculo de vigencia (que usa `tipo`, un enum cerrado),
+    # solo enriquece el reporte/la lectura humana del expediente.
+    relacion_demandante: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    obligacion: Mapped[Obligacion] = relationship(back_populates="beneficiario")
 
 
 class Abono(Base):
