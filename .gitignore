@@ -23,8 +23,8 @@ exports/*.pdf
 # Mockups del companero visual de brainstorming (superpowers)
 .superpowers/
 
-# Configuracion local de Claude Code (no compartida en el repo)
-.claude/settings.local.json
+# Configuracion local y worktrees efimeros de Claude Code (no compartidos en el repo)
+.claude/
 
 # Notas personales de uso local (guias para reuniones, etc.) - nunca al repo
 docs/local/
