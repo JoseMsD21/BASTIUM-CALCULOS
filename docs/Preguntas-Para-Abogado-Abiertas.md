@@ -669,6 +669,13 @@ mismas fórmulas aplicadas sobre una base salarial calculada distinto (diario→
 
 **Qué necesito exactamente:** un sí/no sobre si hay diferencia de fórmula, y si la hay, cuál es.
 
+**Estado del software (2026-08-20):** ya se implementó, aislada y probada, la parte que NO depende de esta
+respuesta: el conversor puro `salario_diario_a_mensual` (`app/engine/labor/salario_domestico.py`,
+fórmula `salario_diario × días_laborados_semana / 7 × 30`). No está cableado a ningún formulario ni a
+`LaboralStrategy` todavía: eso queda condicionado a esta respuesta (si no hay diferencia de fórmula, el
+resto del Sprint 96 es solo agregar la captura de datos al formulario Laboral; si la hay, hay que
+identificarla antes de construir).
+
 **Respuesta del despacho:**
 
 
