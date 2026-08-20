@@ -221,8 +221,9 @@ def test_liquidar_area_civil_con_indexacion_ipc_incluye_evento_de_indexacion(qtb
     # Sprint 80: CivilFamiliaStrategy usa el indice IPC mensual real (2003-01 a
     # 2026-03) para fechas dentro de ese rango, como esta (2024-07-01 ->
     # 2025-12-31) -- valor previo (formula anual): 77633.53. Ver
-    # tests/services/test_area_strategy.py::test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto_correcto
-    # (mismo capital/fechas, verificado con el motor real).
+    # tests/services/test_area_strategy.py, funcion
+    # test_civil_familia_puntual_con_indexacion... (mismo capital/fechas,
+    # verificado con el motor real).
     assert resultado.final_balance().indexation == Decimal("61933.78")
 
 

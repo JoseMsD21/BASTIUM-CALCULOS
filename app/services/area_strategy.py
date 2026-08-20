@@ -313,10 +313,14 @@ class AreaStrategy(ABC):
     ) -> Event:
         """Evento de indexacion IPC generico (Sprint 8, promovido a la clase base en
         el Sprint 43 para que Honorarios/Sancionatorio/Laboral/Comercial lo reutilicen
-        tal cual en vez de reimplementar la misma formula -- ver
-        CivilFamiliaStrategy._evento_indexacion, ahora un alias de este metodo).
-        `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay deflacion o si el
-        capital es 0/negativo -- ver docstring de esa funcion."""
+        tal cual en vez de reimplementar la misma formula -- interpolacion ANUAL,
+        siempre. CivilFamiliaStrategy._evento_indexacion fue un alias de este metodo
+        desde el Sprint 43 hasta el Sprint 80: desde el Sprint 80 tiene su propia
+        implementacion (indice IPC MENSUAL real dentro de rango, con fallback
+        documentado a esta misma interpolacion anual fuera de rango) -- ya NO es un
+        alias, ver el docstring de CivilFamiliaStrategy._evento_indexacion para el
+        detalle. `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay
+        deflacion o si el capital es 0/negativo -- ver docstring de esa funcion."""
         monto = IPCIndexation.calculate(
             capital=capital,
             initial_index=get_ipc_interpolado_for_date(fecha_causacion),

@@ -2551,9 +2551,10 @@ class TestHonorariosStrategy:
         # honorarios_fijos_pactados=1,000,000 + cuota_litis 0% = total_honorarios
         # 1,000,000. Reutiliza tal cual AreaStrategy._evento_indexacion_ipc (anual) --
         # Honorarios no cambio en el Sprint 80 (solo CivilFamiliaStrategy tiene su
-        # propia implementacion mensual desde entonces, ver comentario en
-        # TestComercialStrategy.test_modo_ipc_con_pacto_expreso_indexa_capital_y_usa_interes_civil_en_vez_de_comercial
-        # para el detalle completo de por que ya no se compara en vivo contra
+        # propia implementacion mensual desde entonces, ver el comentario del test
+        # del modo (b) de Comercial mas arriba en este archivo -- clase
+        # TestComercialStrategy, metodo test_modo_ipc_con_pacto_expreso... -- para
+        # el detalle completo de por que ya no se compara en vivo contra
         # CivilFamiliaStrategy para este rango de fechas). Los valores de abajo
         # (77,633.53 / mismo interes que la version pre-Sprint-80 de
         # test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado) siguen
