@@ -25,6 +25,22 @@ C.C.), Comercial, Sancionatorio, Honorarios/Litigio, Laboral y Tributario.
     Recurrente padre deja de aportar eventos de capital propios, para no duplicar el capital); mientras no
     se generen, la Recurrente sigue expandiendose de forma efimera con `FamilyScheduler` (capital
     constante, sin reajuste), el comportamiento anterior al Sprint 41.
+  - **Beneficiario y vigencia de la obligacion alimentaria (Sprint 74):** `database/models.py::Beneficiario`
+    -- entidad propia (relacion 1:1 con `Obligacion` via `obligacion_id` UNIQUE, tabla enteramente nueva sin
+    migracion ALTER TABLE) con nombre, fecha de nacimiento, `TipoBeneficiario` (NINO / NINO_DISCAPACIDAD /
+    CONYUGE / PADRES / OTRO -- arbol de decision del formulario de captura), y campos condicionales (si
+    estudia, si la discapacidad es permanente, relacion con el demandante). `app/services/vigencia_alimentos.py`
+    calcula automaticamente si la obligacion sigue vigente: NINO sin discapacidad hasta los 18 años (25 si
+    estudia una carrera profesional/tecnica/tecnologica), NINO_DISCAPACIDAD con discapacidad permanente de
+    forma vitalicia. CONYUGE, PADRES, OTRO, y NINO_DISCAPACIDAD sin marcar permanente quedan declarados
+    explicitamente como "no determinable automaticamente" -- el software NUNCA les aplica el limite de edad
+    de NINO ni inventa una fecha de fin (pregunta abierta sin responder del despacho sobre el criterio
+    operacional exacto, ver `docs/Preguntas-Para-Abogado-Abiertas.md`, seccion Sprint 74). El calculo topa
+    tanto la expansion efimera (`CivilFamiliaStrategy._eventos_de_obligacion`) como los 2 generadores de
+    cuotas hijas reales (`generar_cuotas_mensuales`, `generar_cuotas_fechas_fijas`) -- una obligacion RECURRENTE
+    con beneficiario NINO deja de causar cuotas automaticamente al superar la edad limite, sin necesitar
+    fijar `fecha_fin` a mano. El formulario de captura (`ObligacionFormDialog`, Civil/Familia) muestra una
+    vista previa en vivo del resultado del calculo.
   - `ComercialStrategy`: pagares, letras de cambio, cheques y facturas, con validacion de tope de usura
     (`usury_validator`) sobre la tasa remuneratoria y moratoria.
   - `SancionatorioStrategy`: multas administrativas expresadas en SMLMV o UVT, con conversion automatica
