@@ -28,9 +28,9 @@ CATEGORIAS_LABORAL = [
 # Nota: a diferencia de CATEGORIAS_CIVIL_FAMILIA/CATEGORIAS_COMERCIAL, esta
 # categoria es solo una etiqueta de UI -- el event_type real de cada linea de
 # la liquidacion (CESANTIAS, INTERESES_CESANTIAS, PRIMA_JUNIO, PRIMA_DICIEMBRE,
-# VACACIONES, SANCION_MORATORIA) lo define LaborScheduler/
-# MoratoryIndemnityCalculator internamente en app/services/area_strategy.py,
-# no este codigo.
+# VACACIONES, SANCION_MORATORIA, INDEMNIZACION_DESPIDO) lo define LaborScheduler/
+# MoratoryIndemnityCalculator/DismissalIndemnityCalculator internamente en
+# app/services/area_strategy.py, no este codigo.
 
 CATEGORIAS_SANCIONATORIO = [
     ("MULTA_SANCIONATORIA", "Multa sancionatoria (SMLMV/UVT)"),

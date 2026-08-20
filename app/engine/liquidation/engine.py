@@ -59,6 +59,12 @@ class LiquidationCore:
             "PRIMA_JUNIO",
             "PRIMA_DICIEMBRE",
             "SANCION_MORATORIA",
+            # INDEMNIZACION_DESPIDO (Sprint 92): indemnizacion por despido
+            # injustificado, Art. 64 CST -- concepto de capital distinto de
+            # SANCION_MORATORIA (Art. 65 CST), pueden coexistir en el mismo
+            # expediente. Ver LaboralStrategy.liquidar y
+            # app/engine/labor/dismissal_indemnity.py.
+            "INDEMNIZACION_DESPIDO",
             "DANO_EMERGENTE",
             "LUCRO_CESANTE_CONSOLIDADO",
             "DANOS_MORALES",

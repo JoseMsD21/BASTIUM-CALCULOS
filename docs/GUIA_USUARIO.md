@@ -70,7 +70,8 @@ de alimentos, gastos médicos, deudas civiles con interés), **Comercial** (paga
 cheques y facturas, con tasa remuneratoria y moratoria), **Sancionatorio** (multas administrativas
 expresadas en SMLMV o UVT), **Honorarios / Litigio** (cobro de honorarios profesionales y cuota litis,
 con costas judiciales opcionales) y **Laboral** (liquidación final de un contrato de trabajo: cesantías,
-intereses a cesantías, prima, vacaciones e indemnización moratoria) — más detalle en la
+intereses a cesantías, prima, vacaciones, indemnización moratoria e indemnización por despido
+injustificado) — más detalle en la
 [sección 6](#6-áreas-del-derecho-cuáles-funcionan-hoy).
 
 ---
@@ -677,15 +678,44 @@ aplica (se guarda en 0, sin mostrarse). El campo que en las demás áreas se lla
    - **Prestaciones pagadas** (casilla): si el empleador ya pagó la liquidación completa, marca esta
      casilla y llena **Fecha de pago real** con el día en que se pagó. Si no se ha pagado, deja la
      casilla sin marcar — el programa calculará la mora hasta la fecha de corte del expediente.
+   - **Tipo de contrato**: Indefinido, Término fijo, u Obra o labor.
+   - **Despido sin justa causa** (casilla): márcala si el contrato terminó por decisión unilateral del
+     empleador sin justa causa comprobada — agrega la indemnización por despido injustificado (Art. 64
+     CST) a la liquidación.
+   - **Fecha de terminación pactada** (solo visible si el tipo de contrato es Término fijo u Obra o
+     labor): el día en que se había pactado que terminaría el contrato — puede ser posterior a la fecha
+     real de terminación, si hubo despido antes de cumplirse el plazo.
 3. Haz clic en **"Guardar"**.
 4. Haz clic en **"Liquidar"**. El resultado incluye: Cesantías, Intereses/Cesantías, Prima Junio, Prima
-   Diciembre, Vacaciones y, si hubo retardo en el pago, un rubro "Indemnización moratoria Art. 65 CST".
+   Diciembre, Vacaciones y, si aplica, "Indemnización moratoria Art. 65 CST" y/o "Indemnización por despido
+   injustificado Art. 64 CST" — los dos rubros son independientes entre sí y pueden aparecer juntos en el
+   mismo expediente.
 
 **Sobre la indemnización moratoria (Art. 65 CST):** si el pago se hizo (o el corte del expediente cae)
 más de 720 días (24 meses) después de la terminación del contrato, el programa cambia automáticamente de
 fase — hasta el día 720 cobra un día de salario por cada día de retardo; del día 721 en adelante, cobra
 intereses sobre lo adeudado a la tasa de usura histórica certificada por la Superintendencia Financiera
 (la misma serie de datos que usa el área Comercial). No hay nada que configurar manualmente para esto.
+
+**Sobre la indemnización por despido injustificado (Art. 64 CST):** al marcar "Despido sin justa causa",
+el programa calcula:
+- **Contrato Indefinido**, salario menor a 10 SMMLV: 30 días de salario básico el primer año + 20 días
+  por cada año subsiguiente (y fracción proporcional), si el contrato es posterior al 1° de enero de
+  1991 (entrada en vigencia de la Ley 50 de 1990); 45 días el primer año + 15 días por cada año
+  subsiguiente si es anterior a esa fecha. **Esta fecha de corte (1991-01-01) es una asunción del
+  desarrollo pendiente de confirmación del despacho** — la plantilla original que trae los datos cita una
+  fecha inconsistente ("27 de diciembre de 1992") para el mismo corte (ver Sprint 92 en
+  `docs/Pendientes.md` y `docs/Preguntas-Para-Abogado-Abiertas.md`).
+- **Contrato a Término fijo u Obra o labor**: el valor de los salarios del tiempo que faltaba para
+  cumplir el plazo pactado, con un piso de 15 días de salario cuando ese tiempo restante es menor.
+- **Contrato Indefinido con salario igual o mayor a 10 SMMLV**: el programa **no calcula** la
+  indemnización todavía — la fórmula exacta para este umbral no está confirmada por el despacho. En vez
+  de arriesgar una cifra incorrecta, la liquidación sigue sin ese rubro y muestra una alerta explicando
+  por qué.
+
+Esta indemnización es un concepto legal distinto de la moratoria de arriba (compensa la terminación
+injusta del contrato, no la mora en el pago de lo ya causado) y el software las trata como independientes:
+puedes marcar una, la otra, o las dos a la vez, según lo que aplique al caso.
 
 **Cotizaciones de seguridad social no pagadas (opcional):** si el caso incluye una reclamación de
 aportes que el empleador nunca consignó, marca la casilla **"Incluir cotizaciones de seguridad social no
@@ -1074,7 +1104,7 @@ hoy**:
 |---|---|
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
 | Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después. Si alguna tasa supera el tope de usura (1.5× el IBC que ingreses), se liquida igual y se resta del saldo la sanción legal (doble del exceso cobrado). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
-| Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, y opcionalmente cotizaciones de seguridad social (pensión, salud, ARL, FSP) más incapacidades y suspensiones contractuales. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). |
+| Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, indemnización por despido injustificado del Art. 64 CST (ambas coexisten sin excluirse), y opcionalmente cotizaciones de seguridad social (pensión, salud, ARL, FSP) más incapacidades y suspensiones contractuales. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). |
 | Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
 | Honorarios / Litigio | ✅ Sí — honorarios profesionales y cuota litis, validando el tope único del 50% acumulado del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual (el que haya fijado el juez en el auto). Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
 | Tributario | ✅ Sí — impuesto a cargo (interés E.T. 635), sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), actualización IPC adicional para mora superior a 3 años (Art. 867-1 E.T.), y depuración de Renta Líquida Gravable informativa. Cada obligación liquida y recibe abonos por separado. Ver [sección 5.15](#515-agregar-una-obligación-tributaria). |

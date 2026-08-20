@@ -108,6 +108,24 @@ class MotivoSuspension(enum.Enum):
     DISCIPLINARIA = "DISCIPLINARIA"
 
 
+class TipoContratoLaboral(enum.Enum):
+    """Tipo de contrato de trabajo de una obligacion Laboral (Sprint 92) --
+    determina que formula de indemnizacion por despido injustificado (Art. 64
+    CST) aplica DismissalIndemnityCalculator
+    (app/engine/labor/dismissal_indemnity.py): INDEFINIDO usa la tabla de dias
+    por año de antiguedad (regimen Ley 50/1990 o Ley 789/2002 segun
+    fecha_inicio de la obligacion); FIJO/OBRA_LABOR usan el valor de los
+    salarios del tiempo faltante para cumplir el plazo pactado, con piso de
+    15 dias -- ambos comparten formula, se distinguen solo para que el reporte
+    describa el tipo de contrato real. Default INDEFINIDO preserva el
+    comportamiento de toda obligacion Laboral creada antes de este sprint (sin
+    indemnizacion por despido, ver migrate_dismissal_indemnity_sprint92.py)."""
+
+    INDEFINIDO = "INDEFINIDO"
+    FIJO = "FIJO"
+    OBRA_LABOR = "OBRA_LABOR"
+
+
 class EstadoProcesal(enum.Enum):
     """Estado procesal de un Expediente (Sprint 47) -- no existia ningun campo
     de estado procesal en el modelo antes de este sprint. Se agrega como
@@ -318,6 +336,33 @@ class Obligacion(Base):
     protegida_inflacion_uvr: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
+
+    # tipo_contrato_laboral/despido_injustificado/fecha_fin_pactada (Sprint 92):
+    # datos de la indemnizacion por despido injustificado (Art. 64 CST), solo
+    # relevantes para el area Laboral -- ver
+    # app/engine/labor/dismissal_indemnity.py::DismissalIndemnityCalculator y
+    # LaboralStrategy.liquidar (evento INDEMNIZACION_DESPIDO).
+    #
+    # tipo_contrato_laboral: default INDEFINIDO preserva el comportamiento de
+    # cualquier obligacion Laboral creada antes de este sprint (server_default
+    # por el mismo motivo que tipo_recurrencia arriba: tests/scripts que
+    # insertan filas via SQL crudo sin pasar por el ORM).
+    tipo_contrato_laboral: Mapped[TipoContratoLaboral] = mapped_column(
+        SAEnum(TipoContratoLaboral),
+        default=TipoContratoLaboral.INDEFINIDO,
+        server_default=TipoContratoLaboral.INDEFINIDO.value,
+    )
+    # despido_injustificado: False por defecto -- ninguna obligacion existente
+    # empieza a generar el evento INDEMNIZACION_DESPIDO sin que el usuario lo
+    # marque explicitamente.
+    despido_injustificado: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    # fecha_fin_pactada: solo relevante si tipo_contrato_laboral es FIJO u
+    # OBRA_LABOR -- plazo originalmente pactado del contrato, distinto de
+    # `fecha_fin` (fecha real de terminacion, que puede ser anterior si hubo
+    # despido antes de cumplirse el plazo). Nula para INDEFINIDO.
+    fecha_fin_pactada: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # Sprint 61: tipo de accion (prescripcion, TipoAccion.value en minuscula,
     # ej. "ordinaria") o de proceso (caducidad, clave de

@@ -64,7 +64,11 @@ suma de honorarios fijos + cuota litis (alerta "Honorarios Desproporcionados - A
 ver nota de "en desarrollo" más abajo),
 **Laboral** (liquidación final —finiquito— de un contrato:
 cesantías, intereses a cesantías, prima de junio y diciembre, vacaciones, indemnización moratoria
-bifásica del Art. 65 CST si hubo retardo en el pago y, opcionalmente, cotizaciones de seguridad social
+bifásica del Art. 65 CST si hubo retardo en el pago, indemnización por despido injustificado del Art. 64
+CST —30 días de salario el primer año + 20 días por cada año subsiguiente para contratos posteriores a la
+Ley 50/1990, o 45 + 15 días para contratos anteriores, con piso de 15 días para término fijo/obra-labor;
+coexiste con la moratoria sin excluirla, y el umbral de salario ≥10 SMMLV queda pendiente de confirmación
+del despacho, ver Sprint 92 en `docs/Pendientes.md`— y, opcionalmente, cotizaciones de seguridad social
 —pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales, con checkbox de salario =
 SMMLV automático por año, descuentos del empleador propios, y edición de obligaciones/eventos ya
 guardados sin borrar y recrear) y **Tributario** (impuesto a

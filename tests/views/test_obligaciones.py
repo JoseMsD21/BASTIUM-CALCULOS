@@ -17,6 +17,7 @@ from database.models import (
     Expediente,
     Obligacion,
     TipoBeneficiario,
+    TipoContratoLaboral,
     TipoObligacion,
     TipoReajusteAnual,
     TipoRecurrencia,
@@ -888,6 +889,89 @@ def test_guarda_obligacion_laboral_sin_seguridad_social_por_defecto(qtbot, monke
     assert guardada.incluir_seguridad_social is False
     assert guardada.nivel_riesgo_arl is None
     session.close()
+
+
+def test_guarda_obligacion_laboral_con_despido_injustificado_indefinido(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+    dialog.check_despido_injustificado.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.despido_injustificado is True
+    assert guardada.tipo_contrato_laboral == TipoContratoLaboral.INDEFINIDO
+    assert guardada.fecha_fin_pactada is None
+    session.close()
+
+
+def test_guarda_obligacion_laboral_sin_despido_injustificado_por_defecto(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.despido_injustificado is False
+    assert guardada.tipo_contrato_laboral == TipoContratoLaboral.INDEFINIDO
+    session.close()
+
+
+def test_guarda_obligacion_laboral_termino_fijo_con_fecha_fin_pactada(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 6, 1))
+    indice_fijo = dialog.combo_tipo_contrato_laboral.findData("FIJO")
+    dialog.combo_tipo_contrato_laboral.setCurrentIndex(indice_fijo)
+    dialog.check_despido_injustificado.setChecked(True)
+    dialog.campo_fecha_fin_pactada.setDate(date(2021, 1, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo_contrato_laboral == TipoContratoLaboral.FIJO
+    assert guardada.fecha_fin_pactada == date(2021, 1, 1)
+    session.close()
+
+
+def test_campo_fecha_fin_pactada_visible_solo_para_termino_fijo_u_obra_labor(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    indice_indefinido = dialog.combo_tipo_contrato_laboral.findData("INDEFINIDO")
+    dialog.combo_tipo_contrato_laboral.setCurrentIndex(indice_indefinido)
+    assert dialog.campo_fecha_fin_pactada.isVisible() is False
+
+    indice_fijo = dialog.combo_tipo_contrato_laboral.findData("FIJO")
+    dialog.combo_tipo_contrato_laboral.setCurrentIndex(indice_fijo)
+    assert dialog.campo_fecha_fin_pactada.isVisible() is True
+
+    indice_obra = dialog.combo_tipo_contrato_laboral.findData("OBRA_LABOR")
+    dialog.combo_tipo_contrato_laboral.setCurrentIndex(indice_obra)
+    assert dialog.campo_fecha_fin_pactada.isVisible() is True
 
 
 def test_laboral_concepto_vacio_lanza_error_de_validacion(qtbot, monkeypatch):
