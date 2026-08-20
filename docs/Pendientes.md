@@ -258,7 +258,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--pendiente)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--completado-4-hallazgos-corregidos-1-pregunta-abierta)
-- [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 📋 Pendiente](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--pendiente)
+- [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 🟡 En proceso](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--en-proceso)
 - [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 📋 Pendiente](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--pendiente)
 - [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 📋 Pendiente](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--pendiente)
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--pendiente)
@@ -5932,7 +5932,9 @@ código, no solo por lectura. Suite completa tras los 4 fixes de código: 1147/1
 
 ---
 
-## Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 📋 Pendiente
+## Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 🟡 En proceso
+
+**Rama:** `sprint-77-alertas-en-exportaciones` (rutina autónoma, 2026-08-20).
 
 **Prioridad sugerida:** Media — no es un error de cálculo (ningún saldo queda mal), pero es la pérdida de una
 advertencia legal explícita que el despacho pidió (Sprint 43: "Doble Actualización Prohibida", "Techo de
