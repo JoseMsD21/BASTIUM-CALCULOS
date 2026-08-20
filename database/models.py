@@ -85,11 +85,12 @@ class TipoRecurrencia(enum.Enum):
     app.services.recurrencia_fechas_fijas.generar_cuotas_fechas_fijas.
 
     El cumpleanos del beneficiario se ingresa como una entrada MM-DD manual
-    mas dentro de esa lista -- NO se deriva automaticamente de una fecha de
-    nacimiento de beneficiario, porque ese dato (entidad Beneficiario/fecha de
-    nacimiento) no existe todavia en el modelo (Sprint 74, bloqueado por una
-    pregunta legal pendiente de respuesta del despacho). Revisar esta
-    limitacion cuando el Sprint 74 aterrice."""
+    mas dentro de esa lista -- NO se deriva automaticamente de
+    `Beneficiario.fecha_nacimiento` (esa entidad SI existe desde el Sprint 74,
+    ver clase Beneficiario mas abajo); esa derivacion automatica especifica
+    (agregar la fecha MM-DD del cumpleanos solo con marcar el beneficiario)
+    quedo fuera del alcance de ese sprint y sigue pendiente si el usuario la
+    pide."""
 
     MENSUAL = "MENSUAL"
     FECHAS_ANUALES_FIJAS = "FECHAS_ANUALES_FIJAS"
