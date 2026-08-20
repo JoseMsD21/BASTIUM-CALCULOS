@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from docx import Document
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -30,6 +31,11 @@ def _resultado_de_prueba() -> LiquidationResult:
     return LiquidationResult(items=[item])
 
 
+def _resultado_de_prueba_con_alertas(alertas: list[str]) -> LiquidationResult:
+    resultado = _resultado_de_prueba()
+    return LiquidationResult(items=resultado.items, alertas=alertas)
+
+
 def test_muestra_una_fila_por_item_de_liquidacion(qtbot):
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
@@ -57,6 +63,11 @@ def _resultado_con_obligacion_prescrita() -> LiquidationResult:
         prescrita=True,
     )
     return LiquidationResult(items=[item])
+
+
+def _resultado_de_prueba_con_alertas(alertas: list[str]) -> LiquidationResult:
+    resultado = _resultado_de_prueba()
+    return LiquidationResult(items=resultado.items, alertas=alertas)
 
 
 def test_marca_visualmente_las_filas_prescritas(qtbot):
@@ -137,6 +148,11 @@ def _resultado_con_sobrepago() -> LiquidationResult:
         saldo_a_favor=Decimal("3000000.00"),
     )
     return LiquidationResult(items=[item])
+
+
+def _resultado_de_prueba_con_alertas(alertas: list[str]) -> LiquidationResult:
+    resultado = _resultado_de_prueba()
+    return LiquidationResult(items=resultado.items, alertas=alertas)
 
 
 def test_muestra_saldo_a_favor_cuando_hay_sobrepago(qtbot):
@@ -337,6 +353,64 @@ def test_exportar_word_crea_archivo_en_la_ruta_elegida(qtbot, monkeypatch, tmp_p
 
     assert ruta_destino.exists()
     assert ruta_destino.stat().st_size > 0
+
+
+def test_exportar_pdf_incluye_las_alertas_de_la_liquidacion(qtbot, monkeypatch, tmp_path):
+    # Sprint 77: LiquidationResult.alertas (Sprint 43) ya se mostraba en pantalla
+    # (ver test_muestra_alertas_no_bloqueantes_cuando_estan_presentes arriba)
+    # pero no llegaba al PDF exportado -- un abogado que exportara sin volver a
+    # abrir la app nunca veia la advertencia.
+    from reportlab.platypus import Paragraph
+
+    parrafo_real = Paragraph
+    parrafos_capturados = []
+
+    def _parrafo_capturado(texto, *args, **kwargs):
+        parrafos_capturados.append(texto)
+        return parrafo_real(texto, *args, **kwargs)
+
+    monkeypatch.setattr("app.reports.pdf.Paragraph", _parrafo_capturado)
+
+    expediente_id = _expediente_para_exportar(monkeypatch)
+    ruta_destino = tmp_path / "salida_alertas.pdf"
+    monkeypatch.setattr(
+        "app.views.liquidaciones.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(ruta_destino), "PDF (*.pdf)"),
+    )
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(
+        _resultado_de_prueba_con_alertas(["Techo de usura alcanzado"]), expediente_id
+    )
+
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_pdf()
+
+    assert ruta_destino.exists()
+    assert any("Techo de usura alcanzado" in texto for texto in parrafos_capturados)
+
+
+def test_exportar_word_incluye_las_alertas_de_la_liquidacion(qtbot, monkeypatch, tmp_path):
+    expediente_id = _expediente_para_exportar(monkeypatch)
+    ruta_destino = tmp_path / "salida_alertas.docx"
+    monkeypatch.setattr(
+        "app.views.liquidaciones.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(ruta_destino), "Word (*.docx)"),
+    )
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(
+        _resultado_de_prueba_con_alertas(["Techo de usura alcanzado"]), expediente_id
+    )
+
+    with qtbot.waitSignal(view.exportacion_finalizada, timeout=5000):
+        view._exportar_word()
+
+    documento = Document(str(ruta_destino))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Techo de usura alcanzado" in texto_completo
 
 
 def test_exportar_pdf_cancelado_no_crea_archivo(qtbot, monkeypatch, tmp_path):

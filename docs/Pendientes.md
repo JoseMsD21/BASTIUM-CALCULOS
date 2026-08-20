@@ -258,7 +258,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--pendiente)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--completado-4-hallazgos-corregidos-1-pregunta-abierta)
-- [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 🟡 En proceso](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--en-proceso)
+- [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
 - [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 📋 Pendiente](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--pendiente)
 - [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 📋 Pendiente](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--pendiente)
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--pendiente)
@@ -5932,9 +5932,7 @@ código, no solo por lectura. Suite completa tras los 4 fixes de código: 1147/1
 
 ---
 
-## Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word 🟡 En proceso
-
-**Rama:** `sprint-77-alertas-en-exportaciones` (rutina autónoma, 2026-08-20).
+## Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado
 
 **Prioridad sugerida:** Media — no es un error de cálculo (ningún saldo queda mal), pero es la pérdida de una
 advertencia legal explícita que el despacho pidió (Sprint 43: "Doble Actualización Prohibida", "Techo de
@@ -5958,6 +5956,24 @@ en esos mismos reportes (Sprint 42).
 - Un PDF/Word exportado desde una liquidación con `alertas` no vacío muestra el texto de cada alerta.
 - Un PDF/Word sin alertas no muestra la sección (no agregar ruido visual cuando no aplica).
 - Suite completa en verde.
+
+**✅ Cerrado (rutina autónoma, 2026-08-20):** `JudicialPDFGenerator.generate()` y
+`WordReportGenerator.generate()` (`app/reports/pdf.py`/`word.py`) aceptan ahora un parámetro opcional
+`alertas: list[str] | None`, mismo patrón aditivo que `renta_liquida`/`diferencia_recalculo`/`cuerpo_legal`:
+agrega una sección "Advertencias" (⚠, color `#ED6C02`, el mismo naranja que ya usa
+`ResultadoLiquidacionView` en pantalla) justo después del `cuerpo_legal` y antes del resumen ejecutivo, solo
+cuando la lista no está vacía. Conectado en los 2 caminos reales que generan PDF/Word:
+`app/views/liquidaciones.py` (exportación desde la pantalla de resultado, pasa `resultado.alertas`
+directamente) y `app/engine/reports/memoriales.py` (memoriales de recálculo histórico del Sprint 47, pasa
+`resultado_nuevo.alertas` de la liquidación reconstruida). TDD: tests nuevos en `tests/reports/test_pdf.py`
+y `tests/reports/test_word.py` (bloque presente/ausente/lista vacía), `tests/reports/test_memoriales.py`
+(wiring del memorial, con `reconstruir_liquidacion` monkeypatcheado para no acoplarse a qué regla de dominio
+dispara cada alerta) y `tests/views/test_liquidaciones.py` (exportación real PDF/Word desde la vista, vía
+`ResultadoLiquidacionView._exportar_pdf/_exportar_word`). Suite completa en verde (1324 tests, más
+`tests/views/test_pago_por_rango.py` que ya colgaba en este entorno de ejecución antes de este sprint —
+confirmado reproduciéndolo también en `main`, sin relación con este cambio). `ruff check .` deja los mismos
+3 errores preexistentes de antes de este sprint (`app/reports/pdf.py`/`word.py` línea larga ya existente,
+`app/services/motor_universal.py`), ninguno introducido por este cambio.
 
 ---
 

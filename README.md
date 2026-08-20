@@ -129,9 +129,7 @@ costas judiciales se ingresan como porcentaje manual (el que fijó el juez); el 
 ya existe en el motor pero aún no tiene campos propios en pantalla — ver [Guía de Usuario](docs/GUIA_USUARIO.md#8-funciones-pendientes-o-en-desarrollo).
 El recálculo de liquidaciones históricas anteriores a las correcciones del Sprint 30 ya está construido
 (Sprint 47: identificación/marcado, recálculo no destructivo, memoriales, log de diferencias), a la espera
-de correrse contra la base de datos real de producción con supervisión manual. Las advertencias legales no
-bloqueantes que puede generar una liquidación (ej. "Doble Actualización Prohibida") todavía no llegan a los
-PDF/Word exportados, solo a la pantalla — ver Sprint 77 en Pendientes.md. Las
+de correrse contra la base de datos real de producción con supervisión manual. Las
 series históricas de SMLMV, IPC, IBC/Tasa de Usura y UVT (1984-2026, 1967-2025, 1997-2026 y 2006-2026
 respectivamente) ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en
 Comercial y en la fase 2 de la indemnización moratoria laboral, IPC ya está conectado a la indexación de
