@@ -18,8 +18,11 @@ class IPCIndexation:
         if initial_index <= Decimal("0.00"):
             raise ValueError("El índice inicial del IPC no puede ser cero o negativo.")
             
-        # Si hay deflación (índice final es menor), la jurisprudencia dicta que 
+        # Si hay deflación (índice final es menor), la jurisprudencia dicta que
         # no se castiga el capital histórico del acreedor. El incremento es cero.
+        # (Caso de uso distinto a deflactar(), mas abajo: ese metodo SI reduce
+        # el capital a proposito, para retrotraer una cifra a una fecha
+        # anterior -- ver su docstring, Sprint 101 en docs/Pendientes.md.)
         if final_index <= initial_index:
             return Decimal("0.00")
             
@@ -32,5 +35,31 @@ class IPCIndexation:
         
         # Extraemos únicamente el delta (la indexación)
         indexation_amount = actualized_value - capital
-        
+
         return Rounding.money(indexation_amount)
+
+    @staticmethod
+    def deflactar(capital: Decimal, initial_index: Decimal, final_index: Decimal) -> Decimal:
+        """
+        Desindexa (deflacta) una cantidad única a valor de una fecha anterior:
+        VA = VH * IPC_Inicial / IPC_Final (X7.INDEXACION-CANTIDAD-UNICA.md,
+        Sprint 101 en docs/Pendientes.md). Es el inverso matematico de la
+        razon que usa calculate() (IPC_Final/IPC_Inicial), pero a diferencia
+        de calculate() -- que devuelve solo el delta/incremento y nunca un
+        valor negativo (por el guard de deflacion del art. 21 Ley 100) --
+        deflactar() devuelve el VALOR ACTUALIZADO COMPLETO (VA), sin ningun
+        guard: es una calculadora distinta, para un caso de uso distinto
+        (retrotraer intencionalmente una cifra a una fecha anterior, no
+        protegerse de una deflacion real durante la mora). No conectada
+        todavia a ningun flujo de captura/liquidacion real.
+        """
+        if capital <= Decimal("0.00"):
+            return Decimal("0.00")
+
+        if final_index <= Decimal("0.00"):
+            raise ValueError("El índice final del IPC no puede ser cero o negativo.")
+
+        ratio = initial_index / final_index
+        actualized_value = capital * ratio
+
+        return Rounding.money(actualized_value)
