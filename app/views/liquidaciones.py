@@ -67,7 +67,12 @@ def _generar_pdf_en_hilo_de_fondo(
         _construir_datos_reporte_en_hilo_de_fondo(resultado, expediente_id)
     )
     JudicialPDFGenerator(ruta).generate(
-        title, summary, table_data, encabezado, renta_liquida=renta_liquida
+        title,
+        summary,
+        table_data,
+        encabezado,
+        renta_liquida=renta_liquida,
+        alertas=resultado.alertas,
     )
     return ruta
 
@@ -80,7 +85,12 @@ def _generar_word_en_hilo_de_fondo(
         _construir_datos_reporte_en_hilo_de_fondo(resultado, expediente_id)
     )
     WordReportGenerator(ruta).generate(
-        title, summary, table_data, encabezado, renta_liquida=renta_liquida
+        title,
+        summary,
+        table_data,
+        encabezado,
+        renta_liquida=renta_liquida,
+        alertas=resultado.alertas,
     )
     return ruta
 

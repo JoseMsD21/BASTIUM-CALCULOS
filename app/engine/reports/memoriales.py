@@ -142,6 +142,7 @@ def _construir_datos_memorial(
         "renta_liquida": renta_liquida,
         "diferencia_recalculo": diferencia_recalculo,
         "cuerpo_legal": cuerpo_legal,
+        "alertas": resultado_nuevo.alertas,
     }
 
 
@@ -204,5 +205,6 @@ def generar_memorial(
         renta_liquida=datos["renta_liquida"],
         diferencia_recalculo=datos["diferencia_recalculo"],
         cuerpo_legal=datos["cuerpo_legal"],
+        alertas=datos["alertas"],
     )
     return ruta_salida

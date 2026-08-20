@@ -289,6 +289,52 @@ def test_generate_sin_diferencia_recalculo_no_agrega_el_bloque(tmp_path):
     assert len(documento.tables) == 2
 
 
+def test_generate_incluye_bloque_de_alertas_cuando_se_provee(tmp_path):
+    # Sprint 77: LiquidationResult.alertas (Sprint 43) no llegaba al PDF/Word --
+    # un abogado que exportara sin volver a abrir la app nunca veia advertencias
+    # como "Doble Actualización Prohibida" o "Techo de usura alcanzado".
+    ruta = tmp_path / "liquidacion_alertas.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA LABORAL",
+        _summary(),
+        _table_data(),
+        alertas=["Doble Actualización Prohibida", "Techo de usura alcanzado"],
+    )
+
+    documento = Document(str(ruta))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Doble Actualización Prohibida" in texto_completo
+    assert "Techo de usura alcanzado" in texto_completo
+
+
+def test_generate_sin_alertas_no_agrega_el_bloque(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_alertas.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    documento = Document(str(ruta))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Advertencias" not in texto_completo
+
+
+def test_generate_con_alertas_vacia_no_agrega_el_bloque(tmp_path):
+    ruta = tmp_path / "liquidacion_alertas_vacias.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data(), alertas=[]
+    )
+
+    documento = Document(str(ruta))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Advertencias" not in texto_completo
+
+
 def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):
     # Sprint 47: parrafo de fundamento legal para los memoriales de
     # recalculo (Art. 53 C.P. / Art. 151 CPACA), mismo patron aditivo.

@@ -1241,9 +1241,10 @@ jurídico distinto, así que cada una tiene su propia regla — no es la misma c
 **Dónde se ven las advertencias no bloqueantes:** un aviso emergente de 6 segundos al terminar de liquidar,
 y un recuadro de advertencia (⚠) en la parte superior de la pantalla de resultado, que se mantiene visible
 mientras esa liquidación esté en pantalla — incluyendo al reabrir una liquidación guardada desde el
-historial de un expediente. **Limitación conocida:** las exportaciones a PDF/Word todavía no incluyen estas
-advertencias (ver `Pendientes.md`, Sprint 77) — si necesitas dejar constancia escrita de una advertencia,
-revisa la pantalla de resultado antes de exportar.
+historial de un expediente. **Desde el Sprint 77**, las exportaciones a PDF y Word también incluyen una
+sección "Advertencias" con cada mensaje (mismo criterio aditivo que la Depuración de Renta Líquida o el
+Log de Diferencias de un memorial: solo aparece cuando la liquidación efectivamente generó alguna) — no
+hace falta volver a abrir la app para dejar constancia escrita de una advertencia.
 
 ### 7.8. TRM y obligaciones en moneda extranjera
 

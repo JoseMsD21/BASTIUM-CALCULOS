@@ -27,6 +27,7 @@ class WordReportGenerator:
         self.output_path = output_path
         self.c_burgundy = RGBColor(0xAE, 0x1C, 0x21)
         self.c_prescrita = RGBColor(0xC0, 0x00, 0x00)
+        self.c_advertencia = RGBColor(0xED, 0x6C, 0x02)
 
     def _anchos_columnas_cronologia(self, encabezados: list[str], ancho_disponible: Cm) -> list[Cm]:
         pesos = [_PESO_COLUMNA_CRONOLOGIA.get(encabezado, 0.85) for encabezado in encabezados]
@@ -50,6 +51,7 @@ class WordReportGenerator:
         renta_liquida: dict | None = None,
         diferencia_recalculo: dict | None = None,
         cuerpo_legal: str | None = None,
+        alertas: list[str] | None = None,
     ) -> None:
         documento = Document()
 
@@ -96,6 +98,23 @@ class WordReportGenerator:
         # aditivo que diferencia_recalculo/renta_liquida.
         if cuerpo_legal:
             documento.add_paragraph(cuerpo_legal)
+            documento.add_paragraph()
+
+        # Sprint 77: LiquidationResult.alertas (Sprint 43) -- advertencias no
+        # bloqueantes ("Doble Actualización Prohibida", "Techo de usura
+        # alcanzado") que ya se muestran en pantalla (banner en
+        # ResultadoLiquidacionView) pero no llegaban al PDF/Word exportado.
+        # Mismo patron aditivo que cuerpo_legal/renta_liquida: solo aparece
+        # cuando el llamador provee una lista no vacia.
+        if alertas:
+            parrafo_advertencias = documento.add_paragraph()
+            run_advertencias = parrafo_advertencias.add_run("Advertencias")
+            run_advertencias.bold = True
+            run_advertencias.font.color.rgb = self.c_advertencia
+            for alerta in alertas:
+                parrafo_alerta = documento.add_paragraph()
+                run_alerta = parrafo_alerta.add_run(f"⚠ {alerta}")
+                run_alerta.font.color.rgb = self.c_advertencia
             documento.add_paragraph()
 
         filas_resumen = [

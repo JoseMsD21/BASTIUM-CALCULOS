@@ -1,8 +1,20 @@
 from reportlab.lib import colors
-from reportlab.platypus import Table, TableStyle
+from reportlab.platypus import Paragraph, Table, TableStyle
 
 from app.reports.header import build_encabezado
 from app.reports.pdf import JudicialPDFGenerator
+
+
+def _capturar_parrafos(monkeypatch):
+    parrafo_real = Paragraph
+    llamadas = []
+
+    def _parrafo_capturado(texto, *args, **kwargs):
+        llamadas.append(texto)
+        return parrafo_real(texto, *args, **kwargs)
+
+    monkeypatch.setattr("app.reports.pdf.Paragraph", _parrafo_capturado)
+    return llamadas
 
 
 def _capturar_tablas(monkeypatch):
@@ -279,6 +291,52 @@ def test_generate_sin_diferencia_recalculo_no_agrega_el_bloque(tmp_path, monkeyp
 
     # Solo 2 tablas: resumen ejecutivo y cronologia.
     assert len(llamadas) == 2
+
+
+def test_generate_incluye_bloque_de_alertas_cuando_se_provee(tmp_path, monkeypatch):
+    # Sprint 77: LiquidationResult.alertas (Sprint 43) no llegaba al PDF/Word --
+    # un abogado que exportara sin volver a abrir la app nunca veia advertencias
+    # como "Doble Actualización Prohibida" o "Techo de usura alcanzado".
+    parrafos = _capturar_parrafos(monkeypatch)
+    ruta = tmp_path / "liquidacion_alertas.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA LABORAL",
+        _summary(),
+        _table_data(),
+        alertas=["Doble Actualización Prohibida", "Techo de usura alcanzado"],
+    )
+
+    assert ruta.exists()
+    assert any("Doble Actualización Prohibida" in texto for texto in parrafos)
+    assert any("Techo de usura alcanzado" in texto for texto in parrafos)
+
+
+def test_generate_sin_alertas_no_agrega_el_bloque(tmp_path, monkeypatch):
+    parrafos = _capturar_parrafos(monkeypatch)
+    ruta = tmp_path / "liquidacion_sin_alertas.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    assert ruta.exists()
+    assert not any("Advertencias" in texto for texto in parrafos)
+
+
+def test_generate_con_alertas_vacia_no_agrega_el_bloque(tmp_path, monkeypatch):
+    parrafos = _capturar_parrafos(monkeypatch)
+    ruta = tmp_path / "liquidacion_alertas_vacias.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data(), alertas=[]
+    )
+
+    assert ruta.exists()
+    assert not any("Advertencias" in texto for texto in parrafos)
 
 
 def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):

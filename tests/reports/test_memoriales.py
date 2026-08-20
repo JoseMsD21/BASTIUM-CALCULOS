@@ -224,6 +224,44 @@ def test_generar_memorial_con_tipo_explicito_ignora_estado_procesal(session, tmp
     assert ruta.exists()
 
 
+def test_generar_memorial_incluye_alertas_de_la_liquidacion_reconstruida(
+    session, tmp_path, monkeypatch
+):
+    # Sprint 77: LiquidationResult.alertas (Sprint 43) no llegaba al PDF/Word --
+    # generar_memorial debe pasarlas al reporte igual que ya pasa
+    # renta_liquida/diferencia_recalculo/cuerpo_legal. Se monkeypatchea
+    # reconstruir_liquidacion (en vez de disparar una alerta real de dominio,
+    # p.ej. "Techo de usura alcanzado") para probar solo el wiring de
+    # _construir_datos_memorial -> generate(), sin acoplarse a la logica que
+    # decide cuando el motor emite cada alerta (ya cubierta en
+    # tests/services/test_area_strategy.py).
+    expediente, log_viejo, log_nuevo, diferencia = _preparar_recalculo(
+        session, EstadoProcesal.EN_TRAMITE, radicado="2026-00907"
+    )
+    resultado_con_alertas = LiquidationResult(
+        items=[], alertas=["Techo de usura alcanzado"]
+    )
+    monkeypatch.setattr(
+        "app.engine.reports.memoriales.reconstruir_liquidacion",
+        lambda session, audit_log_id: resultado_con_alertas,
+    )
+    ruta = tmp_path / "memorial_alertas.docx"
+
+    generar_memorial(
+        session,
+        expediente,
+        log_viejo,
+        log_nuevo,
+        diferencia,
+        ruta_salida=str(ruta),
+        formato="word",
+    )
+
+    documento = Document(str(ruta))
+    texto_completo = "\n".join(p.text for p in documento.paragraphs)
+    assert "Techo de usura alcanzado" in texto_completo
+
+
 def test_generar_memorial_formato_desconocido_lanza_value_error(session, tmp_path):
     expediente, log_viejo, log_nuevo, diferencia = _preparar_recalculo(
         session, EstadoProcesal.EN_TRAMITE, radicado="2026-00905"
