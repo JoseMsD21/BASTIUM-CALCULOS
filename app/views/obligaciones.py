@@ -52,6 +52,7 @@ from database.models import (
     Expediente,
     Obligacion,
     TipoBeneficiario,
+    TipoContratoLaboral,
     TipoObligacion,
     TipoReajusteAnual,
     TipoRecurrencia,
@@ -510,6 +511,33 @@ class ObligacionFormDialog(QDialog):
             "aporte de riesgos laborales no pagado."
         )
 
+        # tipo_contrato_laboral/despido_injustificado/fecha_fin_pactada (Sprint 92):
+        # captura de datos para la indemnizacion por despido injustificado (Art. 64
+        # CST) -- ver DismissalIndemnityCalculator y LaboralStrategy.liquidar.
+        self.combo_tipo_contrato_laboral = QComboBox()
+        self.combo_tipo_contrato_laboral.addItem("Indefinido", userData="INDEFINIDO")
+        self.combo_tipo_contrato_laboral.addItem("Termino fijo", userData="FIJO")
+        self.combo_tipo_contrato_laboral.addItem("Obra o labor", userData="OBRA_LABOR")
+        self.combo_tipo_contrato_laboral.setToolTip(
+            "Tipo de contrato de trabajo -- determina la formula de indemnizacion por "
+            "despido injustificado (Art. 64 CST) si se marca la casilla de abajo."
+        )
+        self.check_despido_injustificado = QCheckBox(
+            "Despido sin justa causa (calcular indemnizacion Art. 64 CST)"
+        )
+        self.check_despido_injustificado.setToolTip(
+            "Marca si el contrato termino por decision unilateral del empleador sin "
+            "justa causa comprobada -- agrega el evento de indemnizacion por despido "
+            "injustificado, independiente de la indemnizacion moratoria (Art. 65 CST)."
+        )
+        self.campo_fecha_fin_pactada = QDateEdit(QDate.currentDate())
+        self.campo_fecha_fin_pactada.setCalendarPopup(True)
+        self.campo_fecha_fin_pactada.setToolTip(
+            "Solo para contrato a termino fijo/obra-labor: fecha en que se pacto que "
+            "terminaria el contrato (puede ser posterior a la fecha real de "
+            "terminacion, si hubo despido antes de cumplirse el plazo)."
+        )
+
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
         self.boton_guardar.setProperty("class", "primary")
@@ -643,6 +671,12 @@ class ObligacionFormDialog(QDialog):
         self.layout_datos_basicos.addRow("Fecha de pago real", self.campo_fecha_pago_total)
         self.layout_datos_basicos.addRow(self.check_incluir_seguridad_social)
         self.layout_datos_basicos.addRow("Nivel de riesgo ARL", self.combo_nivel_riesgo_arl)
+        self.layout_datos_basicos.addRow("Tipo de contrato", self.combo_tipo_contrato_laboral)
+        self.layout_datos_basicos.addRow(self.check_despido_injustificado)
+        self.layout_datos_basicos.addRow(
+            "Fecha de terminacion pactada (termino fijo/obra-labor)",
+            self.campo_fecha_fin_pactada,
+        )
 
         self.layout_tasas_intereses.addRow("Tasa moratoria anual (%)", self.campo_tasa_moratoria)
         self.layout_tasas_intereses.addRow("Fecha de vencimiento", self.campo_fecha_vencimiento)
@@ -776,6 +810,8 @@ class ObligacionFormDialog(QDialog):
                 self.combo_tipo: not es_laboral and not es_tributario,
                 self.campo_fecha_fin: es_laboral,
                 self.combo_nivel_riesgo_arl: False,
+                self.combo_tipo_contrato_laboral: False,
+                self.campo_fecha_fin_pactada: False,
                 self.campo_base_sancion: False,
                 self.campo_meses_extemporaneidad: False,
                 self.campo_ingresos_brutos: False,
@@ -826,6 +862,7 @@ class ObligacionFormDialog(QDialog):
         self.check_es_smmlv.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
+        self.check_despido_injustificado.setVisible(es_laboral)
         self.check_sancion_agravada.setVisible(False)
 
         # Secciones enteras que no aplican al area elegida quedan completamente
@@ -861,6 +898,10 @@ class ObligacionFormDialog(QDialog):
         self.check_es_smmlv.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_incluir_seguridad_social.stateChanged.connect(self._actualizar_campos_visibles)
+        self.check_despido_injustificado.stateChanged.connect(self._actualizar_campos_visibles)
+        self.combo_tipo_contrato_laboral.currentIndexChanged.connect(
+            self._actualizar_campos_visibles
+        )
         self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
@@ -1029,6 +1070,15 @@ class ObligacionFormDialog(QDialog):
                     )
                     if indice_nivel >= 0:
                         self.combo_nivel_riesgo_arl.setCurrentIndex(indice_nivel)
+                if obligacion.tipo_contrato_laboral is not None:
+                    indice_contrato = self.combo_tipo_contrato_laboral.findData(
+                        obligacion.tipo_contrato_laboral.value
+                    )
+                    if indice_contrato >= 0:
+                        self.combo_tipo_contrato_laboral.setCurrentIndex(indice_contrato)
+                self.check_despido_injustificado.setChecked(obligacion.despido_injustificado)
+                if obligacion.fecha_fin_pactada is not None:
+                    self.campo_fecha_fin_pactada.setDate(_qdate(obligacion.fecha_fin_pactada))
 
             elif self._area == "TRIBUTARIO":
                 if obligacion.base_sancion_tributaria is not None:
@@ -1120,6 +1170,9 @@ class ObligacionFormDialog(QDialog):
             self.campo_fecha_pago_total,
             self.check_incluir_seguridad_social,
             self.combo_nivel_riesgo_arl,
+            self.combo_tipo_contrato_laboral,
+            self.check_despido_injustificado,
+            self.campo_fecha_fin_pactada,
             self.campo_tasa,
             self.campo_tasa_moratoria,
             self.campo_fecha_vencimiento,
@@ -1270,6 +1323,14 @@ class ObligacionFormDialog(QDialog):
                     self.campo_fechas_anuales_fijas: False,
                     self.campo_fecha_pago_total: self.check_pagada.isChecked(),
                     self.combo_nivel_riesgo_arl: self.check_incluir_seguridad_social.isChecked(),
+                    self.combo_tipo_contrato_laboral: True,
+                    # fecha_fin_pactada (Sprint 92) solo aplica a termino fijo/obra-labor
+                    # -- se pide siempre que ese tipo de contrato este seleccionado (no
+                    # solo si ya se marco despido injustificado), para que el dato quede
+                    # capturado desde el principio del contrato, no solo al momento del
+                    # despido.
+                    self.campo_fecha_fin_pactada: self.combo_tipo_contrato_laboral.currentData()
+                    in ("FIJO", "OBRA_LABOR"),
                 },
             )
             self.check_anatocismo_demanda_judicial.setVisible(False)
@@ -1728,6 +1789,19 @@ class ObligacionFormDialog(QDialog):
             self.combo_nivel_riesgo_arl.currentData() if incluir_seguridad_social else None
         )
 
+        # tipo_contrato_laboral/despido_injustificado/fecha_fin_pactada (Sprint 92):
+        # indemnizacion por despido injustificado (Art. 64 CST) -- ver
+        # DismissalIndemnityCalculator. fecha_fin_pactada solo se guarda para
+        # termino fijo/obra-labor (None para INDEFINIDO, donde no aplica).
+        tipo_contrato_laboral = TipoContratoLaboral(self.combo_tipo_contrato_laboral.currentData())
+        despido_injustificado = self.check_despido_injustificado.isChecked()
+        fecha_fin_pactada = None
+        if tipo_contrato_laboral in (TipoContratoLaboral.FIJO, TipoContratoLaboral.OBRA_LABOR):
+            qdate_fin_pactada = self.campo_fecha_fin_pactada.date()
+            fecha_fin_pactada = date(
+                qdate_fin_pactada.year(), qdate_fin_pactada.month(), qdate_fin_pactada.day()
+            )
+
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
             session,
@@ -1747,6 +1821,9 @@ class ObligacionFormDialog(QDialog):
             incluir_seguridad_social=incluir_seguridad_social,
             nivel_riesgo_arl=nivel_riesgo_arl,
             es_smmlv=es_smmlv,
+            tipo_contrato_laboral=tipo_contrato_laboral,
+            despido_injustificado=despido_injustificado,
+            fecha_fin_pactada=fecha_fin_pactada,
             tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
             # aplica_indexacion_ipc (Sprint 43): antes de este sprint, _guardar_laboral
             # nunca lo pasaba (el checkbox estaba oculto para LABORAL) -- ahora es
