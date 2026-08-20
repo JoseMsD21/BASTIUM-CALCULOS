@@ -32,6 +32,7 @@ class JudicialPDFGenerator:
         self.c_burgundy = colors.HexColor("#ae1c21")
         self.c_black = colors.HexColor("#000000")
         self.c_cream = colors.HexColor("#f5f1e9")
+        self.c_advertencia = colors.HexColor("#ED6C02")
 
         self.styles.add(
             ParagraphStyle(
@@ -48,6 +49,14 @@ class JudicialPDFGenerator:
                 fontSize=8,
                 leading=9.5,
                 textColor=self.c_black,
+            )
+        )
+        self.styles.add(
+            ParagraphStyle(
+                name="Advertencia",
+                fontSize=10,
+                textColor=self.c_advertencia,
+                spaceAfter=4,
             )
         )
 
@@ -145,6 +154,7 @@ class JudicialPDFGenerator:
         renta_liquida: dict | None = None,
         diferencia_recalculo: dict | None = None,
         cuerpo_legal: str | None = None,
+        alertas: list[str] | None = None,
     ):
         """Genera el dictamen a partir de la salida del motor LiquidationCore
         (ReportSummaryBuilder.build_summary + ReportTableBuilder.build_matrix)."""
@@ -184,6 +194,20 @@ class JudicialPDFGenerator:
         # efecto en ningun reporte de liquidacion normal.
         if cuerpo_legal:
             elementos.append(Paragraph(cuerpo_legal, self.styles["Normal"]))
+            elementos.append(Spacer(1, 12))
+
+        # Sprint 77: LiquidationResult.alertas (Sprint 43) -- advertencias no
+        # bloqueantes ("Doble Actualización Prohibida", "Techo de usura
+        # alcanzado") que ya se muestran en pantalla (banner en
+        # ResultadoLiquidacionView) pero no llegaban al PDF/Word exportado.
+        # Mismo patron aditivo que cuerpo_legal/renta_liquida: solo aparece
+        # cuando el llamador provee una lista no vacia.
+        if alertas:
+            elementos.append(
+                Paragraph("<b>Advertencias</b>", self.styles["BastiumTitle"])
+            )
+            for alerta in alertas:
+                elementos.append(Paragraph(f"⚠ {alerta}", self.styles["Advertencia"]))
             elementos.append(Spacer(1, 12))
 
         # Tabla de resumen ejecutivo
