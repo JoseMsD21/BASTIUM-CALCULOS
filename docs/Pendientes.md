@@ -255,7 +255,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
 - [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
-- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--pendiente)
+- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟡 En proceso](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--en-proceso)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--completado-4-hallazgos-corregidos-1-pregunta-abierta)
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
@@ -5744,7 +5744,9 @@ tests en el momento del cierre).
 
 ---
 
-## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente
+## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟡 En proceso
+
+**Rama de trabajo:** `sprint-74-tipos-beneficiario-alimentos` (rutina autónoma, 2026-08-20).
 
 **Prioridad sugerida:** Alta — es información base que condiciona hasta cuándo es exigible cualquier
 obligación alimentaria; sin esto, el sistema no puede calcular automáticamente la fecha de terminación de
