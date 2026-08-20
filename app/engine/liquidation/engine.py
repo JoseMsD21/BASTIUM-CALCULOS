@@ -77,6 +77,12 @@ class LiquidationCore:
             "COSTAS_PROCESALES",
             "VACACIONES",
             "IMPUESTO_A_CARGO",
+            # SALARIO_DEJADO_DE_PERCIBIR (Sprint 93): el salario mismo (no solo
+            # las 4 prestaciones de arriba) de un bloque anual de la
+            # reconstruccion de salarios/prestaciones dejados de percibir --
+            # ver app/services/salarios_dejados_de_percibir.py y
+            # LaboralStrategy._liquidar_salarios_dejados_de_percibir.
+            "SALARIO_DEJADO_DE_PERCIBIR",
             # Preparacion para el wiring de seguridad social/incapacidades en LaboralStrategy
             # (Tasks 8/9 del Sprint 16) -- todavia sin productor propio en este task.
             # SUSPENSION_INFORMATIVA/INCAPACIDAD_INFORMATIVA siempre llevan amount=0.00,
