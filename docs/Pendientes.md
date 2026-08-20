@@ -264,7 +264,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--pendiente)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera 📋 Pendiente](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--pendiente)
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 📋 Pendiente](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--pendiente)
-- [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) 📋 Pendiente](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--pendiente)
+- [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
 - [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 🟡 En proceso](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--en-proceso-rama-sprint-84-doc-interes-moratorio-tributario)
 - [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
 - [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--bloqueado--pendiente-de-confirmación)
@@ -284,6 +284,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 📋 Pendiente](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--pendiente)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--pendiente)
+- [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
 
 ---
 
@@ -6111,7 +6112,7 @@ esa base (sumadas al final, sin generar interés adicional)?
 
 ---
 
-## Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) 📋 Pendiente
+## Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado (parte de implementación; decisión de comportamiento sigue condicionada a la respuesta del despacho)
 
 **Prioridad sugerida:** Alta — afecta directamente la pregunta abierta del Sprint 76 (que hoy solo contempla 2 opciones) y toca el motor central de conversión de tasas que usan las 6 áreas.
 **Depende de:** Sprint 76 (pregunta abierta existente — ampliada con este hallazgo).
@@ -6131,6 +6132,17 @@ esa base (sumadas al final, sin generar interés adicional)?
 - `annual_to_monthly` implementada y probada contra al menos 3 valores de `i1`/`i7` (ej. tasa mensual "0,49%" para EA=6%).
 - El hallazgo queda documentado en el código (docstring) y enlazado a la pregunta ampliada del Sprint 76 — sin cambiar el comportamiento real de ninguna área todavía (eso es un sprint de implementación posterior, condicionado a la respuesta del despacho).
 - Suite completa en verde.
+
+**Cierre (2026-08-20, rutina autónoma):** Completado el alcance no condicionado a la respuesta del
+despacho. `EffectiveRateConverter.annual_to_monthly` agregada en `app/engine/interest/rate_conversion.py`
+con 3 tests nuevos (`tests/engine/test_rate_conversion.py`): valor exacto contra `i7` (EA=6% → tasa mensual
+0,49%), caso cero, y verificación de round-trip (`(1+mensual)^12 == EA` para 6%/20%/28,79%). Docstring de
+`EffectiveRateConverter` documenta las 3 convenciones y enlaza al Sprint 76/`Preguntas-Para-Abogado-Abiertas.md`.
+La pregunta ampliada del Sprint 76 (Opción C) ya estaba documentada en `Preguntas-Para-Abogado-Abiertas.md`
+desde el hallazgo original de este sprint. **No se conecta** `annual_to_monthly` a ningún área/cálculo
+real — eso sigue condicionado a la respuesta del despacho sobre cuál de las 3 convenciones (A/B/C) aplica.
+Suite completa: 1331 passed. De paso, esta verificación encontró y corrigió un bug de test no relacionado
+que colgaba la suite indefinidamente — ver Sprint 103.
 
 ---
 
@@ -6790,6 +6802,38 @@ Esto es, en esencia, la misma secuencia que el motor genérico ya produce cuando
 - Test de integración en Civil/Familia: una obligación con Suma Única activa y 2-3 abonos en fechas distintas, verificado contra un cálculo manual paso a paso siguiendo exactamente la mecánica de X9.
 - Si el test revela una discrepancia con el motor actual, documentar el gap y decidir si amerita un sprint de corrección aparte.
 - Suite completa en verde.
+
+---
+
+## Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado
+
+**Prioridad sugerida:** Alta — no es un bug de dominio, pero bloquea correr la suite completa (`pytest` sin
+filtros se queda colgado para siempre, nunca termina ni falla).
+
+**Depende de:** Nada.
+
+**Contexto (hallado por la rutina autónoma al validar Sprints 83/84, 2026-08-20):** `PagoPorRangoDialog.confirmar()`
+(`app/views/pago_por_rango.py:150`) muestra un `QMessageBox.warning(...)` modal cuando hay remanente sin
+cubrir, antes de bloquear la confirmación. `tests/views/test_pago_por_rango.py::test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos`
+llama a `dialogo.confirmar()` en ese mismo escenario (remanente > 0) sin mockear `QMessageBox.warning`
+primero — a diferencia de **todos** los demás tests del proyecto que disparan un `QMessageBox` (ver el
+patrón ya establecido en `tests/views/test_abonos.py`, `tests/views/test_expediente_detalle.py`,
+`tests/views/test_configuracion.py`: siempre `monkeypatch.setattr(".../QMessageBox.warning", lambda *a, **k: None)`
+antes de la llamada). Sin ese mock, `.exec()` del `QMessageBox` bloquea el hilo esperando un click que nunca
+llega — incluso con `QT_QPA_PLATFORM=offscreen`, el bucle de eventos modal sigue activo. Confirmado
+reproduciendo el cuelgue de forma aislada (`pytest tests/views/test_pago_por_rango.py -v`, colgado
+exactamente después de `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos ..`).
+
+**Corrección:** una línea — agregar el mismo `monkeypatch.setattr("app.views.pago_por_rango.QMessageBox.warning", lambda *a, **k: None)`
+antes de `dialogo.confirmar()`, siguiendo el patrón ya usado en el resto del proyecto. Sin cambios de
+comportamiento en `app/`.
+
+**Definición de Hecho:**
+- `pytest tests/views/test_pago_por_rango.py` termina sin colgarse, 4/4 tests en verde.
+- Suite completa en verde (984+ tests, incluyendo `tests/views/`, sin timeout).
+
+**Cierre (2026-08-20):** Completado. `tests/views/` completo: 471 passed en 33s (antes: cuelgue
+indefinido). Suite completa (`tests` menos `tests/views`): 857 passed en 41s. Sin cambios en `app/`.
 
 ---
 
