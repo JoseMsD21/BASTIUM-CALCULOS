@@ -15,7 +15,9 @@ from app.engine.indexation.historical_index import (
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
     _UVT_POR_ANIO,
+    get_ipc_interpolado_for_date,
 )
+from app.engine.indexation.ipc import IPCIndexation
 from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.liquidation.engine import LiquidationCore
@@ -3993,6 +3995,120 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
     assert fb.interest > resultado_legado.final_balance().interest
 
 
+def test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9():
+    """Sprint 102 -- verificacion (no motor nuevo): Pendientes.md documenta el
+    patron de X9.INDEXACION-CON-ABONOS.md como "indexar -> restar abono ->
+    reindexar el residuo hasta el siguiente abono -> restar..." y pide
+    confirmar si el motor ya lo reproduce via Suma Unica
+    (interes_sobre_capital_indexado) + AllocationEngine (Sprint 75). Este test
+    prueba que NO lo reproduce: `_evento_indexacion_ipc`
+    (app/services/area_strategy.py) emite un UNICO evento INDEXATION, fechado
+    en `fecha_causacion`, cuyo monto ya es el delta COMPLETO hasta el
+    `fecha_corte` GLOBAL de la liquidacion -- no hasta la fecha del siguiente
+    abono. AllocationEngine.allocate() (indexacion -> interes -> capital)
+    consume de ese bucket ya inflado, pero nunca vuelve a llamar
+    IPCIndexation.calculate() en la fecha de cada abono. El resultado es un
+    numero de negocio distinto (no un error de redondeo) al que produce
+    reindexar paso a paso como exige X9.
+
+    Escenario sintetico (capital $1.000.000, fecha_origen=2024-07-01,
+    2 abonos, fecha_corte=2025-12-31; tasa=0.0001% para que el interes
+    civil redondee a $0.00 y el caso aisle unicamente el mecanismo de
+    indexacion+abonos):
+
+    Calculo manual paso a paso siguiendo la mecanica de X9 (IPC interpolado
+    real via `get_ipc_interpolado_for_date`, mismos indices que usa el motor):
+      1. Indexar 1.000.000,00 de 2024-07-01 a 2025-01-01 (primer abono):
+         +25.484,40 -> 1.025.484,40. Restar abono ($400.000,00) -> 625.484,40.
+      2. Reindexar 625.484,40 de 2025-01-01 a 2025-06-01 (segundo abono):
+         +13.195,02 -> 638.679,42. Restar abono ($300.000,00) -> 338.679,42.
+      3. Reindexar 338.679,42 de 2025-06-01 a 2025-12-31 (corte): +9.870,03
+         -> saldo final X9 = 348.549,45.
+
+    El motor (via CivilFamiliaStrategy, Suma Unica activa) da un resultado
+    distinto: indexa de una sola vez 1.000.000,00 desde 2024-07-01 hasta
+    2025-12-31 (+77.633,53 -- mismo valor exacto que
+    test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado),
+    disponible integramente desde el primer dia. El primer abono
+    ($400.000,00) consume esos 77.633,53 de indexacion y el resto
+    (322.366,47) contra capital; el segundo abono ($300.000,00) va integro a
+    capital. Saldo final del motor = 1.000.000,00 + 77.633,53 - 400.000,00 -
+    300.000,00 = 377.633,53.
+
+    Brecha real: 377.633,53 (motor) vs. 348.549,45 (X9) = $29.084,08 de
+    diferencia -- no es ruido de redondeo, es un algoritmo distinto. Gap
+    documentado como Sprint 104 en Pendientes.md y pregunta nueva en
+    Preguntas-Para-Abogado-Abiertas.md; no se corrige aqui (rediseñar el
+    mecanismo de indexacion para reindexar en cada abono es un cambio de
+    motor que requiere decision del despacho sobre la mecanica exacta a
+    replicar, no una correccion mecanica)."""
+    fecha_origen = date(2024, 7, 1)
+    fecha_abono_1 = date(2025, 1, 1)
+    fecha_abono_2 = date(2025, 6, 1)
+    fecha_corte = date(2025, 12, 31)
+    capital = Decimal("1000000.00")
+
+    # -- Calculo manual X9: indexar -> restar -> reindexar -> restar -> reindexar --
+    idx_origen = get_ipc_interpolado_for_date(fecha_origen)
+    idx_abono_1 = get_ipc_interpolado_for_date(fecha_abono_1)
+    idx_abono_2 = get_ipc_interpolado_for_date(fecha_abono_2)
+    idx_corte = get_ipc_interpolado_for_date(fecha_corte)
+
+    indexacion_1 = IPCIndexation.calculate(capital, idx_origen, idx_abono_1)
+    assert indexacion_1 == Decimal("25484.40")
+    saldo_tras_abono_1 = capital + indexacion_1 - Decimal("400000.00")
+    assert saldo_tras_abono_1 == Decimal("625484.40")
+
+    indexacion_2 = IPCIndexation.calculate(saldo_tras_abono_1, idx_abono_1, idx_abono_2)
+    assert indexacion_2 == Decimal("13195.02")
+    saldo_tras_abono_2 = saldo_tras_abono_1 + indexacion_2 - Decimal("300000.00")
+    assert saldo_tras_abono_2 == Decimal("338679.42")
+
+    indexacion_3 = IPCIndexation.calculate(saldo_tras_abono_2, idx_abono_2, idx_corte)
+    assert indexacion_3 == Decimal("9870.03")
+    saldo_final_x9 = saldo_tras_abono_2 + indexacion_3
+    assert saldo_final_x9 == Decimal("348549.45")
+
+    # -- Motor real (CivilFamiliaStrategy, Suma Unica + 2 abonos) --
+    obligacion = Obligacion(
+        id=500,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Prueba Sprint 102 (X9)",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=fecha_origen,
+        valor=capital,
+        tasa_efectiva_anual=Decimal("0.0001"),
+        aplica_indexacion_ipc=True,
+        interes_sobre_capital_indexado=True,
+    )
+    abonos = [
+        Abono(
+            id=1,
+            obligacion_id=500,
+            fecha=fecha_abono_1,
+            monto=Decimal("400000.00"),
+            referencia="a1",
+        ),
+        Abono(
+            id=2,
+            obligacion_id=500,
+            fecha=fecha_abono_2,
+            monto=Decimal("300000.00"),
+            referencia="a2",
+        ),
+    ]
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=abonos, fecha_corte=fecha_corte
+    )
+
+    saldo_final_motor = resultado.final_balance().total()
+    assert saldo_final_motor == Decimal("377633.53")
+    assert saldo_final_motor != saldo_final_x9
+    assert saldo_final_motor - saldo_final_x9 == Decimal("29084.08")
+
+
 # --- Sprint 42: wiring del motor de prescripcion/caducidad -----------------
 #
 # Centralizado en UniversalLiquidationService.liquidar() (ver
@@ -4132,3 +4248,5 @@ def test_tributario_marca_obligacion_prescrita_sin_cambiar_el_total():
 
     assert any(item.prescrita for item in marcado.items)
     assert marcado.final_balance() == referencia.final_balance()
+
+
