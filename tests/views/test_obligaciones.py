@@ -2805,3 +2805,90 @@ def test_beneficiario_sin_labels_huerfanas(qtbot, monkeypatch):
     dialog.combo_tipo_beneficiario.setCurrentIndex(indice_nino)
 
     assert _filas_con_etiqueta_huerfana(dialog.layout_beneficiario) == []
+
+
+# --- Sprint 93: SALARIOS_DEJADOS_DE_PERCIBIR (reintegro/salarios caidos) ---
+
+
+def test_categoria_salarios_dejados_de_percibir_muestra_reajuste_y_oculta_despido(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    # LIQUIDACION_CONTRATO_LABORAL (default): reajuste anual oculto, despido/
+    # seguridad social visibles -- comportamiento identico a antes de este sprint.
+    indice_finiquito = dialog.combo_categoria.findData("LIQUIDACION_CONTRATO_LABORAL")
+    dialog.combo_categoria.setCurrentIndex(indice_finiquito)
+    assert dialog.combo_tipo_reajuste_anual.isVisible() is False
+    assert dialog.check_despido_injustificado.isVisible() is True
+    assert dialog.check_incluir_seguridad_social.isVisible() is True
+    assert dialog.label_fecha_origen.text() == "Fecha de inicio del contrato"
+    assert dialog.label_fecha_fin.text() == "Fecha de terminacion de contrato"
+
+    indice_salarios = dialog.combo_categoria.findData("SALARIOS_DEJADOS_DE_PERCIBIR")
+    dialog.combo_categoria.setCurrentIndex(indice_salarios)
+    assert dialog.combo_tipo_reajuste_anual.isVisible() is True
+    assert dialog.check_despido_injustificado.isVisible() is False
+    assert dialog.check_incluir_seguridad_social.isVisible() is False
+    assert dialog.combo_tipo_contrato_laboral.isVisible() is False
+    assert dialog.campo_fecha_fin_pactada.isVisible() is False
+    assert dialog.label_fecha_origen.text() == "Fecha de inicio del periodo (DESDE)"
+    assert dialog.label_fecha_fin.text() == "Fecha de fin del periodo (HASTA)"
+
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+
+def test_guarda_salarios_dejados_de_percibir_como_recurrente_con_reajuste_ipc(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    indice_salarios = dialog.combo_categoria.findData("SALARIOS_DEJADOS_DE_PERCIBIR")
+    dialog.combo_categoria.setCurrentIndex(indice_salarios)
+    indice_ipc = dialog.combo_tipo_reajuste_anual.findData("IPC")
+    dialog.combo_tipo_reajuste_anual.setCurrentIndex(indice_ipc)
+
+    dialog.campo_concepto.setText("Salarios dejados de percibir - reintegro")
+    dialog.campo_valor.setText("1200000.00")
+    dialog.campo_fecha_origen.setDate(date(2022, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2024, 12, 31))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo == TipoObligacion.RECURRENTE
+    assert guardada.categoria == "SALARIOS_DEJADOS_DE_PERCIBIR"
+    assert guardada.tipo_reajuste_anual == TipoReajusteAnual.IPC
+    assert guardada.fecha_inicio == date(2022, 1, 1)
+    assert guardada.fecha_fin == date(2024, 12, 31)
+    assert guardada.despido_injustificado is False
+    assert guardada.incluir_seguridad_social is False
+    session.close()
+
+
+def test_liquidacion_contrato_laboral_sigue_guardando_puntual_sin_reajuste(qtbot, monkeypatch):
+    # Regresion: la categoria por defecto (finiquito) no cambia de comportamiento.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo == TipoObligacion.PUNTUAL
+    assert guardada.categoria == "LIQUIDACION_CONTRATO_LABORAL"
+    assert guardada.tipo_reajuste_anual == TipoReajusteAnual.NINGUNO
+    session.close()
