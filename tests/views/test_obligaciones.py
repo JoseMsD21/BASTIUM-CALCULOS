@@ -13,8 +13,10 @@ from app.views.obligaciones import ObligacionFormDialog
 from database.models import (
     AreaDerecho,
     Base,
+    Beneficiario,
     Expediente,
     Obligacion,
+    TipoBeneficiario,
     TipoObligacion,
     TipoReajusteAnual,
     TipoRecurrencia,
@@ -2482,3 +2484,240 @@ def test_civil_familia_recurrente_fechas_fijas_sin_labels_huerfanas(qtbot, monke
     dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
 
     assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+
+# --- Beneficiario (Sprint 74) ------------------------------------------------
+
+
+def test_grupo_beneficiario_visible_solo_para_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.grupo_beneficiario.isVisible() is False
+
+
+def test_grupo_beneficiario_visible_para_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.grupo_beneficiario.isVisible() is True
+    # Desmarcado por defecto -- capturar el beneficiario es opcional, no cambia
+    # el comportamiento de una obligacion que nunca lo necesito.
+    assert dialog.grupo_beneficiario.isChecked() is False
+
+
+def test_check_estudia_visible_solo_para_tipo_nino(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.grupo_beneficiario.setChecked(True)
+
+    indice_nino = dialog.combo_tipo_beneficiario.findData("NINO")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_nino)
+    assert dialog.check_estudia.isVisible() is True
+    assert dialog.check_discapacidad_permanente.isVisible() is False
+
+    indice_conyuge = dialog.combo_tipo_beneficiario.findData("CONYUGE")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_conyuge)
+    assert dialog.check_estudia.isVisible() is False
+    assert dialog.check_discapacidad_permanente.isVisible() is False
+
+
+def test_check_discapacidad_permanente_visible_solo_para_tipo_nino_discapacidad(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.grupo_beneficiario.setChecked(True)
+
+    indice = dialog.combo_tipo_beneficiario.findData("NINO_DISCAPACIDAD")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice)
+    assert dialog.check_discapacidad_permanente.isVisible() is True
+    assert dialog.check_estudia.isVisible() is False
+
+
+def test_guarda_obligacion_civil_familia_con_beneficiario_nino(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Cuota alimentaria")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    dialog.campo_dia_pago.setValue(5)
+
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_nino = dialog.combo_tipo_beneficiario.findData("NINO")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_nino)
+    dialog.campo_nombre_beneficiario.setText("Juan Perez")
+    dialog.campo_fecha_nacimiento_beneficiario.setDate(date(2015, 3, 10))
+    dialog.check_estudia.setChecked(True)
+    dialog.campo_relacion_demandante.setText("Hijo")
+
+    obligacion_id = dialog.guardar()
+
+    session = session_module.get_session()
+    beneficiario = session.query(Beneficiario).filter_by(obligacion_id=obligacion_id).one()
+    assert beneficiario.nombre == "Juan Perez"
+    assert beneficiario.fecha_nacimiento == date(2015, 3, 10)
+    assert beneficiario.tipo == TipoBeneficiario.NINO
+    assert beneficiario.estudia is True
+    assert beneficiario.discapacidad_permanente is None
+    assert beneficiario.relacion_demandante == "Hijo"
+    assert beneficiario.es_el_demandante is False
+    session.close()
+
+
+def test_guarda_obligacion_civil_familia_sin_marcar_beneficiario_no_crea_fila(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("427900.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+
+    obligacion_id = dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.query(Beneficiario).filter_by(obligacion_id=obligacion_id).count() == 0
+    session.close()
+
+
+def test_guardar_beneficiario_marcado_sin_nombre_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.campo_concepto.setText("Gastos medicos")
+    dialog.campo_valor.setText("427900.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_origen.setDate(date(2025, 11, 20))
+    dialog.grupo_beneficiario.setChecked(True)
+    dialog.campo_nombre_beneficiario.setText("")
+
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
+def test_editar_obligacion_precarga_beneficiario_existente(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 5),
+        fecha_inicio=date(2026, 1, 5),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.flush()
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Maria Perez",
+            fecha_nacimiento=date(2010, 6, 1),
+            tipo=TipoBeneficiario.NINO_DISCAPACIDAD,
+            discapacidad_permanente=True,
+            relacion_demandante="Hija",
+        )
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="CIVIL_FAMILIA", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.grupo_beneficiario.isChecked() is True
+    assert dialog.campo_nombre_beneficiario.text() == "Maria Perez"
+    assert dialog.combo_tipo_beneficiario.currentData() == "NINO_DISCAPACIDAD"
+    assert dialog.check_discapacidad_permanente.isChecked() is True
+    assert dialog.campo_relacion_demandante.text() == "Hija"
+    fecha_nacimiento = dialog.campo_fecha_nacimiento_beneficiario.date()
+    assert (fecha_nacimiento.year(), fecha_nacimiento.month(), fecha_nacimiento.day()) == (
+        2010,
+        6,
+        1,
+    )
+
+
+def test_desmarcar_grupo_beneficiario_al_editar_elimina_beneficiario_existente(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 5),
+        fecha_inicio=date(2026, 1, 5),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.flush()
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Maria Perez",
+            fecha_nacimiento=date(2010, 6, 1),
+            tipo=TipoBeneficiario.NINO,
+            estudia=False,
+        )
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="CIVIL_FAMILIA", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog)
+    dialog.grupo_beneficiario.setChecked(False)
+    dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.query(Beneficiario).filter_by(obligacion_id=obligacion_id).count() == 0
+    session.close()
+
+
+def test_beneficiario_sin_labels_huerfanas(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_nino = dialog.combo_tipo_beneficiario.findData("NINO")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_nino)
+
+    assert _filas_con_etiqueta_huerfana(dialog.layout_beneficiario) == []

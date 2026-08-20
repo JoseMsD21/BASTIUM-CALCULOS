@@ -255,7 +255,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
 - [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
-- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--pendiente)
+- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) ✅ Completado](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--completado-implementación-de-vigencia-automática-para-niños-criterio-operacional-de-cónyugepadresotro-sigue-condicionado-a-la-respuesta-del-despacho)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--completado-4-hallazgos-corregidos-1-pregunta-abierta)
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
@@ -5744,7 +5744,9 @@ tests en el momento del cierre).
 
 ---
 
-## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 📋 Pendiente
+## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) ✅ Completado (implementación de vigencia automática para niños; criterio operacional de cónyuge/padres/otro sigue condicionado a la respuesta del despacho)
+
+**Rama de trabajo:** `sprint-74-tipos-beneficiario-alimentos` (rutina autónoma, 2026-08-20).
 
 **Prioridad sugerida:** Alta — es información base que condiciona hasta cuándo es exigible cualquier
 obligación alimentaria; sin esto, el sistema no puede calcular automáticamente la fecha de terminación de
@@ -5795,6 +5797,50 @@ enteramente nueva, no una corrección.
   sigue vigente a los 18/25 años según si estudia.
 - Un caso con beneficiario cónyuge/padres no aplica el límite de edad de los niños.
 - Suite completa en verde.
+
+**Cierre (2026-08-20, rutina autónoma):** Completado el alcance que la Definición de Hecho exigía, sin
+necesitar la respuesta del despacho -- las 2 reglas que la Definición de Hecho pide calcular (niño 18/25
+según si estudia; niño con discapacidad permanente, vitalicio) ya estaban afirmadas como hecho conocido en
+el propio reporte del usuario (2026-08-13), no eran la pregunta abierta. Modelo de datos: entidad
+`Beneficiario` propia (`database/models.py`, relación 1:1 con `Obligacion` vía `obligacion_id` UNIQUE, con
+`nombre`, `fecha_nacimiento`, `TipoBeneficiario` -- NINO/NINO_DISCAPACIDAD/CONYUGE/PADRES/OTRO --, `estudia`,
+`discapacidad_permanente`, `relacion_demandante`), en vez de campos condicionales sueltos en `Obligacion`
+(decisión de diseño documentada en el docstring de la clase) -- una obligación de alimentos puede tener el
+demandante como beneficiario o uno distinto, y un mismo expediente puede tener varias obligaciones
+RECURRENTE con beneficiarios distintos (ej. dos hijos). Tabla enteramente nueva: no requirió script de
+migración ALTER TABLE (`Base.metadata.create_all()` la crea sola en cada arranque, mismo criterio que
+`EventoLaboral`/`DescuentoLaboral`, que tampoco lo tienen).
+
+`app/services/vigencia_alimentos.py::calcular_vigencia_alimentos()` implementa el árbol de decisión: NINO
+sin discapacidad (18/25 años según `estudia`, inclusive -- mismo criterio que `Obligacion.fecha_fin` en el
+resto del motor), NINO_DISCAPACIDAD con `discapacidad_permanente=True` (vitalicio, sin fecha de fin).
+CONYUGE, PADRES, OTRO, y NINO_DISCAPACIDAD sin marcar permanente quedan explícitamente
+`determinable_automaticamente=False` (`vigente=None`, `fecha_fin_vigencia=None`) -- no se inventó ningún
+criterio (ni edad, ni plazo) para estos casos, tal como exigían las reglas duras de este sprint; el
+`motivo` explica por qué y remite a la pregunta abierta sin responder. `fecha_fin_efectiva_recurrente()`
+conecta este cálculo a los 3 puntos donde el motor genera cuotas de una obligación RECURRENTE de
+Civil/Familia: la expansión efímera (`CivilFamiliaStrategy._eventos_de_obligacion`) y los 2 generadores de
+cuotas hijas reales (`generar_cuotas_mensuales`, `generar_cuotas_fechas_fijas`) -- una obligación con
+beneficiario NINO deja de causar cuotas automáticamente al superar la edad límite, sin fijar `fecha_fin` a
+mano; CONYUGE/PADRES/OTRO/NINO_DISCAPACIDAD-no-permanente nunca aportan una fecha, así que el
+comportamiento para esos casos es idéntico al de antes de este sprint (confirmado con tests dedicados).
+
+UI: `ObligacionFormDialog` (Civil/Familia) agrega un recuadro colapsable "Beneficiario de la obligación",
+desmarcado por defecto, con el árbol de decisión completo y una vista previa en vivo del resultado de
+`calcular_vigencia_alimentos` -- para CONYUGE/PADRES/OTRO la etiqueta deja explícito que la vigencia no es
+determinable automáticamente, cumpliendo la instrucción de "dejarlo claro en la UI/reporte en vez de fallar
+en silencio o inventar un valor". `guardar()`/`_precargar_desde_obligacion` crean, actualizan, precargan y
+eliminan (al desmarcar el grupo editando) el `Beneficiario`.
+
+Se agregó también una nota "Actualización (2026-08-20)" en la pregunta abierta correspondiente de
+`Preguntas-Para-Abogado-Abiertas.md` (sección Sprint 74), documentando qué quedó implementado y que el
+criterio operacional exacto de cónyuge/padres/otro sigue condicionado a esa misma pregunta sin responder
+-- la pregunta en sí no se modificó ni se marcó como respondida.
+
+37 tests nuevos (modelo, servicio de vigencia, wiring en `CivilFamiliaStrategy`/`reajuste_anual.py`/
+`recurrencia_fechas_fijas.py`, regresión de `DetachedInstanceError`, UI). Suite completa: 1381 passed.
+`ruff check .` en verde (incluye la corrección de 4 líneas >99 caracteres preexistentes en `main`, sin
+relación con este sprint, encontradas al validar el bar de CI antes de mergear).
 
 ---
 

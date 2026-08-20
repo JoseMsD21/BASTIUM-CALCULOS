@@ -68,9 +68,9 @@ def test_ipc_deflactar_con_indices_iguales_no_cambia_el_capital():
 
 
 def test_ipc_deflactar_capital_cero_o_negativo_retorna_cero():
-    assert IPCIndexation.deflactar(Decimal("0.00"), Decimal("100.00"), Decimal("150.00")) == Decimal(
-        "0.00"
-    )
+    assert IPCIndexation.deflactar(
+        Decimal("0.00"), Decimal("100.00"), Decimal("150.00")
+    ) == Decimal("0.00")
     assert IPCIndexation.deflactar(
         Decimal("-1000.00"), Decimal("100.00"), Decimal("150.00")
     ) == Decimal("0.00")

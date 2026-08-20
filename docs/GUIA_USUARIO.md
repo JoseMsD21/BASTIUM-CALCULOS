@@ -5,7 +5,12 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-18 — nuevo campo "Tipo de acción/proceso" (opcional) en el formulario
+> **Última actualización:** 2026-08-20 — nueva sección 5.4.2: en Civil/Familia, un recuadro opcional
+> "Beneficiario de la obligación" (nombre, fecha de nacimiento, y tipo — niño, niño con discapacidad,
+> cónyuge, padres u otro) que calcula automáticamente si la obligación sigue vigente (niño sin discapacidad
+> hasta 18/25 años según si estudia; niño con discapacidad permanente, vitalicio); para cónyuge/padres/otro
+> el programa deja explícito que la vigencia no es determinable automáticamente en vez de inventar un
+> criterio (Sprint 74). Antes, 2026-08-18 — nuevo campo "Tipo de acción/proceso" (opcional) en el formulario
 > de obligación (Sprint 61), que conecta 12 tipos más de prescripción/caducidad a la alerta del Dashboard
 > (antes solo la ejecutiva); fallback automático a la tasa legal civil (`CIVIL_ANNUAL_RATE`) cuando la tasa
 > pactada se deja en 0 (Sprint 61). "Generar cuotas" (Sprint 75) ahora también está disponible en Comercial
@@ -402,10 +407,50 @@ típico es una cuota de vestuario que solo vence en junio, en diciembre, y en el
 5. El reajuste anual (SMMLV/IPC) es opcional para este tipo de obligación — actívalo solo si el título
    también ordena reajustar el monto de estas fechas fijas cada enero.
 
-**Nota importante sobre el cumpleaños:** el programa **no** calcula el cumpleaños automáticamente a partir
-de una fecha de nacimiento — todavía no existe esa función (depende de un módulo de "beneficiario" que
-sigue pendiente, ver `Pendientes.md`, Sprint 74). Escribe la fecha del cumpleaños a mano en la lista de
+**Nota importante sobre el cumpleaños:** el programa **no** deriva el cumpleaños automáticamente a partir
+de la fecha de nacimiento del beneficiario (sección 5.4.2) — esa derivación automática sigue sin
+implementarse (ver `Pendientes.md`, Sprint 74). Escribe la fecha del cumpleaños a mano en la lista de
 fechas MM-DD, igual que las demás.
+
+#### 5.4.2. Beneficiario de la cuota alimentaria y vigencia automática (Sprint 74)
+
+En un expediente **Civil/Familia**, cualquier obligación (Puntual o Recurrente) trae un recuadro adicional
+**"Beneficiario de la obligación (para calcular vigencia automática)"**, debajo de "Datos básicos" —
+desmarcado por defecto, porque capturarlo es opcional y no cambia nada de lo que ya tenías guardado si no
+lo usas.
+
+1. Marca la casilla del recuadro para activarlo. Aparecen los campos:
+   - **El beneficiario es el/la demandante**: márcala si quien recibe los alimentos es la misma parte
+     demandante del expediente, en vez de otra persona (ej. un hijo menor).
+   - **Tipo de beneficiario**: elige entre **Niño (sin discapacidad)**, **Niño con discapacidad**,
+     **Cónyuge**, **Padres**, u **Otro (donante, abuelos, etc.)** — los campos siguientes cambian según esta
+     respuesta, como un árbol de decisión.
+   - **Nombre del beneficiario** y **Fecha de nacimiento**.
+   - Si el tipo es **Niño**, aparece **"Estudia una carrera profesional/técnica/tecnológica"**.
+   - Si el tipo es **Niño con discapacidad**, aparece **"La discapacidad es permanente"**.
+   - **Relación con el demandante (opcional)**: texto libre, solo para referencia (ej. "hijo", "cónyuge").
+2. Debajo de todo, **"Vigencia calculada"** muestra en vivo el resultado del cálculo automático mientras
+   completas el formulario.
+3. Haz clic en **"Guardar"** como siempre.
+
+**Qué calcula automáticamente el programa, según el tipo elegido:**
+
+- **Niño (sin discapacidad):** la obligación deja de estar vigente al cumplir 18 años, o 25 si marcaste
+  "Estudia". Para una obligación **Recurrente**, esto es más que informativo: el programa deja de generar
+  cuotas nuevas automáticamente en cuanto el beneficiario supera esa edad — tanto al liquidar como al usar
+  "Generar cuotas" (sección 5.4) — sin que tengas que fijar ninguna fecha de fin a mano.
+- **Niño con discapacidad, marcada como permanente:** la obligación es vitalicia (nunca se corta por edad).
+- **Cónyuge, Padres, Otro, o Niño con discapacidad SIN marcar como permanente:** el programa **no** calcula
+  ninguna fecha de fin automática — "Vigencia calculada" te lo dice explícitamente ("no determinable
+  automáticamente, requiere evaluación caso a caso"), y la obligación sigue generando cuotas con normalidad
+  (nunca se le aplica el límite de edad de un niño). Esto es intencional: el criterio exacto para estos
+  casos (ej. cómo se prueba que un cónyuge "superó su condición de vulnerabilidad") todavía no está
+  confirmado con el despacho — ver `docs/Preguntas-Para-Abogado-Abiertas.md`, sección Sprint 74. Cuando esa
+  respuesta llegue, esta sección se actualizará con la regla exacta.
+
+Si editas una obligación que ya tiene un beneficiario guardado, el recuadro aparece precargado y marcado.
+Si desmarcas la casilla y guardas, el beneficiario capturado se elimina (no queda un dato viejo dando vueltas
+sin que lo veas en el formulario).
 
 ### 5.5. Agregar un abono (registrar un pago)
 

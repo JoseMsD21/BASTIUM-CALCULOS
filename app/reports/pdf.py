@@ -60,7 +60,9 @@ class JudicialPDFGenerator:
             )
         )
 
-    def _anchos_columnas_cronologia(self, encabezados: list[str], ancho_disponible: float) -> list[float]:
+    def _anchos_columnas_cronologia(
+        self, encabezados: list[str], ancho_disponible: float
+    ) -> list[float]:
         pesos = [_PESO_COLUMNA_CRONOLOGIA.get(encabezado, 0.85) for encabezado in encabezados]
         total_pesos = sum(pesos)
         return [(peso / total_pesos) * ancho_disponible for peso in pesos]

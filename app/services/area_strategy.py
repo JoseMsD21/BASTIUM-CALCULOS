@@ -49,6 +49,7 @@ from app.engine.time.calendar import CalendarUtils
 from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import cache_de_liquidacion, get_parametro
 from app.services.recurrencia_fechas_fijas import deserializar_fechas_anuales
+from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
 
 
 def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
@@ -490,7 +491,20 @@ class CivilFamiliaStrategy(AreaStrategy):
                 due_day=obligacion.dia_pago,
                 category=obligacion.categoria,
             )
-        fin = obligacion.fecha_fin or fecha_corte
+        # Vigencia por tipo de beneficiario (Sprint 74): si esta obligacion tiene un
+        # Beneficiario capturado (getattr por compatibilidad con Obligacion
+        # transitorias que nunca pasaron por la relationship, ej. algunos tests
+        # legados que no la referencian), topa la generacion de cuotas con el
+        # minimo entre `fecha_fin` manual y la fecha de fin de vigencia
+        # automatica calculada (NINO: 18/25 anos segun si estudia). NINO_DISCAPACIDAD
+        # permanente (vitalicio) y CONYUGE/PADRES/OTRO (sin criterio confirmado, ver
+        # docstring de vigencia_alimentos.py) NUNCA aportan una fecha aqui -- para
+        # esos casos el comportamiento es identico al de antes de este sprint (topado
+        # solo por fecha_fin manual o fecha_corte).
+        fin = fecha_fin_efectiva_recurrente(
+            obligacion.fecha_fin, getattr(obligacion, "beneficiario", None), fecha_corte
+        )
+        fin = fin or fecha_corte
         eventos_capital = scheduler.generate(start=obligacion.fecha_inicio, end=fin)
 
         if not obligacion.aplica_indexacion_ipc:

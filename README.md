@@ -21,7 +21,7 @@ están los valores legales (como la tasa de interés) por si necesitas consultar
 **¿Buscas un documento de proyecto en particular** (visión y alcance, requisitos, arquitectura, riesgos,
 QA, mantenimiento...)**?** Ver el [Mapa de documentación](docs/MAPA_DOCUMENTACION.md).
 
-## Estado actual (2026-08-18)
+## Estado actual (2026-08-20)
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con
@@ -31,7 +31,18 @@ el algoritmo "Suma Única" (Art. corrección monetaria + interés civil, PDF pá
 capital ya indexado en vez de sobre el capital histórico, también válido para intereses de la Ley 80 de
 1993 en contratos estatales); las obligaciones recurrentes admiten reajuste anual del capital según SMMLV
 o IPC cada 1 de enero, con cuotas mensuales generadas y abonables por separado — o, desde el Sprint 75,
-con capital constante (sin reajuste) igual de generables como cuotas reales), **Comercial** (Art. 884
+con capital constante (sin reajuste) igual de generables como cuotas reales); desde el Sprint 74, una
+obligación recurrente de Familia admite capturar el beneficiario de la cuota alimentaria (nombre, fecha de
+nacimiento, y tipo — niño, niño con discapacidad, cónyuge, padres u otro, con los campos siguientes
+cambiando según esa respuesta como un árbol de decisión), y el software calcula automáticamente si la
+obligación sigue vigente: un niño sin discapacidad hasta los 18 años, o hasta los 25 si estudia una carrera
+profesional/técnica/tecnológica (deja de causar cuotas nuevas solo con superar la edad, sin necesitar fijar
+una fecha de fin a mano); un niño con discapacidad marcada como permanente, de forma vitalicia. Para
+cónyuge, padres, otro beneficiario, o un niño con discapacidad sin marcar como permanente, el software
+declara explícitamente que la vigencia "no es determinable automáticamente — requiere evaluación caso a
+caso" y nunca aplica el límite de edad de un niño ni inventa una fecha de fin — el criterio operacional
+exacto de esos casos (ej. cómo se prueba que un cónyuge superó su condición de vulnerabilidad) sigue
+pendiente de confirmación del despacho, **Comercial** (Art. 884
 C.Co., tasas remuneratoria y moratoria pactadas por obligación con
 split real antes/después del vencimiento, sanción del doble por exceso sobre el tope de usura 1.5×IBC
 (Ley 45/1990 art. 72, sin rechazar ni truncar la liquidación), obligaciones en USD

@@ -16,9 +16,11 @@ from app.views.expediente_detalle import ExpedienteDetallePage
 from database.models import (
     AreaDerecho,
     Base,
+    Beneficiario,
     Expediente,
     Obligacion,
     ParametroLegal,
+    TipoBeneficiario,
     TipoObligacion,
 )
 
@@ -900,6 +902,86 @@ def test_liquidar_area_laboral_con_seguridad_social_no_lanza_detached_instance_e
 
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "COTIZACION_PENSION" in tipos_evento
+
+
+def _expediente_civil_familia_con_beneficiario(monkeypatch) -> int:
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
+
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-074",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 5),
+        fecha_inicio=date(2026, 1, 5),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.flush()
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Juan Perez",
+            fecha_nacimiento=date(2015, 3, 10),
+            tipo=TipoBeneficiario.NINO,
+            estudia=False,
+        )
+    )
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+    return expediente_id
+
+
+def test_liquidar_civil_familia_con_beneficiario_no_lanza_detached_instance_error(
+    qtbot, monkeypatch
+):
+    """Sprint 74: obligacion.beneficiario se accede dentro de
+    CivilFamiliaStrategy._eventos_de_obligacion (para topar la generacion de
+    cuotas por vigencia) -- _liquidar_en_hilo_de_fondo debe forzar ese
+    lazy-load ANTES de session.close(), igual que ya hace con
+    eventos_laborales/descuentos_laborales, o SQLAlchemy lanza
+    DetachedInstanceError en la GUI real."""
+    expediente_id = _expediente_civil_familia_con_beneficiario(monkeypatch)
+
+    resultados_recibidos = []
+
+    def capturar(resultado, exp_id):
+        resultados_recibidos.append((resultado, exp_id))
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    page = ExpedienteDetallePage(on_liquidado=capturar)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()  # no debe lanzar DetachedInstanceError
+
+    assert len(avisos) == 0
+    assert len(resultados_recibidos) == 1
 
 
 def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monkeypatch):

@@ -64,6 +64,9 @@ def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
     for obligacion in obligaciones:
         list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
         list(obligacion.descuentos_laborales)  # idem (Sprint 44, punto 3)
+        # idem (Sprint 74): CivilFamiliaStrategy lee obligacion.beneficiario para
+        # topar la vigencia de las cuotas RECURRENTE.
+        _ = obligacion.beneficiario
     area = expediente.area_derecho.value
     session.close()
 

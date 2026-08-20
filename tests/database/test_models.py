@@ -10,10 +10,12 @@ from database.models import (
     AreaDerecho,
     AuditLog,
     Base,
+    Beneficiario,
     EventoLaboral,
     Expediente,
     MotivoSuspension,
     Obligacion,
+    TipoBeneficiario,
     TipoEventoLaboral,
     TipoObligacion,
 )
@@ -603,3 +605,115 @@ def test_obligacion_admite_tipo_accion_proceso_nulo_y_con_valor(session):
 
     assert obligacion_sin.tipo_accion_proceso is None
     assert obligacion_con.tipo_accion_proceso == "CHEQUES"
+
+
+def _obligacion_recurrente_civil_familia(session) -> Obligacion:
+    expediente = Expediente(
+        radicado="2026-00300",
+        demandante="Ana Perez",
+        demandado="Luis Gomez",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 7, 14),
+    )
+    session.add(expediente)
+    session.flush()
+    obligacion = Obligacion(
+        expediente_id=expediente.id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota alimentaria",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 5),
+        fecha_inicio=date(2026, 1, 5),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.flush()
+    return obligacion
+
+
+def test_beneficiario_nino_asociado_a_obligacion(session):
+    """Sprint 74: entidad `Beneficiario` propia (no campos condicionales sueltos en
+    `Obligacion`) -- relacion 1:1 via `obligacion_id`, para que un expediente con
+    varias obligaciones RECURRENTE (ej. dos hijos) pueda tener un beneficiario
+    distinto por cada una."""
+    obligacion = _obligacion_recurrente_civil_familia(session)
+    beneficiario = Beneficiario(
+        obligacion_id=obligacion.id,
+        nombre="Juan Perez",
+        fecha_nacimiento=date(2015, 3, 10),
+        tipo=TipoBeneficiario.NINO,
+        estudia=False,
+    )
+    session.add(beneficiario)
+    session.commit()
+
+    guardado = session.query(Beneficiario).filter_by(obligacion_id=obligacion.id).one()
+    assert guardado.nombre == "Juan Perez"
+    assert guardado.tipo == TipoBeneficiario.NINO
+    assert guardado.estudia is False
+    assert guardado.discapacidad_permanente is None
+    assert guardado.es_el_demandante is False
+    assert guardado.relacion_demandante is None
+
+
+def test_beneficiario_accesible_desde_obligacion_via_relationship(session):
+    obligacion = _obligacion_recurrente_civil_familia(session)
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Maria Perez",
+            fecha_nacimiento=date(2010, 6, 1),
+            tipo=TipoBeneficiario.NINO_DISCAPACIDAD,
+            discapacidad_permanente=True,
+        )
+    )
+    session.commit()
+    session.expire_all()
+
+    recargada = session.get(Obligacion, obligacion.id)
+    assert recargada.beneficiario is not None
+    assert recargada.beneficiario.tipo == TipoBeneficiario.NINO_DISCAPACIDAD
+    assert recargada.beneficiario.discapacidad_permanente is True
+
+
+def test_obligacion_sin_beneficiario_queda_en_none(session):
+    obligacion = _obligacion_recurrente_civil_familia(session)
+    session.commit()
+    session.expire_all()
+
+    recargada = session.get(Obligacion, obligacion.id)
+    assert recargada.beneficiario is None
+
+
+def test_eliminar_obligacion_elimina_su_beneficiario_por_cascada(session):
+    obligacion = _obligacion_recurrente_civil_familia(session)
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Juan Perez",
+            fecha_nacimiento=date(2015, 3, 10),
+            tipo=TipoBeneficiario.NINO,
+            estudia=False,
+        )
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+
+    session.delete(obligacion)
+    session.commit()
+
+    assert session.query(Beneficiario).filter_by(obligacion_id=obligacion_id).count() == 0
+
+
+def test_beneficiario_tipo_beneficiario_tiene_los_5_valores_del_arbol_de_decision():
+    """Sprint 74: niño / niño con discapacidad / cónyuge / padres / otro -- exactamente
+    las 5 categorias que el usuario pidio en su reporte (2026-08-13)."""
+    assert {miembro.value for miembro in TipoBeneficiario} == {
+        "NINO",
+        "NINO_DISCAPACIDAD",
+        "CONYUGE",
+        "PADRES",
+        "OTRO",
+    }

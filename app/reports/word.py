@@ -29,7 +29,9 @@ class WordReportGenerator:
         self.c_prescrita = RGBColor(0xC0, 0x00, 0x00)
         self.c_advertencia = RGBColor(0xED, 0x6C, 0x02)
 
-    def _anchos_columnas_cronologia(self, encabezados: list[str], ancho_disponible: Cm) -> list[Cm]:
+    def _anchos_columnas_cronologia(
+        self, encabezados: list[str], ancho_disponible: Cm
+    ) -> list[Cm]:
         pesos = [_PESO_COLUMNA_CRONOLOGIA.get(encabezado, 0.85) for encabezado in encabezados]
         total_pesos = sum(pesos)
         return [Cm((peso / total_pesos) * ancho_disponible.cm) for peso in pesos]

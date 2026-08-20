@@ -233,6 +233,18 @@ para niños con discapacidad permanente la obligación es vitalicia; para el có
 su condición de vulnerabilidad (ej. consiga trabajo); para los padres se debe hasta la muerte de cualquiera
 de las partes; y para otros beneficiarios (abuelos, donantes) aplicarían reglas puntuales.
 
+**Actualización (2026-08-20, rutina autónoma) — ya implementado lo que SÍ estaba confirmado, esta pregunta
+sigue abierta para el resto:** se construyó la entidad `Beneficiario` (nombre, fecha de nacimiento, tipo,
+si estudia, si la discapacidad es permanente, relación con el demandante) y el árbol de decisión en el
+formulario de captura de Civil/Familia. Las 2 reglas que el propio reporte del usuario ya afirmaba como
+hecho conocido (no como pregunta) quedaron implementadas y con cálculo automático de vigencia: niño sin
+discapacidad (18/25 años según si estudia) y niño con discapacidad permanente (vitalicio). Para cónyuge,
+padres, otro, y niño con discapacidad NO marcada como permanente, el software declara explícitamente la
+vigencia como "no determinable automáticamente — requiere evaluación caso a caso" (nunca calcula una fecha
+de fin, nunca aplica el límite de edad de 18/25 años) — exactamente porque el criterio operacional de esos
+casos es lo que esta pregunta sigue sin responder. Ver Sprint 74 en `Pendientes.md` para el detalle técnico
+completo (`app/services/vigencia_alimentos.py`).
+
 **Pregunta:** ¿pueden confirmar la lista completa de reglas de vigencia por tipo de beneficiario descritas
 arriba, y las que falten (ej. ¿cómo se determina y se prueba en el proceso que un cónyuge "superó su
 condición de vulnerabilidad"? ¿hay un tope de edad distinto si el niño sin discapacidad no estudia pero
