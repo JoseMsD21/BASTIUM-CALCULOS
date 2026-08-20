@@ -319,6 +319,57 @@ def test_aplicar_migraciones_pendientes_agrega_columnas_del_sprint_43(tmp_path):
     assert "protegida_inflacion_uvr" in columnas
 
 
+def test_aplicar_migraciones_pendientes_agrega_columnas_sprint92(tmp_path):
+    """Sprint 92 (indemnizacion por despido injustificado, Art. 64 CST): una
+    bastium.db creada antes de este sprint no tiene tipo_contrato_laboral/
+    despido_injustificado/fecha_fin_pactada en obligaciones --
+    aplicar_migraciones_pendientes() debe agregarlas, mismo criterio que
+    pacto_expreso_indexacion/protegida_inflacion_uvr (Sprint 43) arriba."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_sprint92.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN tipo_contrato_laboral")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN despido_injustificado")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fecha_fin_pactada")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "tipo_contrato_laboral" in columnas
+    assert "despido_injustificado" in columnas
+    assert "fecha_fin_pactada" in columnas
+
+
+def test_migracion_dismissal_indemnity_sprint92_es_idempotente(tmp_path):
+    from scripts.migrate_dismissal_indemnity_sprint92 import migrar
+
+    db_path = tmp_path / "dismissal_indemnity_sprint92.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    assert migrar(db_path) is False  # las columnas ya existen via el modelo actual
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN tipo_contrato_laboral")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN despido_injustificado")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fecha_fin_pactada")
+    con.commit()
+    con.close()
+
+    assert migrar(db_path) is True
+    assert migrar(db_path) is False  # segunda corrida: ya no hay nada que alterar
+
+
 def test_migracion_indexacion_ipc_areas_sprint43_es_idempotente(tmp_path):
     from scripts.migrate_indexacion_ipc_areas_sprint43 import migrar
 

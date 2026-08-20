@@ -55,6 +55,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_aplica_indexacion_ipc import migrar as migrar_indexacion_ipc
     from scripts.migrate_costas_tipo_proceso import migrar as migrar_costas
     from scripts.migrate_creado_por_sistema import migrar as migrar_creado_por_sistema
+    from scripts.migrate_dismissal_indemnity_sprint92 import (
+        migrar as migrar_dismissal_indemnity_sprint92,
+    )
     from scripts.migrate_es_smmlv_laboral import migrar as migrar_es_smmlv
     from scripts.migrate_fecha_providencia_costas import (
         migrar as migrar_fecha_providencia_costas,
@@ -98,6 +101,10 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # obligaciones -- columnas nuevas independientes, sin dependencia de orden con
     # las migraciones de arriba.
     migrar_indexacion_ipc_areas_sprint43(ruta)
+    # Sprint 92: agrega tipo_contrato_laboral/despido_injustificado/
+    # fecha_fin_pactada a obligaciones -- columnas nuevas independientes, sin
+    # dependencia de orden con las migraciones de arriba.
+    migrar_dismissal_indemnity_sprint92(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     # Se llama ANTES de migrar_parametros_legales/migrar_ipc_variacion_anual
