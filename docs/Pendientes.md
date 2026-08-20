@@ -282,7 +282,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--pendiente-de-confirmación)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
-- [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 📋 Pendiente](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--pendiente)
+- [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 🟡 En proceso](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--en-proceso-rama-sprint-101-deflactacion-ipc)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--pendiente)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
 
@@ -6775,7 +6775,7 @@ Este patrón (cuota mensual + reajuste anual + indexación IPC mensual) es muy c
 
 ---
 
-## Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 📋 Pendiente
+## Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 🟡 En proceso (rama `sprint-101-deflactacion-ipc`)
 
 **Prioridad sugerida:** Baja — pieza pequeña y aislada, no requiere la decisión de dominio nuevo de Sprint 97 (es una extensión del motor de indexación IPC ya existente en Civil/Familia, no una figura jurídica nueva).
 
