@@ -9,6 +9,18 @@ ComercialStrategy._construir_rate_provider en app/services/area_strategy.py,
 que sí usa una tasa pactada).
 
 Ver docs/superpowers/specs/2026-07-20-sprint11a-tributario-interes-renta-liquida-design.md.
+
+Discrepancia documentada, sin corregir (Sprint 84): la resta de los 2 puntos
+(PUNTOS_DESCUENTO_ET_635, mas abajo) coincide con las plantillas i4/i4A del
+despacho, pero el paso siguiente no: este motor convierte la tasa anual ya
+descontada con EffectiveRateConverter.annual_to_daily (formula compuesta de
+365 dias), mientras que i4/i4A la dividen linealmente entre 366 dias -- la
+propia plantilla del despacho llama a esa division "la ilogica matematica de
+la DIAN" (i4A), lo que sugiere que el despacho no necesariamente quiere que
+BASTIUM la replique. Cual de las dos convenciones debe usar este motor queda
+pendiente de confirmar con el despacho -- ver Sprint 84 en docs/Pendientes.md
+y la pregunta "Sprint 84" en docs/Preguntas-Para-Abogado-Abiertas.md. No se
+cambia el comportamiento hasta esa respuesta.
 """
 
 from datetime import date, timedelta
