@@ -27,6 +27,54 @@ conocimientos técnicos.
 Las preguntas ya resueltas (sin necesidad de volver a preguntarlas) están archivadas aparte, en
 [`Preguntas-Para-Abogado-Respondidas.md`](Preguntas-Para-Abogado-Respondidas.md).
 
+### Cómo guardar tu respuesta en GitHub (paso a paso)
+
+Una vez hayas escrito tus respuestas directamente en este documento dentro de GitHub, sigue estos pasos
+para guardarlas correctamente. Esto deja tu respuesta lista para que yo (JoseMsD) la revise y la apruebe
+antes de que quede incorporada de forma definitiva — no se publica sola apenas la guardas.
+
+1. **Abre el archivo en GitHub.** Entra al repositorio y ubica `docs/Preguntas-Para-Abogado-Abiertas.md`.
+   Verás el documento en modo lectura, con las pestañas **Preview / Code / Blame** arriba del contenido.
+
+   ![Vista del archivo en GitHub en modo lectura](resources/guia-commit-abogado/1-ver-archivo.png)
+
+2. **Haz clic en el ícono del lápiz (✏️)**, ubicado en la esquina superior derecha del visor de archivo
+   (junto a los íconos de copiar/descargar). Al pasar el mouse por encima aparece el mensaje
+   "**Edit this file**". Haz clic ahí para entrar al modo de edición.
+
+   ![Ícono de lápiz con el tooltip "Edit this file"](resources/guia-commit-abogado/2-boton-editar.png)
+
+3. **Escribe tu respuesta** en el espacio en blanco que dice "**Respuesta del despacho:**", justo debajo de
+   cada pregunta que estés contestando. No borres ni modifiques las preguntas, encabezados o enlaces del
+   resto del documento — agrega tu texto únicamente en el espacio indicado. Puedes usar la pestaña
+   **Preview** (arriba del editor) para revisar cómo se ve tu respuesta antes de continuar.
+
+   ![Editor de texto de GitHub con el botón "Commit changes..."](resources/guia-commit-abogado/3-editor.png)
+
+4. **Cuando termines, haz clic en el botón verde "Commit changes..."** (arriba a la derecha del editor).
+   Se abrirá una ventana emergente para confirmar el guardado.
+
+5. **En el campo "Commit message"**, borra el texto que sugiere GitHub y escribe algo que identifique
+   claramente qué respondiste, por ejemplo:
+   `Respuestas Sprint 82 y 90 - [tu nombre o el del despacho]`
+   En "Extended description" puedes agregar, opcionalmente, una nota breve como "Se respondieron 2
+   preguntas pendientes."
+
+6. **Muy importante — selecciona la segunda opción**, "**Create a new branch for this commit and start a
+   pull request**" (en vez de "Commit directly to the main branch", que viene marcada por defecto). Esto
+   es lo que permite que yo vea tu respuesta como una propuesta de cambio y la apruebe antes de que se una
+   al documento oficial. Puedes dejar el nombre de rama que GitHub sugiere automáticamente.
+
+   ![Ventana "Commit changes" con la opción "Create a new branch for this commit and start a pull request" marcada](resources/guia-commit-abogado/4-commit-changes.png)
+
+7. **Haz clic en "Propose changes"** para confirmar. GitHub te llevará automáticamente a la pantalla de
+   creación del Pull Request — ahí haz clic en "**Create pull request**" para enviarlo.
+
+8. **Listo.** Recibiré una notificación del Pull Request y podré revisar exactamente qué agregaste
+   (resaltado en verde frente al texto original). Si la respuesta queda clara y sin conflicto con el
+   código, la apruebo y la fusiono ("merge") al documento oficial. Si necesito una aclaración adicional, te
+   la pido ahí mismo como comentario dentro del mismo Pull Request.
+
 ---
 
 ## Índice
