@@ -16,6 +16,7 @@ from app.engine.indexation.historical_index import (
     _TRAMOS_IBC_USURA,
     _UVT_POR_ANIO,
 )
+from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.liquidation.engine import LiquidationCore
 from app.engine.liquidation.registry import AreaRegistry
@@ -37,6 +38,7 @@ from database.models import (
     Obligacion,
     ParametroLegal,
     TipoBeneficiario,
+    TipoContratoLaboral,
     TipoObligacion,
     TipoReajusteAnual,
     TipoRecurrencia,
@@ -2554,6 +2556,9 @@ def _obligacion_laboral(
     pagada=False,
     fecha_pago_total=None,
     tipo=TipoObligacion.PUNTUAL,
+    despido_injustificado=False,
+    tipo_contrato_laboral=TipoContratoLaboral.INDEFINIDO,
+    fecha_fin_pactada=None,
 ):
     return Obligacion(
         id=1,
@@ -2568,6 +2573,9 @@ def _obligacion_laboral(
         fecha_fin=fecha_fin,
         pagada=pagada,
         fecha_pago_total=fecha_pago_total,
+        despido_injustificado=despido_injustificado,
+        tipo_contrato_laboral=tipo_contrato_laboral,
+        fecha_fin_pactada=fecha_fin_pactada,
     )
 
 
@@ -3368,6 +3376,110 @@ class TestLaboralStrategy:
         )
 
         assert resultado.total_payments_applied() == Decimal("800000.00")
+
+    def test_despido_injustificado_indefinido_agrega_evento_indemnizacion_despido(self):
+        # 2020-01-01 a 2020-12-31 (360 dias comerciales, 1 año exacto) -- regimen
+        # post-Ley 50/1990 (fecha_ingreso posterior al corte 1991-01-01): 30 dias
+        # flat (ver DismissalIndemnityCalculator).
+        obligacion = _obligacion_laboral(
+            fecha_pago_total=date(2020, 12, 31), despido_injustificado=True
+        )
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INDEMNIZACION_DESPIDO" in tipos_evento
+        salario_diario = obligacion.valor / Decimal("30")
+        indemnizacion_esperada = (salario_diario * Decimal("30")).quantize(Decimal("0.01"))
+        # 7860000.00 = prestaciones (ver test de mas arriba) + la indemnizacion.
+        esperado = Decimal("7860000.00") + indemnizacion_esperada
+        assert resultado.final_balance().principal == esperado
+
+    def test_despido_con_justa_causa_no_agrega_evento_indemnizacion_despido(self):
+        obligacion = _obligacion_laboral(
+            fecha_pago_total=date(2020, 12, 31), despido_injustificado=False
+        )
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INDEMNIZACION_DESPIDO" not in tipos_evento
+
+    def test_despido_injustificado_coexiste_con_sancion_moratoria(self):
+        # Sin pago (mora, fase 1) y despido injustificado a la vez -- el sprint
+        # confirma que son conceptos compatibles, ninguno excluye al otro (ver
+        # docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 92): ambos eventos
+        # deben coexistir en el mismo expediente.
+        obligacion = _obligacion_laboral(fecha_pago_total=None, despido_injustificado=True)
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 1, 30)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SANCION_MORATORIA" in tipos_evento
+        assert "INDEMNIZACION_DESPIDO" in tipos_evento
+
+    def test_despido_injustificado_termino_fijo_usa_fecha_fin_pactada(self):
+        obligacion = _obligacion_laboral(
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 6, 1),
+            fecha_pago_total=date(2020, 6, 1),
+            despido_injustificado=True,
+            tipo_contrato_laboral=TipoContratoLaboral.FIJO,
+            fecha_fin_pactada=date(2021, 1, 1),
+        )
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INDEMNIZACION_DESPIDO" in tipos_evento
+        esperado = DismissalIndemnityCalculator.calcular(
+            tipo_contrato=TipoContratoLaboral.FIJO,
+            salario_mensual=obligacion.valor,
+            fecha_ingreso=obligacion.fecha_inicio,
+            fecha_terminacion=obligacion.fecha_fin,
+            despido_injustificado=True,
+            smlmv_mensual=Decimal("877803.00"),  # SMLMV 2020
+            fecha_fin_pactada=obligacion.fecha_fin_pactada,
+        )
+        assert esperado.total > Decimal("0.00")
+
+    def test_despido_injustificado_termino_fijo_sin_fecha_fin_pactada_lanza_value_error(self):
+        obligacion = _obligacion_laboral(
+            despido_injustificado=True,
+            tipo_contrato_laboral=TipoContratoLaboral.FIJO,
+            fecha_fin_pactada=None,
+        )
+
+        with pytest.raises(ValueError, match="fecha_fin_pactada"):
+            LaboralStrategy().liquidar(
+                obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+            )
+
+    def test_despido_injustificado_salario_10_smmlv_agrega_alerta_no_bloqueante(self):
+        # SMLMV 2020 = 877803.00 -> 10 SMMLV = 8778030.00. Formula para este
+        # umbral no esta confirmada por el despacho (Sprint 92): la liquidacion
+        # no debe fallar, pero debe alertar que la indemnizacion no se calculo.
+        obligacion = _obligacion_laboral(
+            salario=Decimal("9000000.00"),
+            fecha_pago_total=date(2020, 12, 31),
+            despido_injustificado=True,
+        )
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "INDEMNIZACION_DESPIDO" not in tipos_evento
+        assert any("10 SMMLV" in alerta for alerta in resultado.alertas)
 
 
 def _obligacion_tributaria(
