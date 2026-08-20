@@ -38,6 +38,7 @@ from app.services.recurrencia_fechas_fijas import (
     deserializar_fechas_anuales,
     serializar_fechas_anuales,
 )
+from app.services.vigencia_alimentos import calcular_vigencia_alimentos
 from app.views.form_utils import (
     agregar_ayuda,
     guardar_o_actualizar,
@@ -47,8 +48,10 @@ from app.views.form_utils import (
 from app.views.icons import icon
 from database.models import (
     AreaDerecho,
+    Beneficiario,
     Expediente,
     Obligacion,
+    TipoBeneficiario,
     TipoObligacion,
     TipoReajusteAnual,
     TipoRecurrencia,
@@ -220,6 +223,73 @@ class ObligacionFormDialog(QDialog):
             "cumpleaños del beneficiario). El cumpleaños se ingresa aqui a mano -- todavia "
             "no se deriva automaticamente de una fecha de nacimiento de beneficiario "
             "(Sprint 74, no implementado)."
+        )
+
+        # Beneficiario (Sprint 74): captura opcional (grupo_beneficiario mas
+        # abajo es checkable, desmarcado por defecto) de fecha de nacimiento,
+        # tipo y campos condicionales del arbol de decision pedido por el
+        # usuario -- niño / niño con discapacidad / conyuge / padres / otro. Ver
+        # database/models.py::Beneficiario para el porque de la entidad propia
+        # y app/services/vigencia_alimentos.py para las reglas de vigencia que
+        # se calculan a partir de estos campos.
+        self.check_es_el_demandante = QCheckBox("El beneficiario es el/la demandante")
+        self.check_es_el_demandante.setToolTip(
+            "Marca si la persona que recibe los alimentos es la misma parte "
+            "demandante del expediente, en vez de una persona distinta (ej. "
+            "un hijo menor)."
+        )
+        self.combo_tipo_beneficiario = QComboBox()
+        self.combo_tipo_beneficiario.addItem("Niño (sin discapacidad)", userData="NINO")
+        self.combo_tipo_beneficiario.addItem("Niño con discapacidad", userData="NINO_DISCAPACIDAD")
+        self.combo_tipo_beneficiario.addItem("Cónyuge", userData="CONYUGE")
+        self.combo_tipo_beneficiario.addItem("Padres", userData="PADRES")
+        self.combo_tipo_beneficiario.addItem("Otro (donante, abuelos, etc.)", userData="OTRO")
+        self.combo_tipo_beneficiario.setToolTip(
+            "Determina la regla de vigencia que se calcula automaticamente: niño "
+            "sin discapacidad (hasta 18/25 años segun si estudia), niño con "
+            "discapacidad permanente (vitalicio). Cónyuge/padres/otro no tienen "
+            "un criterio automatico confirmado -- el sistema no calcula una "
+            "fecha de fin para estos casos, requieren evaluacion caso a caso."
+        )
+        self.campo_nombre_beneficiario = QLineEdit()
+        self.campo_nombre_beneficiario.setToolTip(
+            "Nombre completo de quien recibe los alimentos."
+        )
+        self.campo_fecha_nacimiento_beneficiario = QDateEdit(QDate.currentDate())
+        self.campo_fecha_nacimiento_beneficiario.setCalendarPopup(True)
+        self.campo_fecha_nacimiento_beneficiario.setToolTip(
+            "Fecha de nacimiento del beneficiario -- el sistema calcula su edad "
+            "y, para un niño sin discapacidad, la fecha en que la obligacion "
+            "deja de estar vigente."
+        )
+        self.check_estudia = QCheckBox(
+            "Estudia una carrera profesional/técnica/tecnológica (extiende la vigencia a 25 años)"
+        )
+        self.check_estudia.setToolTip(
+            "Solo aplica a un beneficiario Niño (sin discapacidad): si estudia, "
+            "la obligacion sigue vigente hasta los 25 años en vez de los 18."
+        )
+        self.check_discapacidad_permanente = QCheckBox(
+            "La discapacidad es permanente (obligación vitalicia)"
+        )
+        self.check_discapacidad_permanente.setToolTip(
+            "Solo aplica a un beneficiario Niño con discapacidad: si la "
+            "discapacidad es permanente, la obligacion es vitalicia (sin fecha "
+            "de fin). Si no se marca, el sistema no calcula una fecha de fin "
+            "automatica -- requiere evaluacion caso a caso."
+        )
+        self.campo_relacion_demandante = QLineEdit()
+        self.campo_relacion_demandante.setToolTip(
+            "Relacion del beneficiario con la parte demandante (ej. 'hijo', "
+            "'cónyuge', 'madre'). Opcional, solo descriptivo -- no afecta el "
+            "calculo de vigencia."
+        )
+        self.label_vigencia_beneficiario = QLabel()
+        self.label_vigencia_beneficiario.setWordWrap(True)
+        self.label_vigencia_beneficiario.setToolTip(
+            "Vista previa del calculo de vigencia con la fecha de corte del "
+            "expediente como referencia -- el resultado real puede variar segun "
+            "la fecha de corte que se use al liquidar."
         )
 
         self.campo_tasa_moratoria = QLineEdit("24.00")
@@ -487,6 +557,22 @@ class ObligacionFormDialog(QDialog):
         layout_grupo_honorarios_costas.addWidget(contenido_honorarios_costas)
         self.grupo_honorarios_costas.toggled.connect(contenido_honorarios_costas.setVisible)
 
+        # Beneficiario (Sprint 74): checkable como los otros 3 grupos -- desmarcado
+        # por defecto, doble uso: (a) el checkbox de titulo funciona como el "¿existe
+        # informacion de beneficiario para esta obligacion?" que el usuario pidio, y
+        # (b) al guardar, si esta desmarcado no se crea (o se elimina, si editando)
+        # ningun Beneficiario -- ver _guardar_beneficiario.
+        self.grupo_beneficiario = QGroupBox(
+            "Beneficiario de la obligación (para calcular vigencia automática)"
+        )
+        self.grupo_beneficiario.setCheckable(True)
+        self.grupo_beneficiario.setChecked(False)
+        contenido_beneficiario = QWidget()
+        self.layout_beneficiario = QFormLayout(contenido_beneficiario)
+        layout_grupo_beneficiario = QVBoxLayout(self.grupo_beneficiario)
+        layout_grupo_beneficiario.addWidget(contenido_beneficiario)
+        self.grupo_beneficiario.toggled.connect(contenido_beneficiario.setVisible)
+
         # Concepto/Valor/Tasa se envuelven con un icono de advertencia -- ver
         # _envolver_campo_con_iconos. A partir de aqui, ocultar/mostrar la FILA de
         # Valor/Tasa segun el area debe apuntar al contenedor devuelto, no al
@@ -592,6 +678,19 @@ class ObligacionFormDialog(QDialog):
             "% Costas judiciales (opcional)", self.campo_costas_pct
         )
 
+        self.layout_beneficiario.addRow(self.check_es_el_demandante)
+        self.layout_beneficiario.addRow("Tipo de beneficiario", self.combo_tipo_beneficiario)
+        self.layout_beneficiario.addRow("Nombre del beneficiario", self.campo_nombre_beneficiario)
+        self.layout_beneficiario.addRow(
+            "Fecha de nacimiento", self.campo_fecha_nacimiento_beneficiario
+        )
+        self.layout_beneficiario.addRow(self.check_estudia)
+        self.layout_beneficiario.addRow(self.check_discapacidad_permanente)
+        self.layout_beneficiario.addRow(
+            "Relación con el demandante (opcional)", self.campo_relacion_demandante
+        )
+        self.layout_beneficiario.addRow("Vigencia calculada", self.label_vigencia_beneficiario)
+
         # Grid de 2 columnas en vez de una sola QVBoxLayout apilada (Sprint 72): con las
         # 3 secciones en una sola columna, la ventana crecia tanto en alto que el boton
         # "Guardar" quedaba fuera de la vista en pantallas estandar sin redimensionar a
@@ -607,6 +706,12 @@ class ObligacionFormDialog(QDialog):
         grid_secciones.addWidget(self.grupo_datos_basicos, 0, 0)
         grid_secciones.addWidget(self.grupo_tasas_intereses, 0, 1)
         grid_secciones.addWidget(self.grupo_honorarios_costas, 1, 0)
+        # Beneficiario (Sprint 74) comparte la fila 1 con "Honorarios y costas":
+        # cada uno es visible solo para su area (Honorarios / Civil-Familia
+        # respectivamente, ver grupo_beneficiario.setVisible mas abajo), nunca las
+        # dos a la vez -- mismo criterio que evita que la columna 0 reserve altura
+        # de sobra para areas que no usan ninguna de las dos.
+        grid_secciones.addWidget(self.grupo_beneficiario, 1, 1)
 
         # Contenido del grid dentro de un QScrollArea (Sprint 72, fix tras code review):
         # un QGridLayout de ancho fijo con 2 QGroupBox anchos lado a lado (ej. "Datos
@@ -735,6 +840,9 @@ class ObligacionFormDialog(QDialog):
         # oculto: ahi IPC es automatico, sin checkbox (ver mas arriba).
         self.grupo_tasas_intereses.setVisible(not es_tributario)
         self.grupo_honorarios_costas.setVisible(es_honorarios)
+        # Beneficiario (Sprint 74): solo Civil/Familia -- es la unica area que
+        # liquida obligaciones alimentarias (cuota alimentaria RECURRENTE).
+        self.grupo_beneficiario.setVisible(self._area == "CIVIL_FAMILIA")
 
         # campo_fecha_origen se reutiliza en Laboral como "fecha de inicio del contrato"
         # (ver _actualizar_campos_visibles) -- se ajusta la etiqueta del formulario para
@@ -757,6 +865,20 @@ class ObligacionFormDialog(QDialog):
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
         self.campo_fecha_origen.dateChanged.connect(self._actualizar_indicador_unidad_smlmv_uvt)
+        # Beneficiario (Sprint 74): la fila de estudia/discapacidad_permanente
+        # cambia segun el tipo elegido, y la vista previa de vigencia se
+        # recalcula en vivo con cualquier campo que la afecte.
+        self.combo_tipo_beneficiario.currentIndexChanged.connect(
+            self._actualizar_campos_beneficiario
+        )
+        self.campo_fecha_nacimiento_beneficiario.dateChanged.connect(
+            self._actualizar_vigencia_beneficiario
+        )
+        self.check_estudia.stateChanged.connect(self._actualizar_vigencia_beneficiario)
+        self.check_discapacidad_permanente.stateChanged.connect(
+            self._actualizar_vigencia_beneficiario
+        )
+        self.grupo_beneficiario.toggled.connect(self._actualizar_vigencia_beneficiario)
 
         # Feedback de validacion en tiempo real (Sprint 34): reutiliza los mismos
         # helpers de validacion del Sprint 24 (_validar_concepto_no_vacio,
@@ -771,6 +893,7 @@ class ObligacionFormDialog(QDialog):
         self._actualizar_visibilidad_trm()
         self._actualizar_campos_tributario()
         self._actualizar_indicador_unidad_smlmv_uvt()
+        self._actualizar_campos_beneficiario()
         self._fijar_orden_de_tabulacion()
 
         if obligacion_id is not None:
@@ -926,6 +1049,29 @@ class ObligacionFormDialog(QDialog):
                 if obligacion.rentas_exentas is not None:
                     self.campo_rentas_exentas.setText(str(obligacion.rentas_exentas))
                 self.check_protegida_inflacion_uvr.setChecked(obligacion.protegida_inflacion_uvr)
+
+            # Beneficiario (Sprint 74): precarga si esta obligacion ya tiene uno
+            # persistido -- fuera del elif de arriba, aplica a cualquier area
+            # (aunque solo Civil/Familia lo muestra, ver
+            # grupo_beneficiario.setVisible en _actualizar_campos_visibles).
+            if obligacion.beneficiario is not None:
+                beneficiario = obligacion.beneficiario
+                self.grupo_beneficiario.setChecked(True)
+                self.check_es_el_demandante.setChecked(beneficiario.es_el_demandante)
+                indice_tipo_beneficiario = self.combo_tipo_beneficiario.findData(
+                    beneficiario.tipo.value
+                )
+                if indice_tipo_beneficiario >= 0:
+                    self.combo_tipo_beneficiario.setCurrentIndex(indice_tipo_beneficiario)
+                self.campo_nombre_beneficiario.setText(beneficiario.nombre)
+                self.campo_fecha_nacimiento_beneficiario.setDate(
+                    _qdate(beneficiario.fecha_nacimiento)
+                )
+                self.check_estudia.setChecked(bool(beneficiario.estudia))
+                self.check_discapacidad_permanente.setChecked(
+                    bool(beneficiario.discapacidad_permanente)
+                )
+                self.campo_relacion_demandante.setText(beneficiario.relacion_demandante or "")
         finally:
             session.close()
 
@@ -935,6 +1081,7 @@ class ObligacionFormDialog(QDialog):
         self._actualizar_campos_visibles()
         self._actualizar_visibilidad_trm()
         self._actualizar_campos_tributario()
+        self._actualizar_campos_beneficiario()
 
     def _fijar_orden_de_tabulacion(self) -> None:
         """Encadena el orden de tabulacion explicitamente (Sprint 37) siguiendo el
@@ -1059,6 +1206,52 @@ class ObligacionFormDialog(QDialog):
         # separada, no sufre el bug de fila huerfana (Sprint 39).
         self.check_sancion_agravada.setVisible(es_inexactitud)
 
+    def _actualizar_campos_beneficiario(self) -> None:
+        """Muestra/oculta `check_estudia` (solo NINO) y
+        `check_discapacidad_permanente` (solo NINO_DISCAPACIDAD) segun el tipo
+        elegido -- arbol de decision del Sprint 74. Tambien recalcula la vista
+        previa de vigencia, que depende del tipo."""
+        tipo = self.combo_tipo_beneficiario.currentData()
+        self.check_estudia.setVisible(tipo == "NINO")
+        self.check_discapacidad_permanente.setVisible(tipo == "NINO_DISCAPACIDAD")
+        self._actualizar_vigencia_beneficiario()
+
+    def _actualizar_vigencia_beneficiario(self) -> None:
+        """Vista previa en vivo (Sprint 74) de `calcular_vigencia_alimentos` con
+        la fecha de hoy como referencia -- no es el calculo real de la
+        liquidacion (esa usa la fecha de corte del expediente al liquidar, ver
+        CivilFamiliaStrategy), solo feedback inmediato para el abogado
+        mientras captura. Para CONYUGE/PADRES/OTRO (o NINO_DISCAPACIDAD sin
+        marcar permanente) el `motivo` deja explicito que la vigencia no es
+        determinable automaticamente -- nunca queda en blanco ni inventa un
+        valor."""
+        if not self.grupo_beneficiario.isChecked():
+            self.label_vigencia_beneficiario.setText("")
+            return
+        tipo = TipoBeneficiario(self.combo_tipo_beneficiario.currentData())
+        qdate_nacimiento = self.campo_fecha_nacimiento_beneficiario.date()
+        fecha_nacimiento = date(
+            qdate_nacimiento.year(), qdate_nacimiento.month(), qdate_nacimiento.day()
+        )
+        if fecha_nacimiento > date.today():
+            self.label_vigencia_beneficiario.setText(
+                "La fecha de nacimiento no puede ser posterior a hoy."
+            )
+            return
+        beneficiario_preview = Beneficiario(
+            nombre="",
+            fecha_nacimiento=fecha_nacimiento,
+            tipo=tipo,
+            estudia=self.check_estudia.isChecked() if tipo == TipoBeneficiario.NINO else None,
+            discapacidad_permanente=(
+                self.check_discapacidad_permanente.isChecked()
+                if tipo == TipoBeneficiario.NINO_DISCAPACIDAD
+                else None
+            ),
+        )
+        resultado = calcular_vigencia_alimentos(beneficiario_preview, date.today())
+        self.label_vigencia_beneficiario.setText(resultado.motivo)
+
     def _actualizar_campos_visibles(self) -> None:
         if self._area == "LABORAL":
             self._aplicar_visibilidad_filas(
@@ -1150,6 +1343,8 @@ class ObligacionFormDialog(QDialog):
 
         self._validar_rango(tasa, Decimal("0"), Decimal("1000"), "La tasa efectiva anual")
         self._validar_concepto_no_vacio()
+        if self._area == "CIVIL_FAMILIA":
+            self._validar_beneficiario()
 
         parseo_por_area = {
             "SANCIONATORIO": self._parse_campos_sancionatorio,
@@ -1187,8 +1382,69 @@ class ObligacionFormDialog(QDialog):
             tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
             **campos_area,
         )
+        self._guardar_beneficiario(session, obligacion_id)
         session.close()
         return obligacion_id
+
+    def _validar_beneficiario(self) -> None:
+        """Valida los campos de `grupo_beneficiario` ANTES de persistir nada
+        (mismo momento que el resto de validaciones de `guardar()`) -- si
+        `_guardar_beneficiario` fuera quien validara, un nombre vacio dejaria
+        la `Obligacion` ya guardada sin su `Beneficiario` correspondiente."""
+        if not self.grupo_beneficiario.isChecked():
+            return
+        if not self.campo_nombre_beneficiario.text().strip():
+            raise ValueError(
+                "El nombre del beneficiario es obligatorio si se captura su información."
+            )
+        qdate_nacimiento = self.campo_fecha_nacimiento_beneficiario.date()
+        fecha_nacimiento = date(
+            qdate_nacimiento.year(), qdate_nacimiento.month(), qdate_nacimiento.day()
+        )
+        if fecha_nacimiento > date.today():
+            raise ValueError("La fecha de nacimiento del beneficiario no puede ser futura.")
+
+    def _guardar_beneficiario(self, session, obligacion_id: int) -> None:
+        """Crea/actualiza/elimina el `Beneficiario` 1:1 de esta obligacion
+        (Sprint 74) -- ya validado por `_validar_beneficiario`. Solo aplica a
+        Civil/Familia (unica area donde `grupo_beneficiario` es visible). Si
+        el grupo esta desmarcado se elimina cualquier `Beneficiario`
+        existente en vez de dejar una fila huerfana con datos que el abogado
+        ya no confirma."""
+        if self._area != "CIVIL_FAMILIA":
+            return
+        existente = session.query(Beneficiario).filter_by(obligacion_id=obligacion_id).first()
+        if not self.grupo_beneficiario.isChecked():
+            if existente is not None:
+                session.delete(existente)
+                session.commit()
+            return
+
+        tipo = TipoBeneficiario(self.combo_tipo_beneficiario.currentData())
+        qdate_nacimiento = self.campo_fecha_nacimiento_beneficiario.date()
+        fecha_nacimiento = date(
+            qdate_nacimiento.year(), qdate_nacimiento.month(), qdate_nacimiento.day()
+        )
+        campos = dict(
+            obligacion_id=obligacion_id,
+            nombre=self.campo_nombre_beneficiario.text().strip(),
+            fecha_nacimiento=fecha_nacimiento,
+            tipo=tipo,
+            es_el_demandante=self.check_es_el_demandante.isChecked(),
+            estudia=self.check_estudia.isChecked() if tipo == TipoBeneficiario.NINO else None,
+            discapacidad_permanente=(
+                self.check_discapacidad_permanente.isChecked()
+                if tipo == TipoBeneficiario.NINO_DISCAPACIDAD
+                else None
+            ),
+            relacion_demandante=self.campo_relacion_demandante.text().strip() or None,
+        )
+        if existente is not None:
+            for campo, valor_campo in campos.items():
+                setattr(existente, campo, valor_campo)
+        else:
+            session.add(Beneficiario(**campos))
+        session.commit()
 
     def _parse_decimales(self, campos: list[QLineEdit], mensaje_error: str) -> list[Decimal]:
         """Parsea 1+ QLineEdit a Decimal bajo un solo mensaje de error compartido --
