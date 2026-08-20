@@ -71,7 +71,11 @@ coexiste con la moratoria sin excluirla, y el umbral de salario ≥10 SMMLV qued
 del despacho, ver Sprint 92 en `docs/Pendientes.md`— y, opcionalmente, cotizaciones de seguridad social
 —pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales, con checkbox de salario =
 SMMLV automático por año, descuentos del empleador propios, y edición de obligaciones/eventos ya
-guardados sin borrar y recrear) y **Tributario** (impuesto a
+guardados sin borrar y recrear; además, desde el Sprint 93, una segunda categoría —"Salarios y
+prestaciones dejadas de percibir"— reconstruye salario + prestaciones para un período SIN contrato
+vigente (reintegro, salarios caídos), año calendario por año calendario, con el salario reajustado
+anualmente por IPC o SMMLV, reutilizando el mismo motor de reajuste anual de Civil/Familia) y
+**Tributario** (impuesto a
 cargo; sanciones por extemporaneidad, inexactitud y error aritmético, todas con un piso legal de 10 UVT
 sin importar el cálculo porcentual; imputación de pagos propia del área —sanciones → intereses →
 impuesto, distinta del orden civil de intereses → capital—; interés automático del E.T. art. 635 —usura

@@ -750,6 +750,41 @@ Sprint 76.
 
 ---
 
+## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir (reintegro/salarios caídos)
+
+**Contexto:** el Sprint 93 implementó la categoría "Salarios y prestaciones dejadas de percibir", que
+reconstruye salario + prestaciones para un período sin contrato vigente (reintegro, salarios caídos), con
+reajuste anual IPC o SMMLV — las dos variantes que separaban las plantillas `L5` (IPC) y `L6` (SMMLV) del
+despacho. El software ya ofrece ambas opciones y deja que el abogado elija cuál aplica caso por caso; no
+se implementó ninguna regla automática que decida cuál usar, porque no bloqueaba la Definición de Hecho
+del sprint (ver `docs/Pendientes.md`, Sprint 93).
+
+**Pregunta:** ¿en qué tipo de proceso se usa cada variante (reintegro con salarios caídos, contrato
+realidad con un período sin reconocimiento, u otro), y la elección entre IPC y SMMLV es discrecional del
+abogado según el caso, o depende de una regla fija (ej. según el tipo de proceso, o según qué pidió la
+parte demandante)?
+
+**Qué necesito exactamente:** confirmación de si la elección de índice es siempre discrecional (en cuyo
+caso no se necesita ningún cambio de código), o una regla concreta que determine cuál índice corresponde
+a cada escenario (en cuyo caso habría que agregar esa regla como validación o sugerencia automática).
+
+**Nota adicional (limitación del entorno de desarrollo):** los archivos
+`L5.SALARIOS-Y-PRESTACIONES-SOCIALES-DEJADAS-DE-PERCIBIR(incrementoinflacion).md` y
+`L6...(incremento-salario-minimo).md` citados como fuente del sprint no estaban disponibles en el entorno
+cloud donde se desarrolló (carpeta `docs/Archivos de referencia abogado/` excluida de git por copyright
+del despacho). La lógica de bloques anuales + reajuste + divisores 360/720 se implementó siguiendo la
+estructura descrita por escrito en `docs/Pendientes.md` y se verificó con casos sintéticos calculados a
+mano (`tests/services/test_salarios_dejados_de_percibir.py`), pero **no** se reconcilió línea por línea
+contra la planilla real de L5/L6. Se recomienda un chequeo cruzado manual del "GRAN TOTAL" contra un caso
+real antes de usar esta categoría en producción para un caso de reintegro o salarios caídos.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
 ## Plantilla para sprints futuros
 
 Copiar este bloque y completarlo cuando un sprint nuevo tenga una decisión legal sin confirmar, una fuente
