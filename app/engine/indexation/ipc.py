@@ -18,8 +18,11 @@ class IPCIndexation:
         if initial_index <= Decimal("0.00"):
             raise ValueError("El índice inicial del IPC no puede ser cero o negativo.")
             
-        # Si hay deflación (índice final es menor), la jurisprudencia dicta que 
+        # Si hay deflación (índice final es menor), la jurisprudencia dicta que
         # no se castiga el capital histórico del acreedor. El incremento es cero.
+        # (Caso de uso distinto a deflactar(), mas abajo: ese metodo SI reduce
+        # el capital a proposito, para retrotraer una cifra a una fecha
+        # anterior -- ver su docstring, Sprint 101 en docs/Pendientes.md.)
         if final_index <= initial_index:
             return Decimal("0.00")
             

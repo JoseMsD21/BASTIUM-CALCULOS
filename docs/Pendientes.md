@@ -282,7 +282,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--pendiente-de-confirmación)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
-- [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 🟡 En proceso](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--en-proceso-rama-sprint-101-deflactacion-ipc)
+- [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--pendiente)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
 
@@ -6775,7 +6775,7 @@ Este patrón (cuota mensual + reajuste anual + indexación IPC mensual) es muy c
 
 ---
 
-## Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 🟡 En proceso (rama `sprint-101-deflactacion-ipc`)
+## Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado (calculadora aislada; caso de uso real e integración condicionados a confirmación del despacho)
 
 **Prioridad sugerida:** Baja — pieza pequeña y aislada, no requiere la decisión de dominio nuevo de Sprint 97 (es una extensión del motor de indexación IPC ya existente en Civil/Familia, no una figura jurídica nueva).
 
@@ -6791,6 +6791,19 @@ Verificado en el código: `IPCIndexation.calculate()` (`app/engine/indexation/ip
 - Función `IPCIndexation.deflactar()` (o similar, nombre a decidir) con fórmula `VA = VH × IPC_Inicial/IPC_Final`, sin el guard de "deflación = 0" de la función existente (son casos de uso distintos, documentado explícitamente en el docstring de ambas para que no se confundan).
 - Test con un ejemplo numérico verificado manualmente (la plantilla no trae ninguno resuelto).
 - Suite completa en verde.
+
+**Cierre (2026-08-20, rutina autónoma):** Completado el alcance de calculadora aislada.
+`IPCIndexation.deflactar(capital, initial_index, final_index)` agregada en `app/engine/indexation/ipc.py`
+con la fórmula literal `VA = VH × IPC_Inicial/IPC_Final` (a diferencia de `calculate()`, devuelve el valor
+actualizado completo, no un delta, y no tiene el guard de "deflación = 0" — son casos de uso distintos,
+documentado en el docstring de ambas). 5 tests nuevos en `tests/engine/test_indexation.py`: fórmula contra
+un ejemplo manual verificado ($10.000.000 × 100/150 = $6.666.666,67), índices iguales (identidad), capital
+cero/negativo, índice final cero/negativo (`ValueError`), y confirmación explícita de que sí reduce el
+capital cuando corresponde (a diferencia de `calculate()`). **No conectada** a ningún flujo de
+captura/liquidación real ni a ningún reporte — la decisión de diseño pendiente (caso de uso concreto del
+despacho, y si vive como utilidad suelta o integrada a una obligación) sigue sin resolver, ver pregunta en
+`Preguntas-Para-Abogado-Abiertas.md` (a agregar cuando el despacho la necesite). Suite completa: 1336
+passed.
 
 ---
 
