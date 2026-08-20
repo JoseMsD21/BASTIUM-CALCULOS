@@ -273,7 +273,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--bloqueado--pendiente-de-confirmación)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--bloqueado--pendiente-de-confirmación)
-- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟡 En proceso](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--en-proceso)
+- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado-fecha-de-corte-19901992-umbral-10-smmlv-y-tramos-del-régimen-pre-1990-más-allá-de-la-fórmula-continua-confirmada-quedan-condicionados-a-confirmación-del-despacho)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
@@ -6450,11 +6450,31 @@ futura `PensionalStrategy`).
 
 ---
 
-## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟡 En proceso
+## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado (fecha de corte 1990/1992, umbral ≥10 SMMLV y tramos del régimen pre-1990 más allá de la fórmula continua confirmada quedan condicionados a confirmación del despacho)
 
-**Nota de la rutina autónoma (2026-08-20):** en proceso en la rama
-`sprint-92-indemnizacion-despido-injustificado`. Si esta sesión no llega a cerrarlo, retomar ahí
-(nunca empezar otro sprint nuevo antes de terminar este).
+**Cierre (2026-08-20):** implementado en la rama `sprint-92-indemnizacion-despido-injustificado` (mergeada a
+`main`). `app/engine/labor/dismissal_indemnity.py::DismissalIndemnityCalculator` calcula:
+- Contrato indefinido, salario < 10 SMMLV: 30 días primer año + 20 días/año subsiguiente (fracción
+  proporcional) si `fecha_inicio` es posterior al 1° de enero de 1991 (Ley 50/1990); 45 + 15 días si es
+  anterior. **La fecha de corte real (1990 vs. 1992, inconsistencia de la plantilla original) sigue sin
+  confirmar** — se usa 1991-01-01 (vigencia real y citable de la Ley 50/1990) como asunción documentada en
+  el docstring del calculador, overridable via `fecha_corte_regimen` en cuanto llegue la respuesta.
+- Contrato a término fijo/obra-labor: tiempo restante para cumplir el plazo pactado, piso de 15 días.
+- Contrato indefinido con salario ≥10 SMMLV: **no soportado a propósito** (`RegimenNoSoportadoError`,
+  capturado en `LaboralStrategy` como alerta no bloqueante) — el sprint no trajo la fórmula/días exactos
+  para ese umbral.
+- Tramos del régimen pre-Ley 50/1990 más allá de la fórmula continua confirmada (45+15): el backlog
+  advertía que la plantilla trae "varios regímenes por estos tramos" (probablemente una tasa distinta a
+  partir de 5/10 años, como el Decreto 2351/1965), pero solo se transcribió una cifra — el calculador aplica
+  esa cifra sin importar la antigüedad total; podría **subestimar** contratos muy antiguos si el régimen
+  real escalona. Documentado en el docstring del calculador y en la pregunta abierta (ver abajo).
+
+Wireado en `LaboralStrategy` como el evento `INDEMNIZACION_DESPIDO`, deliberadamente independiente de
+`SANCION_MORATORIA` (Art. 65 CST) -- ambos pueden coexistir en el mismo expediente sin acoplamiento
+automático, tal como pedía este mismo sprint; la coexistencia también queda como pregunta abierta a
+confirmar formalmente. 3 preguntas quedaron registradas en `docs/Preguntas-Para-Abogado-Abiertas.md`
+(sección Sprint 92): la fecha de corte, la fórmula ≥10 SMMLV, y los tramos del régimen pre-1990. Suite
+completa en verde (1410 tests) y `ruff check .` limpio antes de mergear.
 
 **Prioridad sugerida:** Alta — es probablemente el tipo de proceso laboral más común (despido sin justa
 causa), y hoy BASTIUM lo omite silenciosamente pese a tener un archivo con nombre similar
