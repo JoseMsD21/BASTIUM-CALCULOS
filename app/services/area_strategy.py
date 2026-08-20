@@ -53,7 +53,20 @@ from app.engine.time.calendar import CalendarUtils
 from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import cache_de_liquidacion, get_parametro
 from app.services.recurrencia_fechas_fijas import deserializar_fechas_anuales
+from app.services.salarios_dejados_de_percibir import (
+    generar_eventos_salarios_dejados_de_percibir,
+)
 from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
+
+# Sprint 93: categoria de Laboral que reabre, SOLO para ella, la exclusion de
+# TipoObligacion.RECURRENTE que el Sprint 75 dejo explicita para toda el area
+# -- ver LaboralStrategy._validar_obligacion_laboral/
+# _liquidar_salarios_dejados_de_percibir mas abajo y el modulo
+# app/services/salarios_dejados_de_percibir.py. Constante en vez de repetir el
+# string literal en los 2 puntos donde se usa (mismo criterio que
+# app.core.constants.CATEGORIAS_LABORAL, que trae el mismo codigo para el
+# combo de la UI).
+CATEGORIA_SALARIOS_DEJADOS_DE_PERCIBIR = "SALARIOS_DEJADOS_DE_PERCIBIR"
 
 
 def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
@@ -1105,6 +1118,34 @@ class LaboralStrategy(AreaStrategy):
     via el flag `incluir_seguridad_social` de la obligacion (requiere ademas
     `nivel_riesgo_arl`, I-V) -- ver docs/Pendientes.md, Sprint 16, y
     docs/superpowers/specs/2026-07-18-area-laboral-design.md.
+
+    Salarios y prestaciones dejadas de percibir (Sprint 93, categoria
+    `SALARIOS_DEJADOS_DE_PERCIBIR`, ver `app.core.constants.CATEGORIAS_LABORAL`):
+    submodo enteramente distinto del finiquito de arriba, para reconstruir el
+    salario + las 4 prestaciones estatutarias que un trabajador habria
+    devengado durante un periodo en que NO estuvo contratado (reintegro por
+    despido declarado nulo, "salarios caidos"), año calendario por año
+    calendario, con el salario reajustado el 1 de enero de cada año por IPC o
+    SMMLV. `liquidar()` desvia a `_liquidar_salarios_dejados_de_percibir` para
+    esta categoria ANTES de llegar a la logica de finiquito de abajo (que no
+    aplica: no hay "fecha de terminacion" ni mora del Art. 65 CST sobre un
+    contrato que nunca estuvo vigente en ese periodo).
+
+    Decision de diseno (sin necesitar confirmacion del despacho, ver
+    docs/Pendientes.md Sprint 93): esta categoria nueva coexiste con
+    `LIQUIDACION_CONTRATO_LABORAL` sin romper el invariante "1 obligacion = 1
+    contrato" del Sprint 3 -- una obligacion `SALARIOS_DEJADOS_DE_PERCIBIR` no
+    representa un contrato, representa la reconstruccion de un periodo SIN
+    contrato, asi que modelarla como una obligacion propia (RECURRENTE, con
+    `fecha_inicio`/`fecha_fin` marcando el periodo completo, en vez de una
+    serie de "cuotas" mensuales reales como Civil/Familia) es coherente con lo
+    que el dato representa, no una excepcion al invariante. `_validar_
+    obligacion_laboral` reabre `TipoObligacion.RECURRENTE` (que el Sprint 75
+    dejo bloqueado con ValueError para toda el area) EXCLUSIVAMENTE para esta
+    categoria, y bloquea a proposito `despido_injustificado`/
+    `incluir_seguridad_social` en ella (conceptos de finiquito que no aplican
+    a un periodo sin contrato vigente -- fuera de alcance de este sprint, no
+    un olvido).
     """
 
     soporta_indexacion_ipc = True
@@ -1128,6 +1169,17 @@ class LaboralStrategy(AreaStrategy):
         if obligacion.es_smmlv:
             obligacion.valor = get_smlmv_for_year(obligacion.fecha_origen.year)
         self._validar_obligacion_laboral(obligacion)
+
+        # Sprint 93: SALARIOS_DEJADOS_DE_PERCIBIR se desvia por completo antes
+        # de la logica de finiquito de abajo -- ver el docstring de la clase
+        # (arriba) para el porque. Bloqueada explicitamente por
+        # `_validar_obligacion_laboral`: `despido_injustificado`,
+        # `incluir_seguridad_social` (asi que tampoco hay eventos_laborales/
+        # incapacidades que procesar) y toda la mora del Art. 65 CST (no hay
+        # "fecha de terminacion" de un contrato que nunca estuvo vigente en
+        # este periodo).
+        if obligacion.categoria == CATEGORIA_SALARIOS_DEJADOS_DE_PERCIBIR:
+            return self._liquidar_salarios_dejados_de_percibir(obligacion, abonos, fecha_corte)
 
         # dias_trabajados (calendario real, resta simple, SIN +1): sigue
         # alimentando la seguridad social/incapacidades mas abajo en este
@@ -1385,8 +1437,65 @@ class LaboralStrategy(AreaStrategy):
             resultado = self._agregar_alerta(resultado, alerta_indemnizacion_despido)
         return resultado
 
+    def _liquidar_salarios_dejados_de_percibir(
+        self, obligacion, abonos: list, fecha_corte: date
+    ) -> LiquidationResult:
+        """Sprint 93. `obligacion` ya paso `_validar_obligacion_laboral` (tipo
+        RECURRENTE, fecha_inicio/fecha_fin pobladas, sin despido_injustificado
+        ni incluir_seguridad_social) cuando `liquidar()` desvia aqui. Genera
+        los eventos de capital (SALARIO_DEJADO_DE_PERCIBIR + las 4
+        prestaciones, un bloque por año calendario) via
+        `generar_eventos_salarios_dejados_de_percibir` -- ese modulo hace todo
+        el trabajo de dominio (bloques anuales, reajuste IPC/SMMLV, divisores
+        360/720); esta funcion solo lo conecta con costas procesales/abonos y
+        el motor de liquidacion consolidado, igual patron que el resto de
+        AreaStrategy.
+
+        Sin rate_provider (igual que el finiquito de arriba): no hay mora del
+        Art. 65 CST sobre un periodo sin contrato vigente, asi que la tasa
+        diaria generica de UniversalLiquidationService se queda en 0 -- el
+        "GRAN TOTAL" es la suma de los eventos de capital, reducida solo por
+        los abonos que se hayan registrado.
+        """
+        eventos = generar_eventos_salarios_dejados_de_percibir(
+            salario_inicial=obligacion.valor,
+            fecha_inicio=obligacion.fecha_inicio,
+            fecha_fin=obligacion.fecha_fin,
+            tipo_reajuste=obligacion.tipo_reajuste_anual,
+        )
+
+        gran_total = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+        evento_costas = _evento_costas_procesales(obligacion, pretensiones_reconocidas=gran_total)
+        if evento_costas is not None:
+            eventos.append(evento_costas)
+
+        pagos = [
+            Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
+            for abono in abonos
+        ]
+        service = UniversalLiquidationService()
+        return service.liquidar(
+            eventos_causacion=eventos,
+            pagos=pagos,
+            fecha_corte=fecha_corte,
+        )
+
     def _validar_obligacion_laboral(self, obligacion) -> None:
-        if obligacion.tipo.value != "PUNTUAL":
+        es_salarios_dejados = obligacion.categoria == CATEGORIA_SALARIOS_DEJADOS_DE_PERCIBIR
+        if es_salarios_dejados:
+            if obligacion.tipo.value != "RECURRENTE":
+                raise ValueError(
+                    "La categoria 'Salarios y prestaciones dejadas de percibir' debe ser "
+                    "RECURRENTE -- representa un periodo entero sin contrato vigente "
+                    "(fecha_inicio/fecha_fin del periodo), no un hecho puntual."
+                )
+            if obligacion.despido_injustificado or obligacion.incluir_seguridad_social:
+                raise ValueError(
+                    "La categoria 'Salarios y prestaciones dejadas de percibir' no admite "
+                    "indemnizacion por despido injustificado ni cotizaciones de seguridad "
+                    "social (Sprint 93, fuera de alcance) -- desmarcar esas casillas."
+                )
+        elif obligacion.tipo.value != "PUNTUAL":
             raise ValueError(
                 "El area Laboral solo admite obligaciones de tipo PUNTUAL "
                 "(un contrato completo); RECURRENTE no aplica a prestaciones sociales."

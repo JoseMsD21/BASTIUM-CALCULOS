@@ -24,13 +24,29 @@ CATEGORIAS_COMERCIAL = [
 
 CATEGORIAS_LABORAL = [
     ("LIQUIDACION_CONTRATO_LABORAL", "Liquidacion de contrato laboral"),
+    # SALARIOS_DEJADOS_DE_PERCIBIR (Sprint 93): reabre, SOLO para esta
+    # categoria, la exclusion de TipoObligacion.RECURRENTE que el Sprint 75
+    # dejo explicita para toda el area Laboral -- ver
+    # LaboralStrategy._validar_obligacion_laboral (area_strategy.py) y
+    # app/services/salarios_dejados_de_percibir.py para el porque: a
+    # diferencia de LIQUIDACION_CONTRATO_LABORAL (finiquito de UN contrato
+    # vigente-hasta-fecha_fin), esta categoria reconstruye salario +
+    # prestaciones para un periodo en que el trabajador NO estuvo contratado
+    # (reintegro/salarios caidos), con el salario reajustado anualmente por
+    # IPC o SMMLV -- coexiste con LIQUIDACION_CONTRATO_LABORAL sin romper el
+    # invariante "1 obligacion = 1 contrato" del Sprint 3 (esta obligacion no
+    # representa un contrato, representa la reconstruccion de un periodo sin
+    # el).
+    ("SALARIOS_DEJADOS_DE_PERCIBIR", "Salarios y prestaciones dejadas de percibir (reintegro)"),
 ]
 # Nota: a diferencia de CATEGORIAS_CIVIL_FAMILIA/CATEGORIAS_COMERCIAL, esta
 # categoria es solo una etiqueta de UI -- el event_type real de cada linea de
 # la liquidacion (CESANTIAS, INTERESES_CESANTIAS, PRIMA_JUNIO, PRIMA_DICIEMBRE,
-# VACACIONES, SANCION_MORATORIA, INDEMNIZACION_DESPIDO) lo define LaborScheduler/
-# MoratoryIndemnityCalculator/DismissalIndemnityCalculator internamente en
-# app/services/area_strategy.py, no este codigo.
+# VACACIONES, SANCION_MORATORIA, INDEMNIZACION_DESPIDO, SALARIO_DEJADO_DE_PERCIBIR)
+# lo define LaborScheduler/MoratoryIndemnityCalculator/DismissalIndemnityCalculator/
+# generar_eventos_salarios_dejados_de_percibir internamente en
+# app/services/area_strategy.py y app/services/salarios_dejados_de_percibir.py,
+# no este codigo.
 
 CATEGORIAS_SANCIONATORIO = [
     ("MULTA_SANCIONATORIA", "Multa sancionatoria (SMLMV/UVT)"),

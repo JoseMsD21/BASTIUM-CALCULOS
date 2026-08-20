@@ -661,13 +661,20 @@ separadas: una de honorarios profesionales y otra de costas procesales.
 ### 5.11. Agregar una obligación laboral y liquidar un contrato terminado
 
 Cuando el expediente tiene **Área del derecho = Laboral**, el formulario de "Agregar obligación" cambia
-de forma: representa un contrato de trabajo completo, no una deuda puntual o una cuota recurrente — por
-eso el campo "Tipo" se oculta (siempre se guarda como Puntual) y la "Tasa efectiva anual (%)" tampoco
-aplica (se guarda en 0, sin mostrarse). El campo que en las demás áreas se llama "Fecha de origen
-(Puntual)" aquí se muestra como **"Fecha de inicio del contrato"**.
+de forma. El primer campo, **Categoría**, elige cuál de las dos formas de liquidar se aplica:
+
+- **"Liquidación de contrato laboral"** (por defecto, descrita en esta sección): representa un contrato
+  de trabajo completo que ya terminó, no una deuda puntual o una cuota recurrente — por eso el campo
+  "Tipo" se oculta (siempre se guarda como Puntual) y la "Tasa efectiva anual (%)" tampoco aplica (se
+  guarda en 0, sin mostrarse). El campo que en las demás áreas se llama "Fecha de origen (Puntual)" aquí
+  se muestra como **"Fecha de inicio del contrato"**.
+- **"Salarios y prestaciones dejadas de percibir (reintegro)"**: un caso completamente distinto —
+  reconstruye lo que un trabajador habría devengado durante un período en que NO estuvo contratado
+  (reintegro, salarios caídos), no el finiquito de un contrato — ver [sección
+  5.11.1](#5111-salarios-y-prestaciones-dejadas-de-percibir-reintegro-o-salarios-caídos).
 
 1. Dentro del Detalle de un expediente Laboral, haz clic en **"Agregar obligación"**.
-2. Llena:
+2. Con la categoría "Liquidación de contrato laboral" seleccionada, llena:
    - **Concepto**: por ejemplo, "Liquidación de contrato — Juan Pérez".
    - **Valor**: el salario base mensual.
    - **Fecha de inicio del contrato**: el día en que empezó el contrato.
@@ -742,6 +749,61 @@ liquida así (base de 360 días/año, 720 para vacaciones):
 
 **Qué NO calcula todavía esta área:** régimen pensional (IBL, densidad de semanas, tasa de reemplazo) —
 ver [sección 8](#8-funciones-pendientes-o-en-desarrollo).
+
+### 5.11.1. Salarios y prestaciones dejadas de percibir (reintegro o salarios caídos)
+
+Esta categoría reconstruye el salario y las cuatro prestaciones sociales (cesantías, intereses a las
+cesantías, primas, vacaciones) que un trabajador habría devengado durante un período en que **no estuvo
+contratado** — típicamente un reintegro por despido declarado nulo, o el período de "salarios caídos".
+No es un finiquito: no hay fecha de terminación de contrato ni mora del Art. 65 CST, porque no había
+contrato vigente en ese período. Reutiliza el mismo motor de reajuste anual (IPC o SMMLV) que ya usan las
+cuotas alimentarias de Civil/Familia, aplicado aquí al salario en vez de a una cuota.
+
+1. Dentro del Detalle de un expediente Laboral, haz clic en **"Agregar obligación"**.
+2. En **Categoría**, elige **"Salarios y prestaciones dejadas de percibir (reintegro)"**. El formulario
+   cambia: aparece el combo **"Reajuste anual"** y desaparecen "Despido sin justa causa" y "Incluir
+   cotizaciones de seguridad social no pagadas" (esta categoría no los admite — si el caso también
+   necesita indemnización por despido injustificado o seguridad social no pagada, regístralos en una
+   obligación separada con la categoría "Liquidación de contrato laboral").
+3. Llena:
+   - **Concepto**: por ejemplo, "Salarios y prestaciones dejadas de percibir — reintegro Juan Pérez".
+   - **Valor**: el salario mensual al **inicio** del período (antes de cualquier reajuste).
+   - **Fecha de inicio del periodo (DESDE)**: el primer día del período sin contrato.
+   - **Fecha de fin del periodo (HASTA)**: el último día del período sin contrato.
+   - **Reajuste anual**: "Ninguno" (el salario queda constante todo el período), "SMMLV (Salario
+     Mínimo)" o "IPC (Índice de Precios al Consumidor)". El programa no impone cuál usar — el criterio
+     de cuál índice aplica a cada tipo de proceso queda a tu juicio profesional (ver
+     `docs/Preguntas-Para-Abogado-Abiertas.md`).
+4. Haz clic en **"Guardar"** y luego en **"Liquidar"**.
+
+**Cómo se calcula:** el período se parte en un bloque por cada **año calendario** que toca (el primer y
+el último bloque pueden ser parciales, si el período no empieza el 1° de enero o no termina el 31 de
+diciembre). El salario se reajusta el 1° de enero de cada año siguiente al de inicio, según el índice
+elegido. Dentro de cada bloque se calcula, con los mismos divisores de un finiquito normal (360 días para
+salario/cesantías/intereses/primas, 720 para vacaciones):
+
+- **Salario dejado de percibir** del bloque = salario del bloque × (días del bloque / 30).
+- **Cesantías**, **Intereses a las cesantías**, **Prima de junio + Prima de diciembre** y
+  **Vacaciones**, con la misma fórmula que un finiquito normal (sección 5.11), aplicada a los días y al
+  salario de ese bloque específico.
+
+Todos los bloques se suman en un solo total ("GRAN TOTAL"). Los abonos que registres contra esta
+obligación se restan de ese total, igual que en cualquier otra área.
+
+**Ejemplo numérico (año calendario completo, salario $1.200.000, sin reajuste):**
+- Salario dejado de percibir: `1.200.000 × 360 / 30 = $14.400.000` (12 meses).
+- Cesantías: `1.200.000 × 360 / 360 = $1.200.000`.
+- Intereses a las cesantías: `1.200.000 × 0,12 = $144.000`.
+- Prima de junio + prima de diciembre: `600.000 + 600.000 = $1.200.000`.
+- Vacaciones: `1.200.000 × 360 / 720 = $600.000`.
+- Total del bloque: `$17.544.000`.
+
+**Verificación de este cálculo:** la lógica de bloques anuales + reajuste + divisores 360/720 está
+verificada con casos sintéticos calculados a mano en
+`tests/services/test_salarios_dejados_de_percibir.py`, pero **no** está reconciliada línea por línea
+contra la planilla real del despacho (el archivo de referencia no está disponible en el entorno donde se
+desarrolló este sprint) — se recomienda un chequeo cruzado manual antes de confiar en este cálculo para un
+caso real de reintegro o salarios caídos.
 
 ### 5.12. Editar o eliminar un expediente
 
@@ -1104,7 +1166,7 @@ hoy**:
 |---|---|
 | Civil / Familia | ✅ Sí — interés del Art. 1617 C.C. (6% anual o la tasa que se pacte), sobre obligaciones puntuales y recurrentes, con abonos. |
 | Comercial | ✅ Sí — Art. 884 C.Co., tasa remuneratoria antes del vencimiento y tasa moratoria después. Si alguna tasa supera el tope de usura (1.5× el IBC que ingreses), se liquida igual y se resta del saldo la sanción legal (doble del exceso cobrado). Ver [sección 5.7](#57-agregar-una-obligación-comercial). |
-| Laboral | ✅ Sí — liquidación final (finiquito) de un contrato: cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, indemnización por despido injustificado del Art. 64 CST (ambas coexisten sin excluirse), y opcionalmente cotizaciones de seguridad social (pensión, salud, ARL, FSP) más incapacidades y suspensiones contractuales. Ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado). |
+| Laboral | ✅ Sí — dos categorías: liquidación final (finiquito) de un contrato (cesantías, intereses a cesantías, prima, vacaciones, indemnización moratoria bifásica del Art. 65 CST, indemnización por despido injustificado del Art. 64 CST —ambas coexisten sin excluirse—, y opcionalmente cotizaciones de seguridad social —pensión, salud, ARL, FSP— más incapacidades y suspensiones contractuales; ver [sección 5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado)), o salarios y prestaciones dejadas de percibir con reajuste anual IPC/SMMLV para un período sin contrato vigente (reintegro/salarios caídos; ver [sección 5.11.1](#5111-salarios-y-prestaciones-dejadas-de-percibir-reintegro-o-salarios-caídos)). |
 | Sancionatorio | ✅ Sí — multas en SMLMV o UVT (Ley 1955/2019 art. 49): SMLMV para hechos anteriores al 2020-01-01, UVT (tabla histórica 2006-2026) desde esa fecha en adelante. Ver [sección 5.9](#59-agregar-una-obligación-sancionatoria). |
 | Honorarios / Litigio | ✅ Sí — honorarios profesionales y cuota litis, validando el tope único del 50% acumulado del beneficio obtenido; las costas judiciales se ingresan como un porcentaje manual (el que haya fijado el juez en el auto). Ver [sección 5.10](#510-agregar-una-obligación-de-honorarios--litigio). |
 | Tributario | ✅ Sí — impuesto a cargo (interés E.T. 635), sanciones por extemporaneidad/inexactitud/error aritmético (con piso de 10 UVT), actualización IPC adicional para mora superior a 3 años (Art. 867-1 E.T.), y depuración de Renta Líquida Gravable informativa. Cada obligación liquida y recibe abonos por separado. Ver [sección 5.15](#515-agregar-una-obligación-tributaria). |

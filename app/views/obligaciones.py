@@ -179,9 +179,12 @@ class ObligacionFormDialog(QDialog):
             "IPC (Indice de Precios al Consumidor)", userData="IPC"
         )
         self.combo_tipo_reajuste_anual.setToolTip(
-            "Si se activa, el capital de cada cuota mensual se reajusta el 1 de enero de "
-            "cada año segun el indice elegido -- usar el boton 'Generar cuotas' del "
-            "expediente despues de guardar para crear las cuotas mensuales reales."
+            "Civil/Familia: si se activa, el capital de cada cuota mensual se reajusta el "
+            "1 de enero de cada año segun el indice elegido -- usar el boton 'Generar "
+            "cuotas' del expediente despues de guardar para crear las cuotas mensuales "
+            "reales. Laboral (Salarios dejados de percibir): el salario se reajusta el 1 "
+            "de enero de cada año dentro del periodo DESDE/HASTA, sin necesidad de "
+            "generar cuotas -- el calculo se hace de una sola vez al liquidar."
         )
 
         # Tipo de accion/proceso (Sprint 61): unifica prescripcion (TipoAccion) y
@@ -667,6 +670,7 @@ class ObligacionFormDialog(QDialog):
             "Rentas exentas (Renta liquida)", self.campo_rentas_exentas
         )
         self.layout_datos_basicos.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
+        self.label_fecha_fin = self.layout_datos_basicos.labelForField(self.campo_fecha_fin)
         self.layout_datos_basicos.addRow(self.check_pagada)
         self.layout_datos_basicos.addRow("Fecha de pago real", self.campo_fecha_pago_total)
         self.layout_datos_basicos.addRow(self.check_incluir_seguridad_social)
@@ -905,6 +909,13 @@ class ObligacionFormDialog(QDialog):
         self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
+        # Sprint 93: la categoria SALARIOS_DEJADOS_DE_PERCIBIR (unica categoria
+        # de Laboral que muestra el reajuste anual/oculta despido injustificado
+        # y seguridad social) se elige con el mismo combo_categoria -- sin este
+        # connect, cambiar de categoria dentro del area Laboral no refrescaria
+        # esos campos hasta el siguiente evento que si dispare
+        # _actualizar_campos_visibles (ej. tocar otro control).
+        self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.campo_fecha_origen.dateChanged.connect(self._actualizar_indicador_unidad_smlmv_uvt)
         # Beneficiario (Sprint 74): la fila de estudia/discapacidad_permanente
         # cambia segun el tipo elegido, y la vista previa de vigencia se
@@ -1059,6 +1070,21 @@ class ObligacionFormDialog(QDialog):
             elif self._area == "LABORAL":
                 if obligacion.fecha_fin is not None:
                     self.campo_fecha_fin.setDate(_qdate(obligacion.fecha_fin))
+                # tipo_reajuste_anual (Sprint 93): solo relevante para
+                # SALARIOS_DEJADOS_DE_PERCIBIR, pero se restaura siempre
+                # (default NINGUNO para LIQUIDACION_CONTRATO_LABORAL) --
+                # mismo patron que combo_tipo_reajuste_anual ya usa para
+                # Civil/Familia mas abajo en este metodo.
+                valor_reajuste_laboral = (
+                    obligacion.tipo_reajuste_anual.value
+                    if obligacion.tipo_reajuste_anual is not None
+                    else "NINGUNO"
+                )
+                indice_reajuste_laboral = self.combo_tipo_reajuste_anual.findData(
+                    valor_reajuste_laboral
+                )
+                if indice_reajuste_laboral >= 0:
+                    self.combo_tipo_reajuste_anual.setCurrentIndex(indice_reajuste_laboral)
                 self.check_es_smmlv.setChecked(obligacion.es_smmlv)
                 self.check_pagada.setChecked(obligacion.pagada)
                 if obligacion.fecha_pago_total is not None:
@@ -1307,10 +1333,24 @@ class ObligacionFormDialog(QDialog):
 
     def _actualizar_campos_visibles(self) -> None:
         if self._area == "LABORAL":
+            # SALARIOS_DEJADOS_DE_PERCIBIR (Sprint 93): submodo que reconstruye
+            # salario + prestaciones para un periodo SIN contrato vigente
+            # (reintegro/salarios caidos), con reajuste anual IPC/SMMLV -- ver
+            # LaboralStrategy._liquidar_salarios_dejados_de_percibir
+            # (area_strategy.py). Muestra el reajuste anual (unico campo que
+            # esta categoria necesita y LIQUIDACION_CONTRATO_LABORAL no usa) y
+            # oculta despido injustificado/seguridad social (LaboralStrategy
+            # los rechaza con ValueError para esta categoria, fuera de alcance
+            # de este sprint).
+            es_salarios_dejados = (
+                self.combo_categoria.currentData() == "SALARIOS_DEJADOS_DE_PERCIBIR"
+            )
             self._aplicar_visibilidad_filas(
                 self.layout_datos_basicos,
                 {
-                    # reutilizado como "fecha de inicio del contrato"
+                    # reutilizado como "fecha de inicio del contrato" o "fecha
+                    # de inicio del periodo (DESDE)", ver los label_*.setText
+                    # mas abajo.
                     self.campo_fecha_origen: True,
                     self.campo_fecha_inicio: False,
                     self.campo_dia_pago: False,
@@ -1318,21 +1358,41 @@ class ObligacionFormDialog(QDialog):
                     # se oculta -- el salario base se resuelve automaticamente al
                     # liquidar, digitarlo a mano no serviria de nada.
                     self._contenedor_campo_valor: not self.check_es_smmlv.isChecked(),
-                    self.combo_tipo_reajuste_anual: False,
+                    self.combo_tipo_reajuste_anual: es_salarios_dejados,
                     self.combo_tipo_recurrencia: False,
                     self.campo_fechas_anuales_fijas: False,
                     self.campo_fecha_pago_total: self.check_pagada.isChecked(),
-                    self.combo_nivel_riesgo_arl: self.check_incluir_seguridad_social.isChecked(),
-                    self.combo_tipo_contrato_laboral: True,
+                    self.combo_nivel_riesgo_arl: (
+                        not es_salarios_dejados
+                        and self.check_incluir_seguridad_social.isChecked()
+                    ),
+                    self.combo_tipo_contrato_laboral: not es_salarios_dejados,
                     # fecha_fin_pactada (Sprint 92) solo aplica a termino fijo/obra-labor
                     # -- se pide siempre que ese tipo de contrato este seleccionado (no
                     # solo si ya se marco despido injustificado), para que el dato quede
                     # capturado desde el principio del contrato, no solo al momento del
-                    # despido.
-                    self.campo_fecha_fin_pactada: self.combo_tipo_contrato_laboral.currentData()
-                    in ("FIJO", "OBRA_LABOR"),
+                    # despido. No aplica a SALARIOS_DEJADOS_DE_PERCIBIR (sin despido).
+                    self.campo_fecha_fin_pactada: (
+                        not es_salarios_dejados
+                        and self.combo_tipo_contrato_laboral.currentData()
+                        in ("FIJO", "OBRA_LABOR")
+                    ),
                 },
             )
+            self.check_despido_injustificado.setVisible(not es_salarios_dejados)
+            self.check_incluir_seguridad_social.setVisible(not es_salarios_dejados)
+            if self.label_fecha_origen is not None:
+                self.label_fecha_origen.setText(
+                    "Fecha de inicio del periodo (DESDE)"
+                    if es_salarios_dejados
+                    else "Fecha de inicio del contrato"
+                )
+            if self.label_fecha_fin is not None:
+                self.label_fecha_fin.setText(
+                    "Fecha de fin del periodo (HASTA)"
+                    if es_salarios_dejados
+                    else "Fecha de terminacion de contrato"
+                )
             self.check_anatocismo_demanda_judicial.setVisible(False)
             self.check_anatocismo_acuerdo.setVisible(False)
             set_row_visible(
@@ -1753,6 +1813,23 @@ class ObligacionFormDialog(QDialog):
         }
 
     def _guardar_laboral(self) -> int:
+        categoria = self.combo_categoria.currentData()
+        # SALARIOS_DEJADOS_DE_PERCIBIR (Sprint 93): unica categoria de Laboral
+        # que es RECURRENTE (representa un periodo entero DESDE/HASTA sin
+        # contrato vigente, no un hecho puntual) -- ver LaboralStrategy.
+        # _validar_obligacion_laboral (area_strategy.py), que exige
+        # exactamente esta combinacion (RECURRENTE solo para esta categoria,
+        # PUNTUAL para el resto). El usuario nunca elige "Tipo" directamente
+        # en Laboral (combo_tipo permanece oculto, igual que antes de este
+        # sprint) -- se infiere 1:1 de la categoria.
+        es_salarios_dejados = categoria == "SALARIOS_DEJADOS_DE_PERCIBIR"
+        tipo = TipoObligacion.RECURRENTE if es_salarios_dejados else TipoObligacion.PUNTUAL
+        tipo_reajuste_anual = (
+            TipoReajusteAnual(self.combo_tipo_reajuste_anual.currentData())
+            if es_salarios_dejados
+            else TipoReajusteAnual.NINGUNO
+        )
+
         es_smmlv = self.check_es_smmlv.isChecked()
         qdate_inicio = self.campo_fecha_origen.date()
         fecha_inicio = date(qdate_inicio.year(), qdate_inicio.month(), qdate_inicio.day())
@@ -1784,7 +1861,16 @@ class ObligacionFormDialog(QDialog):
             fecha_pago_total = date(qdate_pago.year(), qdate_pago.month(), qdate_pago.day())
             pagada = True
 
-        incluir_seguridad_social = self.check_incluir_seguridad_social.isChecked()
+        # incluir_seguridad_social/despido_injustificado (Sprint 93): forzados a
+        # False/None para SALARIOS_DEJADOS_DE_PERCIBIR sin importar el estado
+        # interno de los checkboxes (ocultos para esta categoria, ver
+        # _actualizar_campos_visibles) -- si el usuario los marco mientras
+        # tenia LIQUIDACION_CONTRATO_LABORAL elegida y despues cambio de
+        # categoria sin destildarlos, esto evita que LaboralStrategy rechace
+        # el guardado con ValueError por un estado que la UI ya no deja ver.
+        incluir_seguridad_social = (
+            not es_salarios_dejados and self.check_incluir_seguridad_social.isChecked()
+        )
         nivel_riesgo_arl = (
             self.combo_nivel_riesgo_arl.currentData() if incluir_seguridad_social else None
         )
@@ -1793,10 +1879,16 @@ class ObligacionFormDialog(QDialog):
         # indemnizacion por despido injustificado (Art. 64 CST) -- ver
         # DismissalIndemnityCalculator. fecha_fin_pactada solo se guarda para
         # termino fijo/obra-labor (None para INDEFINIDO, donde no aplica).
+        # No aplica a SALARIOS_DEJADOS_DE_PERCIBIR -- ver comentario arriba.
         tipo_contrato_laboral = TipoContratoLaboral(self.combo_tipo_contrato_laboral.currentData())
-        despido_injustificado = self.check_despido_injustificado.isChecked()
+        despido_injustificado = (
+            not es_salarios_dejados and self.check_despido_injustificado.isChecked()
+        )
         fecha_fin_pactada = None
-        if tipo_contrato_laboral in (TipoContratoLaboral.FIJO, TipoContratoLaboral.OBRA_LABOR):
+        if not es_salarios_dejados and tipo_contrato_laboral in (
+            TipoContratoLaboral.FIJO,
+            TipoContratoLaboral.OBRA_LABOR,
+        ):
             qdate_fin_pactada = self.campo_fecha_fin_pactada.date()
             fecha_fin_pactada = date(
                 qdate_fin_pactada.year(), qdate_fin_pactada.month(), qdate_fin_pactada.day()
@@ -1808,9 +1900,9 @@ class ObligacionFormDialog(QDialog):
             Obligacion,
             self._obligacion_id,
             expediente_id=self._expediente_id,
-            tipo=TipoObligacion.PUNTUAL,
+            tipo=tipo,
             concepto=self.campo_concepto.text().strip(),
-            categoria=self.combo_categoria.currentData(),
+            categoria=categoria,
             fecha_origen=fecha_inicio,
             valor=valor,
             tasa_efectiva_anual=Decimal("0.00"),
@@ -1829,6 +1921,10 @@ class ObligacionFormDialog(QDialog):
             # nunca lo pasaba (el checkbox estaba oculto para LABORAL) -- ahora es
             # visible, ver LaboralStrategy.
             aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
+            # tipo_reajuste_anual (Sprint 93): NINGUNO para LIQUIDACION_CONTRATO_LABORAL
+            # (no aplica), el indice elegido para SALARIOS_DEJADOS_DE_PERCIBIR -- ver
+            # generar_eventos_salarios_dejados_de_percibir.
+            tipo_reajuste_anual=tipo_reajuste_anual,
         )
         session.close()
         return obligacion_id

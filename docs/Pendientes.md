@@ -274,7 +274,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--bloqueado--pendiente-de-confirmación)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--bloqueado--pendiente-de-confirmación)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado-fecha-de-corte-19901992-umbral-10-smmlv-y-tramos-del-régimen-pre-1990-más-allá-de-la-fórmula-continua-confirmada-quedan-condicionados-a-confirmación-del-despacho)
-- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
+- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 📋 Pendiente](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--pendiente)
@@ -6551,7 +6551,54 @@ para el umbral de 10 SMMLV; `LaboralStrategy` (`area_strategy.py:1052`) para el 
 
 ---
 
-## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente
+## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado (verificación sintética de la lógica de bloques anuales; reconciliación línea por línea contra la planilla real L5/L6 pendiente por archivo no disponible en este entorno)
+
+**Cierre (2026-08-20):** implementado en la rama `sprint-93-salarios-dejados-de-percibir` (mergeada a
+`main`). Nueva categoría `SALARIOS_DEJADOS_DE_PERCIBIR` en `app/core/constants.py::CATEGORIAS_LABORAL`,
+coexistiendo con `LIQUIDACION_CONTRATO_LABORAL` sin romper el invariante "1 obligación = 1 contrato" del
+Sprint 3 (ver el docstring de `LaboralStrategy` en `app/services/area_strategy.py` para el razonamiento
+completo: esta categoría no representa un contrato, representa la reconstrucción de un período SIN
+contrato).
+
+`app/services/salarios_dejados_de_percibir.py::generar_eventos_salarios_dejados_de_percibir` genera, en
+memoria (sin persistir cuotas hijas, a diferencia de `generar_cuotas_mensuales` de Civil/Familia — los
+bloques de L5/L6 son ANUALES, no mensuales), un bloque por cada año calendario del período
+`fecha_inicio`/`fecha_fin`, con el salario reajustado el 1° de enero de cada año vía
+`reajustar_capital_anual` (`app/services/reajuste_anual.py`, reutilizado tal cual — Sprint 41/75) y las 4
+prestaciones (cesantías, intereses a las cesantías, primas, vacaciones) calculadas con `LaborScheduler`
+(mismos divisores 360/720 que un finiquito normal, Sprint 3/30) aplicado a cada bloque como un
+"mini-finiquito" de ese año. `LaboralStrategy._validar_obligacion_laboral` reabre
+`TipoObligacion.RECURRENTE` EXCLUSIVAMENTE para esta categoría (el Sprint 75 sigue bloqueándolo para
+`LIQUIDACION_CONTRATO_LABORAL` y el resto del área), y bloquea a propósito `despido_injustificado`/
+`incluir_seguridad_social` en ella (conceptos de finiquito que no aplican a un período sin contrato
+vigente, fuera de alcance de este sprint).
+
+UI (`app/views/obligaciones.py`): el combo "Tipo" sigue oculto para Laboral (como antes de este sprint) —
+`tipo` se infiere 1:1 de la categoría elegida. Al elegir la nueva categoría aparece el combo de reajuste
+anual (reutilizado del mismo control de Civil/Familia) y se ocultan despido injustificado/seguridad
+social; las etiquetas de fecha cambian a "Fecha de inicio/fin del periodo (DESDE/HASTA)".
+
+**Limitación conocida, documentada explícitamente (no un vacío silencioso):** los archivos
+`L5.SALARIOS-Y-PRESTACIONES-SOCIALES-DEJADAS-DE-PERCIBIR(incrementoinflacion).md` y
+`L6...(incremento-salario-minimo).md` citados como fuente de este sprint NO estaban disponibles en el
+entorno cloud donde se desarrolló (carpeta `docs/Archivos de referencia abogado/` excluida de git por
+copyright del despacho). La Definición de Hecho se cumplió reconstruyendo la estructura completa que el
+propio sprint ya documentaba por escrito (columnas DESDE/HASTA por año, salario incrementado anualmente,
+cesantías/intereses/primas/vacaciones por bloque, GRAN TOTAL) y verificando el "GRAN TOTAL" con 3 casos
+sintéticos calculados a mano — con una calculadora Decimal auxiliar en el propio test, no invocando el
+código bajo prueba — en `tests/services/test_salarios_dejados_de_percibir.py` (uno IPC/L5 con años
+calendario completos, uno SMMLV/L6 con años completos, uno IPC con bloques DESDE/HASTA parciales en los
+extremos) más una integración completa vía `LaboralStrategy.liquidar()` en
+`tests/services/test_laboral_salarios_dejados_de_percibir.py`. Esto verifica que la lógica de bloques
+anuales + reajuste + divisores 360/720 arma el total correcto según la fórmula legal descrita, pero **NO**
+está reconciliado línea por línea contra la planilla real de L5/L6 del despacho — se recomienda un chequeo
+cruzado manual con el archivo real antes de confiar en este cálculo en producción para un caso real de
+reintegro o salarios caídos. Pregunta abierta registrada en `docs/Preguntas-Para-Abogado-Abiertas.md`
+(sección Sprint 93): en qué tipo de proceso se usa cada variante y si IPC vs. SMMLV es discrecional del
+abogado (no bloqueante — el software ya ofrece ambas opciones).
+
+Suite completa en verde (1426 tests) y `ruff check .` limpio antes de mergear. `README.md` y
+`docs/GUIA_USUARIO.md` (nueva sección 5.11.1) actualizados.
 
 **Prioridad sugerida:** Alta — reutiliza infraestructura que ya existe casi completa (bajo costo de
 implementación) para un tipo de proceso común (reintegros, salarios caídos).
