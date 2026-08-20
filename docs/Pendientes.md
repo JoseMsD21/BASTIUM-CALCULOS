@@ -6798,6 +6798,18 @@ conversión automática al `valor` mensual que ya consume `LaborScheduler` — s
 - Test de conversión salario_diario→mensual con el ejemplo de la plantilla L2A.
 - Suite completa en verde.
 
+**Avance parcial (2026-08-20, rutina autónoma):** se entregó la única pieza no condicionada a la respuesta
+del despacho (mismo criterio que los Sprints 83/84): el conversor puro `salario_diario_a_mensual`
+(`app/engine/labor/salario_domestico.py`, fórmula `salario_diario × días_laborados_semana / 7 × 30`), con
+9 tests (`tests/engine/labor/test_salario_domestico.py`) verificados sintéticamente contra la fórmula que
+documenta la plantilla L2A (no contra el ejemplo numérico literal de L2A, cuyo archivo no está disponible en
+el entorno de la rutina — `docs/Archivos de referencia abogado/` es gitignored). El conversor **no se cablea**
+al formulario Laboral ni a `LaboralStrategy`: el resto del sprint (captura `salario_diario`/`dias_laborados_semana`
+/`auxilio_transporte_diario` en el formulario y decisión de si el régimen prestacional del trabajo doméstico
+difiere en fórmula del general tras la Ley 1788/2016) sigue condicionado a la respuesta del despacho, ya
+registrada en `Preguntas-Para-Abogado-Abiertas.md` (Sprint 96). Por eso el sprint queda 📋 Pendiente, no
+Completado. Suite completa: 1436 passed. Rama: `sprint-96-conversion-salario-diario-domestico`.
+
 ---
 
 ## Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación
