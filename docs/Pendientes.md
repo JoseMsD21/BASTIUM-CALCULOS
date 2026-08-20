@@ -284,6 +284,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) 📋 Pendiente](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--pendiente)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) 📋 Pendiente](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--pendiente)
+- [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
 
 ---
 
@@ -6790,6 +6791,38 @@ Esto es, en esencia, la misma secuencia que el motor genérico ya produce cuando
 - Test de integración en Civil/Familia: una obligación con Suma Única activa y 2-3 abonos en fechas distintas, verificado contra un cálculo manual paso a paso siguiendo exactamente la mecánica de X9.
 - Si el test revela una discrepancia con el motor actual, documentar el gap y decidir si amerita un sprint de corrección aparte.
 - Suite completa en verde.
+
+---
+
+## Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado
+
+**Prioridad sugerida:** Alta — no es un bug de dominio, pero bloquea correr la suite completa (`pytest` sin
+filtros se queda colgado para siempre, nunca termina ni falla).
+
+**Depende de:** Nada.
+
+**Contexto (hallado por la rutina autónoma al validar Sprints 83/84, 2026-08-20):** `PagoPorRangoDialog.confirmar()`
+(`app/views/pago_por_rango.py:150`) muestra un `QMessageBox.warning(...)` modal cuando hay remanente sin
+cubrir, antes de bloquear la confirmación. `tests/views/test_pago_por_rango.py::test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos`
+llama a `dialogo.confirmar()` en ese mismo escenario (remanente > 0) sin mockear `QMessageBox.warning`
+primero — a diferencia de **todos** los demás tests del proyecto que disparan un `QMessageBox` (ver el
+patrón ya establecido en `tests/views/test_abonos.py`, `tests/views/test_expediente_detalle.py`,
+`tests/views/test_configuracion.py`: siempre `monkeypatch.setattr(".../QMessageBox.warning", lambda *a, **k: None)`
+antes de la llamada). Sin ese mock, `.exec()` del `QMessageBox` bloquea el hilo esperando un click que nunca
+llega — incluso con `QT_QPA_PLATFORM=offscreen`, el bucle de eventos modal sigue activo. Confirmado
+reproduciendo el cuelgue de forma aislada (`pytest tests/views/test_pago_por_rango.py -v`, colgado
+exactamente después de `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos ..`).
+
+**Corrección:** una línea — agregar el mismo `monkeypatch.setattr("app.views.pago_por_rango.QMessageBox.warning", lambda *a, **k: None)`
+antes de `dialogo.confirmar()`, siguiendo el patrón ya usado en el resto del proyecto. Sin cambios de
+comportamiento en `app/`.
+
+**Definición de Hecho:**
+- `pytest tests/views/test_pago_por_rango.py` termina sin colgarse, 4/4 tests en verde.
+- Suite completa en verde (984+ tests, incluyendo `tests/views/`, sin timeout).
+
+**Cierre (2026-08-20):** Completado. `tests/views/` completo: 471 passed en 33s (antes: cuelgue
+indefinido). Suite completa (`tests` menos `tests/views`): 857 passed en 41s. Sin cambios en `app/`.
 
 ---
 
