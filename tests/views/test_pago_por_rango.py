@@ -149,6 +149,10 @@ def test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos(qtbot, m
 
     assert dialogo._remanente == Decimal("200000.00")
 
+    # confirmar() muestra un QMessageBox.warning modal antes de bloquear --
+    # se mockea para no depender de un click real (mismo patron que el resto
+    # de tests/views/*.py, ej. tests/views/test_abonos.py).
+    monkeypatch.setattr("app.views.pago_por_rango.QMessageBox.warning", lambda *a, **k: None)
     dialogo.confirmar()
 
     # confirmar() debe retornar temprano (bloquear) sin llamar self.accept() --
