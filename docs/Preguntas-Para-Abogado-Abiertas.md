@@ -89,6 +89,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
 - [Sprint 80 — Cobertura parcial de la serie mensual de IPC (2003-2026) y qué hacer con fechas anteriores](#sprint-80--cobertura-parcial-de-la-serie-mensual-de-ipc-2003-2026-y-qué-hacer-con-fechas-anteriores)
 - [Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?](#sprint-82--el-despacho-litiga-contra-entidades-públicas-condenas-administrativas-con-intereses-a-la-tasa-dtf)
+- [Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?](#sprint-84--interés-moratorio-tributario-et-art-635-366-días-lineal-convención-dian-o-365-compuesto-fórmula-actual-de-bastium)
 - [Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional](#sprint-8687--bono-pensional-y-cálculo-actuarial-de-cotizaciones-omisas-factores-de-reserva-y-tabla-dtf-pensional)
 - [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
 - [Sprint 91 (seguimiento del Sprint 70) — Tabla completa de tasa de reemplazo por régimen: 1993-2003, régimen de transición e invalidez](#sprint-91-seguimiento-del-sprint-70--tabla-completa-de-tasa-de-reemplazo-por-régimen-1993-2003-régimen-de-transición-e-invalidez)
@@ -418,6 +419,43 @@ bajo Suma Única.
 **Pregunta:** ¿el despacho maneja casos de este tipo (demandas o conciliaciones contra el Estado con condena en dinero)? Si es así, ¿en cuál de las áreas actuales de BASTIUM encajarían, o se necesitaría un área/flujo nuevo?
 
 **Qué necesito exactamente:** un sí/no sobre si este escenario es relevante para el despacho, y si es así, a qué área debería asignarse (o confirmación de que se necesita una nueva).
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?
+
+**Contexto (explicado desde cero, para quien no haya visto el código):**
+
+El interés moratorio tributario (Estatuto Tributario, art. 635) se calcula tomando la tasa de usura
+vigente (línea "Consumo y Ordinario" que certifica la Superfinanciera) y restándole 2 puntos porcentuales
+— eso ya está bien y coincide con las plantillas del despacho (`i4.INTERESES-DE-MORA-DIAN-ULTIMA-TASA-MENSUAL.md`
+e `i4A.INTERESES-DE-MORA-DIAN-DIFERENTES-TASAS-MENSUALES.md`). La diferencia aparece en el paso siguiente,
+cuando esa tasa anual (ya con los 2 puntos restados) se convierte en una tasa diaria para poder liquidar
+día por día:
+
+- **BASTIUM hoy** usa la misma fórmula "efectiva compuesta" de 365 días que usa para el interés civil del
+  6% (Art. 1617 C.C.): `tasa_diaria = (1 + tasa_anual)^(1/365) − 1` (`app/engine/tax/moratory_interest.py`,
+  función `construir_rate_provider_moratorio_tributario`).
+- **Las plantillas i4/i4A del despacho**, en cambio, dividen esa misma tasa anual **linealmente entre 366
+  días** (no 365, y sin elevar a ninguna potencia): `tasa_diaria = tasa_anual ÷ 366`. El propio archivo del
+  despacho califica esta fórmula de "la ilógica matemática de la DIAN" (i4A) — es decir, el despacho parece
+  saber que no es la fórmula financieramente "correcta", pero podría ser la que hay que replicar si el
+  objetivo es litigar o objetar una liquidación que la propia DIAN hizo con su propia metodología.
+
+**Pregunta:** para el interés moratorio tributario del Art. 635 E.T., ¿BASTIUM debe replicar la convención
+literal de la DIAN (366 días, división lineal, "la ilógica matemática de la DIAN" que citan las plantillas
+i4/i4A), o debe mantener la fórmula financiera "correcta" que usa hoy (365 días, efectiva compuesta)? Y si
+depende del caso (ej. depende de si se está objetando una liquidación oficial de la DIAN o liquidando una
+mora propia), ¿cuál es la regla para saber cuándo aplica cada una?
+
+**Qué necesito exactamente:** confirmación de cuál de las dos convenciones (366 días lineal vs. 365 días
+compuesto) debe usar `calcular_interes_moratorio_tributario` — no se ha cambiado ningún código todavía, solo
+se documentó la discrepancia. Ver Sprint 84 en `Pendientes.md` para el detalle técnico completo.
 
 **Respuesta del despacho:**
 
