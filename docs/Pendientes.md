@@ -273,7 +273,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--bloqueado--pendiente-de-confirmación)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--bloqueado--pendiente-de-confirmación)
-- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 📋 Pendiente](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--pendiente)
+- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟡 En proceso](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--en-proceso)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
@@ -6450,7 +6450,11 @@ futura `PensionalStrategy`).
 
 ---
 
-## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 📋 Pendiente
+## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟡 En proceso
+
+**Nota de la rutina autónoma (2026-08-20):** en proceso en la rama
+`sprint-92-indemnizacion-despido-injustificado`. Si esta sesión no llega a cerrarlo, retomar ahí
+(nunca empezar otro sprint nuevo antes de terminar este).
 
 **Prioridad sugerida:** Alta — es probablemente el tipo de proceso laboral más común (despido sin justa
 causa), y hoy BASTIUM lo omite silenciosamente pese a tener un archivo con nombre similar
