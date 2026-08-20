@@ -101,6 +101,16 @@ def test_indefinido_pre_ley_50_1990_quiebre_5_anios():
     assert resultado.dias_indemnizacion == Decimal("105")
 
 
+def test_indefinido_pre_ley_50_1990_quiebre_10_anios():
+    resultado = _calcular(
+        fecha_ingreso=date(1979, 1, 1),
+        fecha_terminacion=date(1989, 1, 1),  # 10 anios
+    )
+    assert resultado.regimen == "INDEFINIDO_PRE_LEY_50_1990"
+    # 45 + 15 * 9 = 180
+    assert resultado.dias_indemnizacion == Decimal("180")
+
+
 def test_indefinido_ingreso_exactamente_en_la_fecha_de_corte_es_regimen_post():
     resultado = _calcular(
         fecha_ingreso=date(1991, 1, 1),  # exactamente la fecha de corte por defecto
