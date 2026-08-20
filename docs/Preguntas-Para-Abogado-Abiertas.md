@@ -93,7 +93,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional](#sprint-8687--bono-pensional-y-cálculo-actuarial-de-cotizaciones-omisas-factores-de-reserva-y-tabla-dtf-pensional)
 - [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
 - [Sprint 91 (seguimiento del Sprint 70) — Tabla completa de tasa de reemplazo por régimen: 1993-2003, régimen de transición e invalidez](#sprint-91-seguimiento-del-sprint-70--tabla-completa-de-tasa-de-reemplazo-por-régimen-1993-2003-régimen-de-transición-e-invalidez)
-- [Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido?](#sprint-92--laboral-fecha-de-corte-real-entre-régimen-ley-501990-y-ley-7892002-para-la-indemnización-por-despido)
+- [Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?](#sprint-92--laboral-fecha-de-corte-real-entre-régimen-ley-501990-y-ley-7892002-para-la-indemnización-por-despido-fórmula-para-salario-10-smmlv-y-coexistencia-con-la-sanción-moratoria)
 - [Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?](#sprint-93--laboral-en-qué-procesos-se-usa-reajuste-por-ipc-vs-por-smmlv-para-salarios-dejados-de-percibir)
 - [Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio](#sprint-94--laboral-base-de-aportes-a-saludpensión-reclamables-en-contrato-realidad-y-regla-de-la-bonificación-por-servicio)
 - [Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)](#sprint-95--laboral-tabla-de-transición-de-la-ley-2466-de-2025-horario-nocturno-y-recargo-dominicalfestivo)
@@ -535,20 +535,48 @@ exacta de cuándo aplica 75% vs. 90% vs. "la que corresponda" en el régimen de 
 
 ---
 
-## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido?
+## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
 
 **Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el
 despacho trae dos regímenes de indemnización por despido injustificado según cuándo ingresó el trabajador,
 pero cita la misma fecha ("27 de diciembre de 1.992") para ambos regímenes, atribuyéndosela una vez a la
-Ley 789 de 2002 y otra vez a la Ley 50 de 1990 — que es de 1990, no de 1992. Antes de programar las tablas
-de días de indemnización, necesito saber cuál es la fecha de corte legal real.
+Ley 789 de 2002 y otra vez a la Ley 50 de 1990 — que es de 1990, no de 1992. El Sprint 92 (implementado,
+`app/engine/labor/dismissal_indemnity.py::DismissalIndemnityCalculator`) ya construyó el cálculo con lo que
+sí quedó confirmado con cifras exactas por el propio backlog, dejando 3 puntos condicionados/sin calcular en
+vez de adivinar:
 
-**Pregunta:** ¿el corte entre el régimen "favorable" (45 días primer año + 15/20 días subsiguientes) y el
+1. **Fecha de corte del régimen** (45+15 días vs. 30+20 días): el software usa por defecto el 1° de enero de
+   1991 (entrada en vigencia real y citable de la Ley 50 de 1990) mientras no se confirme lo contrario.
+2. **Salario ≥10 SMMLV**: el backlog solo confirmó que este umbral existe y distingue tablas, pero no trajo
+   la fórmula/días exactos de esa tabla — el software **no calcula** la indemnización en este caso (lanza un
+   error explícito, `RegimenNoSoportadoError`, y la liquidación sigue con una alerta en vez de bloquearse).
+3. **Tramos del régimen pre-Ley 50/1990 más allá de la fórmula continua confirmada** (45 días primer año + 15
+   días por cada año subsiguiente): el backlog advierte que la plantilla original "trae varios regímenes por
+   estos tramos" (probablemente una tasa distinta a partir de 5 o 10 años de antigüedad, como en el régimen
+   del Decreto 2351/1965 anterior a la Ley 50), pero solo transcribió una cifra — el software aplica la
+   fórmula continua de 15 días/año sin importar la antigüedad, lo que podría **subestimar** la indemnización
+   en contratos muy antiguos si el régimen real escalona la tasa en tramos más altos.
+
+Adicionalmente, `INDEMNIZACION_DESPIDO` (Art. 64 CST, este sprint) y `SANCION_MORATORIA` (Art. 65 CST, ya
+implementada) quedaron conectadas de forma **independiente** en `LaboralStrategy`: ambas pueden coexistir en
+el mismo expediente (el usuario decide si marca una, la otra, o las dos), sin que el software las sume con
+ningún supuesto oculto ni bloquee su coexistencia — el backlog dice que son legalmente compatibles pero pide
+confirmarlo explícitamente antes de tratarlas como una regla automática.
+
+**Pregunta:** (a) ¿el corte entre el régimen "favorable" (45 días primer año + 15/20 días subsiguientes) y el
 régimen posterior (30 días primer año + 20 días subsiguientes) es el 1° de enero de 1991 (entrada en
-vigencia de la Ley 50 de 1990), o es realmente el 27 de diciembre de 1992 como cita la plantilla?
+vigencia de la Ley 50 de 1990), o es realmente el 27 de diciembre de 1992 como cita la plantilla? (b) ¿cuál
+es la fórmula/tabla completa de días de indemnización para un trabajador con salario ≥10 SMMLV (a término
+indefinido)? (c) ¿el régimen anterior a la Ley 50/1990 escalona la tasa de días/año subsiguiente en tramos
+de antigüedad (ej. una tasa distinta a partir de 5 o 10 años), o los 15 días/año se mantienen fijos sin
+importar la antigüedad total? (d) ¿confirma que la indemnización por despido injustificado (Art. 64 CST) y
+la indemnización moratoria (Art. 65 CST) pueden coexistir y liquidarse juntas en el mismo expediente sin
+ninguna regla de exclusión o compensación entre ellas?
 
-**Qué necesito exactamente:** la fecha exacta de corte, y si aplica alguna fecha adicional distinta para el
-régimen de trabajadores con salario ≥10 SMMLV.
+**Qué necesito exactamente:** la fecha exacta de corte; la tabla completa de días de indemnización para
+salario ≥10 SMMLV (a término indefinido); la tabla completa por tramos de antigüedad del régimen anterior a
+la Ley 50/1990 (si existe más de un tramo); y una confirmación sí/no de la coexistencia con la sanción
+moratoria.
 
 **Respuesta del despacho:**
 
