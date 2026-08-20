@@ -422,6 +422,25 @@ bajo Suma Única.
 
 **Fecha:**
 
+**Actualización (2026-08-19, Sprint 80 — carga de la tabla y conexión al motor):** ya se cargó la tabla
+completa que trae `Historico IPC.md` (279 valores, enero de 2003 a marzo de 2026 — la fuente certifica hasta
+marzo de 2026, no incluye abril de 2026 en adelante, que el propio archivo trae en blanco/sin certificar
+todavía por el DANE, nota "Actualizado el 9 de Abril de 2026") y se conectó a `CivilFamiliaStrategy` (antes
+usaba la interpolación anual para todo). Esto deja **dos** fronteras sin índice mensual, no solo la de
+"antes de 2003" que preguntaba el punto (2) de arriba: también las fechas **posteriores al último mes
+certificado** (abril de 2026 en adelante, mientras el DANE no publique más meses) quedan igual de
+descubiertas. La decisión tomada **hoy**, mientras no haya respuesta del despacho, fue la misma para ambas
+fronteras y la más conservadora posible: **bloquear** — `get_ipc_mensual_for_month`/
+`get_ipc_interpolado_mensual_for_date` lanzan `IPCMensualNoDisponibleError` para cualquier fecha fuera de
+[2003-01, 2026-03], y `CivilFamiliaStrategy._evento_indexacion` captura ese error y hace *fallback* a la
+interpolación anual (`get_ipc_interpolado_for_date`) — la misma que usaba el 100% de los casos antes de este
+sprint — solo para la obligación puntual (o cuota) cuya fecha caiga en una de esas dos zonas sin cobertura,
+dejando constancia explícita en el código de que es un fallback documentado, no una aproximación silenciosa.
+Esta pregunta sigue abierta para que el despacho confirme si prefiere mantener este bloqueo/fallback a
+interpolación anual (comportamiento de hoy) para ambas fronteras, o autorizar otra solución (ej. una fuente
+adicional para fechas anteriores a 2003, o esperar la siguiente certificación del DANE sin fallback alguno
+para fechas futuras).
+
 ---
 
 ## Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?

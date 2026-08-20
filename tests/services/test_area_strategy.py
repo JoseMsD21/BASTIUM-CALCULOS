@@ -16,6 +16,7 @@ from app.engine.indexation.historical_index import (
     _TRAMOS_IBC_USURA,
     _UVT_POR_ANIO,
     get_ipc_interpolado_for_date,
+    get_ipc_interpolado_mensual_for_date,
 )
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
@@ -794,12 +795,15 @@ def test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto
         item for item in resultado.items if item.balance.event_type == "INDEXATION"
     ]
     assert len(eventos_indexacion) == 1
-    # Calculado manualmente con get_ipc_interpolado_for_date(2024-07-01) y
-    # get_ipc_interpolado_for_date(2025-12-31) via IPCIndexation.calculate --
-    # 1,000,000 indexado de jul-2024 a dic-2025.
-    assert eventos_indexacion[0].indexation_amount == Decimal("77633.53")
+    # Sprint 80: ambas fechas (2024-07-01 y 2025-12-31) caen dentro del rango
+    # cubierto por el indice IPC MENSUAL real (_IPC_MENSUAL, 2003-01 a
+    # 2026-03), asi que CivilFamiliaStrategy ya usa
+    # get_ipc_interpolado_mensual_for_date en vez de la anual -- el monto
+    # cambio de 77,633.53 (formula anual, version pre-Sprint-80 de este test)
+    # a 61,933.78 (formula mensual). Recalculado con el motor real, no a mano.
+    assert eventos_indexacion[0].indexation_amount == Decimal("61933.78")
     assert eventos_indexacion[0].concept == "Indexación IPC — Dano emergente"
-    assert resultado.final_balance().indexation == Decimal("77633.53")
+    assert resultado.final_balance().indexation == Decimal("61933.78")
 
 
 def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_propia_fecha():
@@ -833,9 +837,96 @@ def test_civil_familia_recurrente_con_indexacion_cada_cuota_indexa_desde_su_prop
     assert len(eventos_indexacion) == 2
     assert eventos_indexacion[0].date == date(2025, 1, 5)
     assert eventos_indexacion[1].date == date(2025, 2, 5)
-    assert eventos_indexacion[0].indexation_amount == Decimal("25133.13")
-    assert eventos_indexacion[1].indexation_amount == Decimal("22869.89")
+    # Sprint 80: ambas cuotas caen dentro del rango IPC mensual (2003-01 a
+    # 2026-03), asi que se recalcularon con get_ipc_interpolado_mensual_for_date
+    # en vez de la anual (valores previos: 25133.13/22869.89) -- recalculado
+    # con el motor real.
+    assert eventos_indexacion[0].indexation_amount == Decimal("24709.43")
+    assert eventos_indexacion[1].indexation_amount == Decimal("19563.64")
     assert eventos_indexacion[0].indexation_amount != eventos_indexacion[1].indexation_amount
+
+
+def test_civil_familia_indexacion_dentro_del_rango_mensual_usa_ipc_mensual_no_anual():
+    # Sprint 80: ambas fechas (causacion y corte) caen dentro del rango
+    # cubierto por _IPC_MENSUAL (2003-01 a 2026-03), asi que
+    # CivilFamiliaStrategy._evento_indexacion debe usar
+    # get_ipc_interpolado_mensual_for_date (exigido por el despacho, Sprint 8)
+    # en vez de la interpolacion anual generica. Se compara contra el calculo
+    # esperado usando la funcion mensual directamente, y se confirma que NO
+    # coincide con lo que daria la interpolacion anual (para probar que
+    # efectivamente cambio de una formula a otra, no solo que el motor sigue
+    # sin tronar).
+    obligacion = Obligacion(
+        id=3,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2024, 7, 1),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+
+    esperado_mensual = IPCIndexation.calculate(
+        capital=Decimal("1000000.00"),
+        initial_index=get_ipc_interpolado_mensual_for_date(date(2024, 7, 1)),
+        final_index=get_ipc_interpolado_mensual_for_date(date(2025, 12, 31)),
+    )
+    esperado_anual = IPCIndexation.calculate(
+        capital=Decimal("1000000.00"),
+        initial_index=get_ipc_interpolado_for_date(date(2024, 7, 1)),
+        final_index=get_ipc_interpolado_for_date(date(2025, 12, 31)),
+    )
+    assert esperado_mensual != esperado_anual  # las dos formulas dan numeros distintos
+
+    eventos_indexacion = [
+        item for item in resultado.items if item.balance.event_type == "INDEXATION"
+    ]
+    assert len(eventos_indexacion) == 1
+    assert eventos_indexacion[0].indexation_amount == esperado_mensual
+    assert resultado.final_balance().indexation == esperado_mensual
+
+
+def test_civil_familia_indexacion_fuera_del_rango_mensual_cae_a_interpolacion_anual():
+    # Sprint 80: fecha_causacion (1999) es anterior al primer mes cargado en
+    # _IPC_MENSUAL (2003-01) -- get_ipc_interpolado_mensual_for_date lanza
+    # IPCMensualNoDisponibleError, y el fallback documentado en
+    # CivilFamiliaStrategy._evento_indexacion debe usar la interpolacion anual
+    # para AMBAS fechas (nunca mezclar un indice mensual con uno anual: son
+    # series con bases distintas, y mezclarlas arruinaria la razon
+    # final_index/initial_index).
+    obligacion = Obligacion(
+        id=3,
+        expediente_id=1,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Dano emergente antiguo",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(1999, 6, 15),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        aplica_indexacion_ipc=True,
+    )
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
+    )
+
+    esperado_anual = IPCIndexation.calculate(
+        capital=Decimal("1000000.00"),
+        initial_index=get_ipc_interpolado_for_date(date(1999, 6, 15)),
+        final_index=get_ipc_interpolado_for_date(date(2025, 12, 31)),
+    )
+
+    eventos_indexacion = [
+        item for item in resultado.items if item.balance.event_type == "INDEXATION"
+    ]
+    assert len(eventos_indexacion) == 1
+    assert eventos_indexacion[0].indexation_amount == esperado_anual
 
 
 def test_civil_familia_recurrente_con_indexacion_reutiliza_ipc_entre_cuotas_del_mismo_anio(
@@ -1554,10 +1645,23 @@ class TestComercialStrategy:
     ):
         # Sprint 43, modo (b): capital indexado por IPC + interes civil puro 6% anual
         # sobre el capital ya indexado, EN VEZ DE la tasa comercial (remuneratoria 6%/
-        # moratoria 24%) que trae _obligacion_comercial(). Mismas fechas/capital que
-        # test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto_correcto
-        # (indexacion ya verificada ahi: 1,000,000 -> +77,633.53) para no tener que volver
-        # a calcular el IPC a mano.
+        # moratoria 24%) que trae _obligacion_comercial(). Reutiliza tal cual
+        # AreaStrategy._evento_indexacion_ipc (interpolacion ANUAL) -- el mismo
+        # mecanismo compartido que usaban Comercial/Honorarios/Sancionatorio/Laboral Y
+        # Civil/Familia antes del Sprint 80.
+        #
+        # Sprint 80 le dio a CivilFamiliaStrategy su PROPIA implementacion de
+        # _evento_indexacion (indice IPC mensual real para fechas dentro de rango,
+        # ver historical_index._IPC_MENSUAL) -- Comercial/Honorarios/Sancionatorio/
+        # Laboral NO cambiaron, siguen en la anual. Por eso ya no sirve comparar en
+        # vivo contra CivilFamiliaStrategy().liquidar(...) para este caso (fechas
+        # dentro del rango mensual): darian numeros distintos a proposito, no por un
+        # bug. Los valores de abajo (77,633.53 / 94,283.40) son los mismos que
+        # CivilFamiliaStrategy daba para este capital/fechas ANTES del Sprint 80
+        # (ver historial de test_civil_familia_puntual_con_indexacion_... y
+        # test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado) --
+        # siguen siendo la referencia correcta para el modo (b) de Comercial, que no
+        # cambio.
         obligacion = _obligacion_comercial(
             valor=Decimal("1000000.00"),
             fecha_origen=date(2024, 7, 1),
@@ -1570,39 +1674,9 @@ class TestComercialStrategy:
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
         )
 
-        # Equivalente exacto: la misma obligacion liquidada por CivilFamiliaStrategy con
-        # Suma Unica (aplica_indexacion_ipc + interes_sobre_capital_indexado) y la tasa
-        # civil legal (6.00% -- CIVIL_ANNUAL_RATE sembrado en la fixture de este archivo)
-        # como tasa_efectiva_anual debe dar EXACTAMENTE el mismo saldo, porque el modo (b)
-        # de Comercial reutiliza tal cual el mismo mecanismo (Suma Unica + tasa civil
-        # plana) -- no un calculo paralelo.
-        obligacion_equivalente_civil = Obligacion(
-            id=1,
-            expediente_id=1,
-            tipo=TipoObligacion.PUNTUAL,
-            concepto="Capital de pagare",
-            categoria="CAPITAL_PAGARE",
-            fecha_origen=date(2024, 7, 1),
-            valor=Decimal("1000000.00"),
-            tasa_efectiva_anual=Decimal("6.00"),
-            aplica_indexacion_ipc=True,
-            interes_sobre_capital_indexado=True,
-        )
-        resultado_civil_equivalente = CivilFamiliaStrategy().liquidar(
-            obligaciones=[obligacion_equivalente_civil], abonos=[], fecha_corte=date(2025, 12, 31)
-        )
-
         assert resultado.final_balance().principal == Decimal("1000000.00")
         assert resultado.final_balance().indexation == Decimal("77633.53")
-        assert resultado.final_balance().interest > Decimal("0.00")
-        assert (
-            resultado.final_balance().interest
-            == resultado_civil_equivalente.final_balance().interest
-        )
-        assert (
-            resultado.final_balance().indexation
-            == resultado_civil_equivalente.final_balance().indexation
-        )
+        assert resultado.final_balance().interest == Decimal("94283.40")
 
     def test_modo_ipc_activo_no_dispara_sancion_por_usura(self):
         # Sprint 43: la tasa realmente cobrada en modo (b) es la civil legal (nunca
@@ -2475,9 +2549,16 @@ class TestHonorariosStrategy:
         #   Capital_Honorarios x (IPC_Final / IPC_Inicial)
         #     + Interés_Civil_6%_Anual(Capital_Actualizado)
         # honorarios_fijos_pactados=1,000,000 + cuota_litis 0% = total_honorarios
-        # 1,000,000 -- mismo capital/fechas que
-        # test_civil_familia_puntual_con_indexacion_genera_evento_indexation_con_monto_correcto
-        # (indexacion ya verificada ahi: +77,633.53) para no recalcular el IPC a mano.
+        # 1,000,000. Reutiliza tal cual AreaStrategy._evento_indexacion_ipc (anual) --
+        # Honorarios no cambio en el Sprint 80 (solo CivilFamiliaStrategy tiene su
+        # propia implementacion mensual desde entonces, ver comentario en
+        # TestComercialStrategy.test_modo_ipc_con_pacto_expreso_indexa_capital_y_usa_interes_civil_en_vez_de_comercial
+        # para el detalle completo de por que ya no se compara en vivo contra
+        # CivilFamiliaStrategy para este rango de fechas). Los valores de abajo
+        # (77,633.53 / mismo interes que la version pre-Sprint-80 de
+        # test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado) siguen
+        # siendo la referencia correcta porque el modo Suma Unica + tasa civil
+        # plana de Honorarios no cambio.
         # tasa_efectiva_anual=99.00 (deliberadamente distinta del 6% civil) prueba que la
         # formula usa la tasa civil FIJA, no la tasa pactada de esta obligacion.
         obligacion = _obligacion_honorarios(
@@ -2492,32 +2573,9 @@ class TestHonorariosStrategy:
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 12, 31)
         )
 
-        # Segundo termino: equivalente exacto a CivilFamiliaStrategy en Suma Unica con
-        # tasa_efectiva_anual=6.00 (la tasa civil legal sembrada en la fixture de este
-        # archivo) -- mismo mecanismo reutilizado tal cual, no un calculo paralelo.
-        obligacion_civil_equivalente = Obligacion(
-            id=1,
-            expediente_id=1,
-            tipo=TipoObligacion.PUNTUAL,
-            concepto="Honorarios proceso ejecutivo",
-            categoria="HONORARIOS_PROFESIONALES",
-            fecha_origen=date(2024, 7, 1),
-            valor=Decimal("1000000.00"),
-            tasa_efectiva_anual=Decimal("6.00"),
-            aplica_indexacion_ipc=True,
-            interes_sobre_capital_indexado=True,
-        )
-        resultado_civil_equivalente = CivilFamiliaStrategy().liquidar(
-            obligaciones=[obligacion_civil_equivalente], abonos=[], fecha_corte=date(2025, 12, 31)
-        )
-
         assert resultado.final_balance().principal == Decimal("1000000.00")
         assert resultado.final_balance().indexation == Decimal("77633.53")
-        assert resultado.final_balance().interest > Decimal("0.00")
-        assert (
-            resultado.final_balance().interest
-            == resultado_civil_equivalente.final_balance().interest
-        )
+        assert resultado.final_balance().interest == Decimal("94283.40")
 
     def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
         fecha_corte = date(2026, 1, 11)
@@ -3840,13 +3898,17 @@ def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
         obligaciones=[obligacion_suma_unica], abonos=[], fecha_corte=date(2025, 12, 31)
     )
 
-    # Mismo capital, misma indexacion (77633.53, ver
-    # test_civil_familia_puntual_con_indexacion_...), misma tasa y periodo -- la unica
-    # diferencia es la base del interes.
-    assert resultado_legado.final_balance().indexation == Decimal("77633.53")
-    assert resultado_suma_unica.final_balance().indexation == Decimal("77633.53")
+    # Mismo capital, misma indexacion (61933.78 desde el Sprint 80 -- IPC mensual,
+    # ver test_civil_familia_puntual_con_indexacion_...), misma tasa y periodo --
+    # la unica diferencia es la base del interes. El interes del legado
+    # (87488.20) no cambio con el Sprint 80 porque se calcula solo sobre el
+    # capital original, independiente del monto de indexacion; el de Suma
+    # Unica si cambio (94283.40 -> 92907.92) porque se calcula sobre
+    # principal+indexation.
+    assert resultado_legado.final_balance().indexation == Decimal("61933.78")
+    assert resultado_suma_unica.final_balance().indexation == Decimal("61933.78")
     assert resultado_legado.final_balance().interest == Decimal("87488.20")
-    assert resultado_suma_unica.final_balance().interest == Decimal("94283.40")
+    assert resultado_suma_unica.final_balance().interest == Decimal("92907.92")
     assert (
         resultado_suma_unica.final_balance().interest > resultado_legado.final_balance().interest
     )
@@ -3889,14 +3951,15 @@ def test_civil_familia_suma_unica_mezclada_liquida_cada_obligacion_con_su_criter
         obligaciones=[obligacion_a, obligacion_b], abonos=[], fecha_corte=date(2025, 12, 31)
     )
 
-    # Verificado contra el motor real: obligacion_a sola (Suma Unica) da
-    # indexation=77633.53/interest=94283.40; obligacion_b sola (legado) da
-    # indexation=38816.76/interest=43746.84. El resultado fusionado del
+    # Verificado contra el motor real (Sprint 80: IPC mensual para
+    # CivilFamiliaStrategy): obligacion_a sola (Suma Unica) da
+    # indexation=61933.78/interest=92907.92; obligacion_b sola (legado) da
+    # indexation=30966.89/interest=43746.84. El resultado fusionado del
     # expediente es la suma exacta de ambos saldos independientes.
     fb = resultado.final_balance()
     assert fb.principal == Decimal("1500000.00")
-    assert fb.indexation == Decimal("116450.29")
-    assert fb.interest == Decimal("138030.24")
+    assert fb.indexation == Decimal("92900.67")
+    assert fb.interest == Decimal("136654.76")
 
 
 def test_civil_familia_suma_unica_ignora_obligaciones_sin_indexacion_activa():
@@ -3933,7 +3996,8 @@ def test_civil_familia_suma_unica_ignora_obligaciones_sin_indexacion_activa():
         abonos=[],
         fecha_corte=date(2025, 12, 31),
     )
-    assert resultado.final_balance().indexation == Decimal("77633.53")
+    # Sprint 80: 61933.78 (IPC mensual), ver test_civil_familia_puntual_con_indexacion_...
+    assert resultado.final_balance().indexation == Decimal("61933.78")
 
 
 def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
@@ -3963,15 +4027,20 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
     fb = resultado.final_balance()
     # Va (capital ya indexado) = principal + indexation, calculado con la serie IPC
     # real: Va = 50.000.000 x (IPC(2025-01-01) / IPC(2010-01-01)).
+    # Sprint 80: ambas fechas (2010-01-01 y 2025-01-01) caen dentro del rango
+    # cubierto por el indice IPC mensual real (2003-01 a 2026-03), asi que
+    # CivilFamiliaStrategy ya usa get_ipc_interpolado_mensual_for_date en vez de
+    # la anual -- indexation/interest recalculados con el motor real (valores
+    # previos, formula anual: indexation=51762113.73, interest=89015614.51).
     assert fb.principal == Decimal("50000000.00")
-    assert fb.indexation == Decimal("51762113.73")
+    assert fb.indexation == Decimal("51749792.77")
     va = fb.principal + fb.indexation
-    assert va == Decimal("101762113.73")
+    assert va == Decimal("101749792.77")
     # Paso 2 (Suma Unica): interes civil 6% EA aplicado sobre Va, no sobre el capital
     # historico -- verificado independientemente replicando la acumulacion diaria del
     # motor (DailyInterest + EffectiveRateConverter) con capital=Va constante durante
     # todo el periodo (la indexacion se causa el mismo dia que el capital).
-    assert fb.interest == Decimal("89015614.51")
+    assert fb.interest == Decimal("89004820.88")
 
     # Contraste: con el algoritmo legado (interes solo sobre el capital historico),
     # el mismo caso da un interes bastante menor -- confirma que Suma Unica

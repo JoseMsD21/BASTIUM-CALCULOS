@@ -5,6 +5,7 @@ import pytest
 
 from app.core.exceptions import IPCMensualNoDisponibleError
 from app.engine.indexation.historical_index import (
+    _IPC_MENSUAL,
     _IPC_VARIACION_ANUAL,
     _TRAMOS_IBC_USURA,
     get_ibc_usura_for_date,
@@ -229,8 +230,17 @@ def _ipc_mensual_de_prueba(monkeypatch):
 
 
 def test_ipc_mensual_no_disponible_lanza_error_explicito():
+    # Sprint 80 pobló _IPC_MENSUAL con la serie real del DANE (2003-01 a
+    # 2026-03, ver docs/Archivos de referencia abogado/_markdown/Historico IPC.md),
+    # asi que ya no sirve un mes cualquiera dentro de ese rango para probar el
+    # error -- se usan las dos fronteras reales que la fuente NO cubre: antes
+    # de enero de 2003 (la tabla no llega tan atras) y despues de marzo de 2026
+    # (el archivo fuente trae abril-diciembre de 2026 en blanco, sin certificar
+    # todavia por el DANE -- nota "Actualizado el 9 de Abril de 2026").
     with pytest.raises(IPCMensualNoDisponibleError):
-        get_ipc_mensual_for_month(2025, 12)
+        get_ipc_mensual_for_month(2002, 12)
+    with pytest.raises(IPCMensualNoDisponibleError):
+        get_ipc_mensual_for_month(2026, 4)
 
 
 def test_ipc_interpolado_mensual_en_cierre_de_mes_coincide_con_el_indice_del_mes(
@@ -268,6 +278,50 @@ def test_ipc_interpolado_mensual_sin_mes_anterior_cargado_lanza_error(_ipc_mensu
     # 15 de octubre necesita el cierre de septiembre, que no esta en la fixture.
     with pytest.raises(IPCMensualNoDisponibleError):
         get_ipc_interpolado_mensual_for_date(date(2025, 10, 15))
+
+
+def test_ipc_mensual_tiene_279_entradas_2003_01_a_2026_03():
+    # 23 años completos (2003-2025) x 12 meses + 3 meses de 2026 (ene-mar,
+    # los unicos certificados por el DANE al momento de esta carga -- ver
+    # docs/Archivos de referencia abogado/_markdown/Historico IPC.md, que trae
+    # abril-diciembre de 2026 en blanco).
+    assert len(_IPC_MENSUAL) == 23 * 12 + 3
+    assert min(_IPC_MENSUAL) == (2003, 1)
+    assert max(_IPC_MENSUAL) == (2026, 3)
+
+
+def test_ipc_mensual_primer_valor_de_la_serie_enero_2003():
+    assert get_ipc_mensual_for_month(2003, 1) == Decimal("50.42")
+
+
+def test_ipc_mensual_base_diciembre_2018_es_100():
+    # La fuente certifica "Base Diciembre de 2018 = 100,00" -- confirma que la
+    # tabla se transcribio con el mes/columna correctos.
+    assert get_ipc_mensual_for_month(2018, 12) == Decimal("100.00")
+
+
+def test_ipc_mensual_ultimo_valor_certificado_marzo_2026():
+    assert get_ipc_mensual_for_month(2026, 3) == Decimal("156.94")
+
+
+def test_ipc_mensual_valor_interior_abril_2025():
+    assert get_ipc_mensual_for_month(2025, 4) == Decimal("149.66")
+
+
+def test_ipc_mensual_valor_interior_junio_2015():
+    assert get_ipc_mensual_for_month(2015, 6) == Decimal("85.21")
+
+
+def test_ipc_interpolado_mensual_real_a_mitad_de_mes_es_promedio_ponderado_por_dias():
+    # 15 de junio de 2020, con datos reales de la serie (no la fixture) -- entre
+    # el cierre de mayo/2020 (105.36) y el cierre de junio/2020 (104.97), 15
+    # dias a cada lado del mes.
+    v_mayo = get_ipc_mensual_for_month(2020, 5)
+    v_junio = get_ipc_mensual_for_month(2020, 6)
+    t1 = Decimal(15)
+    t2 = Decimal(15)
+    esperado = (t1 * v_junio + t2 * v_mayo) / (t1 + t2)
+    assert get_ipc_interpolado_mensual_for_date(date(2020, 6, 15)) == esperado
 
 
 def test_tramos_entre_rango_dentro_de_un_solo_tramo():
