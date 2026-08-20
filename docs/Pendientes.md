@@ -274,7 +274,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--bloqueado--pendiente-de-confirmación)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--bloqueado--pendiente-de-confirmación)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado-fecha-de-corte-19901992-umbral-10-smmlv-y-tramos-del-régimen-pre-1990-más-allá-de-la-fórmula-continua-confirmada-quedan-condicionados-a-confirmación-del-despacho)
-- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
+- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟡 En proceso](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 📋 Pendiente](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--pendiente)
@@ -6551,7 +6551,13 @@ para el umbral de 10 SMMLV; `LaboralStrategy` (`area_strategy.py:1052`) para el 
 
 ---
 
-## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 📋 Pendiente
+## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟡 En proceso
+
+**Nota de la rutina autónoma (2026-08-20):** en curso en la rama `sprint-93-salarios-dejados-de-percibir`.
+Los archivos L5/L6 citados abajo como fuente no están disponibles en este entorno cloud (carpeta
+`docs/Archivos de referencia abogado/` excluida de git por copyright del despacho) — la verificación de la
+Definición de Hecho se hace con un caso sintético calculado a mano en el propio test, no reconciliado línea
+por línea contra la planilla real. Ver el cierre de este sprint más abajo para el detalle completo.
 
 **Prioridad sugerida:** Alta — reutiliza infraestructura que ya existe casi completa (bajo costo de
 implementación) para un tipo de proceso común (reintegros, salarios caídos).
