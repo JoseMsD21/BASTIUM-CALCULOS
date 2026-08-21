@@ -83,6 +83,12 @@ Si el sprint cumple su Definición de Hecho completa (sin criterio especial por 
 2. Se mergea automáticamente a `main` — réplica exacta del flujo manual actual del usuario
    (worktree → trabajo → merge a `main` al cerrar y documentar), sin gate de aprobación
    adicional.
+3. Se confirma con `git fetch` que el merge quedó de verdad en `origin/main` (no solo local).
+4. **Recién entonces** se borra la rama del sprint, local y remota (reforzado 2026-08-20 — las
+   primeras 9 corridas dejaron 9 ramas acumuladas en GitHub sin borrarse tras mergear, ya
+   corregido a mano una vez). Una rama nunca se borra antes de confirmar que su contenido está en
+   `origin/main`; un sprint que queda 🔵 Bloqueado no se mergea y por lo tanto tampoco se borra su
+   rama.
 
 ## Bloqueo no previsto durante el trabajo
 
