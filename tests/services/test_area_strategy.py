@@ -4086,32 +4086,38 @@ def test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9():
     civil redondee a $0.00 y el caso aisle unicamente el mecanismo de
     indexacion+abonos):
 
-    Calculo manual paso a paso siguiendo la mecanica de X9 (IPC interpolado
-    real via `get_ipc_interpolado_for_date`, mismos indices que usa el motor):
+    Calculo manual paso a paso siguiendo la mecanica de X9, usando
+    `get_ipc_interpolado_mensual_for_date` -- desde el Sprint 80 esta es la
+    misma funcion que usa realmente el motor para fechas dentro del rango
+    2003-01 a 2026-03 (interpolacion mensual real DANE, no la interpolacion
+    anual que se usaba antes de ese sprint):
       1. Indexar 1.000.000,00 de 2024-07-01 a 2025-01-01 (primer abono):
-         +25.484,40 -> 1.025.484,40. Restar abono ($400.000,00) -> 625.484,40.
-      2. Reindexar 625.484,40 de 2025-01-01 a 2025-06-01 (segundo abono):
-         +13.195,02 -> 638.679,42. Restar abono ($300.000,00) -> 338.679,42.
-      3. Reindexar 338.679,42 de 2025-06-01 a 2025-12-31 (corte): +9.870,03
-         -> saldo final X9 = 348.549,45.
+         +10.701,74 -> 1.010.701,74. Restar abono ($400.000,00) -> 610.701,74.
+      2. Reindexar 610.701,74 de 2025-01-01 a 2025-06-01 (segundo abono):
+         +22.002,97 -> 632.704,71. Restar abono ($300.000,00) -> 332.704,71.
+      3. Reindexar 332.704,71 de 2025-06-01 a 2025-12-31 (corte): +4.708,02
+         -> saldo final X9 = 337.412,73.
 
     El motor (via CivilFamiliaStrategy, Suma Unica activa) da un resultado
     distinto: indexa de una sola vez 1.000.000,00 desde 2024-07-01 hasta
-    2025-12-31 (+77.633,53 -- mismo valor exacto que
-    test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado),
-    disponible integramente desde el primer dia. El primer abono
-    ($400.000,00) consume esos 77.633,53 de indexacion y el resto
-    (322.366,47) contra capital; el segundo abono ($300.000,00) va integro a
-    capital. Saldo final del motor = 1.000.000,00 + 77.633,53 - 400.000,00 -
-    300.000,00 = 377.633,53.
+    2025-12-31 (+61.933,78, con la misma interpolacion mensual), disponible
+    integramente desde el primer dia. El primer abono ($400.000,00) consume
+    parte de esos 61.933,78 de indexacion y el resto contra capital; el
+    segundo abono ($300.000,00) va integro a capital. Saldo final del motor
+    = 1.000.000,00 + 61.933,78 - 400.000,00 - 300.000,00 = 361.933,78.
 
-    Brecha real: 377.633,53 (motor) vs. 348.549,45 (X9) = $29.084,08 de
-    diferencia -- no es ruido de redondeo, es un algoritmo distinto. Gap
+    Brecha real: 361.933,78 (motor) vs. 337.412,73 (X9) = $24.521,05 de
+    diferencia -- no es ruido de redondeo, es un algoritmo distinto (single
+    evento de indexacion vs. reindexacion progresiva en cada abono). Gap
     documentado como Sprint 104 en Pendientes.md y pregunta nueva en
     Preguntas-Para-Abogado-Abiertas.md; no se corrige aqui (rediseñar el
     mecanismo de indexacion para reindexar en cada abono es un cambio de
     motor que requiere decision del despacho sobre la mecanica exacta a
-    replicar, no una correccion mecanica)."""
+    replicar, no una correccion mecanica). Los montos de este test se
+    recalcularon el 2026-08-20 al fusionar el Sprint 80 (indexacion mensual
+    real conectada en Civil/Familia), que cambio el resultado numerico del
+    motor -- la brecha conceptual frente a X9 sigue existiendo igual,
+    aunque el monto exacto cambio."""
     fecha_origen = date(2024, 7, 1)
     fecha_abono_1 = date(2025, 1, 1)
     fecha_abono_2 = date(2025, 6, 1)
@@ -4119,25 +4125,26 @@ def test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9():
     capital = Decimal("1000000.00")
 
     # -- Calculo manual X9: indexar -> restar -> reindexar -> restar -> reindexar --
-    idx_origen = get_ipc_interpolado_for_date(fecha_origen)
-    idx_abono_1 = get_ipc_interpolado_for_date(fecha_abono_1)
-    idx_abono_2 = get_ipc_interpolado_for_date(fecha_abono_2)
-    idx_corte = get_ipc_interpolado_for_date(fecha_corte)
+    # Sprint 80 (2026-08-20): usa la misma funcion mensual que ahora usa el motor real.
+    idx_origen = get_ipc_interpolado_mensual_for_date(fecha_origen)
+    idx_abono_1 = get_ipc_interpolado_mensual_for_date(fecha_abono_1)
+    idx_abono_2 = get_ipc_interpolado_mensual_for_date(fecha_abono_2)
+    idx_corte = get_ipc_interpolado_mensual_for_date(fecha_corte)
 
     indexacion_1 = IPCIndexation.calculate(capital, idx_origen, idx_abono_1)
-    assert indexacion_1 == Decimal("25484.40")
+    assert indexacion_1 == Decimal("10701.74")
     saldo_tras_abono_1 = capital + indexacion_1 - Decimal("400000.00")
-    assert saldo_tras_abono_1 == Decimal("625484.40")
+    assert saldo_tras_abono_1 == Decimal("610701.74")
 
     indexacion_2 = IPCIndexation.calculate(saldo_tras_abono_1, idx_abono_1, idx_abono_2)
-    assert indexacion_2 == Decimal("13195.02")
+    assert indexacion_2 == Decimal("22002.97")
     saldo_tras_abono_2 = saldo_tras_abono_1 + indexacion_2 - Decimal("300000.00")
-    assert saldo_tras_abono_2 == Decimal("338679.42")
+    assert saldo_tras_abono_2 == Decimal("332704.71")
 
     indexacion_3 = IPCIndexation.calculate(saldo_tras_abono_2, idx_abono_2, idx_corte)
-    assert indexacion_3 == Decimal("9870.03")
+    assert indexacion_3 == Decimal("4708.02")
     saldo_final_x9 = saldo_tras_abono_2 + indexacion_3
-    assert saldo_final_x9 == Decimal("348549.45")
+    assert saldo_final_x9 == Decimal("337412.73")
 
     # -- Motor real (CivilFamiliaStrategy, Suma Unica + 2 abonos) --
     obligacion = Obligacion(
@@ -4174,9 +4181,9 @@ def test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9():
     )
 
     saldo_final_motor = resultado.final_balance().total()
-    assert saldo_final_motor == Decimal("377633.53")
+    assert saldo_final_motor == Decimal("361933.78")
     assert saldo_final_motor != saldo_final_x9
-    assert saldo_final_motor - saldo_final_x9 == Decimal("29084.08")
+    assert saldo_final_motor - saldo_final_x9 == Decimal("24521.05")
 
 
 # --- Sprint 42: wiring del motor de prescripcion/caducidad -----------------
