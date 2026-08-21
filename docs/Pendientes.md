@@ -6756,6 +6756,20 @@ horas por concepto; wiring en `LaboralStrategy`.
 - Confirmación del despacho registrada en `Preguntas-Para-Abogado-Abiertas.md`.
 - Suite completa en verde.
 
+**Avance parcial (2026-08-21, rutina autónoma):** se entregó la única pieza no condicionada a la respuesta
+del despacho (mismo criterio que los Sprints 83/84/96): la distinción aritmética entre "hora extra" (tiempo
+no remunerado por ningún otro concepto, se paga la hora completa más el recargo:
+`horas × valor_hora × (1 + porcentaje/100)`) y "recargo" (horas ya remuneradas como salario base, solo se
+paga el porcentaje adicional: `horas × valor_hora × porcentaje/100`) — estructura constante en los Arts.
+168-179 CST que la Ley 2466/2025 no altera, solo las magnitudes y vigencias. Implementado en
+`app/engine/labor/horas_extra.py` (`calcular_hora_extra`, `calcular_recargo`), con 14 tests
+(`tests/engine/labor/test_horas_extra.py`) usando porcentajes de ejemplo, no los porcentajes legales reales.
+Deliberadamente **sin** hardcodear ningún porcentaje del CST (HED 25%, HEN 75%, etc.) ni tabla de vigencia de
+la Ley 2466/2025, y **sin cablear** a `parametro_service`, formulario Laboral ni `LaboralStrategy` — eso
+sigue condicionado a la tabla de transición que debe confirmar el despacho, ya registrada en
+`Preguntas-Para-Abogado-Abiertas.md` (Sprint 95). Por eso el sprint queda 📋 Pendiente, no Completado. Suite
+completa: 1450 passed. Rama: `sprint-95-horas-extra-recargos`.
+
 ---
 
 ## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 📋 Pendiente
