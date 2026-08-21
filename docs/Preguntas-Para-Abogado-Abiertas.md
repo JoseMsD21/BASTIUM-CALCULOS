@@ -647,6 +647,12 @@ horario nocturno vigente en cada tramo, y porcentaje del recargo dominical/festi
 los 7 conceptos de la plantilla L3 (horas extra diurnas/nocturnas ordinarias, recargo nocturno, horas extra
 diurnas/nocturnas festivas, recargo festivo diurno/nocturno).
 
+**Estado del software (2026-08-21):** ya se implementó, aislada y probada, la parte que NO depende de esta
+respuesta: la fórmula aritmética de "hora extra" (`app/engine/labor/horas_extra.py:calcular_hora_extra`) y
+de "recargo" (`calcular_recargo`), sin ningún porcentaje del CST ni tabla de vigencia hardcodeada. No está
+cableada a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía: eso queda condicionado a la
+tabla de transición de la Ley 2466/2025 que pide esta pregunta.
+
 **Respuesta del despacho:**
 
 
