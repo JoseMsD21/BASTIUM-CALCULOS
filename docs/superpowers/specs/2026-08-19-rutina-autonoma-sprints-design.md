@@ -49,19 +49,31 @@ cuando el usuario o el despacho contestan (pasa entonces a 🟠 Reabierto).
   semanal antes del jueves en la noche, sin necesidad de un mecanismo adicional — la única forma
   de dejar cupo sin usar sería que el backlog de sprints 📋/🟠 se agote antes que el cupo, lo cual
   se resuelve manteniendo el backlog alimentado, no con más lógica de scheduling.
-- Guardia contra solapamiento: antes de arrancar, la rutina verifica si ya hay una corrida activa
-  (sprint 🟡 con sesión viva). Si la hay, no arranca una corrida paralela sobre el mismo worktree.
+- Guardia contra solapamiento (reforzada 2026-08-20 tras un caso real de 2 corridas tomando el
+  mismo sprint — Sprint 102, 11:28 y 11:32 UTC): `git fetch origin` + `git log --all --since="20
+  minutes ago"` sobre **todas** las ramas, no solo la del sprint elegido, antes de arrancar y de
+  nuevo justo después de crear la rama y antes de escribir código. Si el `git push` final es
+  rechazado por no-fast-forward, no se fuerza nada: se verifica si `origin/main` ya tiene un
+  cierre equivalente y, si es así, se descarta la rama local sin generar bloqueo ni correo (es
+  trabajo duplicado detectado a tiempo, no un fallo).
 
 ## Mecánica dentro de una ventana
 
 - La condición para seguir encadenando sprints es **cupo de tokens restante**, no tiempo de
   reloj — puede sobrar tiempo de la ventana de 5h pero agotarse el cupo antes; en ese caso para.
-- Si hay varios sprints elegibles en la misma corrida, se usa `subagent-driven-development`
-  (tareas independientes en paralelo, no una por una — preferencia ya registrada en memoria del
-  usuario) con un worktree propio por sprint, cuidando que sprints en paralelo no toquen los
-  mismos archivos/migraciones.
+- **Ciclo obligatorio (reforzado 2026-08-20 tras observar que la rutina paraba después de un solo
+  sprint sin agotar cupo):** cerrar o bloquear un sprint no termina la corrida. Los únicos 2
+  motivos válidos para mandar el correo resumen y terminar son (a) no queda ningún sprint
+  elegible en toda la cola, o (b) la sesión se corta sola por límite real de uso — nunca una
+  decisión propia de "ya hice suficiente". Mientras haya cola y cupo, se sigue encadenando sprint
+  tras sprint.
 - Cada sprint sigue el mismo estándar que el resto del backlog: TDD, tests pasando, y la regla ya
   obligatoria de actualizar `README.md`/`docs/GUIA_USUARIO.md` al cerrar.
+- Datos públicos que antes solo existían en `docs/Archivos de referencia abogado/` (gitignoreada,
+  invisible para el sandbox en la nube) para los Sprints 80/81/82 ahora están extraídos
+  programáticamente en `docs/datos_publicos_fuente/` (sí commiteada) — ver el README de esa
+  carpeta. Solo se extrajeron series numéricas públicas (IPC/DTF/tasas certificadas), nunca las
+  plantillas propietarias del despacho ni el caso de cliente que también viven en esa carpeta.
 
 ## Cierre de un sprint
 
