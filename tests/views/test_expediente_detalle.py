@@ -218,7 +218,13 @@ def test_liquidar_area_civil_con_indexacion_ipc_incluye_evento_de_indexacion(qtb
 
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "INDEXATION" in tipos_evento
-    assert resultado.final_balance().indexation == Decimal("77633.53")
+    # Sprint 80: CivilFamiliaStrategy usa el indice IPC mensual real (2003-01 a
+    # 2026-03) para fechas dentro de ese rango, como esta (2024-07-01 ->
+    # 2025-12-31) -- valor previo (formula anual): 77633.53. Ver
+    # tests/services/test_area_strategy.py, funcion
+    # test_civil_familia_puntual_con_indexacion... (mismo capital/fechas,
+    # verificado con el motor real).
+    assert resultado.final_balance().indexation == Decimal("61933.78")
 
 
 def test_liquidar_area_comercial_con_tasa_usuraria_no_muestra_advertencia_y_aplica_sancion(

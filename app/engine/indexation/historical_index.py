@@ -235,26 +235,320 @@ def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
 # IPC MENSUAL (Sprint 8, correccion 2026-08-01): el despacho calificó la
 # interpolacion por cierre de año (arriba) de "juridicamente invalida" y exige
 # el indice mensual real del DANE con interpolacion lineal de dias entre
-# meses -- ver docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 8 (respuesta 27/07/2026) y la
-# pregunta de seguimiento agregada al final de ese documento (2026-08-01)
-# pidiendo la fuente/tabla real.
+# meses -- ver docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 8 (respuesta 27/07/2026).
 #
-# Esta tabla queda deliberadamente VACIA: no se inventa ni aproxima un indice
-# mensual sin la fuente oficial del DANE (mismo criterio que la UVT antes del
-# Sprint 14, o las costas sin el Acuerdo real en el Sprint 4).
-# get_ipc_mensual_for_month/get_ipc_interpolado_mensual_for_date lanzan
-# IPCMensualNoDisponibleError para cualquier mes mientras siga vacia -- nunca
-# aproximan con la serie anual ni con el ultimo mes disponible (el despacho
-# prohibio explicitamente "promedios anuales o proyecciones del año en curso").
+# Sprint 80 (2026-08-19): tabla poblada con la serie real, transcrita
+# programaticamente (no a mano, ver scripts de una sola vez usados durante el
+# sprint) de docs/Archivos de referencia abogado/_markdown/Historico IPC.md,
+# seccion "IndicesIPC" -- exportacion a markdown del Excel que el despacho
+# aporto como respuesta al Sprint 8. Cubre ENERO-2003 a MARZO-2026 (279
+# entradas: 23 años completos [2003-2025] x 12 meses + los 3 meses de 2026 que
+# el DANE ya habia certificado a la fecha de la fuente -- el archivo trae
+# abril-diciembre de 2026 en blanco/NaN, "no certificados todavia", nota
+# "Actualizado el 9 de Abril de 2026"). Base Diciembre-2018 = 100,00 (nota de
+# la propia fuente, confirmada en el codigo con IPC_MENSUAL[(2018, 12)] ==
+# 100.00). Es una sola base ya enlazada por el DANE, no las dos bases
+# (dic-2008/dic-2018) que el software habia anticipado pedir -- pregunta de
+# seguimiento sobre si esta base unica es aceptable, agregada a
+# docs/Preguntas-Para-Abogado-Abiertas.md (Sprint 80).
 #
-# CivilFamiliaStrategy (area_strategy.py) sigue usando
-# get_ipc_interpolado_for_date (la interpolacion anual de arriba) hasta que
-# esta tabla se pueble con datos reales -- conectar get_ipc_interpolado_mensual_for_date
-# en su lugar es la ultima parte pendiente de este sprint, bloqueada por la
-# misma falta de fuente.
+# Fuera de ese rango (antes de 2003-01, o abril-2026 en adelante mientras el
+# DANE no certifique mas meses) get_ipc_mensual_for_month/
+# get_ipc_interpolado_mensual_for_date SIGUEN lanzando IPCMensualNoDisponibleError
+# a proposito -- no se aproxima con la serie anual ni con el ultimo mes
+# disponible sin autorizacion explicita del despacho (mismo criterio que la
+# UVT antes del Sprint 14, o las costas sin el Acuerdo real en el Sprint 4).
+# Esa es una decision ya tomada para este sprint, no reabierta -- ver la
+# pregunta de seguimiento en docs/Preguntas-Para-Abogado-Abiertas.md (Sprint 80)
+# para cuando el despacho quiera autorizar un fallback distinto.
+#
+# CivilFamiliaStrategy._evento_indexacion (area_strategy.py) ya usa esta tabla
+# via get_ipc_interpolado_mensual_for_date para fechas dentro del rango
+# cubierto, con fallback documentado a get_ipc_interpolado_for_date (anual)
+# solo para las fechas fuera de rango -- ver docstring de ese metodo.
 # ---------------------------------------------------------------------------
 
-_IPC_MENSUAL: dict[tuple[int, int], Decimal] = {}
+_IPC_MENSUAL: dict[tuple[int, int], Decimal] = {
+    (2003, 1): Decimal("50.42"),
+    (2003, 2): Decimal("50.98"),
+    (2003, 3): Decimal("51.51"),
+    (2003, 4): Decimal("52.10"),
+    (2003, 5): Decimal("52.36"),
+    (2003, 6): Decimal("52.33"),
+    (2003, 7): Decimal("52.26"),
+    (2003, 8): Decimal("52.42"),
+    (2003, 9): Decimal("52.53"),
+    (2003, 10): Decimal("52.56"),
+    (2003, 11): Decimal("52.75"),
+    (2003, 12): Decimal("53.07"),
+    (2004, 1): Decimal("53.54"),
+    (2004, 2): Decimal("54.18"),
+    (2004, 3): Decimal("54.71"),
+    (2004, 4): Decimal("54.96"),
+    (2004, 5): Decimal("55.17"),
+    (2004, 6): Decimal("55.51"),
+    (2004, 7): Decimal("55.49"),
+    (2004, 8): Decimal("55.51"),
+    (2004, 9): Decimal("55.67"),
+    (2004, 10): Decimal("55.66"),
+    (2004, 11): Decimal("55.82"),
+    (2004, 12): Decimal("55.99"),
+    (2005, 1): Decimal("56.45"),
+    (2005, 2): Decimal("57.02"),
+    (2005, 3): Decimal("57.46"),
+    (2005, 4): Decimal("57.72"),
+    (2005, 5): Decimal("57.95"),
+    (2005, 6): Decimal("58.18"),
+    (2005, 7): Decimal("58.21"),
+    (2005, 8): Decimal("58.21"),
+    (2005, 9): Decimal("58.46"),
+    (2005, 10): Decimal("58.60"),
+    (2005, 11): Decimal("58.66"),
+    (2005, 12): Decimal("58.70"),
+    (2006, 1): Decimal("59.02"),
+    (2006, 2): Decimal("59.41"),
+    (2006, 3): Decimal("59.83"),
+    (2006, 4): Decimal("60.09"),
+    (2006, 5): Decimal("60.29"),
+    (2006, 6): Decimal("60.48"),
+    (2006, 7): Decimal("60.73"),
+    (2006, 8): Decimal("60.96"),
+    (2006, 9): Decimal("61.14"),
+    (2006, 10): Decimal("61.05"),
+    (2006, 11): Decimal("61.19"),
+    (2006, 12): Decimal("61.33"),
+    (2007, 1): Decimal("61.80"),
+    (2007, 2): Decimal("62.53"),
+    (2007, 3): Decimal("63.29"),
+    (2007, 4): Decimal("63.85"),
+    (2007, 5): Decimal("64.05"),
+    (2007, 6): Decimal("64.12"),
+    (2007, 7): Decimal("64.23"),
+    (2007, 8): Decimal("64.14"),
+    (2007, 9): Decimal("64.20"),
+    (2007, 10): Decimal("64.20"),
+    (2007, 11): Decimal("64.51"),
+    (2007, 12): Decimal("64.82"),
+    (2008, 1): Decimal("65.51"),
+    (2008, 2): Decimal("66.50"),
+    (2008, 3): Decimal("67.04"),
+    (2008, 4): Decimal("67.51"),
+    (2008, 5): Decimal("68.14"),
+    (2008, 6): Decimal("68.73"),
+    (2008, 7): Decimal("69.06"),
+    (2008, 8): Decimal("69.19"),
+    (2008, 9): Decimal("69.06"),
+    (2008, 10): Decimal("69.30"),
+    (2008, 11): Decimal("69.49"),
+    (2008, 12): Decimal("69.80"),
+    (2009, 1): Decimal("70.21"),
+    (2009, 2): Decimal("70.80"),
+    (2009, 3): Decimal("71.15"),
+    (2009, 4): Decimal("71.38"),
+    (2009, 5): Decimal("71.39"),
+    (2009, 6): Decimal("71.35"),
+    (2009, 7): Decimal("71.32"),
+    (2009, 8): Decimal("71.35"),
+    (2009, 9): Decimal("71.28"),
+    (2009, 10): Decimal("71.19"),
+    (2009, 11): Decimal("71.14"),
+    (2009, 12): Decimal("71.20"),
+    (2010, 1): Decimal("71.69"),
+    (2010, 2): Decimal("72.28"),
+    (2010, 3): Decimal("72.46"),
+    (2010, 4): Decimal("72.79"),
+    (2010, 5): Decimal("72.87"),
+    (2010, 6): Decimal("72.95"),
+    (2010, 7): Decimal("72.92"),
+    (2010, 8): Decimal("73.00"),
+    (2010, 9): Decimal("72.90"),
+    (2010, 10): Decimal("72.84"),
+    (2010, 11): Decimal("72.98"),
+    (2010, 12): Decimal("73.45"),
+    (2011, 1): Decimal("74.12"),
+    (2011, 2): Decimal("74.57"),
+    (2011, 3): Decimal("74.77"),
+    (2011, 4): Decimal("74.86"),
+    (2011, 5): Decimal("75.07"),
+    (2011, 6): Decimal("75.31"),
+    (2011, 7): Decimal("75.42"),
+    (2011, 8): Decimal("75.39"),
+    (2011, 9): Decimal("75.62"),
+    (2011, 10): Decimal("75.77"),
+    (2011, 11): Decimal("75.87"),
+    (2011, 12): Decimal("76.19"),
+    (2012, 1): Decimal("76.75"),
+    (2012, 2): Decimal("77.22"),
+    (2012, 3): Decimal("77.31"),
+    (2012, 4): Decimal("77.42"),
+    (2012, 5): Decimal("77.66"),
+    (2012, 6): Decimal("77.72"),
+    (2012, 7): Decimal("77.70"),
+    (2012, 8): Decimal("77.73"),
+    (2012, 9): Decimal("77.96"),
+    (2012, 10): Decimal("78.08"),
+    (2012, 11): Decimal("77.98"),
+    (2012, 12): Decimal("78.05"),
+    (2013, 1): Decimal("78.28"),
+    (2013, 2): Decimal("78.63"),
+    (2013, 3): Decimal("78.79"),
+    (2013, 4): Decimal("78.99"),
+    (2013, 5): Decimal("79.21"),
+    (2013, 6): Decimal("79.39"),
+    (2013, 7): Decimal("79.43"),
+    (2013, 8): Decimal("79.50"),
+    (2013, 9): Decimal("79.73"),
+    (2013, 10): Decimal("79.52"),
+    (2013, 11): Decimal("79.35"),
+    (2013, 12): Decimal("79.56"),
+    (2014, 1): Decimal("79.95"),
+    (2014, 2): Decimal("80.45"),
+    (2014, 3): Decimal("80.77"),
+    (2014, 4): Decimal("81.14"),
+    (2014, 5): Decimal("81.53"),
+    (2014, 6): Decimal("81.61"),
+    (2014, 7): Decimal("81.73"),
+    (2014, 8): Decimal("81.90"),
+    (2014, 9): Decimal("82.01"),
+    (2014, 10): Decimal("82.14"),
+    (2014, 11): Decimal("82.25"),
+    (2014, 12): Decimal("82.47"),
+    (2015, 1): Decimal("83.00"),
+    (2015, 2): Decimal("83.96"),
+    (2015, 3): Decimal("84.45"),
+    (2015, 4): Decimal("84.90"),
+    (2015, 5): Decimal("85.12"),
+    (2015, 6): Decimal("85.21"),
+    (2015, 7): Decimal("85.37"),
+    (2015, 8): Decimal("85.78"),
+    (2015, 9): Decimal("86.39"),
+    (2015, 10): Decimal("86.98"),
+    (2015, 11): Decimal("87.51"),
+    (2015, 12): Decimal("88.05"),
+    (2016, 1): Decimal("89.19"),
+    (2016, 2): Decimal("90.33"),
+    (2016, 3): Decimal("91.18"),
+    (2016, 4): Decimal("91.63"),
+    (2016, 5): Decimal("92.10"),
+    (2016, 6): Decimal("92.54"),
+    (2016, 7): Decimal("93.02"),
+    (2016, 8): Decimal("92.73"),
+    (2016, 9): Decimal("92.68"),
+    (2016, 10): Decimal("92.62"),
+    (2016, 11): Decimal("92.73"),
+    (2016, 12): Decimal("93.11"),
+    (2017, 1): Decimal("94.07"),
+    (2017, 2): Decimal("95.01"),
+    (2017, 3): Decimal("95.46"),
+    (2017, 4): Decimal("95.91"),
+    (2017, 5): Decimal("96.12"),
+    (2017, 6): Decimal("96.23"),
+    (2017, 7): Decimal("96.18"),
+    (2017, 8): Decimal("96.32"),
+    (2017, 9): Decimal("96.36"),
+    (2017, 10): Decimal("96.37"),
+    (2017, 11): Decimal("96.55"),
+    (2017, 12): Decimal("96.92"),
+    (2018, 1): Decimal("97.53"),
+    (2018, 2): Decimal("98.22"),
+    (2018, 3): Decimal("98.45"),
+    (2018, 4): Decimal("98.91"),
+    (2018, 5): Decimal("99.16"),
+    (2018, 6): Decimal("99.31"),
+    (2018, 7): Decimal("99.18"),
+    (2018, 8): Decimal("99.30"),
+    (2018, 9): Decimal("99.47"),
+    (2018, 10): Decimal("99.59"),
+    (2018, 11): Decimal("99.70"),
+    (2018, 12): Decimal("100.00"),
+    (2019, 1): Decimal("100.60"),
+    (2019, 2): Decimal("101.18"),
+    (2019, 3): Decimal("101.62"),
+    (2019, 4): Decimal("102.12"),
+    (2019, 5): Decimal("102.44"),
+    (2019, 6): Decimal("102.71"),
+    (2019, 7): Decimal("102.94"),
+    (2019, 8): Decimal("103.03"),
+    (2019, 9): Decimal("103.26"),
+    (2019, 10): Decimal("103.43"),
+    (2019, 11): Decimal("103.54"),
+    (2019, 12): Decimal("103.80"),
+    (2020, 1): Decimal("104.24"),
+    (2020, 2): Decimal("104.94"),
+    (2020, 3): Decimal("105.53"),
+    (2020, 4): Decimal("105.70"),
+    (2020, 5): Decimal("105.36"),
+    (2020, 6): Decimal("104.97"),
+    (2020, 7): Decimal("104.97"),
+    (2020, 8): Decimal("104.96"),
+    (2020, 9): Decimal("105.29"),
+    (2020, 10): Decimal("105.23"),
+    (2020, 11): Decimal("105.08"),
+    (2020, 12): Decimal("105.48"),
+    (2021, 1): Decimal("105.91"),
+    (2021, 2): Decimal("106.58"),
+    (2021, 3): Decimal("107.12"),
+    (2021, 4): Decimal("107.76"),
+    (2021, 5): Decimal("108.84"),
+    (2021, 6): Decimal("108.78"),
+    (2021, 7): Decimal("109.14"),
+    (2021, 8): Decimal("109.62"),
+    (2021, 9): Decimal("110.04"),
+    (2021, 10): Decimal("110.06"),
+    (2021, 11): Decimal("110.60"),
+    (2021, 12): Decimal("111.41"),
+    (2022, 1): Decimal("113.26"),
+    (2022, 2): Decimal("115.11"),
+    (2022, 3): Decimal("116.26"),
+    (2022, 4): Decimal("117.71"),
+    (2022, 5): Decimal("118.70"),
+    (2022, 6): Decimal("119.31"),
+    (2022, 7): Decimal("120.27"),
+    (2022, 8): Decimal("121.50"),
+    (2022, 9): Decimal("122.63"),
+    (2022, 10): Decimal("123.51"),
+    (2022, 11): Decimal("124.46"),
+    (2022, 12): Decimal("126.03"),
+    (2023, 1): Decimal("128.27"),
+    (2023, 2): Decimal("130.40"),
+    (2023, 3): Decimal("131.77"),
+    (2023, 4): Decimal("132.80"),
+    (2023, 5): Decimal("133.38"),
+    (2023, 6): Decimal("133.78"),
+    (2023, 7): Decimal("134.45"),
+    (2023, 8): Decimal("135.39"),
+    (2023, 9): Decimal("136.11"),
+    (2023, 10): Decimal("136.45"),
+    (2023, 11): Decimal("137.09"),
+    (2023, 12): Decimal("137.72"),
+    (2024, 1): Decimal("138.98"),
+    (2024, 2): Decimal("140.49"),
+    (2024, 3): Decimal("141.48"),
+    (2024, 4): Decimal("142.32"),
+    (2024, 5): Decimal("142.92"),
+    (2024, 6): Decimal("143.38"),
+    (2024, 7): Decimal("143.67"),
+    (2024, 8): Decimal("143.67"),
+    (2024, 9): Decimal("144.02"),
+    (2024, 10): Decimal("143.83"),
+    (2024, 11): Decimal("144.22"),
+    (2024, 12): Decimal("144.88"),
+    (2025, 1): Decimal("146.24"),
+    (2025, 2): Decimal("147.90"),
+    (2025, 3): Decimal("148.68"),
+    (2025, 4): Decimal("149.66"),
+    (2025, 5): Decimal("150.14"),
+    (2025, 6): Decimal("150.30"),
+    (2025, 7): Decimal("150.71"),
+    (2025, 8): Decimal("150.99"),
+    (2025, 9): Decimal("151.48"),
+    (2025, 10): Decimal("151.76"),
+    (2025, 11): Decimal("151.87"),
+    (2025, 12): Decimal("152.27"),
+    (2026, 1): Decimal("154.07"),
+    (2026, 2): Decimal("155.73"),
+    (2026, 3): Decimal("156.94"),
+}
 
 
 def get_ipc_mensual_for_month(anio: int, mes: int) -> Decimal:
@@ -296,20 +590,43 @@ def get_ipc_interpolado_mensual_for_date(fecha: date) -> Decimal:
 
 
 # ---------------------------------------------------------------------------
-# IBC (Interes Bancario Corriente) y Tasa de Usura, 1997-07-01 a 2026-07-31.
-# Transcrito de las paginas 58-61 del PDF, linea de credito "Comercial"
-# (1997 - 4-ene-2007) que pasa a llamarse "Credito Comercial y de Consumo"
-# (5-ene-2007 a 31-mar-2007) y luego "Credito de Consumo y Ordinario"
-# (1-abr-2007 en adelante) -- es la linea general/por defecto que la SFC
-# certifica hoy, la mas cercana a lo que aplicaria a una obligacion sin
-# clasificacion especifica de microcredito o credito rural. Esas otras lineas
-# (Microcredito, Credito Popular Productivo Rural) NO estan modeladas aqui --
-# ver design spec, seccion "Fuera de alcance".
+# IBC (Interes Bancario Corriente) y Tasa de Usura, 1971-10-29 a 2026-07-31.
+# 1997-07-01 en adelante: transcrito de las paginas 58-61 del PDF, linea de
+# credito "Comercial" (1997 - 4-ene-2007) que pasa a llamarse "Credito
+# Comercial y de Consumo" (5-ene-2007 a 31-mar-2007) y luego "Credito de
+# Consumo y Ordinario" (1-abr-2007 en adelante) -- es la linea general/por
+# defecto que la SFC certifica hoy, la mas cercana a lo que aplicaria a una
+# obligacion sin clasificacion especifica de microcredito o credito rural.
+# Esas otras lineas (Microcredito, Credito Popular Productivo Rural) NO estan
+# modeladas aqui -- ver design spec, seccion "Fuera de alcance".
+#
+# 1971-10-29 a 1997-06-30 (Sprint 81): transcrito de docs/Archivos de
+# referencia abogado/_markdown/Historicocertificacionsuperfinancieratasasdeinteres.md,
+# la certificacion historica completa de la Superfinanciera. Antes de 1997 la
+# fuente trae 3 columnas de interes anual efectivo distintas por resolucion
+# ("CORRIENTE" / "BANCARIO CORRIENTE" / "CREDITOS ORDINARIOS LIBRE
+# ASIGNACION", con celdas "----" cuando esa columna no aplica a la resolucion
+# de esa fila -- cada resolucion certifica solo UNA de las tres). Se usa la
+# columna "BANCARIO CORRIENTE" como fuente de ibc_anual (decision de mapeo ya
+# tomada, no reabrir): continuidad conceptual con el Art. 884 C.Co., el mismo
+# criterio que ya usa la linea "Consumo y Ordinario" desde 1997 en adelante.
+# La tabla pre-1997 no trae una columna de usura separada -- usura_anual se
+# calcula como ibc_anual x 1.5 (Decimal, redondeado a 2 decimales con
+# ROUND_HALF_UP), el mismo multiplicador legal verificado en las 263 filas ya
+# existentes desde 1997 (invariante de la ley -- ver test
+# test_usura_es_1_5_veces_ibc_en_todos_los_tramos -- no una aproximacion
+# nueva de este sprint). Estos ~50 tramos pre-1997 solo estan sembrados en
+# parametros_legales via scripts/migrate_ibc_usura_1971_1997.py (necesario
+# porque scripts/migrate_parametros_legales.py es idempotente por clave
+# completa y esas dos claves ya tenian filas desde 1997 -- ver docstring de
+# ese script nuevo para el detalle completo).
 #
 # Extraido con reconocimiento de grilla (no lectura de texto lineal, que
 # mezcla las columnas de esta tabla especifica) y verificado: sin vacios en
-# todo el rango, un solo solape real en la fuente (ver nota en septiembre de
-# 2017 mas abajo), y usura_anual == 1.5 x ibc_anual en las 263 filas.
+# todo el rango, un solo solape real en la fuente 1997+ (ver nota en
+# septiembre de 2017 mas abajo; el rango pre-1997 no presento ningun solape
+# ni vacio, solo tramos consecutivos), y usura_anual == 1.5 x ibc_anual en
+# las 313 filas.
 # ---------------------------------------------------------------------------
 
 
@@ -322,6 +639,58 @@ class TramoIBCUsura:
 
 
 _TRAMOS_IBC_USURA: list[TramoIBCUsura] = [
+    # --- 1971-10-29 a 1997-06-30 (Sprint 81) -- ver docstring de la seccion ---
+    TramoIBCUsura(date(1971, 10, 29), date(1972, 2, 9), Decimal("14.00"), Decimal("21.00")),
+    TramoIBCUsura(date(1972, 2, 10), date(1973, 7, 30), Decimal("14.00"), Decimal("21.00")),
+    TramoIBCUsura(date(1973, 7, 31), date(1974, 3, 11), Decimal("14.00"), Decimal("21.00")),
+    TramoIBCUsura(date(1974, 3, 12), date(1975, 6, 22), Decimal("16.00"), Decimal("24.00")),
+    TramoIBCUsura(date(1975, 6, 23), date(1976, 6, 22), Decimal("16.00"), Decimal("24.00")),
+    TramoIBCUsura(date(1976, 6, 23), date(1977, 6, 27), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1977, 6, 28), date(1978, 7, 12), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1978, 7, 13), date(1979, 3, 5), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1979, 3, 6), date(1980, 8, 27), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1980, 8, 28), date(1981, 7, 23), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1981, 7, 24), date(1984, 10, 15), Decimal("18.00"), Decimal("27.00")),
+    TramoIBCUsura(date(1984, 10, 16), date(1986, 3, 25), Decimal("33.60"), Decimal("50.40")),
+    TramoIBCUsura(date(1986, 3, 26), date(1987, 5, 25), Decimal("33.81"), Decimal("50.72")),
+    TramoIBCUsura(date(1987, 5, 26), date(1988, 5, 19), Decimal("32.52"), Decimal("48.78")),
+    TramoIBCUsura(date(1988, 5, 20), date(1989, 5, 2), Decimal("34.04"), Decimal("51.06")),
+    TramoIBCUsura(date(1989, 5, 3), date(1990, 5, 24), Decimal("36.15"), Decimal("54.23")),
+    TramoIBCUsura(date(1990, 5, 25), date(1991, 2, 28), Decimal("34.27"), Decimal("51.41")),
+    TramoIBCUsura(date(1991, 3, 1), date(1992, 2, 27), Decimal("36.41"), Decimal("54.62")),
+    TramoIBCUsura(date(1992, 2, 28), date(1992, 4, 29), Decimal("42.41"), Decimal("63.62")),
+    TramoIBCUsura(date(1992, 4, 30), date(1992, 6, 30), Decimal("38.47"), Decimal("57.71")),
+    TramoIBCUsura(date(1992, 7, 1), date(1992, 8, 30), Decimal("38.18"), Decimal("57.27")),
+    TramoIBCUsura(date(1992, 8, 31), date(1992, 10, 31), Decimal("34.33"), Decimal("51.50")),
+    TramoIBCUsura(date(1992, 11, 1), date(1992, 12, 31), Decimal("32.15"), Decimal("48.23")),
+    TramoIBCUsura(date(1993, 1, 1), date(1993, 2, 28), Decimal("34.39"), Decimal("51.59")),
+    TramoIBCUsura(date(1993, 3, 1), date(1993, 4, 30), Decimal("34.74"), Decimal("52.11")),
+    TramoIBCUsura(date(1993, 5, 1), date(1993, 6, 30), Decimal("35.10"), Decimal("52.65")),
+    TramoIBCUsura(date(1993, 7, 1), date(1993, 8, 31), Decimal("35.43"), Decimal("53.15")),
+    TramoIBCUsura(date(1993, 9, 1), date(1993, 10, 31), Decimal("35.66"), Decimal("53.49")),
+    TramoIBCUsura(date(1993, 11, 1), date(1993, 12, 31), Decimal("35.87"), Decimal("53.81")),
+    TramoIBCUsura(date(1994, 1, 1), date(1994, 2, 28), Decimal("35.02"), Decimal("52.53")),
+    TramoIBCUsura(date(1994, 3, 1), date(1994, 4, 30), Decimal("35.42"), Decimal("53.13")),
+    TramoIBCUsura(date(1994, 5, 1), date(1994, 6, 30), Decimal("36.13"), Decimal("54.20")),
+    TramoIBCUsura(date(1994, 7, 1), date(1994, 8, 31), Decimal("36.25"), Decimal("54.38")),
+    TramoIBCUsura(date(1994, 9, 1), date(1994, 10, 31), Decimal("36.89"), Decimal("55.34")),
+    TramoIBCUsura(date(1994, 11, 1), date(1994, 12, 31), Decimal("38.76"), Decimal("58.14")),
+    TramoIBCUsura(date(1995, 1, 1), date(1995, 2, 28), Decimal("40.12"), Decimal("60.18")),
+    TramoIBCUsura(date(1995, 3, 1), date(1995, 4, 30), Decimal("42.74"), Decimal("64.11")),
+    TramoIBCUsura(date(1995, 5, 1), date(1995, 6, 30), Decimal("42.45"), Decimal("63.68")),
+    TramoIBCUsura(date(1995, 7, 1), date(1995, 8, 31), Decimal("43.84"), Decimal("65.76")),
+    TramoIBCUsura(date(1995, 9, 1), date(1995, 10, 31), Decimal("44.62"), Decimal("66.93")),
+    TramoIBCUsura(date(1995, 11, 1), date(1995, 12, 31), Decimal("42.72"), Decimal("64.08")),
+    TramoIBCUsura(date(1996, 1, 1), date(1996, 2, 29), Decimal("40.27"), Decimal("60.41")),
+    TramoIBCUsura(date(1996, 3, 1), date(1996, 4, 30), Decimal("41.37"), Decimal("62.06")),
+    TramoIBCUsura(date(1996, 5, 1), date(1996, 6, 30), Decimal("42.19"), Decimal("63.29")),
+    TramoIBCUsura(date(1996, 7, 1), date(1996, 8, 31), Decimal("42.94"), Decimal("64.41")),
+    TramoIBCUsura(date(1996, 9, 1), date(1996, 10, 31), Decimal("42.29"), Decimal("63.44")),
+    TramoIBCUsura(date(1996, 11, 1), date(1996, 12, 31), Decimal("41.37"), Decimal("62.06")),
+    TramoIBCUsura(date(1997, 1, 1), date(1997, 2, 28), Decimal("39.77"), Decimal("59.66")),
+    TramoIBCUsura(date(1997, 3, 1), date(1997, 4, 30), Decimal("38.95"), Decimal("58.43")),
+    TramoIBCUsura(date(1997, 5, 1), date(1997, 6, 30), Decimal("36.99"), Decimal("55.49")),
+    # --- 1997-07-01 en adelante (rango original, sin cambios) ---
     TramoIBCUsura(date(1997, 7, 1), date(1997, 8, 31), Decimal("36.50"), Decimal("54.75")),
     TramoIBCUsura(date(1997, 9, 1), date(1997, 9, 30), Decimal("31.84"), Decimal("47.76")),
     TramoIBCUsura(date(1997, 10, 1), date(1997, 10, 31), Decimal("31.33"), Decimal("46.99")),

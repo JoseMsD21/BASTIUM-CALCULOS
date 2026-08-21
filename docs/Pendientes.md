@@ -261,9 +261,9 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
 - [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🔵 Bloqueado — pendiente de confirmación](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--bloqueado--pendiente-de-confirmación)
 - [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--bloqueado--pendiente-de-confirmación)
-- [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--pendiente)
-- [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera 📋 Pendiente](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--pendiente)
-- [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 📋 Pendiente](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--pendiente)
+- [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--completado)
+- [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
+- [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable ✅ Completado](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--completado)
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
 - [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ✅ Completado](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--completado-documentación-decisión-de-comportamiento-condicionada-a-la-respuesta-del-despacho)
 - [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
@@ -6104,7 +6104,7 @@ esa base (sumadas al final, sin generar interés adicional)?
 
 ---
 
-## Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 📋 Pendiente
+## Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado
 
 **Prioridad sugerida:** Alta — Sprint 8 lleva bloqueado desde 2026-08-01 exclusivamente por falta de este dato real; esta serie lo resuelve para el 90%+ de los casos recientes.
 **Depende de:** Sprint 5 (series históricas), Sprint 8 (motor de interpolación mensual ya construido y probado, solo falta la tabla de datos).
@@ -6128,9 +6128,11 @@ esa base (sumadas al final, sin generar interés adicional)?
 - `docs/specifications/03_motor_indexacion.md` actualizado.
 - Suite completa en verde.
 
+**Cierre (2026-08-20):** Completado. Trabajado en local el 2026-08-19 (rama `sprint-80-...`, con revisión de calidad aplicada) usando el archivo original con acceso directo; quedó divergido de `main` por unos días mientras la rutina autónoma en la nube avanzaba otros sprints en paralelo. Reconciliado hoy contra el `main` actual (fusión manual, sin pérdida de trabajo de ningún lado): `_IPC_MENSUAL` poblada 2003-01 a 2026-03 (último dato real certificado — ver corrección en el párrafo de contexto sobre el dato de abril-2026 que en realidad era abril-2025), `CivilFamiliaStrategy._evento_indexacion` usa `get_ipc_interpolado_mensual_for_date` dentro de ese rango con fallback documentado a la interpolación anual fuera de rango, `docs/specifications/03_motor_indexacion.md` y `README.md` actualizados. Suite completa: 1483 passed (incluye la recalculación del test de divergencia X9 del Sprint 102/104, cuyo resultado numérico cambió al pasar de interpolación anual a mensual — la brecha conceptual sigue documentada igual en el Sprint 104).
+
 ---
 
-## Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera 📋 Pendiente
+## Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado
 
 **Prioridad sugerida:** Media — no bloquea nada activo, pero cierra una laguna real (1971-1997) con una fuente primaria verificable, y el rango actual (desde 1997-07-01) ya cubre la gran mayoría de casos de un despacho civil/comercial.
 **Depende de:** Sprint 5 (`_TRAMOS_IBC_USURA` ya existe y este sprint solo la extiende, no la rediseña).
@@ -6150,9 +6152,11 @@ esa base (sumadas al final, sin generar interés adicional)?
 - Tests que verifiquen al menos 3 tramos anteriores a 1997 contra el archivo fuente.
 - Suite completa en verde.
 
+**Cierre (2026-08-20):** Completado. Trabajado en local el 2026-08-19 con acceso directo al archivo original (`docs/Archivos de referencia abogado/Historicocertificacionsuperfinancieratasasdeinteres.xls`); reconciliado hoy contra el `main` actual. Decisión de mapeo de columnas ya tomada y documentada en `scripts/migrate_ibc_usura_1971_1997.py`: para el rango pre-1997 (3 columnas distintas en la fuente) se usa "BANCARIO CORRIENTE" como `ibc_anual` por continuidad conceptual con el Art. 884 C.Co. (mismo criterio que la línea "Consumo y Ordinario" desde 1997), y `usura_anual = ibc_anual × 1.5`. `_TRAMOS_IBC_USURA` cubre sin huecos desde 1971-10-29, con migración idempotente separada para bases de datos ya sembradas desde 1997 (`scripts/migrate_ibc_usura_1971_1997.py`, con su propio test). Suite completa: 1483 passed.
+
 ---
 
-## Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 📋 Pendiente
+## Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable ✅ Completado
 
 **Prioridad sugerida:** Baja — DTF no se usa hoy en ningún cálculo de BASTIUM; el único caso de uso identificado (`i10`, condenas administrativas) no tiene un área clara dentro de las 6 áreas actuales. Se propone cargar el dato de todas formas (bajo costo, fuente ya lista) pero sin construir el calculador hasta resolver la pregunta de área.
 **Depende de:** Nada para la carga de datos; el uso real depende de la respuesta a la pregunta nueva de este sprint.
@@ -6171,6 +6175,8 @@ esa base (sumadas al final, sin generar interés adicional)?
 **Definición de Hecho:**
 - Serie DTF cargada y consultable por fecha, con tests contra al menos 5 valores puntuales del archivo fuente.
 - Suite completa en verde.
+
+**Cierre (2026-08-20):** Completado (solo carga de datos, tal como definía el alcance — el calculador de intereses DTF sigue explícitamente fuera de alcance). Trabajado en local el 2026-08-19 con acceso directo al archivo original; reconciliado hoy contra el `main` actual. `app/engine/indexation/historical_dtf.py` (módulo nuevo) trae la serie semanal 1984-2026 y `get_dtf_for_date(fecha)`, con `_DTF_FECHAS` ordenada explícitamente. Suite completa: 1483 passed. La pregunta de qué área de BASTIUM debería alojar el calculador de condenas administrativas (`i10`) sigue abierta en `Preguntas-Para-Abogado-Abiertas.md`.
 
 ---
 

@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
-from app.core.exceptions import CuotaLitisExcedeTopeError
+from app.core.exceptions import CuotaLitisExcedeTopeError, IPCMensualNoDisponibleError
 from app.domain.obligation.payment import Payment
 from app.engine.costs.agencias_en_derecho import (
     Instancia,
@@ -15,7 +15,11 @@ from app.engine.costs.agencias_en_derecho import (
 from app.engine.currency.converter import convertir_a_pesos
 from app.engine.currency.trm_provider import ManualTRMProvider, SFCTRMProvider, TRMProvider
 from app.engine.financial.rate import Rate
-from app.engine.indexation.historical_index import get_ipc_interpolado_for_date, get_smlmv_for_year
+from app.engine.indexation.historical_index import (
+    get_ipc_interpolado_for_date,
+    get_ipc_interpolado_mensual_for_date,
+    get_smlmv_for_year,
+)
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from app.engine.interest.provider import MemoryRateProvider
@@ -309,10 +313,14 @@ class AreaStrategy(ABC):
     ) -> Event:
         """Evento de indexacion IPC generico (Sprint 8, promovido a la clase base en
         el Sprint 43 para que Honorarios/Sancionatorio/Laboral/Comercial lo reutilicen
-        tal cual en vez de reimplementar la misma formula -- ver
-        CivilFamiliaStrategy._evento_indexacion, ahora un alias de este metodo).
-        `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay deflacion o si el
-        capital es 0/negativo -- ver docstring de esa funcion."""
+        tal cual en vez de reimplementar la misma formula -- interpolacion ANUAL,
+        siempre. CivilFamiliaStrategy._evento_indexacion fue un alias de este metodo
+        desde el Sprint 43 hasta el Sprint 80: desde el Sprint 80 tiene su propia
+        implementacion (indice IPC MENSUAL real dentro de rango, con fallback
+        documentado a esta misma interpolacion anual fuera de rango) -- ya NO es un
+        alias, ver el docstring de CivilFamiliaStrategy._evento_indexacion para el
+        detalle. `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay
+        deflacion o si el capital es 0/negativo -- ver docstring de esa funcion."""
         monto = IPCIndexation.calculate(
             capital=capital,
             initial_index=get_ipc_interpolado_for_date(fecha_causacion),
@@ -539,13 +547,59 @@ class CivilFamiliaStrategy(AreaStrategy):
             )
         return eventos
 
+    @staticmethod
     def _evento_indexacion(
-        self, fecha_causacion: date, capital: Decimal, concepto: str, fecha_corte: date
+        fecha_causacion: date, capital: Decimal, concepto: str, fecha_corte: date
     ) -> Event:
-        """Alias historico (Sprint 8) del helper generico promovido a la clase base en
-        el Sprint 43 -- ver `AreaStrategy._evento_indexacion_ipc`. Se conserva este
-        nombre/firma para no tocar los call sites existentes de esta clase."""
-        return self._evento_indexacion_ipc(fecha_causacion, capital, concepto, fecha_corte)
+        """Evento de indexacion IPC de Civil/Familia (Sprint 8; conectado al indice
+        MENSUAL real del DANE en el Sprint 80). Hasta el Sprint 80 este metodo era un
+        simple alias de `AreaStrategy._evento_indexacion_ipc` (el helper generico que
+        Honorarios/Sancionatorio/Laboral/Comercial siguen usando tal cual, con la
+        interpolacion ANUAL) -- ahora tiene su propia implementacion, exclusiva de
+        Civil/Familia, que usa `get_ipc_interpolado_mensual_for_date` (interpolacion
+        lineal por dias DENTRO del mes, la formula que el despacho exigio como la
+        unica juridicamente valida -- ver Sprint 8 en
+        docs/Preguntas-Para-Abogado-Respondidas.md) en vez de la interpolacion anual
+        generica, siempre que la tabla `_IPC_MENSUAL` (historical_index.py) cubra
+        AMBAS fechas (causacion y corte).
+
+        Si CUALQUIERA de las dos fechas cae fuera del rango cargado (obligaciones con
+        `fecha_origen` anterior a enero de 2003, o una `fecha_corte` mas alla del
+        ultimo mes que el DANE haya certificado), `get_ipc_interpolado_mensual_for_date`
+        lanza `IPCMensualNoDisponibleError` -- en ese caso se hace *fallback* COMPLETO
+        a la interpolacion anual (`get_ipc_interpolado_for_date`) para AMBAS fechas,
+        nunca solo para la que fallo: el indice mensual (base Diciembre-2018 = 100) y
+        el indice anual acumulado (ancla implicita en 1966 = 100, ver
+        `_construir_indice_ipc_acumulado`) son series con bases distintas, y
+        `IPCIndexation.calculate` solo mira la razon `final_index / initial_index` --
+        mezclar un indice de una serie con el de la otra arruinaria esa razon y daria
+        un monto de indexacion sin sentido. Este fallback es intencional, decidido en
+        el Sprint 80 para blindar con el indice mensual real la gran mayoria de los
+        casos (todo lo posterior a 2003) sin dejar fuera silenciosamente los casos
+        historicos anteriores -- que siguen recibiendo exactamente la misma
+        interpolacion anual que usaban TODAS las obligaciones antes de este sprint.
+        Pregunta de seguimiento sobre si el despacho prefiere este fallback o exigir
+        bloqueo total fuera de rango: docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 80.
+
+        `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay deflacion o si el
+        capital es 0/negativo -- ver docstring de esa funcion."""
+        try:
+            initial_index = get_ipc_interpolado_mensual_for_date(fecha_causacion)
+            final_index = get_ipc_interpolado_mensual_for_date(fecha_corte)
+        except IPCMensualNoDisponibleError:
+            initial_index = get_ipc_interpolado_for_date(fecha_causacion)
+            final_index = get_ipc_interpolado_for_date(fecha_corte)
+
+        monto = IPCIndexation.calculate(
+            capital=capital,
+            initial_index=initial_index,
+            final_index=final_index,
+        )
+        return Event(
+            date=fecha_causacion,
+            payload={"amount": monto, "label": f"Indexación IPC — {concepto}"},
+            event_type="INDEXATION",
+        )
 
     def _construir_rate_provider_obligacion(
         self, obligacion, fecha_corte: date
