@@ -149,10 +149,15 @@ ya existe en el motor pero aún no tiene campos propios en pantalla — ver [Gu�
 El recálculo de liquidaciones históricas anteriores a las correcciones del Sprint 30 ya está construido
 (Sprint 47: identificación/marcado, recálculo no destructivo, memoriales, log de diferencias), a la espera
 de correrse contra la base de datos real de producción con supervisión manual. Las
-series históricas de SMLMV, IPC, IBC/Tasa de Usura y UVT (1984-2026, 1967-2025, 1997-2026 y 2006-2026
-respectivamente) ya están cargadas en `app/engine/indexation/historical_index.py` — IBC/Usura se usa en
-Comercial y en la fase 2 de la indemnización moratoria laboral, IPC ya está conectado a la indexación de
-Civil/Familia (Sprint 8) y al reajuste anual de cuota alimentaria en Familia (Sprint 41), y UVT ya está
+series históricas de SMLMV, IPC, IBC/Tasa de Usura y UVT (1984-2026, 1967-2025 en variación anual **más
+una serie mensual real 2003-2026 del DANE ya conectada a la indexación mensual desde el Sprint 80**,
+1971-2026 desde el Sprint 81 y 2006-2026 respectivamente) ya están cargadas en
+`app/engine/indexation/historical_index.py` (más `app/engine/indexation/historical_dtf.py` para la serie
+semanal de DTF del Banco de la República 1984-2026, Sprint 82, cargada y consultable pero todavía sin
+calculador conectado — ver Sprint 82 en `Pendientes.md`) — IBC/Usura se usa en Comercial y en la fase 2 de
+la indemnización moratoria laboral, IPC ya está conectado a la indexación mensual real de Civil/Familia
+para fechas 2003-01 en adelante (interpolación anual como respaldo fuera de ese rango) y al reajuste anual
+de cuota alimentaria en Familia (Sprint 41), y UVT ya está
 conectada a la conversión SMLMV→UVT del área Sancionatorio (Sprint 14) y al piso legal de 10 UVT de las
 sanciones tributarias (Sprint 15); SMLMV ya se usa en el reajuste anual de Familia y en el checkbox
 "salario = SMMLV" de Laboral (Sprint 44). El plan completo, sprint por sprint, está en
