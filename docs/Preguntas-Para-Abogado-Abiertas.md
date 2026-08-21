@@ -643,6 +643,13 @@ por qué cambia de 35% a 50% con el tope de 2 SMMLV, y la norma que la respalda)
 **Qué necesito exactamente:** confirmación del porcentaje/base de aportes aplicable, y la regla completa
 (con norma) de la bonificación por servicio.
 
+**Estado del software (2026-08-21):** ya se implementaron, aisladas y probadas, las dos piezas que NO
+dependen de esta respuesta: `calcular_aporte_contrato_realidad` (base × porcentaje) y
+`calcular_bonificacion_por_servicio_escalonada` (porcentaje condicionado a un tope), ambas en
+`app/engine/labor/contrato_realidad.py`, sin ningún porcentaje ni condición hardcodeada. No están cableadas
+a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía, ni existe el motor de consolidado
+multi-año de contrato realidad: eso queda condicionado a esta respuesta.
+
 **Respuesta del despacho:**
 
 

@@ -6724,6 +6724,20 @@ transporte/alimentación indexados).
   registrada en `Preguntas-Para-Abogado-Abiertas.md`.
 - Suite completa en verde.
 
+**Avance parcial (2026-08-21, rutina autónoma):** se entregaron, aisladas y probadas, las dos piezas
+aritméticas que NO dependen de la respuesta del despacho (mismo criterio que los Sprints 83/84/95/96):
+`calcular_aporte_contrato_realidad` (base × porcentaje, sin ningún porcentaje hardcodeado — ni el 16%/12.5%
+ya confirmado del Sprint 16 ni el 8.5%/12%/8% de L7/L8) y `calcular_bonificacion_por_servicio_escalonada`
+(formaliza la estructura "porcentaje condicionado a un tope" de la anotación de L8, sin decidir cuál es la
+condición exacta ni las cifras 35%/50%/2 SMMLV). Ambas en `app/engine/labor/contrato_realidad.py`, con 10
+tests (`tests/engine/labor/test_contrato_realidad.py`) usando porcentajes de ejemplo, no los porcentajes
+reales de L7/L8. Deliberadamente **sin** el motor completo de consolidado multi-año (año por año, indexado
+IPC, sumando cesantías/intereses/primas/vacaciones + aportes, y para L8 además prima de navidad/vacación,
+bonificación de servicio, bonificación de recreación y auxilios indexados) ni el catálogo de conceptos de
+`LaboralStrategy`: eso sigue condicionado a la confirmación del despacho sobre base de aportes y regla de
+bonificación, ya registrada en `Preguntas-Para-Abogado-Abiertas.md` (Sprint 94). Por eso el sprint queda
+📋 Pendiente, no Completado. Suite completa: 1493 passed. Rama: `sprint-94-contrato-realidad`.
+
 ---
 
 ## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente
