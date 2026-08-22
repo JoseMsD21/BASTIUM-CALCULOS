@@ -125,10 +125,32 @@ liquidar hasta el mes más reciente certificado por el DANE. Si no se consigue l
 acotar desde qué año en adelante hace falta — misma lógica que se usó con la UVT en el Sprint 14.
 
 **Respuesta del despacho:**
+La serie histórica aplicable no es la de 2018, sino la consolidada bajo la base de Diciembre 2008 = 100, la cual tiene continuidad ininterrumpida desde décadas anteriores a 2003. No existe un vacío real en los datos mensuales.
+Posibles cambios:
+Base de Datos: Podría parametrizarse la tabla oficial del DANE con la constante de enlace diciembre 2008 = 100. 
+Límite de Vacío Absoluto: Para fechas previas a la estadística nacional, inyectar un control de flujo: if fecha_corte < datetime.date(1954, 8, 1):
+    indice_ipc = 1.000000
+Interpolación Obligatoria: Si la fecha requerida no es el último día del mes, el sistema no puede tomar el mes completo. Podría aplicar la fórmula: $$V_0 = \frac{(d_1 \cdot V_2) + (d_2 \cdot V_1)}{d_1 + d_2}$$ (Donde $V_1$ es el IPC del mes anterior, $V_2$ el del mes posterior, $d_1$ días transcurridos y $d_2$ días faltantes).
+Estimación Futura: Si se requiere un mes no certificado aún por el DANE, aplicar la media geométrica de los últimos 12 meses conocidos: $$VIPC_{estimada} = \left[ \left( \prod_{m=1}^{12} \left(1 + \frac{VIPC_m}{100}\right) \right)^{\frac{1}{12}} - 1 \right] \times 100$$
 
+En síntesis:
+# 1. INTERPOLACIÓN LINEAL DE DÍAS (Cuando la fecha no es fin de mes)
+# V1: IPC del mes anterior
+# V2: IPC del mes posterior
+# d1: Días transcurridos desde el inicio del mes hasta la fecha de corte
+# d2: Días faltantes desde la fecha de corte hasta el fin de mes
+IPC_Interpolado = ((d1 * V2) + (d2 * V1)) / (d1 + d2)
+
+# 2. ESTIMACIÓN FUTURA (Meses no certificados aún por el DANE)
+# Se calcula la media geométrica de las variaciones mensuales (VIPC) de los últimos 12 meses.
+producto_acumulado = 1.0
+for variacion in ultimos_12_meses_VIPC:
+    producto_acumulado = producto_acumulado * (1 + (variacion / 100.0))
+
+VIPC_Estimada = ((producto_acumulado ** (1.0 / 12.0)) - 1.0) * 100.0
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 18 (seguimiento 2) — ¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?
@@ -148,10 +170,39 @@ distinto al PSAA16-10554, la tabla granular actualizada (18 tipos de proceso × 
 correspondan) del acuerdo vigente.
 
 **Respuesta del despacho:**
+Por ahora se sabe que el marco tarifario unificado obligatorio se rige por el Acuerdo PSAA16-10554. Las agencias en derecho se tasan según el Acuerdo con una ponderación inversa: a mayor valor, menor porcentaje, respetando los topes.
 
+Qué podría hacerse?:
+El módulo TasacionCostas debe mapear las siguientes tarifas duras:
+
+Procesos Declarativos:
+
+Única Instancia (Pecu): min: 0.05, max: 0.15 (5% al 15%).
+
+Única Instancia (No Pecu): min: 1 SMMLV, max: 8 SMMLV.
+
+Primera Instancia (Menor Cuantía): min: 0.04, max: 0.10.
+
+Primera Instancia (Mayor Cuantía): min: 0.03, max: 0.075.
+
+Segunda Instancia: min: 1 SMMLV, max: 6 SMMLV.
+
+Procesos Ejecutivos (Seguir adelante la ejecución o excepciones favorables):
+
+Mínima Cuantía: min: 0.05, max: 0.15.
+
+Menor Cuantía: min: 0.04, max: 0.10.
+
+Mayor Cuantía: min: 0.03, max: 0.075.
+
+Segunda Instancia: min: 1 SMMLV, max: 6 SMMLV.
+
+Sucesiones y Liquidaciones (Objeciones e Inventarios):
+
+Mínima: min: 0.05, max: 0.15. Menor: min: 0.04, max: 0.10. Mayor: min: 0.03, max: 0.075.
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?
@@ -175,10 +226,27 @@ genera intereses sobre sí mismo?
 si el título ejecutivo pactó expresamente el interés sobre "capital actualizado" o no.
 
 **Respuesta del despacho:**
+El cobro de interés civil del 6% sobre el capital de honorarios ya indexado es jurídicamente válido, pues la indexación restituye el poder adquisitivo (el valor real) y el interés resarce la privación del dinero (el lucro). No constituye anatocismo.
 
+Qué puede hacerse?
+Para la estrategia Suma Única - Honorarios, el orden de las operaciones en el motor debe ser:
+
+Capital_Actualizado = Capital_Original * (IPC_Final / IPC_Inicial)
+
+Intereses_Mora = CalcularInteresCivil(Base=Capital_Actualizado, Tasa=0.06)
+
+En síntesis:
+# 1. HONORARIOS (Interés civil sobre capital indexado)
+Capital_Indexado = Capital_Original * (IPC_Final / IPC_Inicial)
+
+# El interés se calcula usando el Capital_Indexado como base
+Interes_Mora = Calcular_Interes_Civil(Base=Capital_Indexado, Tasa_Anual=0.06)
+
+# 2. COSTAS PROCESALES (Suma plana al final, NUNCA generan intereses)
+Gran_Total_Liquidacion = Capital_Indexado + Interes_Mora + Costas_Aprobadas
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)
@@ -216,10 +284,91 @@ que sí se pudieron extraer completas de la misma plantilla (base 45%/54% + incr
 semanas, tope 75%) — inclúyanlas también en la respuesta si aplican al alcance de BASTIUM.
 
 **Respuesta del despacho:**
+La coexistencia de regímenes necesita un patrón Factory que pueda enrutar el cálculo según la fecha de los hechos jurídicamente relevantes y el régimen de transición del afiliado.
 
+Podría implementarse una lógica de Tasa de Reemplazo (r):
+
+Régimen 1985-1989 (Ley 33/85 y Ley 71/88): r = 75.0% fijo. Sin variables dinámicas.
+Régimen ISS Pre-Ley 100 (Acuerdo 049/1990):
+Base: 45% (500 semanas) o 75% (1.000 semanas).
+Incremento: $+3.0\%$ por cada grupo de 50 semanas adicionales a las 1.000.
+Tope algorítmico: min(r, 90.0).
+
+Régimen Ley 100 Original (1994-2003):
+Base: 65% (1.000 semanas).
+Incrementos: $+2.0\%$ / 50 sem (entre 1.000 y 1.200). $+3.0\%$ / 50 sem (entre 1.200 y 1.400).
+Tope algorítmico: min(r, 85.0).
+
+Régimen Ley 797/2003 y Ley 2381/2024:
+Variable s = IBL / SMMLV_vigente.
+Fórmula base decreciente: r = 65.5 - (0.5 * s). 
+Límite de control: Nunca inferior a 55% ni superior a 65.5%.
+Incremento: $+1.5\%$ por cada 50 semanas adicionales a las 1.300.
+Tope algorítmico: min(r_final, 80.0).
+
+Pensión de Invalidez (Grado I - 50% a 65% PCL): r = 45.0 + (math.floor((semanas - 500) / 50) * 1.5). 
+Tope: 60%.
+
+Pensión de Invalidez (Grado II - $\ge$ 66% PCL): r = 54.0 + (math.floor((semanas - 800) / 50) * 2.0). 
+Tope: 75%.
+
+import math
+
+# 1. ACUERDO 049/1990 (Régimen ISS Pre-Ley 100)
+if semanas_cotizadas < 1000:
+    # Se exigen mínimo 500 semanas
+    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
+    tasa_r = 45.0 + (bloques_extra * 3.0)
+else:
+    bloques_extra = math.floor((semanas_cotizadas - 1000) / 50)
+    tasa_r = 75.0 + (bloques_extra * 3.0)
+
+tasa_final = min(tasa_r, 90.0) # Tope legal del 90%
+
+# 2. LEY 100 DE 1993 (Versión Original 1994-2003)
+tasa_r = 65.0
+if semanas_cotizadas > 1000:
+    semanas_tramo_1 = min(semanas_cotizadas, 1200)
+    bloques_tramo_1 = math.floor((semanas_tramo_1 - 1000) / 50)
+    tasa_r += (bloques_tramo_1 * 2.0)
+    
+if semanas_cotizadas > 1200:
+    semanas_tramo_2 = min(semanas_cotizadas, 1400)
+    bloques_tramo_2 = math.floor((semanas_tramo_2 - 1200) / 50)
+    tasa_r += (bloques_tramo_2 * 3.0)
+
+tasa_final = min(tasa_r, 85.0) # Tope legal del 85%
+
+# 3. LEY 797/2003 Y LEY 2381/2024
+s = IBL / SMMLV_Vigente
+tasa_base = 65.5 - (0.5 * s)
+
+# La tasa base no puede ser inferior al 55% ni superior al 65.5%
+tasa_base = max(55.0, min(tasa_base, 65.5))
+
+if semanas_cotizadas > 1300:
+    bloques_extra = math.floor((semanas_cotizadas - 1300) / 50)
+    tasa_r = tasa_base + (bloques_extra * 1.5)
+else:
+    tasa_r = tasa_base
+
+tasa_final = min(tasa_r, 80.0) # Tope legal del 80%
+
+# 4. PENSIÓN DE INVALIDEZ (ORIGEN COMÚN)
+if porcentaje_perdida_capacidad >= 50.0 and porcentaje_perdida_capacidad < 66.0:
+    # GRADO 1
+    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
+    tasa_r = 45.0 + (bloques_extra * 1.5)
+    tasa_final = min(tasa_r, 60.0)
+    
+elif porcentaje_perdida_capacidad >= 66.0:
+    # GRADO 2
+    bloques_extra = math.floor((semanas_cotizadas - 800) / 50)
+    tasa_r = 54.0 + (bloques_extra * 2.0)
+    tasa_final = min(tasa_r, 75.0)
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo
@@ -256,10 +405,21 @@ que respalda cada una, para poder construir el árbol de decisión que el usuari
 captura del caso.
 
 **Respuesta del despacho:**
+El motor no puede presumir el fin de la vulnerabilidad para cónyuges, padres o donantes, pues depende de hechos externos como el matrimonio, un empleo, la muerte, etc.
 
+Qué puede hacerse?
+Implementar el siguiente árbol de decisión en la clase AlimentosVigencia:
+
+if tipo == 'HIJO' and estudia == False: Vigencia hasta los 18 años.
+
+if tipo == 'HIJO' and estudia == True: Vigencia hasta los 25 años.
+
+if tipo == 'HIJO' and discapacidad_permanente == True: Vigencia Vitalicia.
+
+if tipo in ['CONYUGE', 'PADRES', 'DONANTES', 'OTROS']: El software debe arrojar Vigencia = No determinable automáticamente (Porque requiere una fecha de exoneración dictada por la autoridad). El usuario debe proveer la fecha de corte obligatoriamente.
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?
@@ -359,10 +519,36 @@ implementa hoy la Opción B. Cambiarla afecta a las 6 áreas del derecho (todas 
 no solo Civil/Familia.
 
 **Respuesta del despacho:**
+En obligaciones de dinero puro y litigios comerciales simples, el cobro del 6% se hace con la fórmula lineal de interés simple sin anatocismo. Aunque en la tasación de perjuicios y daño emergente/lucro cesante, las Altas Cortes exigen la tasa técnica mensual equivalente derivada de la E.A.
 
+Qué podría hacerse?
+El sistema puede tener un conmutador (flag en UI):
+
+Si es Obligación Civil de Crédito Ordinario (Simple): tasa_diaria = 0.06 / 365
+
+Si es Liquidación de Perjuicios / Valor (Fórmula de Cortes): tasa_mensual_pura = 0.0048676
+El tiempo se puede convertir todo a meses comerciales: n = (Años * 12) + Meses + (Dias_Restantes / 30).
+Fórmula de liquidación: Capital * (1 + 0.0048676)^n.
+
+CONCRETAMENTE:
+# OPCIÓN A: OBLIGACIÓN CIVIL DE CRÉDITO COMÚN (Interés Lineal / Simple)
+# Se usa división simple de la tasa anual. No hay capitalización.
+tasa_diaria_simple = 0.06 / 365.0
+Intereses = Capital * tasa_diaria_simple * Dias_Mora_Reales
+
+# OPCIÓN B: LIQUIDACIÓN DE PERJUICIOS JUDICIALES (Fórmula de las Cortes)
+# Exige convertir el tiempo a meses comerciales exactos y usar tasa efectiva.
+tasa_mensual_pura = 0.0048676  # Constante matemática inmutable (0.48676% expresado en decimal)
+
+# Cálculo de la variable n (tiempo en meses)
+n_meses = (Anios_Transcurridos * 12) + Meses_Enteros_Transcurridos + (Dias_Sobrantes / 30.0)
+
+# Aplicación sobre el capital
+Capital_Actualizado = Capital_Historico * (IPC_Final / IPC_Inicial)
+Gran_Total = Capital_Actualizado * ((1.0 + tasa_mensual_pura) ** n_meses)
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?
@@ -383,10 +569,22 @@ para este cálculo específico?
 "depende", una aclaración de cuándo sí y cuándo no.
 
 **Respuesta del despacho:**
+En materia de pensiones, la Corte Suprema de Justicia en la sentencia SL138-2024 prohibió el uso del año comercial de 360 días para el cómputo de las semanas de pensión.
 
+Qué puede hacerse?
+
+Para prestaciones sociales como primas y cesantías: Resta inclusiva ((Fin - Inicio) + 1) sobre base de 360 días anuales.
+
+Para semanas pensionales: No se usa el factor de año, sino que se suman los días calendario reales con resta inclusiva y se divide estrictamente entre 7. Semanas_Reales = sumatoria_dias_calendario_totales / 7
+
+CONCRETAMENTE:
+# Para semanas pensionales, está PROHIBIDO el uso de año comercial de 360 días.
+# Se deben restar las fechas, sumar 1 (inclusivo) y dividir exactamente por 7.
+dias_calendario_reales = (Fecha_Fin - Fecha_Inicio).days + 1
+Semanas_Cotizadas = dias_calendario_reales / 7.0
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?
@@ -403,10 +601,23 @@ algoritmo, o las costas deberían sumarse al final del cálculo sin generar inte
 bajo Suma Única.
 
 **Respuesta del despacho:**
+Las costas procesales como expensas y agencias en derecho son una sanción de moralización, no son un capital de crédito.
 
+Qué se debe hacer:
+Las costas procesales NO deben incluirse en la base que genera el interés civil del 6% bajo el algoritmo de Suma Única. Se suman al final, en seco: Gran_Total = Capital_Indexado + Intereses_Mora_Calculados + Costas_Aprobadas.
+
+En síntesis:
+# 1. HONORARIOS (Interés civil sobre capital indexado)
+Capital_Indexado = Capital_Original * (IPC_Final / IPC_Inicial)
+
+# El interés se calcula usando el Capital_Indexado como base
+Interes_Mora = Calcular_Interes_Civil(Base=Capital_Indexado, Tasa_Anual=0.06)
+
+# 2. COSTAS PROCESALES (Suma plana al final, NUNCA generan intereses)
+Gran_Total_Liquidacion = Capital_Indexado + Interes_Mora + Costas_Aprobadas
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 80 — Cobertura parcial de la serie mensual de IPC (2003-2026) y qué hacer con fechas anteriores
@@ -418,10 +629,32 @@ bajo Suma Única.
 **Qué necesito exactamente:** una confirmación de sí/no sobre la base única, y una instrucción clara sobre qué hacer con fechas anteriores a 2003 (aceptar el hueco, usar la variación anual como aproximación documentada, o conseguir otra fuente).
 
 **Respuesta del despacho:**
+La serie histórica aplicable no es la del 2018, sino la consolidada bajo la base de diciembre 2008 = 100, la cual tiene continuidad ininterrumpida desde décadas anteriores a 2003. No existe un vacío real en los datos mensuales.
+Posibles cambios:
+Base de Datos: Podría parametrizarse la tabla oficial del DANE con la constante de enlace diciembre 2008 = 100. 
+Límite de Vacío Absoluto: Para fechas previas a la estadística nacional, inyectar un control de flujo: if fecha_corte < datetime.date(1954, 8, 1):
+    indice_ipc = 1.000000
+Interpolación Obligatoria: Si la fecha requerida no es el último día del mes, el sistema no puede tomar el mes completo. Podría aplicar la fórmula: $$V_0 = \frac{(d_1 \cdot V_2) + (d_2 \cdot V_1)}{d_1 + d_2}$$ (Donde $V_1$ es el IPC del mes anterior, $V_2$ el del mes posterior, $d_1$ días transcurridos y $d_2$ días faltantes).
+Estimación Futura: Si se requiere un mes no certificado aún por el DANE, aplicar la media geométrica de los últimos 12 meses conocidos: $$VIPC_{estimada} = \left[ \left( \prod_{m=1}^{12} \left(1 + \frac{VIPC_m}{100}\right) \right)^{\frac{1}{12}} - 1 \right] \times 100$$
 
+En síntesis:
+# 1. INTERPOLACIÓN LINEAL DE DÍAS (Cuando la fecha no es fin de mes)
+# V1: IPC del mes anterior
+# V2: IPC del mes posterior
+# d1: Días transcurridos desde el inicio del mes hasta la fecha de corte
+# d2: Días faltantes desde la fecha de corte hasta el fin de mes
+IPC_Interpolado = ((d1 * V2) + (d2 * V1)) / (d1 + d2)
+
+# 2. ESTIMACIÓN FUTURA (Meses no certificados aún por el DANE)
+# Se calcula la media geométrica de las variaciones mensuales (VIPC) de los últimos 12 meses.
+producto_acumulado = 1.0
+for variacion in ultimos_12_meses_VIPC:
+    producto_acumulado = producto_acumulado * (1 + (variacion / 100.0))
+
+VIPC_Estimada = ((producto_acumulado ** (1.0 / 12.0)) - 1.0) * 100.0
 
 **Fecha:**
-
+22/08/2026
 **Actualización (2026-08-19, Sprint 80 — carga de la tabla y conexión al motor):** ya se cargó la tabla
 completa que trae `Historico IPC.md` (279 valores, enero de 2003 a marzo de 2026 — la fuente certifica hasta
 marzo de 2026, no incluye abril de 2026 en adelante, que el propio archivo trae en blanco/sin certificar
@@ -452,10 +685,33 @@ para fechas futuras).
 **Qué necesito exactamente:** un sí/no sobre si este escenario es relevante para el despacho, y si es así, a qué área debería asignarse (o confirmación de que se necesita una nueva).
 
 **Respuesta del despacho:**
+El Artículo 195 del CPACA instauró un régimen dual (DTF transitoria seguida de tasa comercial).
 
+Qué puede hacerse?
+El cálculo es iterativo día a día:
+
+limite_gracia_dias = 304  # Promedio 10 meses reales
+for dia in rango(1, dias_transcurridos + 1):
+    if dia <= limite_gracia_dias:
+        # Tramo A (DTF)
+        tasa_diaria = (1 + DTF_EA_histórica) ** (1/365) - 1
+    else:
+        # Tramo B (Comercial)
+        tasa_diaria = (1 + (1.5 * IBC_EA_histórica)) ** (1/365) - 1
+        
+Como consejo que puede ponerse en la interfaz, debe invitarse a validar si transcurren 3 meses inactivos sin cobro tras la ejecutoria, en ese caso el contador de intereses se congela por suspensión total de devengo.
+
+CONCRETAMENTE:
+# TRAMO 1 (DTF): Desde el día 1 hasta el día 304 (Equivalente a 10 meses)
+# Se convierte la DTF Efectiva Anual a diaria compuesta.
+Tasa_Diaria_DTF = ((1.0 + DTF_Efectiva_Anual) ** (1.0 / 365.0)) - 1.0
+
+# TRAMO 2 (COMERCIAL): A partir del día 305 en adelante
+# Se usa 1.5 veces el Interés Bancario Corriente (IBC) convertido a diario compuesto.
+Tasa_Diaria_Comercial = ((1.0 + (1.5 * IBC_Efectiva_Anual)) ** (1.0 / 365.0)) - 1.0
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?
@@ -489,10 +745,25 @@ compuesto) debe usar `calcular_interes_moratorio_tributario` — no se ha cambia
 se documentó la discrepancia. Ver Sprint 84 en `Pendientes.md` para el detalle técnico completo.
 
 **Respuesta del despacho:**
+A diferencia del sistema financiero NIIF, el Estatuto Tributario exige la liquidación por interés simple y división lineal para igualar los cálculos oficiales de la DIAN y evitar el anatocismo tributario.
 
+Qué se puede hacer?
+Fórmula Diaria: tasa_diaria = tasa_usura_anual / (365 o 366) (Estricta división lineal).
+
+Imputación Proporcional: Cuando haya un abono a la deuda, invalidar la regla civil de restar primero intereses. Allí se aplica el Art. 804 del Estatuto Tributario: el abono se distribuye de forma prorrateada calculando el porcentaje que pesa el capital, la sanción y el interés frente a la deuda total, rebajando los tres rubros simultáneamente.
+
+Tope Suspensivo: A los 24 meses de admitida la demanda contenciosa, la variable intereses_acumulando se establece en False hasta el 11° día posterior a la sentencia.
+
+CONCRETAMENTE:
+# Para la DIAN, se prohíbe usar exponentes para convertir la tasa a diaria.
+# Debe ser una división lineal pura dependiendo si el año es bisiesto o no.
+dias_del_anio = 366 si es_bisiesto(anio_actual) sino 365
+
+Tasa_Diaria_Tributaria = Tasa_Usura_Anual_Vigente / dias_del_anio
+Interes_Diario_Causado = Capital_Impuesto * Tasa_Diaria_Tributaria
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional
@@ -509,10 +780,37 @@ estas plantillas (no la versión ya convertida a texto) para que el desarrollo l
 **Qué necesito exactamente:** la fórmula completa con cada factor definido, o el archivo Excel original de P12/P13/P14/P10 sin convertir.
 
 **Respuesta del despacho:**
+El Decreto 1296 de 2022 actualizó los componentes matemáticos obligatorios para liquidar la reserva actuarial.
 
+Qué lógica puede seguirse?
+El motor debe programar la ecuación exacta del decreto: $$VRA = [FAC_1 \times PR + FAC_2 \times AR] \times FAC_3$$$$VR = \frac{VRA}{1 - 0.005}$$$ PR$: Pensión de Referencia.$AR$: Auxilio Funerario. (if PR < 5 SMMLV: AR = 5 SMMLV; if 5 <= PR <= 10 SMMLV: AR = PR).$FAC_1$ y $FAC_2$: Valores extraídos de la Tabla 2. (Ej: a los 55 años, Hombres FAC1=258.712212, FAC2=0.369543).$FAC_3$: Factor de capitalización. (Nota para el Dev: El PDF oficial presenta corrupción de caracteres en su impresión (ej. 1.0-3(1)). La parametrización debe utilizar el estándar actuarial derivado: FAC3 = ((1.03^t) - 1) / ((1.03^(t1+n)) - 1) o la variación técnica corregida para tiempo de convalidación).Interpolación Salario Medio Nacional (SMN): $V_0 = \frac{(d_2 \cdot V_1) + (d_1 \cdot V_2)}{d_1 + d_2}$.
+
+CONCRETAMENTE:
+# 1. Definición de Auxilio Funerario (AR) basado en Pensión de Referencia (PR)
+if PR < (5.0 * SMMLV):
+    AR = 5.0 * SMMLV
+elif PR >= (5.0 * SMMLV) and PR <= (10.0 * SMMLV):
+    AR = PR
+else:
+    AR = 10.0 * SMMLV
+
+# 2. Factor Actuarial 3 (Capitalización)
+# t = tiempo cotizado u omitido (años decimales)
+# n = tiempo faltante para pensión (años decimales)
+# t1 = suma de tiempos previos
+numerador = (1.03 ** t) - 1.0
+denominador = (1.03 ** (t1 + n)) - 1.0
+FAC3 = numerador / denominador
+
+# 3. Liquidación Total de la Reserva Actuarial
+# FAC1 y FAC2 salen de la tabla oficial (Resolución 1555 de 2010 cruzada con el decreto)
+VRA = ((FAC1 * PR) + (FAC2 * AR)) * FAC3
+
+# Se aplica el recargo por Comisión de Administración (0.5% = 0.005)
+VR_Final_A_Pagar = VRA / (1.0 - 0.005)
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)
@@ -527,10 +825,10 @@ con el factor 4.33 y el tope del 90%? ¿El despacho sigue liquidando casos bajo 
 realmente necesita hoy.
 
 **Respuesta del despacho:**
-
+El régimen aplicable es el Acuerdo 049 de 1990, con topes fijos en su estructura de tasas. El factor "4.33" (semanas/mes) no se exige legalmente como constante pura del IBL histórico, el sistema debe limitarse al 45% - 90% liquidado con las fórmulas de semanas del Sprint 70.
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 91 (seguimiento del Sprint 70) — Tabla completa de tasa de reemplazo por régimen: 1993-2003, régimen de transición e invalidez
@@ -549,9 +847,91 @@ exacta de cuándo aplica 75% vs. 90% vs. "la que corresponda" en el régimen de 
 
 **Respuesta del despacho:**
 
+La coexistencia de regímenes necesita un patrón Factory que pueda enrutar el cálculo según la fecha de los hechos jurídicamente relevantes y el régimen de transición del afiliado.
+
+Podría implementarse una lógica de Tasa de Reemplazo (r):
+
+Régimen 1985-1989 (Ley 33/85 y Ley 71/88): r = 75.0% fijo. Sin variables dinámicas.
+Régimen ISS Pre-Ley 100 (Acuerdo 049/1990):
+Base: 45% (500 semanas) o 75% (1.000 semanas).
+Incremento: $+3.0\%$ por cada grupo de 50 semanas adicionales a las 1.000.
+Tope algorítmico: min(r, 90.0).
+
+Régimen Ley 100 Original (1994-2003):
+Base: 65% (1.000 semanas).
+Incrementos: $+2.0\%$ / 50 sem (entre 1.000 y 1.200). $+3.0\%$ / 50 sem (entre 1.200 y 1.400).
+Tope algorítmico: min(r, 85.0).
+
+Régimen Ley 797/2003 y Ley 2381/2024:
+Variable s = IBL / SMMLV_vigente.
+Fórmula base decreciente: r = 65.5 - (0.5 * s). 
+Límite de control: Nunca inferior a 55% ni superior a 65.5%.
+Incremento: $+1.5\%$ por cada 50 semanas adicionales a las 1.300.
+Tope algorítmico: min(r_final, 80.0).
+
+Pensión de Invalidez (Grado I - 50% a 65% PCL): r = 45.0 + (math.floor((semanas - 500) / 50) * 1.5). 
+Tope: 60%.
+
+Pensión de Invalidez (Grado II - $\ge$ 66% PCL): r = 54.0 + (math.floor((semanas - 800) / 50) * 2.0). 
+Tope: 75%.
+
+import math
+
+# 1. ACUERDO 049/1990 (Régimen ISS Pre-Ley 100)
+if semanas_cotizadas < 1000:
+    # Se exigen mínimo 500 semanas
+    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
+    tasa_r = 45.0 + (bloques_extra * 3.0)
+else:
+    bloques_extra = math.floor((semanas_cotizadas - 1000) / 50)
+    tasa_r = 75.0 + (bloques_extra * 3.0)
+
+tasa_final = min(tasa_r, 90.0) # Tope legal del 90%
+
+# 2. LEY 100 DE 1993 (Versión Original 1994-2003)
+tasa_r = 65.0
+if semanas_cotizadas > 1000:
+    semanas_tramo_1 = min(semanas_cotizadas, 1200)
+    bloques_tramo_1 = math.floor((semanas_tramo_1 - 1000) / 50)
+    tasa_r += (bloques_tramo_1 * 2.0)
+    
+if semanas_cotizadas > 1200:
+    semanas_tramo_2 = min(semanas_cotizadas, 1400)
+    bloques_tramo_2 = math.floor((semanas_tramo_2 - 1200) / 50)
+    tasa_r += (bloques_tramo_2 * 3.0)
+
+tasa_final = min(tasa_r, 85.0) # Tope legal del 85%
+
+# 3. LEY 797/2003 Y LEY 2381/2024
+s = IBL / SMMLV_Vigente
+tasa_base = 65.5 - (0.5 * s)
+
+# La tasa base no puede ser inferior al 55% ni superior al 65.5%
+tasa_base = max(55.0, min(tasa_base, 65.5))
+
+if semanas_cotizadas > 1300:
+    bloques_extra = math.floor((semanas_cotizadas - 1300) / 50)
+    tasa_r = tasa_base + (bloques_extra * 1.5)
+else:
+    tasa_r = tasa_base
+
+tasa_final = min(tasa_r, 80.0) # Tope legal del 80%
+
+# 4. PENSIÓN DE INVALIDEZ (ORIGEN COMÚN)
+if porcentaje_perdida_capacidad >= 50.0 and porcentaje_perdida_capacidad < 66.0:
+    # GRADO 1
+    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
+    tasa_r = 45.0 + (bloques_extra * 1.5)
+    tasa_final = min(tasa_r, 60.0)
+    
+elif porcentaje_perdida_capacidad >= 66.0:
+    # GRADO 2
+    bloques_extra = math.floor((semanas_cotizadas - 800) / 50)
+    tasa_r = 54.0 + (bloques_extra * 2.0)
+    tasa_final = min(tasa_r, 75.0)
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
@@ -598,10 +978,24 @@ la Ley 50/1990 (si existe más de un tramo); y una confirmación sí/no de la co
 moratoria.
 
 **Respuesta del despacho:**
+Las fechas de corte son las que dictan el régimen aplicable. La convivencia de la indemnización por despido y la sanción moratoria es plena e independiente.
 
+Qué puede hacerse:
+
+Corte 1 (Ley 50/1990): Aplica desde el 01-Enero-1991.
+
+Corte 2 (Ley 789/2002): Aplica desde el 27-Diciembre-2002.
+
+Indefinidos $\ge$ 10 SMMLV:
+Primer año: 20 días.
+Subsiguientes: 15 días/año.
+
+Tramos Pre-1991 (Decreto 2351/65):
+Primer año: 45 días.
+Subsiguientes: 15 días (si antigüedad < 5 años), 20 días (5 a <10 años), 30 días (>10 años).
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?
@@ -620,10 +1014,17 @@ demanda, o depende de otro criterio? ¿Hay algún caso en que se deban aplicar a
 cuándo usar cada índice.
 
 **Respuesta del despacho:**
+La elección del índice para salarios dejados de percibir no es discrecional.
 
+Qué podría implementarse para la validación:
+
+if salario_base == SMMLV_del_año_de_causacion:
+    indice_aplicable = "VARIACION_SMMLV"
+else:
+    indice_aplicable = "IPC_DANE"
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio
@@ -651,10 +1052,20 @@ a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía, ni exis
 multi-año de contrato realidad: eso queda condicionado a esta respuesta.
 
 **Respuesta del despacho:**
+En un contrato realidad, el empleador sancionado debe cubrir el 100% del cálculo actuarial de pensión. No puede descontar el 4% retrospectivo del trabajador.
 
+Cómo puede aplicarse la bonificación del Decreto 0320 de 2026:
+
+Para liquidaciones de servidores territoriales, a partir del 1° de enero de 2026:
+
+Si Asignación_Básica + Gastos_Representación <= 2,968,262: Bonificación = 53%.
+
+Si supera dicho tope: Bonificación = 38%.
+
+Control de Vigencia: A partir de 2027, las tasas cambian a 54% y 39% respectivamente.
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)
@@ -680,10 +1091,27 @@ cableada a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía
 tabla de transición de la Ley 2466/2025 que pide esta pregunta.
 
 **Respuesta del despacho:**
+La reforma laboral establece recargos progresivos para festivos, pero vigencia inmediata para el horario nocturno.
 
+Qué puede hacerse?
+
+Jornada Nocturna: Si fecha_hecho >= "2025-12-25", el horario nocturno (recargo 35%) inicia a las 19:00 (7:00 PM). Antes de esa fecha, el nocturno empieza a las 21:00.
+
+Dominicales/Festivos:
+
+< "2025-07-01": 75%
+
+>= "2025-07-01" y < "2026-07-01": 80%
+
+>= "2026-07-01" y < "2027-07-01": 90%
+
+>= "2027-07-01": 100%
+
+Hard Caps Suplementarios: 
+if horas_extras_diarias > 2 or horas_extras_semanales > 12: raise Exception("Supera límite legal de la Ley 2466 de 2025").
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?
@@ -709,10 +1137,14 @@ resto del Sprint 96 es solo agregar la captura de datos al formulario Laboral; s
 identificarla antes de construir).
 
 **Respuesta del despacho:**
+No existe diferencia algebraica en las fórmulas de liquidación tras la Ley 1788.
 
+Qué puede hacerse?
+Reutilizar la clase general de LiquidacionPrestaciones, utilizando la base mensual. 
+Agregar la validación: IBC_Seguridad_Social = max(Salario_Proporcional, 1_SMMLV).
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?
@@ -736,10 +1168,38 @@ referencia que llegó junto con las demás plantillas), y si es así, cuál de l
 primero.
 
 **Respuesta del despacho:**
+La liquidación de perjuicios requiere de las dos fórmulas actuariales (Consolidado y Futuro) y las Tablas de Mortalidad de la Resolución 1555 de 2010.  
 
+Para la mortalidad y los perjuicios:
+
+Fórmulas Matrices:$Consolidado = Ra \times \frac{(1+i)^n - 1}{i}$$Futuro = Ra \times \frac{(1+i)^n - 1}{i \times (1+i)^n}$
+
+Carga de Tabla de Supervivencia (Base de Datos a inyectar):
+Usando los datos oficiales de la Resolución 1555 de 2010, el diccionario a codificar para las expectativas de vida ($e^\circ_x$) es:  hombres_validos: {15: 64.8, 16: 63.9, 17: 62.9, 20: 60.0, 30: 50.3, 40: 40.8, 50: 31.6, 60: 23.0, 70: 15.3, 80: 9.3, 90: 5.1, 100: 2.4, 110: 0.5}.  mujeres_validas: {15: 70.0, 16: 69.1, 17: 68.1, 20: 65.1, 30: 55.4, 40: 45.7, 50: 36.2, 60: 27.0, 70: 18.6, 80: 11.3, 90: 5.8, 100: 2.5, 110: 0.5}.  hombres_invalidos: {1: 43.47, 15: 38.09, 20: 35.95, 25: 33.70... 90: 3.68, 100: 1.89, 110: 1.0}. 
+
+Interpolación Actuarial de Edades: Si la víctima tiene "33 años y 7 meses", el sistema interpolará matemáticamente entre la expectativa a los 33 y a los 34.
+
+Cálculo Futuro: El valor devuelto de la tabla (años) se multiplica estrictamente por 12 para convertirse en la variable $n$ (meses) de la ecuación.  
+
+CONCRETAMENTE:
+# 1. FÓRMULAS MATRICES
+# Ra = Renta Actualizada Mensual
+# i = Tasa mensual pura (0.0048676)
+# n = Tiempo en meses exactos
+
+# A. Lucro Cesante Consolidado (Pasado/Vencido)
+LCC = Ra * (((1.0 + i) ** n) - 1.0) / i
+
+# B. Lucro Cesante Futuro (Anticipado)
+LCF = Ra * (((1.0 + i) ** n) - 1.0) / (i * ((1.0 + i) ** n))
+
+# 2. EXPECTATIVA DE VIDA (Conversión de Tablas a variable 'n')
+# El valor de la tabla de mortalidad de la Superfinanciera viene en AÑOS. 
+# El desarrollador debe multiplicarlo obligatoriamente por 12.
+n_meses_futuros = Expectativa_Vida_En_Anios_Segun_Tabla * 12.0
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)
@@ -762,8 +1222,25 @@ Superfinanciera).
 **Respuesta del despacho:**
 
 
-**Fecha:**
+CONCRETAMENTE:
+# 1. FÓRMULAS MATRICES
+# Ra = Renta Actualizada Mensual
+# i = Tasa mensual pura (0.0048676)
+# n = Tiempo en meses exactos
 
+# A. Lucro Cesante Consolidado (Pasado/Vencido)
+LCC = Ra * (((1.0 + i) ** n) - 1.0) / i
+
+# B. Lucro Cesante Futuro (Anticipado)
+LCF = Ra * (((1.0 + i) ** n) - 1.0) / (i * ((1.0 + i) ** n))
+
+# 2. EXPECTATIVA DE VIDA (Conversión de Tablas a variable 'n')
+# El valor de la tabla de mortalidad de la Superfinanciera viene en AÑOS. 
+# El desarrollador debe multiplicarlo obligatoriamente por 12.
+n_meses_futuros = Expectativa_Vida_En_Anios_Segun_Tabla * 12.0
+
+**Fecha:**
+22/08/2026
 ---
 
 ## Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)
@@ -791,10 +1268,82 @@ su fecha y monto, los IPC usados en cada corte, y el resultado final esperado �
 caso real usado para validar el Sprint 76.
 
 **Respuesta del despacho:**
+La indexación global restando abonos al final es un error matemático y jurídico que genera enriquecimiento sin causa y expone al cliente a daños y al abogado a sanciones. El Artículo 1653 del Código Civil obliga a imputar el pago primero a intereses y luego a capital. Por lo tanto, debe liquidarse tramo por tramo.
 
+Cómo podría hacerse?
+
+
+def liquidar_obligacion_con_abonos(capital_historico_inicial, fecha_origen, ipc_series, abonos, fecha_liquidacion_final, tasa_interes_mensual_pura=0.0048676):
+    """
+    abonos: Lista de objetos o diccionarios con { 'fecha': datetime.date, 'monto': float } ordenados por fecha ascendente.
+    ipc_series: Diccionario o función que retorna el índice IPC dado un mes y año.
+    """
+    capital_base = capital_historico_inicial
+    fecha_corte_anterior = fecha_origen
+    intereses_acumulados_pendientes = 0.0
+    total_intereses_pagados = 0.0
+    total_capital_amortizado = 0.0
+    
+    # BUCLE DE TRAMOS (CASCADA)
+    for abono in abonos:
+        # 1. Indexar el capital desde el corte anterior hasta el mes del abono
+        ipc_anterior = ipc_series.obtener_indice(fecha_corte_anterior)
+        ipc_abono = ipc_series.obtener_indice(abono.fecha)
+        
+        coeficiente_indexacion = ipc_abono / ipc_anterior
+        capital_indexado = capital_base * coeficiente_indexacion
+        
+        # 2. Calcular los intereses moratorios generados SOLO en este tramo
+        # Convertimos los días a meses comerciales (mes de 30 días, año de 360)
+        dias_tramo = calcular_dias_comerciales_reales(fecha_corte_anterior, abono.fecha)
+        meses_tramo = dias_tramo / 30.0
+        
+        intereses_del_tramo = capital_indexado * (((1.0 + tasa_interes_mensual_pura) ** meses_tramo) - 1.0)
+        total_intereses_adeudados_a_la_fecha = intereses_acumulados_pendientes + intereses_del_tramo
+        
+        # 3. Imputación legal del abono (Art. 1653 Código Civil)
+        if abono.monto >= total_intereses_adeudados_a_la_fecha:
+            # El abono cubre todos los intereses adeudados y sobra dinero para reducir el capital
+            remanente_para_capital = abono.monto - total_intereses_adeudados_a_la_fecha
+            
+            total_intereses_pagados += total_intereses_adeudados_a_la_fecha
+            total_capital_amortizado += remanente_para_capital
+            
+            intereses_acumulados_pendientes = 0.0
+            # El capital se reduce, creando la nueva base histórica para el siguiente tramo
+            capital_base = capital_indexado - remanente_para_capital
+        else:
+            # El abono NO alcanza a cubrir los intereses. El capital indexado queda intacto.
+            total_intereses_pagados += abono.monto
+            intereses_acumulados_pendientes = total_intereses_adeudados_a_la_fecha - abono.monto
+            
+            capital_base = capital_indexado
+            
+        # 4. Actualizar la fecha pivote para el siguiente ciclo
+        fecha_corte_anterior = abono.fecha
+
+    # 5. TRAMO FINAL: Desde el último abono hasta la fecha de liquidación final exigida por el juez
+    ipc_ultimo_corte = ipc_series.obtener_indice(fecha_corte_anterior)
+    ipc_final = ipc_series.obtener_indice(fecha_liquidacion_final)
+    
+    capital_indexado_final = capital_base * (ipc_final / ipc_ultimo_corte)
+    
+    dias_tramo_final = calcular_dias_comerciales_reales(fecha_corte_anterior, fecha_liquidacion_final)
+    meses_tramo_final = dias_tramo_final / 30.0
+    
+    intereses_tramo_final = capital_indexado_final * (((1.0 + tasa_interes_mensual_pura) ** meses_tramo_final) - 1.0)
+    
+    intereses_totales_al_cierre = intereses_acumulados_pendientes + intereses_tramo_final
+    gran_total_adeudado = capital_indexado_final + intereses_totales_al_cierre
+    
+    return {
+        "capital_insoluto_indexado": capital_indexado_final,
+        "intereses_pendientes_cobro": intereses_totales_al_cierre,
+        "gran_total_adeudado": gran_total_adeudado
+    }
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir (reintegro/salarios caídos)
@@ -826,10 +1375,17 @@ contra la planilla real de L5/L6. Se recomienda un chequeo cruzado manual del "G
 real antes de usar esta categoría en producción para un caso de reintegro o salarios caídos.
 
 **Respuesta del despacho:**
+La elección del índice para salarios dejados de percibir no es discrecional.
 
+Podría implementarse este código:
+
+if salario_base == SMMLV_del_año_de_causacion:
+    indice_aplicable = "VARIACION_SMMLV"
+else:
+    indice_aplicable = "IPC_DANE"
 
 **Fecha:**
-
+22/08/2026
 ---
 
 ## Plantilla para sprints futuros
