@@ -275,9 +275,9 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--bloqueado--pendiente-de-confirmación)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado-fecha-de-corte-19901992-umbral-10-smmlv-y-tramos-del-régimen-pre-1990-más-allá-de-la-fórmula-continua-confirmada-quedan-condicionados-a-confirmación-del-despacho)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
-- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
-- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
-- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 📋 Pendiente](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--pendiente)
+- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
+- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🔵 Bloqueado — pendiente de confirmación](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
+- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🔵 Bloqueado — pendiente de confirmación](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--pendiente)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--bloqueado--pendiente-de-confirmación)
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--pendiente-de-confirmación)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
@@ -6668,7 +6668,16 @@ categorías Laboral).
 
 ---
 
-## Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Pendiente
+## Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación
+
+**Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — las dos piezas
+implementables sin la respuesta del despacho (`calcular_aporte_contrato_realidad` y
+`calcular_bonificacion_por_servicio_escalonada`) ya están hechas y mergeadas a `main`; no queda ningún
+código nuevo aislable del motor consolidado multi-año que no dependa de la base de aportes y la regla de
+bonificación por servicio. Se corrige el estado de `📋 Pendiente` a `🔵 Bloqueado` para que la cola no lo
+vuelva a tomar hasta que haya respuesta — la pregunta ya estaba registrada en
+`Preguntas-Para-Abogado-Abiertas.md` desde el 2026-08-21, no es un hallazgo nuevo (mismo criterio ya
+aplicado a los Sprints 78/79).
 
 **Prioridad sugerida:** Alta/Media — es un tipo de proceso muy frecuente en la práctica colombiana
 (relación laboral disfrazada de prestación de servicios), pero es una feature jurídica grande que necesita
@@ -6740,7 +6749,14 @@ bonificación, ya registrada en `Preguntas-Para-Abogado-Abiertas.md` (Sprint 94)
 
 ---
 
-## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 📋 Pendiente
+## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🔵 Bloqueado — pendiente de confirmación
+
+**Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — la única pieza
+implementable sin la respuesta del despacho (`calcular_hora_extra`/`calcular_recargo`) ya está hecha y
+mergeada a `main`; no queda ningún código nuevo aislable sin la tabla de transición de la Ley 2466/2025. Se
+corrige el estado de `📋 Pendiente` a `🔵 Bloqueado` para que la cola no lo vuelva a tomar hasta que haya
+respuesta — la pregunta ya estaba registrada en `Preguntas-Para-Abogado-Abiertas.md` desde el 2026-08-21, no
+es un hallazgo nuevo (mismo criterio ya aplicado a los Sprints 78/79).
 
 **Prioridad sugerida:** Media — gap real y acotado, pero no se debe fijar ningún porcentaje sin confirmar
 vigencia por fecha, dado que la Ley 2466 de 2025 (reforma laboral) está migrando progresivamente entre
@@ -6792,7 +6808,15 @@ completa: 1450 passed. Rama: `sprint-95-horas-extra-recargos`.
 
 ---
 
-## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 📋 Pendiente
+## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🔵 Bloqueado — pendiente de confirmación
+
+**Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — la única pieza
+implementable sin la respuesta del despacho (`salario_diario_a_mensual`) ya está hecha y mergeada a `main`;
+el resto (cableado al formulario y decisión sobre diferencia de fórmula tras la Ley 1788/2016) depende
+completamente de la respuesta del despacho. Se corrige el estado de `📋 Pendiente` a `🔵 Bloqueado` para que
+la cola no lo vuelva a tomar hasta que haya respuesta — la pregunta ya estaba registrada en
+`Preguntas-Para-Abogado-Abiertas.md` desde el 2026-08-20, no es un hallazgo nuevo (mismo criterio ya
+aplicado a los Sprints 78/79).
 
 **Prioridad sugerida:** Baja/Media — es principalmente un gap de captura de datos, no necesariamente de
 fórmula (pendiente de confirmar).
