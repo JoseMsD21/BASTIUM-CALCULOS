@@ -55,6 +55,7 @@ from app.services.motor_universal import UniversalLiquidationService
 from app.services.parametro_service import cache_de_liquidacion, get_parametro
 from app.services.recurrencia_fechas_fijas import deserializar_fechas_anuales
 from app.services.salarios_dejados_de_percibir import (
+    determinar_tipo_reajuste_salarios_dejados_de_percibir,
     generar_eventos_salarios_dejados_de_percibir,
 )
 from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
@@ -1553,6 +1554,21 @@ class LaboralStrategy(AreaStrategy):
                 f"La fecha de terminacion ({obligacion.fecha_fin}) debe ser posterior a la "
                 f"fecha de inicio del contrato ({obligacion.fecha_inicio})."
             )
+        if es_salarios_dejados:
+            # La eleccion del indice de reajuste NO es discrecional del
+            # abogado (respuesta del despacho, Sprint 93, 22/08/2026): se
+            # deriva del salario base y el año de causacion.
+            tipo_esperado = determinar_tipo_reajuste_salarios_dejados_de_percibir(
+                salario_base=obligacion.valor,
+                anio_causacion=obligacion.fecha_inicio.year,
+            )
+            if obligacion.tipo_reajuste_anual != tipo_esperado:
+                raise ValueError(
+                    "El indice de reajuste para 'Salarios y prestaciones dejadas de percibir' "
+                    "no es discrecional (respuesta del despacho, Sprint 93): para este salario "
+                    f"base y año de causacion corresponde {tipo_esperado.value}, no "
+                    f"{obligacion.tipo_reajuste_anual.value}."
+                )
         if obligacion.pagada and obligacion.fecha_pago_total is None:
             raise ValueError("Una obligacion marcada como pagada debe tener 'fecha_pago_total'.")
         if obligacion.incluir_seguridad_social and not obligacion.nivel_riesgo_arl:

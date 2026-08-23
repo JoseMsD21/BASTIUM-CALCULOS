@@ -274,7 +274,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--parcial) — invalidez grado 2 y régimen 1994-2003 implementados; grado 1 bloqueado por discrepancia de tope (60% vs. 75%)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
-- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
+- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🟠 Reabierto](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🟠 Reabierto](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
@@ -6811,7 +6811,7 @@ de mergear.
 
 ---
 
-## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto
+## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado
 
 **Cierre (2026-08-20):** implementado en la rama `sprint-93-salarios-dejados-de-percibir` (mergeada a
 `main`). Nueva categoría `SALARIOS_DEJADOS_DE_PERCIBIR` en `app/core/constants.py::CATEGORIAS_LABORAL`,
@@ -6918,6 +6918,22 @@ categorías Laboral).
   el "GRAN TOTAL" contra el patrón exacto de L5.
 - Mismo test para L6 con incrementos SMMLV conocidos.
 - Suite completa en verde.
+
+**Reapertura cerrada (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 93") que la elección del índice **no es discrecional del
+abogado** — trajo una regla concreta: si el salario base coincide exactamente con el SMLMV del año de
+causación, corresponde SMMLV; en cualquier otro caso, IPC. Implementado en
+`app/services/salarios_dejados_de_percibir.py::determinar_tipo_reajuste_salarios_dejados_de_percibir`
+(función pura, usa `get_smlmv_for_year`), wireado como validación en
+`LaboralStrategy._validar_obligacion_laboral` (`app/services/area_strategy.py`): si
+`obligacion.tipo_reajuste_anual` no coincide con lo que exige la regla, la liquidación lanza `ValueError`
+explícito en vez de liquidar con el índice equivocado. **Efecto colateral documentado**: esta validación
+ahora requiere que el SMLMV del año de `fecha_inicio` esté sembrado en `parametros_legales` para *cualquier*
+obligación de esta categoría, incluso cuando el índice correcto termina siendo IPC (antes de esta respuesta,
+una liquidación puramente IPC nunca consultaba SMLMV). La serie histórica de SMLMV ya cubre 1980-2026
+(Sprint 5), así que no es una limitación real para casos vigentes. Tests actualizados/nuevos en
+`tests/services/test_salarios_dejados_de_percibir.py` y `tests/services/test_laboral_salarios_dejados_de_percibir.py`.
+Suite completa en verde (1549 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 

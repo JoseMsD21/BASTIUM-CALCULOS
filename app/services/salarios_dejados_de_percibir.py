@@ -49,12 +49,26 @@ reduce, exactamente, a 12 meses de salario completo).
 from datetime import date
 from decimal import Decimal
 
+from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.math.rounding import Rounding
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.labor import LaborScheduler
 from app.engine.time.calendar import CalendarUtils
 from app.services.reajuste_anual import reajustar_capital_anual
 from database.models import TipoReajusteAnual
+
+
+def determinar_tipo_reajuste_salarios_dejados_de_percibir(
+    salario_base: Decimal, anio_causacion: int
+) -> TipoReajusteAnual:
+    """Regla de eleccion del indice de reajuste (respuesta del despacho,
+    Sprint 93, 22/08/2026): NO es discrecional del abogado. Si el salario
+    base coincide EXACTAMENTE con el SMMLV vigente en el año de causacion
+    (el trabajador devengaba el minimo), el reajuste es por SMMLV; en
+    cualquier otro caso, por IPC."""
+    if salario_base == get_smlmv_for_year(anio_causacion):
+        return TipoReajusteAnual.SMMLV
+    return TipoReajusteAnual.IPC
 
 
 def generar_eventos_salarios_dejados_de_percibir(

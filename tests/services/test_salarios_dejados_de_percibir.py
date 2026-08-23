@@ -27,6 +27,7 @@ import pytest
 
 import database.session as session_module
 from app.services.salarios_dejados_de_percibir import (
+    determinar_tipo_reajuste_salarios_dejados_de_percibir,
     generar_eventos_salarios_dejados_de_percibir,
 )
 from database.models import ParametroLegal, TipoReajusteAnual
@@ -277,3 +278,30 @@ def test_rechaza_salario_cero_o_negativo():
             fecha_fin=date(2023, 12, 31),
             tipo_reajuste=TipoReajusteAnual.NINGUNO,
         )
+
+
+class TestDeterminarTipoReajusteSalariosDejadosDePercibir:
+    """Sprint 93 (respuesta del despacho, 22/08/2026): la eleccion del indice
+    de reajuste no es discrecional -- se deriva del salario base y el SMLMV
+    del año de causacion."""
+
+    def test_salario_igual_al_smlmv_del_anio_usa_smmlv(self):
+        _sembrar_smlmv({2023: Decimal("1160000.00")})
+        resultado = determinar_tipo_reajuste_salarios_dejados_de_percibir(
+            salario_base=Decimal("1160000.00"), anio_causacion=2023
+        )
+        assert resultado == TipoReajusteAnual.SMMLV
+
+    def test_salario_distinto_al_smlmv_del_anio_usa_ipc(self):
+        _sembrar_smlmv({2023: Decimal("1160000.00")})
+        resultado = determinar_tipo_reajuste_salarios_dejados_de_percibir(
+            salario_base=Decimal("3000000.00"), anio_causacion=2023
+        )
+        assert resultado == TipoReajusteAnual.IPC
+
+    def test_salario_apenas_por_encima_del_smlmv_usa_ipc(self):
+        _sembrar_smlmv({2023: Decimal("1160000.00")})
+        resultado = determinar_tipo_reajuste_salarios_dejados_de_percibir(
+            salario_base=Decimal("1160000.01"), anio_causacion=2023
+        )
+        assert resultado == TipoReajusteAnual.IPC

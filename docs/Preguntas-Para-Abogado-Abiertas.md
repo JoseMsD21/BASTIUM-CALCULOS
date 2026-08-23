@@ -87,7 +87,6 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?](#sprint-82-seguimiento--en-qué-área-de-bastium-vive-el-calculador-de-condenas-administrativas-dtf)
 - [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
 - [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
-- [Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?](#sprint-93--laboral-en-qué-procesos-se-usa-reajuste-por-ipc-vs-por-smmlv-para-salarios-dejados-de-percibir)
 - [Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio](#sprint-94--laboral-base-de-aportes-a-saludpensión-reclamables-en-contrato-realidad-y-regla-de-la-bonificación-por-servicio)
 - [Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)](#sprint-95--laboral-tabla-de-transición-de-la-ley-2466-de-2025-horario-nocturno-y-recargo-dominicalfestivo)
 - [Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?](#sprint-96--laboral-hay-diferencia-de-fórmula-no-solo-de-captura-para-trabajo-doméstico-tras-la-ley-17882016)
@@ -460,35 +459,6 @@ Nacional? Alternativamente, ¿pueden aportar los archivos Excel originales de P1
 **Fecha:**
 ---
 
-## Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?
-
-**Contexto:** el despacho tiene dos plantillas casi idénticas para liquidar salarios y prestaciones dejadas
-de percibir durante un período sin contrato vigente — una reajusta el salario año a año según la inflación
-(IPC) y la otra según el incremento del salario mínimo (SMMLV). El software ya tiene ambos mecanismos de
-reajuste construidos (Sprint 41/75, para otras áreas), pero antes de conectarlos a Laboral necesito saber
-cuándo se usa cada uno.
-
-**Pregunta:** ¿la elección entre reajustar por IPC o por SMMLV depende del tipo de proceso (ej. reintegro
-por despido nulo vs. contrato realidad), es una decisión discrecional del abogado según lo que pida en la
-demanda, o depende de otro criterio? ¿Hay algún caso en que se deban aplicar ambos reajustes combinados?
-
-**Qué necesito exactamente:** una regla clara (o confirmación de que es libre elección del abogado) sobre
-cuándo usar cada índice.
-
-**Respuesta del despacho:**
-La elección del índice para salarios dejados de percibir no es discrecional.
-
-Qué podría implementarse para la validación:
-
-if salario_base == SMMLV_del_año_de_causacion:
-    indice_aplicable = "VARIACION_SMMLV"
-else:
-    indice_aplicable = "IPC_DANE"
-
-**Fecha:**
-22/08/2026
----
-
 ## Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio
 
 **Contexto:** en las plantillas de "contrato realidad" (privado y sector público), el aporte a salud/pensión
@@ -803,48 +773,6 @@ def liquidar_obligacion_con_abonos(capital_historico_inicial, fecha_origen, ipc_
         "intereses_pendientes_cobro": intereses_totales_al_cierre,
         "gran_total_adeudado": gran_total_adeudado
     }
-
-**Fecha:**
-22/08/2026
----
-
-## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir (reintegro/salarios caídos)
-
-**Contexto:** el Sprint 93 implementó la categoría "Salarios y prestaciones dejadas de percibir", que
-reconstruye salario + prestaciones para un período sin contrato vigente (reintegro, salarios caídos), con
-reajuste anual IPC o SMMLV — las dos variantes que separaban las plantillas `L5` (IPC) y `L6` (SMMLV) del
-despacho. El software ya ofrece ambas opciones y deja que el abogado elija cuál aplica caso por caso; no
-se implementó ninguna regla automática que decida cuál usar, porque no bloqueaba la Definición de Hecho
-del sprint (ver `docs/Pendientes.md`, Sprint 93).
-
-**Pregunta:** ¿en qué tipo de proceso se usa cada variante (reintegro con salarios caídos, contrato
-realidad con un período sin reconocimiento, u otro), y la elección entre IPC y SMMLV es discrecional del
-abogado según el caso, o depende de una regla fija (ej. según el tipo de proceso, o según qué pidió la
-parte demandante)?
-
-**Qué necesito exactamente:** confirmación de si la elección de índice es siempre discrecional (en cuyo
-caso no se necesita ningún cambio de código), o una regla concreta que determine cuál índice corresponde
-a cada escenario (en cuyo caso habría que agregar esa regla como validación o sugerencia automática).
-
-**Nota adicional (limitación del entorno de desarrollo):** los archivos
-`L5.SALARIOS-Y-PRESTACIONES-SOCIALES-DEJADAS-DE-PERCIBIR(incrementoinflacion).md` y
-`L6...(incremento-salario-minimo).md` citados como fuente del sprint no estaban disponibles en el entorno
-cloud donde se desarrolló (carpeta `docs/Archivos de referencia abogado/` excluida de git por copyright
-del despacho). La lógica de bloques anuales + reajuste + divisores 360/720 se implementó siguiendo la
-estructura descrita por escrito en `docs/Pendientes.md` y se verificó con casos sintéticos calculados a
-mano (`tests/services/test_salarios_dejados_de_percibir.py`), pero **no** se reconcilió línea por línea
-contra la planilla real de L5/L6. Se recomienda un chequeo cruzado manual del "GRAN TOTAL" contra un caso
-real antes de usar esta categoría en producción para un caso de reintegro o salarios caídos.
-
-**Respuesta del despacho:**
-La elección del índice para salarios dejados de percibir no es discrecional.
-
-Podría implementarse este código:
-
-if salario_base == SMMLV_del_año_de_causacion:
-    indice_aplicable = "VARIACION_SMMLV"
-else:
-    indice_aplicable = "IPC_DANE"
 
 **Fecha:**
 22/08/2026
