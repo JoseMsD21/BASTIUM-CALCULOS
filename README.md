@@ -156,7 +156,9 @@ una serie mensual real 2003-2026 del DANE ya conectada a la indexación mensual 
 semanal de DTF del Banco de la República 1984-2026, Sprint 82, cargada y consultable pero todavía sin
 calculador conectado — ver Sprint 82 en `Pendientes.md`) — IBC/Usura se usa en Comercial y en la fase 2 de
 la indemnización moratoria laboral, IPC ya está conectado a la indexación mensual real de Civil/Familia
-para fechas 2003-01 en adelante (interpolación anual como respaldo fuera de ese rango) y al reajuste anual
+para fechas 2003-01 en adelante — real hasta el último mes certificado por el DANE, estimado con media
+geométrica de los últimos 12 meses para fechas posteriores (Sprint 8, respuesta del despacho del
+22/08/2026), interpolación anual como respaldo solo antes de 2003-01 — y al reajuste anual
 de cuota alimentaria en Familia (Sprint 41), y UVT ya está
 conectada a la conversión SMLMV→UVT del área Sancionatorio (Sprint 14) y al piso legal de 10 UVT de las
 sanciones tributarias (Sprint 15); SMLMV ya se usa en el reajuste anual de Familia y en el checkbox
