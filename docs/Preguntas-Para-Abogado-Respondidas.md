@@ -1405,6 +1405,57 @@ Ver `Pendientes.md`, Sprint 97.
 
 ---
 
+## Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)
+
+**Contexto:** las plantillas de lucro cesante futuro (víctima incapacitada, cónyuge e hijos, padres,
+pensionado de fondo privado) necesitan la expectativa de vida de la víctima según su edad y sexo, tomada de
+la tabla de mortalidad de rentistas de la Resolución 1555 de 2010 de la Superintendencia Financiera. Las
+plantillas traen esta tabla incrustada como referencia (hoja `TablasMortalidad`), pero el material revisado
+solo cubre edades desde 15 hasta cerca de 38 años — no se confirmó si la tabla incrustada en las plantillas
+llega hasta la edad máxima que puede necesitarse (ej. hasta 100+ años) ni si hay alguna actualización
+posterior a 2010 que el despacho use en su lugar.
+
+**Pregunta:** ¿pueden aportar la tabla completa de mortalidad de rentistas de la Resolución 1555 de 2010
+(hombres y mujeres, todas las edades), o confirmar si el despacho usa una fuente/versión distinta?
+
+**Qué necesito exactamente:** la tabla completa (edad → años de expectativa de vida, separada por sexo)
+desde la edad mínima relevante hasta la máxima, en cualquier formato (Excel, PDF, o el enlace oficial de la
+Superfinanciera).
+
+**Respuesta del despacho:** (el campo de respuesta llegó vacío; el despacho repitió el mismo bloque de
+fórmulas y pseudocódigo que trajo bajo la pregunta del Sprint 97 en la misma ronda, sin la tabla de
+mortalidad completa que pedía esta pregunta específicamente — la tabla parcial que sí llegó, con datos
+reales, quedó registrada bajo la respuesta del Sprint 97, ver arriba.)
+
+```
+# 1. FORMULAS MATRICES
+# Ra = Renta Actualizada Mensual
+# i = Tasa mensual pura (0.0048676)
+# n = Tiempo en meses exactos
+
+# A. Lucro Cesante Consolidado (Pasado/Vencido)
+LCC = Ra * (((1.0 + i) ** n) - 1.0) / i
+
+# B. Lucro Cesante Futuro (Anticipado)
+LCF = Ra * (((1.0 + i) ** n) - 1.0) / (i * ((1.0 + i) ** n))
+
+# 2. EXPECTATIVA DE VIDA (Conversion de Tablas a variable 'n')
+# El valor de la tabla de mortalidad de la Superfinanciera viene en AÑOS.
+# El desarrollador debe multiplicarlo obligatoriamente por 12.
+n_meses_futuros = Expectativa_Vida_En_Anios_Segun_Tabla * 12.0
+```
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** sigue bloqueado — la tabla de mortalidad completa que
+pedía este sprint no llegó (el contenido con datos reales de tabla llegó bajo el Sprint 97, y sigue
+incompleto: `hombres_invalidos` truncada, `mujeres_invalidas` ausente). Las fórmulas de anualidad ya se
+implementaron bajo el Sprint 97 (`app/engine/civil/lucro_cesante_actuarial.py`). No se duplicó la pregunta
+de seguimiento — la ya registrada en "Sprint 97 (seguimiento)" cubre lo que falta aquí también. Ver
+`Pendientes.md`, Sprint 98.
+
+---
+
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
 
 **Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el
