@@ -1049,3 +1049,43 @@ de congelar el conteo tras 3 meses de inactividad no se implementó: es una suge
 regla obligatoria, y necesitaría un dato (fecha del último cobro/actuación) que el modelo actual no
 captura. Pregunta de seguimiento (solo la asignación de área) en `Preguntas-Para-Abogado-Abiertas.md`. Ver
 `Pendientes.md`, Sprint 82.
+
+---
+
+## Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?
+
+**Contexto:** el interés moratorio tributario (E.T. art. 635) se calcula tomando la tasa de usura vigente
+menos 2 puntos porcentuales, y esa tasa anual se convierte a diaria para liquidar día por día. BASTIUM
+usaba la fórmula "efectiva compuesta" de 365 días (`(1+i)^(1/365)-1`, la misma que el interés civil del
+6%), mientras que las plantillas i4/i4A del despacho dividen la tasa **linealmente entre 366 días**
+(`tasa_anual / 366`) — el propio archivo del despacho llama a esto "la ilógica matemática de la DIAN".
+
+**Pregunta:** ¿BASTIUM debe replicar la convención literal de la DIAN (366 días, lineal) o mantener la
+fórmula financiera "correcta" (365 días, compuesta)?
+
+**Respuesta del despacho:**
+A diferencia del sistema financiero NIIF, el Estatuto Tributario exige la liquidación por interés simple y división lineal para igualar los cálculos oficiales de la DIAN y evitar el anatocismo tributario.
+
+Qué se puede hacer?
+Fórmula Diaria: tasa_diaria = tasa_usura_anual / (365 o 366) (Estricta división lineal).
+
+Imputación Proporcional: Cuando haya un abono a la deuda, invalidar la regla civil de restar primero intereses. Allí se aplica el Art. 804 del Estatuto Tributario: el abono se distribuye de forma prorrateada calculando el porcentaje que pesa el capital, la sanción y el interés frente a la deuda total, rebajando los tres rubros simultáneamente.
+
+Tope Suspensivo: A los 24 meses de admitida la demanda contenciosa, la variable intereses_acumulando se establece en False hasta el 11° día posterior a la sentencia.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** confirmado — división lineal, no compuesta. Implementado
+en `calcular_interes_moratorio_tributario`/`construir_rate_provider_moratorio_tributario`
+(`app/engine/tax/moratory_interest.py`, nueva función compartida `tasa_diaria_lineal_tributaria`) y también
+en `calcular_interes_usura_plena` (`app/engine/tax/actualizacion_867_1.py`, el techo del Art. 867-1/Sprint
+15) — mezclar la fórmula lineal nueva del interés con la compuesta antigua del techo rompía la invariante
+de que el interés (tasa más baja) siempre debe quedar por debajo del techo (tasa más alta): con solo el
+interés cambiado, un caso real de 5 años de mora daba un interés MAYOR que el techo, un artefacto de
+mezclar dos convenciones, no un resultado legal real. Con ambos en la misma convención, la invariante se
+restaura. Tests actualizados con los nuevos montos (el caso real del despacho, Sprint 15, pasa de un
+interés de $123.160.595,20 a $140.031.700,20, y la indexación topada de $7.773.307,41 a $10.000.000,66).
+Las dos reglas adicionales de esta respuesta (imputación proporcional Art. 804 E.T., tope suspensivo por
+demanda contenciosa) NO se implementaron — van más allá de la pregunta original, y requieren datos que el
+modelo de `Obligacion` no captura. Ver pregunta de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`,
+"Sprint 84 (seguimiento)", y `Pendientes.md`, Sprint 84.

@@ -19,6 +19,19 @@ Regimen (mora > 3 anios desde la fecha de exigibilidad hasta fecha_corte):
 - Mora <= 3 anios: sin cambios para ningun rubro (solo interes E.T. 635, sin
   indexacion) -- ver ComercialStrategy/TributarioStrategy en area_strategy.py
   para el wiring real.
+
+Division lineal 365/366 dias (Sprint 84, respuesta del despacho 22/08/2026):
+calcular_interes_usura_plena usa la misma convencion lineal que
+calcular_interes_moratorio_tributario (moratory_interest.py) -- son la MISMA
+formula de mora tributaria, solo que sin el descuento de 2 puntos, y deben
+usar la misma convencion de dias para que el techo (usura plena) sea
+matematicamente mayor que el interes E.T. 635 (usura - 2 puntos) sobre el
+mismo capital y periodo, siempre. Mezclar una convencion compuesta para el
+techo con una lineal para el interes ya liquidado rompia esa relacion (el
+interes con la tasa MAS BAJA podia terminar siendo MAYOR que el techo con la
+tasa MAS ALTA, un artefacto de mezclar formulas, no un resultado legal real)
+-- ver el caso de prueba con el ejemplo real del despacho en
+tests/engine/tax/test_actualizacion_867_1.py.
 """
 
 from datetime import date, timedelta
@@ -30,7 +43,7 @@ from app.engine.indexation.historical_index import (
 )
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.interest.daily_interest import DailyInterest
-from app.engine.interest.rate_conversion import EffectiveRateConverter
+from app.engine.tax.moratory_interest import tasa_diaria_lineal_tributaria
 
 UMBRAL_MORA_DIAS = 365 * 3
 
@@ -70,7 +83,7 @@ def calcular_interes_usura_plena(
     for tramo in tramos:
         inicio_segmento = max(tramo.inicio, inicio_mora)
         fin_segmento = min(tramo.fin, fecha_corte)
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(tramo.usura_anual)
+        tasa_diaria = tasa_diaria_lineal_tributaria(tramo.usura_anual, inicio_segmento.year)
         dia = inicio_segmento
         while dia <= fin_segmento:
             tasa_por_dia[dia] = tasa_diaria

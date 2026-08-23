@@ -1,6 +1,6 @@
 from datetime import date
 from datetime import datetime as _dt
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 import pytest
 
@@ -75,8 +75,10 @@ def test_un_solo_tramo_agrega_un_periodo_con_tasa_usura_menos_dos_puntos():
         fecha_exigibilidad=date(2026, 6, 1), fecha_corte=date(2026, 6, 2)
     )
     rate = provider.get_rate(date(2026, 6, 2))
-    # usura junio 2026 = 28.79% EA -> tributario = 26.79% EA (mismo ejemplo del PDF pag. 39)
-    assert rate.decimal() == Decimal("0.000650518313")
+    # usura junio 2026 = 28.79% EA -> tributario = 26.79% EA (mismo ejemplo del PDF pag. 39).
+    # Sprint 84 (respuesta del despacho, 22/08/2026): division lineal, no compuesta --
+    # 26.79% / 100 / 365 (2026 no es bisiesto) = 0.000733972602...
+    assert rate.decimal() == Decimal("0.000733972603")
     assert provider.get_rate_source(date(2026, 6, 2)) == FUENTE_MORATORIO_TRIBUTARIO
 
 
@@ -84,11 +86,29 @@ def test_rango_que_cruza_dos_meses_agrega_dos_periodos_con_tasas_distintas():
     provider = construir_rate_provider_moratorio_tributario(
         fecha_exigibilidad=date(2026, 4, 29), fecha_corte=date(2026, 5, 2)
     )
-    # abril 2026: usura 26.76% -> tributario 24.76%
-    assert provider.get_rate(date(2026, 4, 30)).decimal() == Decimal("0.000606270573")
-    # mayo 2026: usura 28.17% -> tributario 26.17%
-    assert provider.get_rate(date(2026, 5, 1)).decimal() == Decimal("0.000637079611")
-    assert provider.get_rate(date(2026, 5, 2)).decimal() == Decimal("0.000637079611")
+    # abril 2026: usura 26.76% -> tributario 24.76% -> 24.76/100/365 lineal
+    assert provider.get_rate(date(2026, 4, 30)).decimal() == Decimal("0.000678356164")
+    # mayo 2026: usura 28.17% -> tributario 26.17% -> 26.17/100/365 lineal
+    assert provider.get_rate(date(2026, 5, 1)).decimal() == Decimal("0.000716986301")
+    assert provider.get_rate(date(2026, 5, 2)).decimal() == Decimal("0.000716986301")
+
+
+def test_anio_bisiesto_divide_entre_366_no_365():
+    # Sprint 84: el divisor depende del año del tramo (calendar.isleap), no
+    # siempre 365. 2024 fue bisiesto -- verificado contra un tramo real de
+    # _TRAMOS_IBC_USURA en enero de 2024.
+    from app.engine.indexation.historical_index import get_ibc_usura_for_date
+
+    ibc_anual, usura_anual = get_ibc_usura_for_date(date(2024, 1, 15))
+    tributaria = usura_anual - Decimal("2")
+
+    provider = construir_rate_provider_moratorio_tributario(
+        fecha_exigibilidad=date(2024, 1, 14), fecha_corte=date(2024, 1, 15)
+    )
+    esperado = (tributaria / Decimal("100") / Decimal("366")).quantize(
+        Decimal("0.000000000001"), rounding=ROUND_HALF_UP
+    )
+    assert provider.get_rate(date(2024, 1, 15)).decimal() == esperado
 
 
 def test_rango_fuera_de_datos_disponibles_propaga_value_error():
@@ -113,13 +133,14 @@ def test_fecha_corte_igual_a_exigibilidad_da_cero_dias_de_mora():
 
 
 def test_un_dia_de_mora_coincide_con_el_ejemplo_del_pdf_usura_28_79_ea():
-    # PDF pag. 39: usura 28.79% EA -> interes moratorio tributario 26.79% EA
+    # PDF pag. 39: usura 28.79% EA -> interes moratorio tributario 26.79% EA.
+    # Sprint 84: division lineal 365 dias -> 1.000.000 * 0.000733972603 = 733.97.
     total = calcular_interes_moratorio_tributario(
         capital=Decimal("1000000.00"),
         fecha_exigibilidad=date(2026, 6, 1),
         fecha_corte=date(2026, 6, 2),
     )
-    assert total == Decimal("650.52")
+    assert total == Decimal("733.97")
 
 
 def test_mora_que_cruza_dos_meses_suma_interes_de_cada_tramo():
@@ -128,5 +149,5 @@ def test_mora_que_cruza_dos_meses_suma_interes_de_cada_tramo():
         fecha_exigibilidad=date(2026, 4, 29),
         fecha_corte=date(2026, 5, 2),
     )
-    # abril 30 (606.27) + mayo 1 (637.08) + mayo 2 (637.08)
-    assert total == Decimal("1880.43")
+    # abril 30 (678.36) + mayo 1 (716.99) + mayo 2 (716.99)
+    assert total == Decimal("2112.34")

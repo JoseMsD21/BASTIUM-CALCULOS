@@ -10,26 +10,39 @@ que sí usa una tasa pactada).
 
 Ver docs/superpowers/specs/2026-07-20-sprint11a-tributario-interes-renta-liquida-design.md.
 
-Discrepancia documentada, sin corregir (Sprint 84): la resta de los 2 puntos
-(PUNTOS_DESCUENTO_ET_635, mas abajo) coincide con las plantillas i4/i4A del
-despacho, pero el paso siguiente no: este motor convierte la tasa anual ya
-descontada con EffectiveRateConverter.annual_to_daily (formula compuesta de
-365 dias), mientras que i4/i4A la dividen linealmente entre 366 dias -- la
-propia plantilla del despacho llama a esa division "la ilogica matematica de
-la DIAN" (i4A), lo que sugiere que el despacho no necesariamente quiere que
-BASTIUM la replique. Cual de las dos convenciones debe usar este motor queda
-pendiente de confirmar con el despacho -- ver Sprint 84 en docs/Pendientes.md
-y la pregunta "Sprint 84" en docs/Preguntas-Para-Abogado-Abiertas.md. No se
-cambia el comportamiento hasta esa respuesta.
+Division lineal 365/366 dias (Sprint 84, respuesta del despacho 22/08/2026):
+"a diferencia del sistema financiero NIIF, el Estatuto Tributario exige la
+liquidacion por interes simple y division lineal para igualar los calculos
+oficiales de la DIAN y evitar el anatocismo tributario" -- tasa_diaria =
+tasa_anual_tributaria / dias_del_anio (365, o 366 en año bisiesto), SIN
+exponente, a diferencia de EffectiveRateConverter.annual_to_daily (formula
+compuesta) que usa el resto del motor para el interes civil del 6%. Antes de
+esta respuesta el motor usaba por error la formula compuesta -- ver el
+historial de este docstring para la discrepancia ya documentada desde el
+primer cierre del Sprint 84.
+
+La misma respuesta trajo ademas dos reglas nuevas que quedan FUERA de
+alcance de este cambio (no implementadas, documentadas como seguimiento en
+docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 84 (seguimiento)): (1)
+"Imputacion Proporcional" (Art. 804 E.T.) -- un abono se reparte
+proporcionalmente entre capital/sancion/interes en vez de la regla civil de
+intereses primero, y (2) un "Tope Suspensivo" que congela el interes 24
+meses despues de admitida una demanda contenciosa hasta 11 dias despues de
+la sentencia. Ninguna de las dos es la pregunta que motivo este sprint (la
+convencion de dias del año), y ambas requieren datos (fecha de admision de
+demanda, fecha de sentencia, reglas de imputacion propias de Tributario) que
+el modelo actual no captura -- se documentan para no perderlas, no se
+implementan a ciegas.
 """
 
+import calendar
 from datetime import date, timedelta
 from decimal import Decimal
 
+from app.engine.financial.rate import Rate
 from app.engine.indexation.historical_index import get_tramos_ibc_usura_between
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.provider import MemoryRateProvider
-from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.services.parametro_service import get_parametro
 
 PUNTOS_DESCUENTO_ET_635 = Decimal("2")
@@ -37,6 +50,16 @@ PUNTOS_DESCUENTO_ET_635 = Decimal("2")
 FUENTE_MORATORIO_TRIBUTARIO = (
     "Interes moratorio tributario (E.T. art. 635): usura vigente - 2 puntos"
 )
+
+
+def tasa_diaria_lineal_tributaria(tasa_anual_pct: Decimal, anio: int) -> Rate:
+    """Division lineal simple (Sprint 84, respuesta del despacho 22/08/2026):
+    tasa_anual / dias_del_anio, sin capitalizacion. `anio` determina si el
+    divisor es 365 o 366 (calendar.isleap) -- cada tramo de usura vive
+    íntegramente dentro de un solo año calendario (los tramos son mensuales,
+    nunca cruzan el 31 de diciembre), así que basta un año por tramo."""
+    dias_del_anio = 366 if calendar.isleap(anio) else 365
+    return Rate(Rate.from_percent(tasa_anual_pct).value / Decimal(dias_del_anio))
 
 
 def construir_rate_provider_moratorio_tributario(
@@ -59,7 +82,7 @@ def construir_rate_provider_moratorio_tributario(
         fin_segmento = min(tramo.fin, fecha_corte)
         puntos_descuento = get_parametro("ET635_PUNTOS_DESCUENTO", inicio_segmento)
         tasa_anual_tributaria = tramo.usura_anual - puntos_descuento
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(tasa_anual_tributaria)
+        tasa_diaria = tasa_diaria_lineal_tributaria(tasa_anual_tributaria, inicio_segmento.year)
         provider.add_rate_period(
             start=inicio_segmento,
             end=fin_segmento,
