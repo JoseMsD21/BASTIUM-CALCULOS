@@ -788,12 +788,30 @@ excluyente con intereses moratorios.
 
 **Fecha:** (no especificada por el despacho al copiar la respuesta)
 
-**Estado en el código:** ninguna de estas reglas está implementada todavía — `AreaStrategy.soporta_indexacion_ipc`
-sigue en `False` para las 5 áreas (`app/services/area_strategy.py`) y el checkbox sigue oculto fuera de
-Civil/Familia (`app/views/obligaciones.py`, línea ~554: `setVisible(self._area == "CIVIL_FAMILIA")`). Con
-esta respuesta ya no está bloqueado por falta de decisión legal — el bloqueo pasa a ser de implementación:
-son 5 mecanismos de exclusión/coexistencia distintos (uno por área), cada uno con su propia validación de
-"doble actualización", no una sola bandera. Ver `Pendientes.md`, Sprint 43.
+**Estado en el código (actualizado 2026-08-17):** implementado en las 5 áreas — ver `Pendientes.md`, Sprint
+43, "Cierre de implementación (2026-08-17)". La fórmula de Honorarios quedó implementada tal cual
+(`Capital × IPC_Final/IPC_Inicial + Interés_Civil_6%(Capital_Actualizado)`), pero quedó una pregunta de
+seguimiento sobre si es jurídicamente válido cobrar interés civil sobre un capital ya indexado (en vez de
+sobre el capital original) — ver respuesta abajo.
+
+**Respuesta a la pregunta de seguimiento (¿es válido el interés civil sobre el capital ya indexado en
+Honorarios?):**
+El cobro de interés civil del 6% sobre el capital de honorarios ya indexado es jurídicamente válido, pues la indexación restituye el poder adquisitivo (el valor real) y el interés resarce la privación del dinero (el lucro). No constituye anatocismo.
+
+Qué puede hacerse?
+Para la estrategia Suma Única - Honorarios, el orden de las operaciones en el motor debe ser:
+
+Capital_Actualizado = Capital_Original * (IPC_Final / IPC_Inicial)
+
+Intereses_Mora = CalcularInteresCivil(Base=Capital_Actualizado, Tasa=0.06)
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** confirma exactamente la fórmula ya implementada desde el
+2026-08-17 — no requirió ningún cambio de código. La misma respuesta trajo además una regla sobre costas
+procesales ("NUNCA generan intereses, se suman al final en seco") que resultó ser la respuesta directa a
+una pregunta distinta y ya existente, la del Sprint 79 — ver esa sección de `Pendientes.md` para el cambio
+de código correspondiente.
 
 ---
 
