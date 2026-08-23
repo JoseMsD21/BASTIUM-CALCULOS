@@ -265,7 +265,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable ⚠️ Parcial](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--parcial) — fórmula de interés DTF implementada y probada, aislada; falta confirmar en qué área de BASTIUM vive
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
-- [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 🟡 En proceso](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--en-proceso)
+- [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ⚠️ Parcial](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--parcial) — división lineal implementada (respuesta del despacho 2026-08-22); imputación proporcional y tope suspensivo quedan pendientes
 - [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
 - [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🟠 Reabierto](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--reabierto)
 - [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🟠 Reabierto](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--reabierto)
@@ -6380,10 +6380,7 @@ que colgaba la suite indefinidamente — ver Sprint 103.
 
 ---
 
-## Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 🟡 En proceso
-
-**En proceso (rutina autónoma, 2026-08-23):** rama `sprint-84-division-lineal-366-interes-moratorio-dian`,
-implementando la respuesta del despacho del 22/08/2026 (división lineal 365/366 días).
+## Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ⚠️ Parcial
 
 **Prioridad sugerida:** Media — toca solo el área Tributario, pero es una discrepancia concreta y cuantificable entre lo que hace BASTIUM y lo que hacen las propias plantillas del despacho para el mismo escenario legal (E.T. art. 635 / Concepto DIAN 415 de 2021).
 **Depende de:** Sprint 11a (motor de interés tributario), Sprint 15 (techo de usura Art. 867-1).
@@ -6407,6 +6404,22 @@ propia "Sprint 84" en `docs/Preguntas-Para-Abogado-Abiertas.md` (con su entrada 
 `construir_rate_provider_moratorio_tributario`/`calcular_interes_moratorio_tributario` — sigue usando la
 fórmula compuesta de 365 días hasta que el despacho confirme cuál de las dos convenciones aplica. Suite
 completa: 1331 passed (`tests/engine/tax/test_moratory_interest.py`: 8/8 sin cambios).
+
+**Cierre parcial (2026-08-23, rutina autónoma):** el despacho confirmó (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, Sprint 84) la división lineal (365/366 días según año bisiesto,
+sin exponente) — implementada en `moratory_interest.py` (`tasa_diaria_lineal_tributaria`, función
+compartida) y también en `calcular_interes_usura_plena` (`actualizacion_867_1.py`, el techo del Art.
+867-1/Sprint 15): mezclar la fórmula lineal nueva con la compuesta antigua en el techo rompía la
+invariante de que el interés (tasa más baja, usura-2) siempre debe ser menor que el techo (tasa más alta,
+usura plena) — con solo el interés corregido, el caso real de 5 años de mora del despacho daba un interés
+mayor que su propio techo, un artefacto de mezclar convenciones. Con ambos en la misma convención lineal,
+la invariante se restaura. Tests actualizados con los montos nuevos (el caso real del Sprint 15 pasa de
+$123.160.595,20 a $140.031.700,20 de interés, indexación topada de $7.773.307,41 a $10.000.000,66). Suite
+completa en verde (1537 passed). La misma respuesta trajo dos reglas adicionales — imputación proporcional
+(Art. 804 E.T.) y un tope suspensivo por demanda contenciosa — que van más allá de la pregunta original de
+este sprint y requieren datos que el modelo de `Obligacion` no captura: documentadas, no implementadas, con
+pregunta de seguimiento acotada en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 84 (seguimiento)" — de ahí
+el estado ⚠️ Parcial en vez de ✅ Completado.
 
 ---
 

@@ -85,7 +85,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?](#sprint-76--fórmula-de-tasa-del-art-16172232-cc-lineal-diaria-efectiva-compuesta-diaria-o-mensual-con-prorrateo-de-30-días)
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
 - [Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?](#sprint-82-seguimiento--en-qué-área-de-bastium-vive-el-calculador-de-condenas-administrativas-dtf)
-- [Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?](#sprint-84--interés-moratorio-tributario-et-art-635-366-días-lineal-convención-dian-o-365-compuesto-fórmula-actual-de-bastium)
+- [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
 - [Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional](#sprint-8687--bono-pensional-y-cálculo-actuarial-de-cotizaciones-omisas-factores-de-reserva-y-tabla-dtf-pensional)
 - [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
 - [Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?](#sprint-92--laboral-fecha-de-corte-real-entre-régimen-ley-501990-y-ley-7892002-para-la-indemnización-por-despido-fórmula-para-salario-10-smmlv-y-coexistencia-con-la-sanción-moratoria)
@@ -407,56 +407,33 @@ poder conectar la fórmula (ya lista) a una pantalla y a una liquidación real.
 **Fecha:**
 ---
 
-## Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?
+## Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa
 
-**Contexto (explicado desde cero, para quien no haya visto el código):**
+**Contexto:** la respuesta del despacho a la pregunta original del Sprint 84 (¿366 días lineal o 365
+compuesto para el interés moratorio tributario?) ya se implementó — ver
+`Preguntas-Para-Abogado-Respondidas.md`, Sprint 84. La misma respuesta trajo además dos reglas que van más
+allá de esa pregunta y quedaron sin implementar:
 
-El interés moratorio tributario (Estatuto Tributario, art. 635) se calcula tomando la tasa de usura
-vigente (línea "Consumo y Ordinario" que certifica la Superfinanciera) y restándole 2 puntos porcentuales
-— eso ya está bien y coincide con las plantillas del despacho (`i4.INTERESES-DE-MORA-DIAN-ULTIMA-TASA-MENSUAL.md`
-e `i4A.INTERESES-DE-MORA-DIAN-DIFERENTES-TASAS-MENSUALES.md`). La diferencia aparece en el paso siguiente,
-cuando esa tasa anual (ya con los 2 puntos restados) se convierte en una tasa diaria para poder liquidar
-día por día:
+1. **Imputación proporcional (Art. 804 E.T.):** cuando hay un abono, en vez de la regla civil (intereses
+   primero, luego capital), el abono se reparte proporcionalmente entre capital/sanción/interés según el
+   peso de cada uno en la deuda total. Hoy `calcular_interes_moratorio_tributario` no maneja abonos en
+   absoluto ("Capital fijo, sin abonos ni imputación de pagos -- eso es Sprint 11b", según su propio
+   docstring) — implementar esto requiere construir esa imputación desde cero, con su propio diseño.
+2. **Tope suspensivo:** a los 24 meses de admitida una demanda contenciosa, el interés deja de causarse
+   hasta 11 días después de la sentencia. Esto necesita datos que el modelo de `Obligacion` no captura hoy
+   (fecha de admisión de la demanda, fecha de la sentencia).
 
-- **BASTIUM hoy** usa la misma fórmula "efectiva compuesta" de 365 días que usa para el interés civil del
-  6% (Art. 1617 C.C.): `tasa_diaria = (1 + tasa_anual)^(1/365) − 1` (`app/engine/tax/moratory_interest.py`,
-  función `construir_rate_provider_moratorio_tributario`).
-- **Las plantillas i4/i4A del despacho**, en cambio, dividen esa misma tasa anual **linealmente entre 366
-  días** (no 365, y sin elevar a ninguna potencia): `tasa_diaria = tasa_anual ÷ 366`. El propio archivo del
-  despacho califica esta fórmula de "la ilógica matemática de la DIAN" (i4A) — es decir, el despacho parece
-  saber que no es la fórmula financieramente "correcta", pero podría ser la que hay que replicar si el
-  objetivo es litigar o objetar una liquidación que la propia DIAN hizo con su propia metodología.
+**Pregunta:** ¿estas dos reglas aplican de forma general a toda obligación Tributaria, o solo a un
+escenario específico (ej. solo cuando ya existe un proceso contencioso administrativo en curso)? ¿Qué
+campos nuevos necesitaría capturar el formulario de Obligación Tributaria para poder calcularlas (fecha de
+admisión de demanda, fecha de sentencia, u otros)?
 
-**Pregunta:** para el interés moratorio tributario del Art. 635 E.T., ¿BASTIUM debe replicar la convención
-literal de la DIAN (366 días, división lineal, "la ilógica matemática de la DIAN" que citan las plantillas
-i4/i4A), o debe mantener la fórmula financiera "correcta" que usa hoy (365 días, efectiva compuesta)? Y si
-depende del caso (ej. depende de si se está objetando una liquidación oficial de la DIAN o liquidando una
-mora propia), ¿cuál es la regla para saber cuándo aplica cada una?
-
-**Qué necesito exactamente:** confirmación de cuál de las dos convenciones (366 días lineal vs. 365 días
-compuesto) debe usar `calcular_interes_moratorio_tributario` — no se ha cambiado ningún código todavía, solo
-se documentó la discrepancia. Ver Sprint 84 en `Pendientes.md` para el detalle técnico completo.
+**Qué necesito exactamente:** confirmación de si estas reglas son prioritarias para el despacho ahora
+mismo, y si es así, los campos exactos que hacen falta capturar para implementarlas correctamente.
 
 **Respuesta del despacho:**
-A diferencia del sistema financiero NIIF, el Estatuto Tributario exige la liquidación por interés simple y división lineal para igualar los cálculos oficiales de la DIAN y evitar el anatocismo tributario.
-
-Qué se puede hacer?
-Fórmula Diaria: tasa_diaria = tasa_usura_anual / (365 o 366) (Estricta división lineal).
-
-Imputación Proporcional: Cuando haya un abono a la deuda, invalidar la regla civil de restar primero intereses. Allí se aplica el Art. 804 del Estatuto Tributario: el abono se distribuye de forma prorrateada calculando el porcentaje que pesa el capital, la sanción y el interés frente a la deuda total, rebajando los tres rubros simultáneamente.
-
-Tope Suspensivo: A los 24 meses de admitida la demanda contenciosa, la variable intereses_acumulando se establece en False hasta el 11° día posterior a la sentencia.
-
-CONCRETAMENTE:
-# Para la DIAN, se prohíbe usar exponentes para convertir la tasa a diaria.
-# Debe ser una división lineal pura dependiendo si el año es bisiesto o no.
-dias_del_anio = 366 si es_bisiesto(anio_actual) sino 365
-
-Tasa_Diaria_Tributaria = Tasa_Usura_Anual_Vigente / dias_del_anio
-Interes_Diario_Causado = Capital_Impuesto * Tasa_Diaria_Tributaria
 
 **Fecha:**
-22/08/2026
 ---
 
 ## Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional
