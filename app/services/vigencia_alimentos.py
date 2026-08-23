@@ -34,6 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from app.core.exceptions import FechaCorteAlimentosRequeridaError
 from database.models import Beneficiario, TipoBeneficiario
 
 EDAD_LIMITE_NINO_NO_ESTUDIA = 18
@@ -176,3 +177,29 @@ def fecha_fin_efectiva_recurrente(
         ).fecha_fin_vigencia
     candidatos = [fecha for fecha in (fecha_fin_manual, fecha_fin_vigencia) if fecha is not None]
     return min(candidatos) if candidatos else None
+
+
+def validar_fecha_corte_beneficiario_obligatoria(
+    beneficiario: Beneficiario | None,
+    fecha_fin_manual: date | None,
+    fecha_referencia: date,
+) -> None:
+    """Respuesta del despacho, Sprint 74 (22/08/2026): para un beneficiario
+    cuya vigencia NO es determinable automaticamente (CONYUGE, PADRES, OTRO,
+    o NINO_DISCAPACIDAD sin discapacidad_permanente), el usuario debe
+    proporcionar una fecha de corte manual obligatoriamente -- "porque
+    requiere una fecha de exoneracion dictada por la autoridad", nunca se
+    asume por defecto. Lanza FechaCorteAlimentosRequeridaError si aplica y
+    `fecha_fin_manual` es None. No aplica si no hay beneficiario, o si su
+    vigencia SI es determinable automaticamente (NINO, o NINO_DISCAPACIDAD
+    permanente) -- esos casos nunca requieren fecha de corte manual."""
+    if beneficiario is None:
+        return
+    resultado = calcular_vigencia_alimentos(beneficiario, fecha_referencia)
+    if not resultado.determinable_automaticamente and fecha_fin_manual is None:
+        raise FechaCorteAlimentosRequeridaError(
+            f"La vigencia de este beneficiario ({beneficiario.tipo.value}) no es "
+            "determinable automaticamente -- debe proporcionar la fecha de corte "
+            "manualmente (respuesta del despacho, Sprint 74: requiere una fecha de "
+            "exoneracion dictada por la autoridad)."
+        )

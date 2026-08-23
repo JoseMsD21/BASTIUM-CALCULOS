@@ -933,3 +933,44 @@ seguimiento, no adivinados:**
 Ver la pregunta de seguimiento en
 [`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición)
 y `Pendientes.md`, Sprints 70 y 91.
+
+---
+
+## Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo
+
+**Contexto:** el software no distinguía quién es el beneficiario de una obligación alimentaria más allá de
+un campo de texto libre. El reporte del usuario (2026-08-13) ya afirmaba como hecho conocido las reglas de
+Niño (18/25 años según si estudia) y Niño con discapacidad permanente (vitalicio) — la rutina autónoma
+implementó esas dos sin esperar respuesta (2026-08-20). Quedaba sin confirmar el criterio para Cónyuge,
+Padres, y Otro (donante, abuelos, etc.).
+
+**Pregunta:** ¿pueden confirmar la lista completa de reglas de vigencia por tipo de beneficiario, y las que
+falten (ej. ¿cómo se determina que un cónyuge "superó su condición de vulnerabilidad"?)? ¿Existen otras
+categorías de beneficiario además de las mencionadas?
+
+**Respuesta del despacho:**
+El motor no puede presumir el fin de la vulnerabilidad para cónyuges, padres o donantes, pues depende de hechos externos como el matrimonio, un empleo, la muerte, etc.
+
+Qué puede hacerse?
+Implementar el siguiente árbol de decisión en la clase AlimentosVigencia:
+
+if tipo == 'HIJO' and estudia == False: Vigencia hasta los 18 años.
+
+if tipo == 'HIJO' and estudia == True: Vigencia hasta los 25 años.
+
+if tipo == 'HIJO' and discapacidad_permanente == True: Vigencia Vitalicia.
+
+if tipo in ['CONYUGE', 'PADRES', 'DONANTES', 'OTROS']: El software debe arrojar Vigencia = No determinable automáticamente (Porque requiere una fecha de exoneración dictada por la autoridad). El usuario debe proveer la fecha de corte obligatoriamente.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** confirma exactamente lo que ya estaba implementado para
+Niño/Niño con discapacidad permanente (sin cambios), y para Cónyuge/Padres/Otro confirma "no determinable
+automáticamente" (también ya implementado) — con una instrucción nueva y accionable: la fecha de corte
+debe ser **obligatoria** cuando la vigencia no es determinable. Implementado en
+`app/services/vigencia_alimentos.py` (`validar_fecha_corte_beneficiario_obligatoria`,
+`FechaCorteAlimentosRequeridaError`) y `ObligacionFormDialog` (`app/views/obligaciones.py`): para una
+obligación RECURRENTE con beneficiario no determinable, un checkbox + fecha se vuelven visibles y
+obligatorios — "Guardar" bloquea sin ellos. La respuesta sigue sin dar un criterio operacional para "cuándo
+un cónyuge superó su vulnerabilidad" (el reemplazo es que la autoridad fije la fecha, no que el software la
+calcule) — no hace falta esa regla ahora que la fecha es manual. Ver `Pendientes.md`, Sprint 74.

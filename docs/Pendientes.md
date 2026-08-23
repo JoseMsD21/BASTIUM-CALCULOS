@@ -255,7 +255,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
 - [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
-- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟠 Reabierto](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--reabierto)
+- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) ✅ Completado](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--completado) — fecha de corte obligatoria para beneficiarios no determinables (respuesta del despacho 2026-08-22)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🟠 Reabierto](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--reabierto)
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
@@ -5800,7 +5800,7 @@ tests en el momento del cierre).
 
 ---
 
-## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟠 Reabierto
+## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) ✅ Completado
 
 **Rama de trabajo:** `sprint-74-tipos-beneficiario-alimentos` (rutina autónoma, 2026-08-20).
 
@@ -5897,6 +5897,21 @@ criterio operacional exacto de cónyuge/padres/otro sigue condicionado a esa mis
 `recurrencia_fechas_fijas.py`, regresión de `DetachedInstanceError`, UI). Suite completa: 1381 passed.
 `ruff check .` en verde (incluye la corrección de 4 líneas >99 caracteres preexistentes en `main`, sin
 relación con este sprint, encontradas al validar el bar de CI antes de mergear).
+
+**Cierre definitivo (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, Sprint 74) confirmando exactamente las reglas ya implementadas
+para Niño/Niño con discapacidad permanente, y "no determinable automáticamente" para Cónyuge/Padres/Otro
+(también ya implementado) — más una instrucción nueva y accionable: la fecha de corte debe ser
+**obligatoria** en esos casos ("porque requiere una fecha de exoneración dictada por la autoridad").
+Implementado: `validar_fecha_corte_beneficiario_obligatoria`/`FechaCorteAlimentosRequeridaError`
+(`app/services/vigencia_alimentos.py`) y wiring en `ObligacionFormDialog`
+(`app/views/obligaciones.py`) — checkbox + fecha, visibles y obligatorios solo cuando la obligación es
+RECURRENTE y el beneficiario no es determinable automáticamente; `guardar()` bloquea sin la fecha, y
+persiste `Obligacion.fecha_fin` (reutilizado por `fecha_fin_efectiva_recurrente`, que ya esperaba este
+campo como `fecha_fin_manual` desde el cierre original). 12 tests nuevos (servicio + UI).
+`docs/GUIA_USUARIO.md` actualizado (sección 5.4.2). Suite completa: 1529 passed (incluye, por primera vez
+en esta rutina, la suite completa de `tests/views/` — el sandbox de la nube no tenía instalado `libEGL`
+hasta esta corrida; ver correo resumen de la corrida).
 
 ---
 

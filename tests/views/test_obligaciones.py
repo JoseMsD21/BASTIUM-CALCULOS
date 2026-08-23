@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
+from app.core.exceptions import FechaCorteAlimentosRequeridaError
 from app.services.recurrencia_fechas_fijas import deserializar_fechas_anuales
 from app.views.obligaciones import ObligacionFormDialog
 from database.models import (
@@ -2792,6 +2793,161 @@ def test_desmarcar_grupo_beneficiario_al_editar_elimina_beneficiario_existente(
     session = session_module.get_session()
     assert session.query(Beneficiario).filter_by(obligacion_id=obligacion_id).count() == 0
     session.close()
+
+
+# --- Sprint 74 (respuesta del despacho, 22/08/2026): fecha de corte obligatoria
+# --- para beneficiarios cuya vigencia no es determinable automaticamente.
+
+
+def test_fecha_corte_beneficiario_oculta_para_nino(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_nino = dialog.combo_tipo_beneficiario.findData("NINO")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_nino)
+
+    assert dialog.check_fecha_corte_beneficiario.isVisible() is False
+
+
+def test_fecha_corte_beneficiario_visible_para_conyuge_recurrente(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_conyuge = dialog.combo_tipo_beneficiario.findData("CONYUGE")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_conyuge)
+
+    assert dialog.check_fecha_corte_beneficiario.isVisible() is True
+
+
+def test_fecha_corte_beneficiario_oculta_para_conyuge_puntual(qtbot, monkeypatch):
+    # La vigencia por beneficiario solo aplica a RECURRENTE -- una PUNTUAL no
+    # tiene cuotas periodicas que topar.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_tipo.setCurrentIndex(0)  # PUNTUAL
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_conyuge = dialog.combo_tipo_beneficiario.findData("CONYUGE")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_conyuge)
+
+    assert dialog.check_fecha_corte_beneficiario.isVisible() is False
+
+
+def test_guardar_conyuge_recurrente_sin_fecha_de_corte_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Cuota conyuge")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    dialog.campo_dia_pago.setValue(5)
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_conyuge = dialog.combo_tipo_beneficiario.findData("CONYUGE")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_conyuge)
+    dialog.campo_nombre_beneficiario.setText("Ana Perez")
+    dialog.campo_fecha_nacimiento_beneficiario.setDate(date(1990, 1, 1))
+
+    with pytest.raises(FechaCorteAlimentosRequeridaError):
+        dialog.guardar()
+
+
+def test_guardar_conyuge_recurrente_con_fecha_de_corte_persiste_fecha_fin(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.campo_concepto.setText("Cuota conyuge")
+    dialog.campo_valor.setText("500000.00")
+    dialog.campo_tasa.setText("6.00")
+    dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
+    dialog.campo_dia_pago.setValue(5)
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_conyuge = dialog.combo_tipo_beneficiario.findData("CONYUGE")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_conyuge)
+    dialog.campo_nombre_beneficiario.setText("Ana Perez")
+    dialog.campo_fecha_nacimiento_beneficiario.setDate(date(1990, 1, 1))
+    dialog.check_fecha_corte_beneficiario.setChecked(True)
+    dialog.campo_fecha_corte_beneficiario.setDate(date(2030, 6, 15))
+
+    obligacion_id = dialog.guardar()
+
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(id=obligacion_id).one()
+    assert obligacion.fecha_fin == date(2030, 6, 15)
+    session.close()
+
+
+def test_desmarcar_fecha_corte_beneficiario_al_cambiar_a_tipo_determinable(qtbot, monkeypatch):
+    # Cambiar de CONYUGE (requiere fecha de corte) a NINO (no la requiere) debe
+    # desmarcar el checkbox -- una fecha de corte que quedo marcada para un
+    # tipo anterior no debe seguir aplicando en silencio al tipo nuevo.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.combo_tipo.setCurrentIndex(1)  # RECURRENTE
+    dialog.grupo_beneficiario.setChecked(True)
+    indice_conyuge = dialog.combo_tipo_beneficiario.findData("CONYUGE")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_conyuge)
+    dialog.check_fecha_corte_beneficiario.setChecked(True)
+
+    indice_nino = dialog.combo_tipo_beneficiario.findData("NINO")
+    dialog.combo_tipo_beneficiario.setCurrentIndex(indice_nino)
+
+    assert dialog.check_fecha_corte_beneficiario.isChecked() is False
+
+
+def test_editar_obligacion_precarga_fecha_corte_beneficiario_existente(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="Cuota conyuge",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 5),
+        fecha_inicio=date(2026, 1, 5),
+        fecha_fin=date(2030, 6, 15),
+        dia_pago=5,
+        valor=Decimal("500000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.flush()
+    session.add(
+        Beneficiario(
+            obligacion_id=obligacion.id,
+            nombre="Ana Perez",
+            fecha_nacimiento=date(1990, 1, 1),
+            tipo=TipoBeneficiario.CONYUGE,
+        )
+    )
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="CIVIL_FAMILIA", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog)
+
+    assert dialog.check_fecha_corte_beneficiario.isChecked() is True
+    assert dialog.campo_fecha_corte_beneficiario.date().toPython() == date(2030, 6, 15)
 
 
 def test_beneficiario_sin_labels_huerfanas(qtbot, monkeypatch):

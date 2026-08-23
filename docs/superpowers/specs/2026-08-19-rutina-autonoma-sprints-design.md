@@ -74,6 +74,16 @@ cuando el usuario o el despacho contestan (pasa entonces a 🟠 Reabierto).
   programáticamente en `docs/datos_publicos_fuente/` (sí commiteada) — ver el README de esa
   carpeta. Solo se extrajeron series numéricas públicas (IPC/DTF/tasas certificadas), nunca las
   plantillas propietarias del despacho ni el caso de cliente que también viven en esa carpeta.
+- **Entorno de pruebas (encontrado 2026-08-23):** el contenedor del sandbox de la nube se crea limpio en
+  cada sesión (no hay estado persistente entre corridas) y no trae instalada la librería de sistema
+  `libEGL.so.1` que PySide6/Qt necesita — sin ella, `pytest` con `pytest-qt` no puede ni siquiera
+  arrancar (`tests/views/` completo falla en collection), así que corridas anteriores de esta rutina
+  corrieron la suite completa saltándose `tests/views/` sin darse cuenta del motivo real. Se soluciona con
+  `apt-get update && apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0
+  libxcb-cursor0` (unos segundos) y corriendo pytest con `QT_QPA_PLATFORM=offscreen` en el entorno — con
+  eso la suite completa (`tests/views/` incluido) corre igual que en local. Cualquier corrida futura debe
+  instalar esa librería ANTES de dar por buena una corrida de tests que excluya `tests/views/` "porque no
+  hay Qt en la nube" — ya no es cierto.
 
 ## Cierre de un sprint
 

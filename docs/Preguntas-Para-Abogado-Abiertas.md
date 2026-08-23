@@ -82,7 +82,6 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 8 (seguimiento 3) — Tabla real de IPC mensual anterior a enero de 2003](#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003)
 - [Sprint 18 (seguimiento 3) — Discrepancia numérica entre la tabla granular verificada (PSAA16-10554) y las "tarifas duras" que aportó el despacho](#sprint-18-seguimiento-3--discrepancia-numérica-entre-la-tabla-granular-verificada-psaa16-10554-y-las-tarifas-duras-que-aportó-el-despacho)
 - [Sprint 70/91 (seguimiento) — Fechas exactas de vigencia por régimen, invalidez Grado 1, y "régimen de transición"](#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición)
-- [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
 - [Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?](#sprint-76--fórmula-de-tasa-del-art-16172232-cc-lineal-diaria-efectiva-compuesta-diaria-o-mensual-con-prorrateo-de-30-días)
 - [Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?](#sprint-78--conteo-de-días-para-densidad-pensional-semanas-cotizadas-aplica-el-1-inclusivo)
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
@@ -202,57 +201,6 @@ confirmación del tope de invalidez Grado 1, y la aclaración sobre el régimen 
 **Respuesta del despacho:**
 
 **Fecha:**
----
-
-## Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo
-
-**Contexto:** hoy el software no distingue quién es el beneficiario de una obligación alimentaria más allá
-de un campo de texto libre — no pregunta si es un niño, un niño con discapacidad, el cónyuge, los padres, u
-otra persona (ej. donante), y por lo tanto no puede calcular automáticamente hasta cuándo es exigible cada
-obligación. Según lo que el usuario describe: para niños sin discapacidad la obligación termina a los 18
-años si no estudia una carrera profesional/técnica/tecnológica, o se extiende hasta los 25 años si estudia;
-para niños con discapacidad permanente la obligación es vitalicia; para el cónyuge se debe hasta que supere
-su condición de vulnerabilidad (ej. consiga trabajo); para los padres se debe hasta la muerte de cualquiera
-de las partes; y para otros beneficiarios (abuelos, donantes) aplicarían reglas puntuales.
-
-**Actualización (2026-08-20, rutina autónoma) — ya implementado lo que SÍ estaba confirmado, esta pregunta
-sigue abierta para el resto:** se construyó la entidad `Beneficiario` (nombre, fecha de nacimiento, tipo,
-si estudia, si la discapacidad es permanente, relación con el demandante) y el árbol de decisión en el
-formulario de captura de Civil/Familia. Las 2 reglas que el propio reporte del usuario ya afirmaba como
-hecho conocido (no como pregunta) quedaron implementadas y con cálculo automático de vigencia: niño sin
-discapacidad (18/25 años según si estudia) y niño con discapacidad permanente (vitalicio). Para cónyuge,
-padres, otro, y niño con discapacidad NO marcada como permanente, el software declara explícitamente la
-vigencia como "no determinable automáticamente — requiere evaluación caso a caso" (nunca calcula una fecha
-de fin, nunca aplica el límite de edad de 18/25 años) — exactamente porque el criterio operacional de esos
-casos es lo que esta pregunta sigue sin responder. Ver Sprint 74 en `Pendientes.md` para el detalle técnico
-completo (`app/services/vigencia_alimentos.py`).
-
-**Pregunta:** ¿pueden confirmar la lista completa de reglas de vigencia por tipo de beneficiario descritas
-arriba, y las que falten (ej. ¿cómo se determina y se prueba en el proceso que un cónyuge "superó su
-condición de vulnerabilidad"? ¿hay un tope de edad distinto si el niño sin discapacidad no estudia pero
-tampoco puede sostenerse por otra razón?)? ¿Existen otras categorías de beneficiario además de las
-mencionadas (niño, niño con discapacidad, cónyuge, padres, otros) que el software deba contemplar?
-
-**Qué necesito exactamente:** confirmación de las reglas de vigencia por tipo de beneficiario, con la norma
-que respalda cada una, para poder construir el árbol de decisión que el usuario pidió en el formulario de
-captura del caso.
-
-**Respuesta del despacho:**
-El motor no puede presumir el fin de la vulnerabilidad para cónyuges, padres o donantes, pues depende de hechos externos como el matrimonio, un empleo, la muerte, etc.
-
-Qué puede hacerse?
-Implementar el siguiente árbol de decisión en la clase AlimentosVigencia:
-
-if tipo == 'HIJO' and estudia == False: Vigencia hasta los 18 años.
-
-if tipo == 'HIJO' and estudia == True: Vigencia hasta los 25 años.
-
-if tipo == 'HIJO' and discapacidad_permanente == True: Vigencia Vitalicia.
-
-if tipo in ['CONYUGE', 'PADRES', 'DONANTES', 'OTROS']: El software debe arrojar Vigencia = No determinable automáticamente (Porque requiere una fecha de exoneración dictada por la autoridad). El usuario debe proveer la fecha de corte obligatoriamente.
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?
