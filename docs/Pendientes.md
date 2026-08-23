@@ -285,7 +285,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--completado-bug-de-dominio-confirmado-corrección-diferida-al-sprint-104)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
-- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🟠 Reabierto](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--reabierto)
+- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) ⚠️ Parcial](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--reabierto)
 
 ---
 
@@ -7441,7 +7441,7 @@ indefinido). Suite completa (`tests` menos `tests/views`): 857 passed en 41s. Si
 
 ---
 
-## Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🟠 Reabierto
+## Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) ⚠️ Parcial
 
 **Prioridad sugerida:** Media/Alta — es un bug de dominio confirmado con cifras exactas, no una hipótesis;
 afecta a cualquier obligación Civil/Familia con Suma Única activa (`interes_sobre_capital_indexado=True`)
@@ -7503,6 +7503,28 @@ un caso real resuelto para validar la reescritura del motor.
 - Si el comportamiento actual se confirma correcto: se documenta la razón jurídica en el docstring de
   `_evento_indexacion_ipc` y se cierra sin cambios de código.
 - Suite completa en verde.
+
+**Cierre parcial (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 102") confirmando que el patrón X9 (reindexar tramo por
+tramo) es el criterio correcto — "la indexación global restando abonos al final es un error matemático y
+jurídico que genera enriquecimiento sin causa" — y aportó el algoritmo completo, incluida la imputación
+Art. 1653 C.C. (cada abono paga primero los intereses del tramo, el remanente reduce capital). Implementado
+como función aislada en `app/engine/indexation/suma_unica_con_abonos.py`
+(`liquidar_obligacion_con_abonos_tramo_por_tramo`), traducción fiel del pseudocódigo del despacho a Decimal,
+reutilizando `get_ipc_interpolado_for_date` (Sprint 8) y `CalendarUtils.dias_comerciales_360` (Sprint 30,
+sustituyendo una función `calcular_dias_comerciales_reales` que el despacho referenció sin definir — ver
+docstring del módulo para la justificación). 8 tests en
+`tests/engine/indexation/test_suma_unica_con_abonos.py`.
+
+**Deliberadamente sin cablear** a `AreaStrategy`/`_evento_indexacion_ipc` todavía: hacerlo exige que
+`_eventos_de_obligacion` conozca las fechas de los abonos al generar los eventos de causación (hoy no lo
+hace — es un cambio de arquitectura del pipeline de liquidación, no una corrección mecánica, tal como ya
+anticipaba este mismo sprint antes de la respuesta), y el algoritmo del despacho integra intereses junto con
+la indexación, lo que se solapa con la pregunta todavía sin resolver del Sprint 76/83 sobre qué fórmula de
+interés aplica junto con la indexación en Suma Única (que hoy no está conectada a ningún área real). El test
+original `test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9` (Sprint 102) sigue documentando
+la brecha del motor actual sin cambios — no se tocó el comportamiento en producción. Suite completa en verde
+(1597 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 
