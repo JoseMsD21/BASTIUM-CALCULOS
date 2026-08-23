@@ -175,7 +175,16 @@ def test_pago_por_rango_dialog_sin_parametro_ipc_no_crashea(qtbot, monkeypatch):
     deuda_pendiente_cuota). Si no esta cargado, _calcular_preview no debe
     propagar la excepcion (crashearia el slot conectado a textChanged) --
     debe mostrarla en etiqueta_remanente, mismo criterio de fallo abierto
-    que dashboard.py::_refrescar_alertas_vencimiento."""
+    que dashboard.py::_refrescar_alertas_vencimiento.
+
+    fecha_origen es anterior a 2003 a proposito (Sprint 8, respuesta del
+    despacho 22/08/2026): desde que get_ipc_mensual_for_month estima los
+    meses posteriores al ultimo certificado en vez de lanzar
+    IPCMensualNoDisponibleError, una fecha_causacion/fecha_corte "de hoy" ya
+    no dispara el fallback a la interpolacion anual (que es el que de verdad
+    necesita IPC_INDICE_ACUMULADO) -- solo una fecha anterior a 2003 (hueco
+    historico real, sin estimacion posible) sigue disparandolo de forma
+    determinista."""
     _sesion_en_memoria(monkeypatch)
     session = session_module.get_session()
     expediente = Expediente(
@@ -183,7 +192,7 @@ def test_pago_por_rango_dialog_sin_parametro_ipc_no_crashea(qtbot, monkeypatch):
         demandante="Ana",
         demandado="Luis",
         area_derecho=AreaDerecho.CIVIL_FAMILIA,
-        fecha_corte_default=date(2024, 4, 1),
+        fecha_corte_default=date(1999, 4, 1),
     )
     session.add(expediente)
     session.flush()
@@ -192,8 +201,8 @@ def test_pago_por_rango_dialog_sin_parametro_ipc_no_crashea(qtbot, monkeypatch):
         tipo=TipoObligacion.RECURRENTE,
         concepto="CUOTA ALIMENTARIA",
         categoria="CHILD_SUPPORT",
-        fecha_origen=date(2024, 1, 1),
-        fecha_inicio=date(2024, 1, 1),
+        fecha_origen=date(1999, 1, 1),
+        fecha_inicio=date(1999, 1, 1),
         dia_pago=1,
         valor=Decimal("150000.00"),
         tasa_efectiva_anual=Decimal("0.00"),
@@ -204,7 +213,7 @@ def test_pago_por_rango_dialog_sin_parametro_ipc_no_crashea(qtbot, monkeypatch):
     session.commit()
     session.close()
 
-    cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 3, 1))
+    cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(1999, 3, 1))
 
     dialogo = PagoPorRangoDialog(cuotas=cuotas, area="CIVIL_FAMILIA", parent=None)
     qtbot.addWidget(dialogo)
