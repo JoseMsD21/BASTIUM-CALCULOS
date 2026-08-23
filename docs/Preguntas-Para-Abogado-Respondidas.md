@@ -1242,6 +1242,59 @@ reemplaza o es un concepto distinto. No se implementó código nuevo. Pregunta d
 
 ---
 
+## Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)
+
+**Contexto:** el software no tiene hoy ningún cálculo de horas extra ni recargos, y antes de construirlo
+necesito los porcentajes vigentes. La reciente Ley 2466 de 2025 modificó progresivamente (2025-2027) tanto
+el horario que se considera "nocturno" como el porcentaje del recargo dominical/festivo, así que no basta
+con un solo porcentaje fijo — hace falta saber qué aplica según la fecha del hecho, igual que ya se hace con
+otras tasas legales del sistema (ej. tasa de usura).
+
+**Pregunta:** ¿pueden confirmar la tabla completa de transición de la Ley 2466/2025 — fechas de corte,
+horario nocturno vigente en cada tramo, y porcentaje del recargo dominical/festivo en cada tramo hasta
+2027 — y los porcentajes de horas extra (diurna/nocturna, ordinaria/festiva) que siguen vigentes sin cambio?
+
+**Qué necesito exactamente:** una tabla de fecha de corte → porcentaje/horario aplicable, para cada uno de
+los 7 conceptos de la plantilla L3 (horas extra diurnas/nocturnas ordinarias, recargo nocturno, horas extra
+diurnas/nocturnas festivas, recargo festivo diurno/nocturno).
+
+**Estado del software (2026-08-21):** ya se implementó, aislada y probada, la parte que NO depende de esta
+respuesta: la fórmula aritmética de "hora extra" (`app/engine/labor/horas_extra.py:calcular_hora_extra`) y
+de "recargo" (`calcular_recargo`), sin ningún porcentaje del CST ni tabla de vigencia hardcodeada. No está
+cableada a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía: eso queda condicionado a la
+tabla de transición de la Ley 2466/2025 que pide esta pregunta.
+
+**Respuesta del despacho:**
+La reforma laboral establece recargos progresivos para festivos, pero vigencia inmediata para el horario nocturno.
+
+Qué puede hacerse?
+
+Jornada Nocturna: Si fecha_hecho >= "2025-12-25", el horario nocturno (recargo 35%) inicia a las 19:00 (7:00 PM). Antes de esa fecha, el nocturno empieza a las 21:00.
+
+Dominicales/Festivos:
+
+< "2025-07-01": 75%
+
+>= "2025-07-01" y < "2026-07-01": 80%
+
+>= "2026-07-01" y < "2027-07-01": 90%
+
+>= "2027-07-01": 100%
+
+Hard Caps Suplementarios:
+if horas_extras_diarias > 2 or horas_extras_semanales > 12: raise Exception("Supera límite legal de la Ley 2466 de 2025").
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** implementado en `app/engine/labor/horas_extra.py` para 3
+de los 7 conceptos: `hora_inicio_jornada_nocturna` (vigencia inmediata desde 25/12/2025), la constante
+`PORCENTAJE_RECARGO_NOCTURNO` (35%, sin cambio), `porcentaje_recargo_dominical_festivo` (tabla progresiva
+75%/80%/90%/100%) y `validar_limite_horas_extra_ley_2466` (topes 2h/día, 12h/semana). Los 4 conceptos
+"Horas Extras..." (HED/HEN/HEFD/HEFN) siguen sin porcentaje confirmado — pregunta de seguimiento en
+`Preguntas-Para-Abogado-Abiertas.md`, "Sprint 95 (seguimiento)". Ver `Pendientes.md`, Sprint 95.
+
+---
+
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
 
 **Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el

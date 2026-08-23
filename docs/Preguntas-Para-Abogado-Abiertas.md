@@ -88,7 +88,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
 - [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
 - [Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8](#sprint-94-seguimiento--aporte-a-salud-en-contrato-realidad-y-si-el-decreto-03202026-reemplaza-la-regla-de-bonificación-por-servicio-de-la-plantilla-l8)
-- [Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)](#sprint-95--laboral-tabla-de-transición-de-la-ley-2466-de-2025-horario-nocturno-y-recargo-dominicalfestivo)
+- [Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025](#sprint-95-seguimiento--porcentajes-de-los-4-conceptos-horas-extras-hed-hen-hefd-hefn-tras-la-ley-24662025)
 - [Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?](#sprint-96--laboral-hay-diferencia-de-fórmula-no-solo-de-captura-para-trabajo-doméstico-tras-la-ley-17882016)
 - [Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?](#sprint-97--nueva-área-de-derecho-o-submodo-de-civilfamilia-para-indemnización-de-perjuicios)
 - [Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)](#sprint-98--tabla-completa-de-mortalidad-de-rentistas-resolución-1555-de-2010-superfinanciera)
@@ -489,50 +489,28 @@ si el Decreto 0320/2026 sustituye la regla de bonificación de L8 o es un concep
 
 ---
 
-## Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)
+## Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025
 
-**Contexto:** el software no tiene hoy ningún cálculo de horas extra ni recargos, y antes de construirlo
-necesito los porcentajes vigentes. La reciente Ley 2466 de 2025 modificó progresivamente (2025-2027) tanto
-el horario que se considera "nocturno" como el porcentaje del recargo dominical/festivo, así que no basta
-con un solo porcentaje fijo — hace falta saber qué aplica según la fecha del hecho, igual que ya se hace con
-otras tasas legales del sistema (ej. tasa de usura).
+**Contexto:** la primera ronda de esta pregunta (ver `Preguntas-Para-Abogado-Respondidas.md`, "Sprint 95")
+obtuvo respuesta el 22/08/2026, confirmando la vigencia de 3 de los 7 conceptos de la plantilla L3: horario
+de inicio de la jornada nocturna (`hora_inicio_jornada_nocturna`), porcentaje del recargo nocturno (35%,
+constante) y la tabla progresiva del recargo dominical/festivo (`porcentaje_recargo_dominical_festivo`),
+todos implementados en `app/engine/labor/horas_extra.py`. La respuesta NO restableció los porcentajes de los
+otros 4 conceptos — "Horas Extras Ordinarias Diurnas", "Horas Extras Ordinarias Nocturnas", "Horas Extras
+Festivas Diurnas", "Horas Extras Festivas Nocturnas" (HED/HEN/HEFD/HEFN) — que combinan hora extra con
+festivo/nocturno, y no es evidente si estos se calculan aplicando directamente los porcentajes tradicionales
+del CST (25%/75%/100%/150%) sin cambio, o si también están sujetos a alguna transición de la Ley 2466/2025
+(en particular HEFD/HEFN, que incorporan el recargo festivo que SÍ cambia progresivamente).
 
-**Pregunta:** ¿pueden confirmar la tabla completa de transición de la Ley 2466/2025 — fechas de corte,
-horario nocturno vigente en cada tramo, y porcentaje del recargo dominical/festivo en cada tramo hasta
-2027 — y los porcentajes de horas extra (diurna/nocturna, ordinaria/festiva) que siguen vigentes sin cambio?
+**Pregunta:** ¿cuáles son los porcentajes vigentes (y su vigencia por fecha, si aplica) de los 4 conceptos
+"Horas Extras..." de la plantilla L3 — diurna/nocturna, ordinaria/festiva? En particular, ¿las horas extra
+festivas (HEFD/HEFN) incorporan la misma tabla progresiva del recargo dominical/festivo (75%→80%→90%→100%),
+o tienen su propio porcentaje fijo?
 
-**Qué necesito exactamente:** una tabla de fecha de corte → porcentaje/horario aplicable, para cada uno de
-los 7 conceptos de la plantilla L3 (horas extra diurnas/nocturnas ordinarias, recargo nocturno, horas extra
-diurnas/nocturnas festivas, recargo festivo diurno/nocturno).
+**Qué necesito exactamente:** el porcentaje (o tabla de vigencia) de cada uno de los 4 conceptos.
 
-**Estado del software (2026-08-21):** ya se implementó, aislada y probada, la parte que NO depende de esta
-respuesta: la fórmula aritmética de "hora extra" (`app/engine/labor/horas_extra.py:calcular_hora_extra`) y
-de "recargo" (`calcular_recargo`), sin ningún porcentaje del CST ni tabla de vigencia hardcodeada. No está
-cableada a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía: eso queda condicionado a la
-tabla de transición de la Ley 2466/2025 que pide esta pregunta.
+**Fecha:** 23/08/2026 (reformulación tras respuesta parcial del 22/08/2026)
 
-**Respuesta del despacho:**
-La reforma laboral establece recargos progresivos para festivos, pero vigencia inmediata para el horario nocturno.
-
-Qué puede hacerse?
-
-Jornada Nocturna: Si fecha_hecho >= "2025-12-25", el horario nocturno (recargo 35%) inicia a las 19:00 (7:00 PM). Antes de esa fecha, el nocturno empieza a las 21:00.
-
-Dominicales/Festivos:
-
-< "2025-07-01": 75%
-
->= "2025-07-01" y < "2026-07-01": 80%
-
->= "2026-07-01" y < "2027-07-01": 90%
-
->= "2027-07-01": 100%
-
-Hard Caps Suplementarios: 
-if horas_extras_diarias > 2 or horas_extras_semanales > 12: raise Exception("Supera límite legal de la Ley 2466 de 2025").
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?

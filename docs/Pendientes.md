@@ -276,7 +276,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
-- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🟠 Reabierto](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
+- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🟠 Reabierto](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🟠 Reabierto](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🟠 Reabierto](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
@@ -7042,7 +7042,7 @@ salud, y la discrepancia Decreto 0320/2026 vs. L8) en `Preguntas-Para-Abogado-Ab
 
 ---
 
-## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🟠 Reabierto
+## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial
 
 **Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — la única pieza
 implementable sin la respuesta del despacho (`calcular_hora_extra`/`calcular_recargo`) ya está hecha y
@@ -7098,6 +7098,25 @@ la Ley 2466/2025, y **sin cablear** a `parametro_service`, formulario Laboral ni
 sigue condicionado a la tabla de transición que debe confirmar el despacho, ya registrada en
 `Preguntas-Para-Abogado-Abiertas.md` (Sprint 95). Por eso el sprint queda 📋 Pendiente, no Completado. Suite
 completa: 1450 passed. Rama: `sprint-95-horas-extra-recargos`.
+
+**Cierre parcial (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 95") con la tabla de transición para 3 de los 7 conceptos de
+L3. Implementado en `app/engine/labor/horas_extra.py`:
+- **Jornada nocturna**: `hora_inicio_jornada_nocturna(fecha_hecho)` — 21:00 antes del 25/12/2025, 19:00 desde
+  esa fecha (vigencia inmediata por una sola fecha de corte, no progresiva). El porcentaje del recargo
+  nocturno se confirmó constante: `PORCENTAJE_RECARGO_NOCTURNO = 35`.
+- **Recargo dominical/festivo**: `porcentaje_recargo_dominical_festivo(fecha_hecho)` — tabla progresiva
+  75% (< 01/07/2025) → 80% → 90% → 100% (desde 01/07/2027).
+- **Topes nuevos de la Ley 2466/2025**: `validar_limite_horas_extra_ley_2466` — máximo 2 horas extra
+  diarias / 12 semanales, lanza `LimiteHorasExtraLey2466Error` si se supera.
+
+**Sigue sin confirmar**: los porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN,
+combinados extra+festivo) — la respuesta del despacho no los restableció explícitamente, solo confirmó los 3
+conceptos "Recargo...". No se hardcodearon por precaución (ver docstring de `calcular_hora_extra`). Sigue sin
+cablearse ningún concepto a `parametro_service`, formulario Laboral ni `LaboralStrategy` — falta el resto del
+catálogo para hacerlo de forma completa. 14 tests nuevos en `tests/engine/labor/test_horas_extra.py`. Pregunta
+de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 95 (seguimiento)". Suite completa en verde
+(1563 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 
