@@ -1089,3 +1089,32 @@ Las dos reglas adicionales de esta respuesta (imputación proporcional Art. 804 
 demanda contenciosa) NO se implementaron — van más allá de la pregunta original, y requieren datos que el
 modelo de `Obligacion` no captura. Ver pregunta de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`,
 "Sprint 84 (seguimiento)", y `Pendientes.md`, Sprint 84.
+
+---
+
+## Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional
+
+**Contexto:** las plantillas comerciales (P10, P12, P13, P14) usan una fórmula de reserva actuarial
+(Decreto 1296/2022) actualizada con la DTF Pensional (Decreto 1299/1994). El desarrollo no pudo extraer con
+certeza los factores F1/F2/F3 ni la serie histórica de DTF Pensional de la exportación a texto de esas
+plantillas.
+
+**Pregunta:** ¿puede el despacho aportar la definición exacta de los factores, la tabla histórica de DTF
+Pensional, o los archivos Excel originales sin convertir?
+
+**Respuesta del despacho:**
+El Decreto 1296 de 2022 actualizó los componentes matemáticos obligatorios para liquidar la reserva actuarial.
+
+Qué lógica puede seguirse?
+El motor debe programar la ecuación exacta del decreto: VRA = [FAC1 × PR + FAC2 × AR] × FAC3; VR = VRA / (1 - 0.005). PR: Pensión de Referencia. AR: Auxilio Funerario (si PR < 5 SMMLV: AR = 5 SMMLV; si 5 <= PR <= 10 SMMLV: AR = PR). FAC1 y FAC2: valores extraídos de la Tabla 2 (ej. a los 55 años, Hombres FAC1=258.712212, FAC2=0.369543). FAC3: factor de capitalización (nota del despacho: "el PDF oficial presenta corrupción de caracteres en su impresión... la parametrización debe utilizar el estándar actuarial derivado: FAC3 = ((1.03^t) - 1) / ((1.03^(t1+n)) - 1) o la variación técnica corregida"). Interpolación Salario Medio Nacional (SMN): fórmula de interpolación lineal estándar.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** respuesta parcial — da la estructura de la fórmula y un
+único punto de ejemplo de la Tabla 2 (FAC1/FAC2 a los 55 años, hombres), pero sigue sin la tabla completa
+(todas las edades y ambos sexos), sin la serie DTF Pensional, y sin el SMN. El propio despacho admite
+incertidumbre sobre la fórmula exacta de FAC3 (dos variantes posibles, por corrupción de caracteres en el
+PDF oficial). No se implementó ningún código: construir el motor con solo un punto de la tabla y una
+fórmula que el despacho mismo no confirma arriesgaría calcular mal un bono pensional real. Pregunta de
+seguimiento acotada (los 4 datos que faltan) en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 86/87
+(seguimiento)". Ver `Pendientes.md`, Sprints 86 y 87.
