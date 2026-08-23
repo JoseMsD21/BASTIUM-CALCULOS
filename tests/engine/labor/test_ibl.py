@@ -351,7 +351,24 @@ def test_densidad_semanas_caso_real_sentencia_sl138_2024():
 
     resultado = calcular_densidad_semanas([(inicio, fin)])
 
-    assert resultado == 50  # 348/7 = 49.71 -> redondea a 50 (segun la sentencia)
+    # (fin-inicio).days = 348, +1 inclusivo = 349 -> 349/7 = 49.86 -> redondea a 50
+    # (mismo resultado que sin el +1, este caso puntual no distingue entre ambos).
+    assert resultado == 50
+
+
+def test_densidad_semanas_conteo_inclusivo_mas_uno():
+    # Sprint 78 (respuesta del despacho, 22/08/2026): "se deben restar las fechas,
+    # sumar 1 (inclusivo) y dividir exactamente por 7". Caso que distingue las dos
+    # reglas: (fin-inicio).days = 3 -> sin el +1, 3/7 = 0.43 redondea a 0; con el
+    # +1 inclusivo, 4/7 = 0.57 redondea a 1.
+    from app.engine.labor.ibl import calcular_densidad_semanas
+
+    inicio = date(2024, 1, 1)
+    fin = date(2024, 1, 4)
+
+    resultado = calcular_densidad_semanas([(inicio, fin)])
+
+    assert resultado == 1
 
 
 def test_densidad_semanas_periodos_solapados_no_se_cuentan_doble():
@@ -364,7 +381,9 @@ def test_densidad_semanas_periodos_solapados_no_se_cuentan_doble():
 
     resultado = calcular_densidad_semanas(periodos)
 
-    assert resultado == 6  # union (2023-01-01, 2023-02-15) = 45 dias -> 45/7 = 6.43 -> 6, no 9
+    # union (2023-01-01, 2023-02-15): (fin-inicio).days = 45, +1 inclusivo (respuesta del
+    # despacho, Sprint 78, 22/08/2026) = 46 dias -> 46/7 = 6.57 -> 7, no 9
+    assert resultado == 7
 
 
 def test_densidad_semanas_lista_vacia_retorna_cero():

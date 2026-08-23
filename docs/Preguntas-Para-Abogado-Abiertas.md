@@ -83,7 +83,6 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 18 (seguimiento 3) — Discrepancia numérica entre la tabla granular verificada (PSAA16-10554) y las "tarifas duras" que aportó el despacho](#sprint-18-seguimiento-3--discrepancia-numérica-entre-la-tabla-granular-verificada-psaa16-10554-y-las-tarifas-duras-que-aportó-el-despacho)
 - [Sprint 70/91 (seguimiento) — Fechas exactas de vigencia por régimen, invalidez Grado 1, y "régimen de transición"](#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición)
 - [Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?](#sprint-76--fórmula-de-tasa-del-art-16172232-cc-lineal-diaria-efectiva-compuesta-diaria-o-mensual-con-prorrateo-de-30-días)
-- [Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?](#sprint-78--conteo-de-días-para-densidad-pensional-semanas-cotizadas-aplica-el-1-inclusivo)
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
 - [Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?](#sprint-82--el-despacho-litiga-contra-entidades-públicas-condenas-administrativas-con-intereses-a-la-tasa-dtf)
 - [Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?](#sprint-84--interés-moratorio-tributario-et-art-635-366-días-lineal-convención-dian-o-365-compuesto-fórmula-actual-de-bastium)
@@ -340,42 +339,6 @@ no previsto" para el detalle completo de por qué se detuvo, y qué necesita con
 que se pueda programar (el mapeo exacto de "crédito ordinario simple" vs. "liquidación de perjuicios" a
 los datos que ya captura BASTIUM, y si aplica con o sin recálculo retroactivo de liquidaciones existentes).
 
----
-
-## Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?
-
-**Contexto:** el software cuenta días trabajados con la fórmula `Dias = (Fecha_Fin - Fecha_Inicio) + 1`
-(conteo inclusivo, el primer día cuenta) para prestaciones sociales y en general, según ya confirmaron
-ustedes en la respuesta del Sprint 3. Pero el módulo que calcula las semanas cotizadas para pensión (para
-saber si alguien cumple las 1.300 semanas mínimas) usa una resta simple de fechas, sin el "+1". Este cálculo
-ya está verificado contra un caso de prueba real citado en la documentación de la fórmula pensional (348 días
-→ 50 semanas, no 349) — es decir, no parece un error, pero tampoco está confirmado explícitamente si la regla
-general del "+1" también debería aplicar aquí o si el cálculo de semanas es, a propósito, la excepción.
-
-**Pregunta:** para contar los días que se convierten en "semanas cotizadas" de pensión, ¿debe sumarse 1 día
-al resultado de la resta de fechas (igual que para prestaciones), o el conteo sin ese "+1" es el correcto
-para este cálculo específico?
-
-**Qué necesito exactamente:** un sí/no sobre si aplica el "+1" a este cálculo puntual, y si la respuesta es
-"depende", una aclaración de cuándo sí y cuándo no.
-
-**Respuesta del despacho:**
-En materia de pensiones, la Corte Suprema de Justicia en la sentencia SL138-2024 prohibió el uso del año comercial de 360 días para el cómputo de las semanas de pensión.
-
-Qué puede hacerse?
-
-Para prestaciones sociales como primas y cesantías: Resta inclusiva ((Fin - Inicio) + 1) sobre base de 360 días anuales.
-
-Para semanas pensionales: No se usa el factor de año, sino que se suman los días calendario reales con resta inclusiva y se divide estrictamente entre 7. Semanas_Reales = sumatoria_dias_calendario_totales / 7
-
-CONCRETAMENTE:
-# Para semanas pensionales, está PROHIBIDO el uso de año comercial de 360 días.
-# Se deben restar las fechas, sumar 1 (inclusivo) y dividir exactamente por 7.
-dias_calendario_reales = (Fecha_Fin - Fecha_Inicio).days + 1
-Semanas_Cotizadas = dias_calendario_reales / 7.0
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?
