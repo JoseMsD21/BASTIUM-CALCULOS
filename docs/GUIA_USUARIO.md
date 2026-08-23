@@ -5,7 +5,10 @@
 > [9. Preguntas frecuentes y solución de problemas](#9-preguntas-frecuentes-y-solución-de-problemas)
 > antes que nada.
 >
-> **Última actualización:** 2026-08-20 — nueva sección 5.4.2: en Civil/Familia, un recuadro opcional
+> **Última actualización:** 2026-08-23 — sección 5.4.2: para un beneficiario Cónyuge/Padres/Otro (o Niño con
+> discapacidad no permanente) en una obligación Recurrente, la fecha de corte/exoneración ahora es
+> **obligatoria** — el despacho confirmó que esa fecha la fija la autoridad, no el programa (Sprint 74).
+> Antes, 2026-08-20 — nueva sección 5.4.2: en Civil/Familia, un recuadro opcional
 > "Beneficiario de la obligación" (nombre, fecha de nacimiento, y tipo — niño, niño con discapacidad,
 > cónyuge, padres u otro) que calcula automáticamente si la obligación sigue vigente (niño sin discapacidad
 > hasta 18/25 años según si estudia; niño con discapacidad permanente, vitalicio); para cónyuge/padres/otro
@@ -457,15 +460,19 @@ lo usas.
 - **Niño con discapacidad, marcada como permanente:** la obligación es vitalicia (nunca se corta por edad).
 - **Cónyuge, Padres, Otro, o Niño con discapacidad SIN marcar como permanente:** el programa **no** calcula
   ninguna fecha de fin automática — "Vigencia calculada" te lo dice explícitamente ("no determinable
-  automáticamente, requiere evaluación caso a caso"), y la obligación sigue generando cuotas con normalidad
-  (nunca se le aplica el límite de edad de un niño). Esto es intencional: el criterio exacto para estos
-  casos (ej. cómo se prueba que un cónyuge "superó su condición de vulnerabilidad") todavía no está
-  confirmado con el despacho — ver `docs/Preguntas-Para-Abogado-Abiertas.md`, sección Sprint 74. Cuando esa
-  respuesta llegue, esta sección se actualizará con la regla exacta.
+  automáticamente, requiere evaluación caso a caso"). El despacho confirmó (22/08/2026) que en estos casos
+  la fecha de corte la debe fijar la autoridad, no el programa: para una obligación **Recurrente**, el
+  recuadro muestra dos campos adicionales, **"La autoridad ya fijó la fecha de corte/exoneración"** (casilla)
+  y **"Fecha de corte/exoneración"** — son **obligatorios** en este caso: si no marcas la casilla y eliges
+  una fecha, "Guardar" rechaza el formulario con un aviso. Con la fecha proporcionada, la obligación deja de
+  generar cuotas nuevas a partir de ahí, igual que el límite de edad de un niño. (Para una obligación
+  **Puntual** no aplica: no genera cuotas periódicas que topar.)
 
-Si editas una obligación que ya tiene un beneficiario guardado, el recuadro aparece precargado y marcado.
-Si desmarcas la casilla y guardas, el beneficiario capturado se elimina (no queda un dato viejo dando vueltas
-sin que lo veas en el formulario).
+Si editas una obligación que ya tiene un beneficiario guardado, el recuadro aparece precargado y marcado
+(incluida la fecha de corte, si la habías proporcionado). Si desmarcas la casilla y guardas, el beneficiario
+capturado se elimina (no queda un dato viejo dando vueltas sin que lo veas en el formulario). Si cambias el
+tipo de beneficiario de uno que requería fecha de corte a uno que no (ej. de Cónyuge a Niño), la casilla de
+fecha de corte se desmarca sola — no debe seguir aplicando en silencio a un tipo distinto.
 
 ### 5.5. Agregar un abono (registrar un pago)
 
