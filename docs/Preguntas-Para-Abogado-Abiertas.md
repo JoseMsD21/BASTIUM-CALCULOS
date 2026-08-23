@@ -372,6 +372,17 @@ Gran_Total_Liquidacion = Capital_Indexado + Interes_Mora + Costas_Aprobadas
 
 **Fecha:**
 22/08/2026
+
+**Bloqueado, pendiente del USUARIO (no del despacho) — 2026-08-23:** esta respuesta ya resuelve la pregunta
+legal, pero implementarla exige tocar el modelo central de deuda (`PendingDebt`, 3 componentes hoy:
+principal/interés/indexación) para agregar costas como un 4° componente que nunca genera interés — y la
+respuesta no dice en qué posición de la prelación de pago (imputación) entra costas frente a
+indexación/intereses/capital, una decisión que ninguna respuesta anterior (tampoco el Sprint 18) cubrió.
+Además, la propia fórmula de síntesis sugiere que el alcance real es más amplio que "solo bajo Suma
+Única" (el código de hoy ya genera interés sobre costas incluso SIN Suma Única, porque están mezcladas con
+`principal`). Ver `Pendientes.md`, Sprint 79, sección "Bloqueo no previsto" para el detalle completo y lo
+que necesita confirmar el usuario.
+
 ---
 
 ## Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?
