@@ -1006,3 +1006,46 @@ Para semanas pensionales: No se usa el factor de año, sino que se suman los dí
 solapados sí cambió de resultado (6 → 7 semanas), documentado en el test correspondiente. Función aislada,
 sigue sin conectar a ningún flujo real de liquidación (mismo estado que antes de este sprint). Ver
 `Pendientes.md`, Sprint 78.
+
+---
+
+## Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?
+
+**Contexto:** una plantilla del despacho (`i10.INTERESES-TASADOS-A-LA-DTF-CONDENAS-ADMINISTRATIVAS.md`)
+liquida intereses de mora en condenas o conciliaciones contra el Estado, a una tasa equivalente a la DTF
+durante los primeros 10 meses después de la ejecutoria (Art. 195 núm. 4 Ley 1437/2011), y luego a la tasa
+comercial. Ninguna de las 6 áreas actuales de BASTIUM contempla explícitamente litigios contra entidades
+públicas.
+
+**Pregunta:** ¿el despacho maneja casos de este tipo? Si es así, ¿en cuál de las áreas actuales de BASTIUM
+encajarían, o se necesitaría un área/flujo nuevo?
+
+**Respuesta del despacho:**
+El Artículo 195 del CPACA instauró un régimen dual (DTF transitoria seguida de tasa comercial).
+
+Qué puede hacerse?
+El cálculo es iterativo día a día:
+
+limite_gracia_dias = 304  # Promedio 10 meses reales
+for dia in rango(1, dias_transcurridos + 1):
+    if dia <= limite_gracia_dias:
+        # Tramo A (DTF)
+        tasa_diaria = (1 + DTF_EA_histórica) ** (1/365) - 1
+    else:
+        # Tramo B (Comercial)
+        tasa_diaria = (1 + (1.5 * IBC_EA_histórica)) ** (1/365) - 1
+
+Como consejo que puede ponerse en la interfaz, debe invitarse a validar si transcurren 3 meses inactivos sin cobro tras la ejecutoria, en ese caso el contador de intereses se congela por suspensión total de devengo.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** la respuesta trae la fórmula completa, pero no contesta
+la pregunta original (si el despacho tiene estos casos y en qué área deberían vivir). Se implementó la
+fórmula como función aislada y probada
+(`calcular_interes_dtf_condena_administrativa`, `app/engine/interest/condena_administrativa_dtf.py`) —
+régimen dual DTF/1,5x IBC, interés simple diario — sin conectarla a ninguna `AreaStrategy`, porque esa
+decisión de arquitectura (a qué área asignarla, o si hace falta una nueva) sigue sin resolver. El "consejo"
+de congelar el conteo tras 3 meses de inactividad no se implementó: es una sugerencia de interfaz, no una
+regla obligatoria, y necesitaría un dato (fecha del último cobro/actuación) que el modelo actual no
+captura. Pregunta de seguimiento (solo la asignación de área) en `Preguntas-Para-Abogado-Abiertas.md`. Ver
+`Pendientes.md`, Sprint 82.
