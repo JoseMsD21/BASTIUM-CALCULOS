@@ -91,7 +91,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025](#sprint-95-seguimiento--porcentajes-de-los-4-conceptos-horas-extras-hed-hen-hefd-hefn-tras-la-ley-24662025)
 - [Sprint 96 (seguimiento) — auxilio de transporte pactado por día en trabajo doméstico](#sprint-96-seguimiento--auxilio-de-transporte-pactado-por-día-en-trabajo-doméstico)
 - [Sprint 97 (seguimiento) — decisión de arquitectura pendiente: ¿séptima área de derecho o submodo de Civil/Familia?, ¿cuáles variantes usa el despacho?, y tabla de mortalidad completa (hombres/mujeres inválidos)](#sprint-97-seguimiento--decisión-de-arquitectura-pendiente-séptima-área-de-derecho-o-submodo-de-civilfamilia-cuáles-variantes-usa-el-despacho-y-tabla-de-mortalidad-completa-hombresmujeres-inválidos)
-- [Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)](#sprint-102--ejemplo-numérico-resuelto-de-indexación-con-abonos-x9)
+- [Sprint 104 (seguimiento) — cablear la liquidación tramo por tramo a AreaStrategy, y aclarar su relación con la tasa de interés de Suma Única (Sprint 76/83)](#sprint-104-seguimiento--cablear-la-liquidación-tramo-por-tramo-a-areastrategy-y-aclarar-su-relación-con-la-tasa-de-interés-de-suma-única-sprint-7683)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -574,107 +574,32 @@ llegó bajo la pregunta del Sprint 97 en la misma ronda (22/08/2026) — ver
 (seguimiento)" arriba, que cubre exactamente lo que sigue faltando (tabla `hombres_invalidos` completa y
 `mujeres_invalidas`, ausente por completo).
 
-## Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)
+## Sprint 104 (seguimiento) — cablear la liquidación tramo por tramo a AreaStrategy, y aclarar su relación con la tasa de interés de Suma Única (Sprint 76/83)
 
-**Contexto (actualizado 2026-08-20, rutina autónoma):** la plantilla `X9.INDEXACION-CON-ABONOS.md`
-documenta un algoritmo de indexar un capital único, aplicar abonos parciales sucesivos, y reindexar el saldo
-restante tras cada abono. El Sprint 102 verificó con un caso sintético (`test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9`,
-`tests/services/test_area_strategy.py`) que el motor actual de BASTIUM **NO** reproduce este patrón — ver
-Sprint 104 en `Pendientes.md` para el detalle técnico completo y la cifra exacta de la brecha ($29.084,08 de
-diferencia en un caso de $1.000.000 con 2 abonos). Ya no se necesita el ejemplo del despacho para *confirmar*
-si hay discrepancia (ya está probada con IPC real); sigue haciendo falta para decidir **cuál** de los dos
-comportamientos es el correcto y, si es el de X9, confirmar la mecánica exacta con cifras reales del
-despacho antes de reescribir el motor.
+**Contexto:** la primera ronda de esta pregunta (registrada bajo "Sprint 102", ver
+`Preguntas-Para-Abogado-Respondidas.md`) confirmó que la reindexación tramo por tramo (patrón X9) es el
+criterio correcto, con imputación Art. 1653 C.C., y aportó el algoritmo completo. Ya se implementó como
+función aislada y probada (`app/engine/indexation/suma_unica_con_abonos.py`), pero **no se cableó** a
+`AreaStrategy`/`LaboralStrategy` todavía por dos razones:
 
-**Pregunta:** confirmado que hoy BASTIUM indexa una sola vez (todo el delta hasta la fecha de corte final,
-aplicado desde el día de origen) en vez de reindexar el saldo después de cada abono como describe X9 — ¿cuál
-de los dos es el criterio correcto para liquidar una obligación con Suma Única y abonos parciales? Si es el
-de X9 (reindexar en cada abono), ¿el despacho tiene un caso real (o puede construir uno) con capital inicial,
-2-3 abonos en fechas distintas e IPC de cada fecha, ya resuelto en su Excel, para validar la reescritura del
-motor antes de darla por buena?
+1. **Cambio de arquitectura**: `_eventos_de_obligacion` necesita conocer las fechas de los abonos al generar
+   los eventos de causación, algo que hoy no hace (los abonos solo llegan después, al motor de liquidación
+   consolidado) — es un cambio real del pipeline, no una corrección mecánica.
+2. **Solapamiento con el Sprint 76/83**: el algoritmo del despacho integra el cálculo de intereses junto con
+   la indexación (usando una tasa mensual, `tasa_interes_mensual_pura`), pero Suma Única
+   (`interes_sobre_capital_indexado`) todavía no está conectada a ningún área real, y la fórmula de interés
+   exacta que le corresponde sigue sin confirmar (ver Sprint 76/83).
 
-**Qué necesito exactamente:** confirmación de cuál mecánica aplica (indexación única a la fecha de corte
-final, o reindexación progresiva en cada abono) y, si es la segunda, capital inicial + fecha, cada abono con
-su fecha y monto, los IPC usados en cada corte, y el resultado final esperado — igual que se hizo con el
-caso real usado para validar el Sprint 76.
+**Pregunta:** (a) ¿la tasa `tasa_interes_mensual_pura` de este algoritmo es la misma tasa que debe resolver
+el Sprint 76/83 para Suma Única, o son conceptos distintos? (b) ¿confirma que el cableado a producción puede
+esperar a que esas dos piezas (arquitectura del pipeline, tasa de interés) estén resueltas, o hay urgencia de
+un caso real pendiente que dependa de esto ahora mismo?
 
-**Respuesta del despacho:**
-La indexación global restando abonos al final es un error matemático y jurídico que genera enriquecimiento sin causa y expone al cliente a daños y al abogado a sanciones. El Artículo 1653 del Código Civil obliga a imputar el pago primero a intereses y luego a capital. Por lo tanto, debe liquidarse tramo por tramo.
+**Qué necesito exactamente:** confirmación de si la tasa de este algoritmo y la del Sprint 76/83 son la
+misma pieza, y si hay urgencia real de cablear esto a producción antes de resolver ambos puntos.
 
-Cómo podría hacerse?
+**Fecha:** 23/08/2026 (seguimiento tras respuesta del 22/08/2026)
 
-
-def liquidar_obligacion_con_abonos(capital_historico_inicial, fecha_origen, ipc_series, abonos, fecha_liquidacion_final, tasa_interes_mensual_pura=0.0048676):
-    """
-    abonos: Lista de objetos o diccionarios con { 'fecha': datetime.date, 'monto': float } ordenados por fecha ascendente.
-    ipc_series: Diccionario o función que retorna el índice IPC dado un mes y año.
-    """
-    capital_base = capital_historico_inicial
-    fecha_corte_anterior = fecha_origen
-    intereses_acumulados_pendientes = 0.0
-    total_intereses_pagados = 0.0
-    total_capital_amortizado = 0.0
-    
-    # BUCLE DE TRAMOS (CASCADA)
-    for abono in abonos:
-        # 1. Indexar el capital desde el corte anterior hasta el mes del abono
-        ipc_anterior = ipc_series.obtener_indice(fecha_corte_anterior)
-        ipc_abono = ipc_series.obtener_indice(abono.fecha)
-        
-        coeficiente_indexacion = ipc_abono / ipc_anterior
-        capital_indexado = capital_base * coeficiente_indexacion
-        
-        # 2. Calcular los intereses moratorios generados SOLO en este tramo
-        # Convertimos los días a meses comerciales (mes de 30 días, año de 360)
-        dias_tramo = calcular_dias_comerciales_reales(fecha_corte_anterior, abono.fecha)
-        meses_tramo = dias_tramo / 30.0
-        
-        intereses_del_tramo = capital_indexado * (((1.0 + tasa_interes_mensual_pura) ** meses_tramo) - 1.0)
-        total_intereses_adeudados_a_la_fecha = intereses_acumulados_pendientes + intereses_del_tramo
-        
-        # 3. Imputación legal del abono (Art. 1653 Código Civil)
-        if abono.monto >= total_intereses_adeudados_a_la_fecha:
-            # El abono cubre todos los intereses adeudados y sobra dinero para reducir el capital
-            remanente_para_capital = abono.monto - total_intereses_adeudados_a_la_fecha
-            
-            total_intereses_pagados += total_intereses_adeudados_a_la_fecha
-            total_capital_amortizado += remanente_para_capital
-            
-            intereses_acumulados_pendientes = 0.0
-            # El capital se reduce, creando la nueva base histórica para el siguiente tramo
-            capital_base = capital_indexado - remanente_para_capital
-        else:
-            # El abono NO alcanza a cubrir los intereses. El capital indexado queda intacto.
-            total_intereses_pagados += abono.monto
-            intereses_acumulados_pendientes = total_intereses_adeudados_a_la_fecha - abono.monto
-            
-            capital_base = capital_indexado
-            
-        # 4. Actualizar la fecha pivote para el siguiente ciclo
-        fecha_corte_anterior = abono.fecha
-
-    # 5. TRAMO FINAL: Desde el último abono hasta la fecha de liquidación final exigida por el juez
-    ipc_ultimo_corte = ipc_series.obtener_indice(fecha_corte_anterior)
-    ipc_final = ipc_series.obtener_indice(fecha_liquidacion_final)
-    
-    capital_indexado_final = capital_base * (ipc_final / ipc_ultimo_corte)
-    
-    dias_tramo_final = calcular_dias_comerciales_reales(fecha_corte_anterior, fecha_liquidacion_final)
-    meses_tramo_final = dias_tramo_final / 30.0
-    
-    intereses_tramo_final = capital_indexado_final * (((1.0 + tasa_interes_mensual_pura) ** meses_tramo_final) - 1.0)
-    
-    intereses_totales_al_cierre = intereses_acumulados_pendientes + intereses_tramo_final
-    gran_total_adeudado = capital_indexado_final + intereses_totales_al_cierre
-    
-    return {
-        "capital_insoluto_indexado": capital_indexado_final,
-        "intereses_pendientes_cobro": intereses_totales_al_cierre,
-        "gran_total_adeudado": gran_total_adeudado
-    }
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Plantilla para sprints futuros
