@@ -3545,6 +3545,82 @@ class TestLaboralStrategy:
         indemnizacion_esperada = (salario_diario * Decimal("20")).quantize(Decimal("0.01"))
         assert indemnizacion_esperada == Decimal("6000000.00")
 
+    def test_salario_diario_convierte_a_mensual_y_liquida_prestaciones_sobre_ese_valor(self):
+        # Sprint 96 (respuesta del despacho, 22/08/2026): "no existe
+        # diferencia algebraica en las formulas" -- se reutiliza
+        # LaborScheduler sobre la base convertida. 100.000/dia x 7 dias/semana
+        # equivale exactamente a 3.000.000,00/mes (mismo caso ya verificado en
+        # test_liquida_sin_mora_si_se_pago_el_mismo_dia_de_terminacion:
+        # 3000000 * 2.62 = 7860000.00).
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),  # distinto, para detectar si no se sobreescribe
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("100000.00")
+        obligacion.dias_laborados_semana = 7
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert obligacion.valor == Decimal("3000000.00")
+        assert resultado.final_balance().principal == Decimal("7860000.00")
+
+    def test_seguridad_social_domestico_usa_ibc_minimo_1_smmlv_no_el_salario_proporcional(self):
+        # Sprint 96 (respuesta del despacho, 22/08/2026):
+        # IBC_Seguridad_Social = max(Salario_Proporcional, 1_SMMLV) -- solo
+        # para la base de cotizacion, NO para las prestaciones sociales
+        # (cesantias/prima/vacaciones), que siguen usando el salario
+        # proporcional real, sin piso.
+        from app.engine.labor.salario_domestico import salario_diario_a_mensual
+        from app.engine.labor.seguridad_social import SeguridadSocialCalculator
+        from app.engine.temporal.schedulers.labor import LaborScheduler
+
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("50000.00")
+        obligacion.dias_laborados_semana = 3
+        obligacion.incluir_seguridad_social = True
+        obligacion.nivel_riesgo_arl = "I"
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        salario_proporcional = salario_diario_a_mensual(Decimal("50000.00"), Decimal("3"))
+        assert salario_proporcional == Decimal("642857.14")
+        smlmv_2020 = Decimal("877803.00")
+        assert salario_proporcional < smlmv_2020  # confirma que el piso SI aplica aqui
+
+        # Prestaciones sobre el salario proporcional REAL (sin piso).
+        eventos_prestaciones = LaborScheduler(
+            salario_base=salario_proporcional,
+            dias_trabajados=360,
+            fecha_liquidacion=obligacion.fecha_fin,
+        ).generate()
+        monto_prestaciones = sum(
+            (e.payload["amount"] for e in eventos_prestaciones), Decimal("0.00")
+        )
+
+        # Cotizaciones sobre el IBC con piso de 1 SMMLV (877803.00, no
+        # 642857.14).
+        cotizaciones = SeguridadSocialCalculator.calcular(
+            salario_base=smlmv_2020,
+            dias_trabajados=365,
+            dias_suspension=0,
+            nivel_riesgo_arl="I",
+            fecha_referencia=obligacion.fecha_fin,
+        )
+        monto_cotizaciones = (
+            cotizaciones.monto_pension + cotizaciones.monto_salud + cotizaciones.monto_arl
+        )
+
+        assert resultado.final_balance().principal == monto_prestaciones + monto_cotizaciones
+
 
 def _obligacion_tributaria(
     expediente_id=1,

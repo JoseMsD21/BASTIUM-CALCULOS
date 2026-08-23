@@ -2,7 +2,10 @@ from decimal import Decimal
 
 import pytest
 
-from app.engine.labor.salario_domestico import salario_diario_a_mensual
+from app.engine.labor.salario_domestico import (
+    calcular_ibc_seguridad_social_domestico,
+    salario_diario_a_mensual,
+)
 
 
 def test_jornada_parcial_tres_dias_por_semana():
@@ -40,3 +43,38 @@ def test_dias_fuera_de_rango_lanza_error(dias):
 def test_salario_diario_negativo_lanza_error():
     with pytest.raises(ValueError):
         salario_diario_a_mensual(Decimal("-1"), Decimal("3"))
+
+
+class TestCalcularIbcSeguridadSocialDomestico:
+    """Sprint 96 (respuesta del despacho, 22/08/2026):
+    IBC_Seguridad_Social = max(Salario_Proporcional, 1_SMMLV)."""
+
+    def test_salario_proporcional_por_debajo_del_smmlv_usa_el_smmlv(self):
+        resultado = calcular_ibc_seguridad_social_domestico(
+            salario_proporcional=Decimal("642857.14"), smmlv_mensual=Decimal("1300000.00")
+        )
+        assert resultado == Decimal("1300000.00")
+
+    def test_salario_proporcional_por_encima_del_smmlv_usa_el_salario(self):
+        resultado = calcular_ibc_seguridad_social_domestico(
+            salario_proporcional=Decimal("1500000.00"), smmlv_mensual=Decimal("1300000.00")
+        )
+        assert resultado == Decimal("1500000.00")
+
+    def test_salario_proporcional_igual_al_smmlv_usa_ese_valor(self):
+        resultado = calcular_ibc_seguridad_social_domestico(
+            salario_proporcional=Decimal("1300000.00"), smmlv_mensual=Decimal("1300000.00")
+        )
+        assert resultado == Decimal("1300000.00")
+
+    def test_salario_proporcional_negativo_lanza_error(self):
+        with pytest.raises(ValueError):
+            calcular_ibc_seguridad_social_domestico(
+                salario_proporcional=Decimal("-1"), smmlv_mensual=Decimal("1300000.00")
+            )
+
+    def test_smmlv_cero_o_negativo_lanza_error(self):
+        with pytest.raises(ValueError):
+            calcular_ibc_seguridad_social_domestico(
+                salario_proporcional=Decimal("1000000.00"), smmlv_mensual=Decimal("0")
+            )
