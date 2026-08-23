@@ -87,7 +87,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?](#sprint-82-seguimiento--en-qué-área-de-bastium-vive-el-calculador-de-condenas-administrativas-dtf)
 - [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
 - [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
-- [Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio](#sprint-94--laboral-base-de-aportes-a-saludpensión-reclamables-en-contrato-realidad-y-regla-de-la-bonificación-por-servicio)
+- [Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8](#sprint-94-seguimiento--aporte-a-salud-en-contrato-realidad-y-si-el-decreto-03202026-reemplaza-la-regla-de-bonificación-por-servicio-de-la-plantilla-l8)
 - [Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)](#sprint-95--laboral-tabla-de-transición-de-la-ley-2466-de-2025-horario-nocturno-y-recargo-dominicalfestivo)
 - [Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?](#sprint-96--laboral-hay-diferencia-de-fórmula-no-solo-de-captura-para-trabajo-doméstico-tras-la-ley-17882016)
 - [Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?](#sprint-97--nueva-área-de-derecho-o-submodo-de-civilfamilia-para-indemnización-de-perjuicios)
@@ -459,45 +459,34 @@ Nacional? Alternativamente, ¿pueden aportar los archivos Excel originales de P1
 **Fecha:**
 ---
 
-## Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio
+## Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8
 
-**Contexto:** en las plantillas de "contrato realidad" (privado y sector público), el aporte a salud/pensión
-reclamable se calcula con porcentajes (8.5%/12% en la privada, 8%/12% en la pública) distintos de los que ya
-usa el software para seguridad social laboral general (16% pensión + 12.5% salud, que corresponde al aporte
-total empleador+trabajador, confirmado con el despacho en el Sprint 16). Además, la plantilla del sector
-público trae una regla de la bonificación por servicio ("corresponde al 35%, pero hasta 2 smmlv, escriba
-50%") sin explicar de dónde sale ni sobre qué base se aplica.
+**Contexto:** la primera ronda de esta pregunta (ver `Preguntas-Para-Abogado-Respondidas.md`, "Sprint 94")
+obtuvo respuesta el 22/08/2026, pero deja dos puntos sin resolver:
 
-**Pregunta:** (1) en un reclamo de contrato realidad, ¿los aportes a salud/pensión que se reclaman son el
-total (empleador + trabajador, igual que el Sprint 16) o solo la porción a cargo del empleador (8.5%/8% y
-12%)? (2) ¿cuál es la regla completa de la bonificación por servicio del sector público (base de cálculo,
-por qué cambia de 35% a 50% con el tope de 2 SMMLV, y la norma que la respalda)?
+1. **Aporte a salud**: la respuesta solo habla de pensión ("el empleador sancionado debe cubrir el 100% del
+   cálculo actuarial de pensión"), sin mencionar salud en absoluto. Además, esa respuesta revela que el
+   aporte a pensión de contrato realidad no es un simple porcentaje sobre una base, sino un **cálculo
+   actuarial** — que depende de los mismos datos que siguen bloqueando el Sprint 86/87 (factores
+   FAC1/FAC2/FAC3 completos por edad/sexo, y la serie DTF Pensional). No es una pregunta nueva, es el mismo
+   bloqueo de fondo del Sprint 86/87.
+2. **Bonificación por servicio**: la respuesta trae una regla del "Decreto 0320 de 2026" para "servidores
+   territoriales" (53%/38% desde 2026, 54%/39% desde 2027, tope $2.968.262 sobre Asignación Básica + Gastos
+   de Representación) que no coincide en nada — ni porcentajes, ni base, ni condición del tope — con la
+   regla que citaba textualmente la plantilla L8 del despacho (35%/50%, tope 2 SMMLV). ¿El Decreto
+   0320/2026 reemplaza/actualiza la regla que traía L8, o son dos bonificaciones distintas y la pregunta
+   original sigue sin responder?
 
-**Qué necesito exactamente:** confirmación del porcentaje/base de aportes aplicable, y la regla completa
-(con norma) de la bonificación por servicio.
+**Pregunta:** (a) ¿qué porcentaje(s) de aporte a salud son reclamables en un contrato realidad (total o solo
+la porción del empleador)? (b) ¿el Decreto 0320/2026 es la norma que reemplaza la regla 35%/50% de la
+plantilla L8, o es una bonificación distinta? Si reemplaza la regla de L8, ¿aplica también al contrato
+realidad del sector privado (L7) o es exclusiva de "servidores territoriales"?
 
-**Estado del software (2026-08-21):** ya se implementaron, aisladas y probadas, las dos piezas que NO
-dependen de esta respuesta: `calcular_aporte_contrato_realidad` (base × porcentaje) y
-`calcular_bonificacion_por_servicio_escalonada` (porcentaje condicionado a un tope), ambas en
-`app/engine/labor/contrato_realidad.py`, sin ningún porcentaje ni condición hardcodeada. No están cableadas
-a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía, ni existe el motor de consolidado
-multi-año de contrato realidad: eso queda condicionado a esta respuesta.
+**Qué necesito exactamente:** el porcentaje de aporte a salud reclamable, y una confirmación explícita de
+si el Decreto 0320/2026 sustituye la regla de bonificación de L8 o es un concepto aparte.
 
-**Respuesta del despacho:**
-En un contrato realidad, el empleador sancionado debe cubrir el 100% del cálculo actuarial de pensión. No puede descontar el 4% retrospectivo del trabajador.
+**Fecha:** 23/08/2026 (reformulación tras respuesta no concluyente del 22/08/2026)
 
-Cómo puede aplicarse la bonificación del Decreto 0320 de 2026:
-
-Para liquidaciones de servidores territoriales, a partir del 1° de enero de 2026:
-
-Si Asignación_Básica + Gastos_Representación <= 2,968,262: Bonificación = 53%.
-
-Si supera dicho tope: Bonificación = 38%.
-
-Control de Vigencia: A partir de 2027, las tasas cambian a 54% y 39% respectivamente.
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 95 — Laboral: tabla de transición de la Ley 2466 de 2025 (horario nocturno y recargo dominical/festivo)
