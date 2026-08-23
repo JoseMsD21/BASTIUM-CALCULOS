@@ -199,6 +199,9 @@ def get_ipc_for_date(fecha: date) -> Decimal:
         ) from error
 
 
+_FECHA_LIMITE_VACIO_ABSOLUTO_IPC = date(1954, 8, 1)
+
+
 def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
     """Retorna el indice IPC interpolado linealmente para una fecha cualquiera,
     usando los dos indices de cierre de año (31-dic) que la rodean -- la formula
@@ -208,7 +211,18 @@ def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
     disponible en la serie, retorna el indice de ese ultimo año como
     aproximacion (ver Sprint 8 design doc, decision 3) en vez de lanzar
     ValueError -- de lo contrario ninguna liquidacion con fecha_corte actual
-    podria activar indexacion."""
+    podria activar indexacion.
+
+    Limite de vacio absoluto (Sprint 8, respuesta del despacho 22/08/2026):
+    antes de que existiera estadistica nacional de IPC, no hay -- ni puede
+    haber -- ningun indice que consultar. Para `fecha` anterior al 01/08/1954
+    (fecha exacta indicada por el despacho) se retorna 1.000000 en vez de
+    lanzar ValueError. Esto NO llena el hueco real que sigue existiendo entre
+    esa fecha y 1967 (primer año de `_IPC_VARIACION_ANUAL`) -- para ese tramo
+    intermedio se sigue lanzando ValueError, tal como antes."""
+    if fecha < _FECHA_LIMITE_VACIO_ABSOLUTO_IPC:
+        return Decimal("1.000000")
+
     anio_max = ultimo_anio_disponible("IPC_INDICE_ACUMULADO")
 
     if fecha.year > anio_max:
@@ -252,20 +266,33 @@ def get_ipc_interpolado_for_date(fecha: date) -> Decimal:
 # seguimiento sobre si esta base unica es aceptable, agregada a
 # docs/Preguntas-Para-Abogado-Abiertas.md (Sprint 80).
 #
-# Fuera de ese rango (antes de 2003-01, o abril-2026 en adelante mientras el
-# DANE no certifique mas meses) get_ipc_mensual_for_month/
-# get_ipc_interpolado_mensual_for_date SIGUEN lanzando IPCMensualNoDisponibleError
-# a proposito -- no se aproxima con la serie anual ni con el ultimo mes
-# disponible sin autorizacion explicita del despacho (mismo criterio que la
-# UVT antes del Sprint 14, o las costas sin el Acuerdo real en el Sprint 4).
-# Esa es una decision ya tomada para este sprint, no reabierta -- ver la
-# pregunta de seguimiento en docs/Preguntas-Para-Abogado-Abiertas.md (Sprint 80)
-# para cuando el despacho quiera autorizar un fallback distinto.
+# Sprint 8 (respuesta del despacho 22/08/2026, "Sprint 8 (seguimiento 2)" en
+# docs/Preguntas-Para-Abogado-Abiertas.md): el despacho aporto la formula de
+# "Estimacion Futura" para meses que el DANE todavia no certifica (media
+# geometrica de la variacion mensual de los ultimos 12 meses conocidos, ver
+# _tasa_mensual_estimada_ipc) y un "limite de vacio absoluto" para fechas
+# anteriores al 01/08/1954 (ver get_ipc_interpolado_for_date). Con eso,
+# get_ipc_mensual_for_month/get_ipc_interpolado_mensual_for_date YA NO lanzan
+# IPCMensualNoDisponibleError para meses posteriores al ultimo certificado
+# (marzo-2026 a la fecha de esta carga) -- se estiman en su lugar. Solo siguen
+# lanzando la excepcion para fechas ANTERIORES al primer mes cargado
+# (2003-01): ese es un hueco historico real, no un mes "futuro" del que se
+# pueda extrapolar una tasa. La sugerencia del despacho de reparametrizar a la
+# base Diciembre-2008=100 no se aplico: `_IPC_MENSUAL` ya es la serie unica
+# que el DANE enlazo (ver parrafo anterior), y como IPCIndexation.calculate
+# solo usa la razon final_index/initial_index, cualquier base consistente dentro
+# del rango cargado da exactamente el mismo resultado -- no hay nada que
+# cambiar ahi. Los valores mensuales reales anteriores a 2003 que el despacho
+# da por existentes en su fuente siguen sin estar disponibles para esta
+# rutina (no viven en docs/datos_publicos_fuente/ ni en ningun archivo
+# commiteado) -- bloqueo de infraestructura, documentado en Sprint 8 de
+# Pendientes.md, no una decision pendiente.
 #
-# CivilFamiliaStrategy._evento_indexacion (area_strategy.py) ya usa esta tabla
-# via get_ipc_interpolado_mensual_for_date para fechas dentro del rango
-# cubierto, con fallback documentado a get_ipc_interpolado_for_date (anual)
-# solo para las fechas fuera de rango -- ver docstring de ese metodo.
+# CivilFamiliaStrategy._evento_indexacion (area_strategy.py) usa esta tabla via
+# get_ipc_interpolado_mensual_for_date para toda fecha desde 2003-01 en
+# adelante (real o estimada), con fallback documentado a
+# get_ipc_interpolado_for_date (anual) solo para fechas anteriores a 2003 --
+# ver docstring de ese metodo.
 # ---------------------------------------------------------------------------
 
 _IPC_MENSUAL: dict[tuple[int, int], Decimal] = {
@@ -551,12 +578,67 @@ _IPC_MENSUAL: dict[tuple[int, int], Decimal] = {
 }
 
 
+def _ultimo_mes_certificado_ipc() -> tuple[int, int]:
+    return max(_IPC_MENSUAL)
+
+
+def _meses_entre(desde: tuple[int, int], hasta: tuple[int, int]) -> int:
+    anio_desde, mes_desde = desde
+    anio_hasta, mes_hasta = hasta
+    return (anio_hasta - anio_desde) * 12 + (mes_hasta - mes_desde)
+
+
+def _tasa_mensual_estimada_ipc() -> Decimal:
+    """Media geometrica de la variacion MENSUAL (no anual) de los ultimos 12
+    meses certificados, formula exacta exigida por el despacho (Sprint 8,
+    respuesta 22/08/2026, "Estimacion Futura") para proyectar un mes que el
+    DANE todavia no ha certificado:
+
+    VIPC_Estimada = [prod(1 + VIPC_m/100) para los ultimos 12 meses]^(1/12) - 1
+
+    donde cada VIPC_m es la variacion porcentual de un mes certificado contra
+    el mes certificado inmediatamente anterior (13 indices consecutivos dan
+    12 variaciones)."""
+    anio_ultimo, mes_ultimo = _ultimo_mes_certificado_ipc()
+    meses_recientes = []
+    anio, mes = anio_ultimo, mes_ultimo
+    for _ in range(13):
+        meses_recientes.append((anio, mes))
+        anio, mes = (anio - 1, 12) if mes == 1 else (anio, mes - 1)
+    meses_recientes.reverse()
+
+    producto = Decimal("1")
+    for mes_anterior, mes_actual in zip(meses_recientes, meses_recientes[1:], strict=False):
+        v_anterior = _IPC_MENSUAL[mes_anterior]
+        v_actual = _IPC_MENSUAL[mes_actual]
+        producto *= Decimal("1") + (v_actual - v_anterior) / v_anterior
+
+    return producto ** (Decimal("1") / Decimal("12")) - Decimal("1")
+
+
 def get_ipc_mensual_for_month(anio: int, mes: int) -> Decimal:
-    """Indice IPC mensual real (DANE) para `mes` de `anio`. Lanza
-    IPCMensualNoDisponibleError si ese mes no esta cargado en _IPC_MENSUAL."""
+    """Indice IPC mensual real (DANE) para `mes` de `anio`.
+
+    Si `(anio, mes)` es POSTERIOR al ultimo mes certificado en `_IPC_MENSUAL`,
+    se estima con la "Estimacion Futura" que exigio el despacho (Sprint 8,
+    respuesta 22/08/2026): se aplica la tasa mensual estimada
+    (`_tasa_mensual_estimada_ipc`) de forma compuesta, mes a mes, desde el
+    ultimo indice real conocido -- nunca se lanza error solo porque el DANE
+    todavia no certifico ese mes.
+
+    Si `(anio, mes)` es ANTERIOR al primer mes cargado (hueco historico, no
+    "mes futuro"), sigue lanzando IPCMensualNoDisponibleError -- no hay tasa
+    de la que extrapolar hacia atras."""
     try:
         return _IPC_MENSUAL[(anio, mes)]
     except KeyError as err:
+        ultimo_mes_certificado = _ultimo_mes_certificado_ipc()
+        if (anio, mes) > ultimo_mes_certificado:
+            meses_adelante = _meses_entre(ultimo_mes_certificado, (anio, mes))
+            valor_ultimo = _IPC_MENSUAL[ultimo_mes_certificado]
+            tasa_estimada = _tasa_mensual_estimada_ipc()
+            return valor_ultimo * (Decimal("1") + tasa_estimada) ** meses_adelante
+
         raise IPCMensualNoDisponibleError(
             f"No hay indice IPC mensual cargado para {anio}-{mes:02d}. La tabla mensual "
             "del DANE todavia no se ha cargado (Sprint 8, pendiente de que el despacho "

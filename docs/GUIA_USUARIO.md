@@ -1337,8 +1337,9 @@ distintas, con propósitos y momentos diferentes.
   [sección 5.3](#53-agregar-una-obligación-puntual-una-deuda-de-una-sola-vez). No viene marcada por
   defecto: el abogado decide caso por caso si la obligación debe indexarse, además de generar intereses.
 - **Dónde vive la lógica en el código**: `app/engine/indexation/ipc.py` (`IPCIndexation.calculate`) y
-  `app/engine/indexation/historical_index.py` (`get_ipc_interpolado_for_date`), invocados desde
-  `CivilFamiliaStrategy._evento_indexacion` en `app/services/area_strategy.py`.
+  `app/engine/indexation/historical_index.py` (`get_ipc_interpolado_mensual_for_date`, con fallback a
+  `get_ipc_interpolado_for_date`), invocados desde `CivilFamiliaStrategy._evento_indexacion` en
+  `app/services/area_strategy.py`.
 - **Cómo se calcula**: `Va = Vh × (IPC_final / IPC_inicial)`. Para una obligación **Puntual**, se indexa
   una sola vez desde la fecha de origen hasta la fecha de corte del expediente. Para una obligación
   **Recurrente** (cuotas mensuales), cada cuota se indexa individualmente desde su propia fecha de
@@ -1348,11 +1349,15 @@ distintas, con propósitos y momentos diferentes.
   IPC acumulado era **100** (IPC_inicial), liquidada a una fecha de corte donde el IPC acumulado es
   **110** (IPC_final), queda indexada en `Va = 5.000.000 × (110 / 100) = $5.500.000` — el rubro de
   indexación que se suma a la liquidación es la diferencia, `$500.000`.
-- **Limitación conocida**: la fuente de datos (Sprint 5) solo trae el IPC de cierre de cada año, no mes a
-  mes como certifica el DANE en la vida real. Para una fecha intermedia dentro del año, el programa
-  interpola linealmente entre el índice de cierre del año anterior y el del año actual — es una
-  aproximación razonable, pero no es el valor mensual exacto que certificaría el DANE. Para fechas de
-  2026 en adelante (la serie no llega hasta ahí), se usa el índice de 2025 como aproximación.
+- **Fuente del IPC**: desde enero de 2003 en adelante, el programa usa el **índice IPC mensual real
+  certificado por el DANE**, con interpolación lineal por días cuando la fecha no cae justo en el cierre
+  de un mes — la fórmula exacta que exige el despacho para que el cálculo sea jurídicamente válido. Para
+  un mes que el DANE todavía no ha certificado (fechas recientes o futuras), el programa lo **estima**
+  con la media geométrica de la variación mensual de los últimos 12 meses conocidos, en vez de bloquear
+  la liquidación o usar un valor desactualizado. Solo para fechas **anteriores a enero de 2003** (sin
+  índice mensual disponible) el programa cae de vuelta a interpolar entre los índices de **cierre de
+  año** — una aproximación menos precisa, documentada como límite conocido. Para fechas anteriores al
+  1° de agosto de 1954 (antes de que existiera estadística nacional de IPC), el índice se fija en 1,00.
 - **Interés sobre capital ya indexado (algoritmo "Suma Única")**: desde el Sprint 20, marcando la casilla
   adicional **"Interés sobre capital ya indexado (algoritmo Suma Única / Ley 80 de 1993)"** junto a "Aplica
   indexación IPC", el interés del 6% (Art. 1617 C.C.) se calcula sobre el capital ya indexado (`Va`), no

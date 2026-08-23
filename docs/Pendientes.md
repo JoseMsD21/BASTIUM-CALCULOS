@@ -189,7 +189,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado](#sprint-5--carga-de-datos-históricos-ipc-smlmv-ibc-tasa-de-usura-uvt--completado)
 - [Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado](#sprint-6--calendario-de-días-hábiles-judiciales-y-términos-procesales--completado)
 - [Sprint 7 — Motor de prescripción y caducidad ✅ Completado](#sprint-7--motor-de-prescripción-y-caducidad--completado)
-- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟠 Reabierto](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--reabierto) — mecanismo mensual listo y probado; el despacho ya contestó (respuesta 2026-08-22)
+- [Sprint 8 — Conectar indexación IPC al área Civil/Familia ✅ Completado](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--completado) — límite de vacío absoluto y estimación futura implementados (respuesta del despacho 2026-08-22); pendiente de infraestructura la tabla real anterior a 2003
 - [Sprint 9 — Motor de auditoría / bitácora ✅ Completado](#sprint-9--motor-de-auditoría--bitácora--completado)
 - [Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado](#sprint-10--exportación-de-liquidación-a-pdfword--completado)
 - [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a) — ver corrección del Sprint 15 (11b)
@@ -816,7 +816,7 @@ o caducadas sin advertirlo ni excluirlas. Ese gap de integración (no de cálcul
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟠 Reabierto
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia ✅ Completado
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -937,6 +937,27 @@ la tabla viene en una sola base ya enlazada por el DANE, no en las dos bases sep
 que pidió el despacho en su respuesta anterior; y (b) no cubre fechas anteriores a 2003. Ver Sprint 80 para
 el plan de implementación completo, y la pregunta nueva "Sprint 80" en `Preguntas-Para-Abogado-Abiertas.md`
 para esos dos detalles.
+
+**Cierre (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, "Sprint 8 (seguimiento 2)")
+con las fórmulas exactas de "Límite de Vacío Absoluto" y "Estimación Futura" — ver
+`docs/Preguntas-Para-Abogado-Respondidas.md`, Sprint 8. Ambas ya implementadas y probadas en
+`app/engine/indexation/historical_index.py`: `get_ipc_interpolado_for_date` retorna `1.000000` para fechas
+anteriores al 01/08/1954 en vez de lanzar `ValueError`; `get_ipc_mensual_for_month` estima con media
+geométrica compuesta de la variación mensual de los últimos 12 meses conocidos cualquier mes posterior al
+último certificado en `_IPC_MENSUAL`, en vez de lanzar `IPCMensualNoDisponibleError`. Con esto,
+`CivilFamiliaStrategy._evento_indexacion` solo cae al *fallback* de interpolación anual para fechas
+anteriores a 2003-01 — el único hueco real que sigue sin índice mensual. La sugerencia del despacho de
+reparametrizar a la base Diciembre-2008=100 no requirió cambio de código: `_IPC_MENSUAL` ya es la serie
+única que el DANE enlazó, y la razón `final_index/initial_index` que usa `IPCIndexation.calculate` da el
+mismo resultado en cualquier base consistente. Tests nuevos en `tests/engine/test_historical_index.py`
+(estimación 1 y 2 meses adelante, interpolación con meses estimados, límite de vacío absoluto) — suite
+completa (excluyendo `tests/views/` y el test de `qtbot`, sin Qt/GUI disponible en este sandbox de la
+nube) en verde. `docs/specifications/03_motor_indexacion.md`, `README.md` y `docs/GUIA_USUARIO.md`
+actualizados (esta última corrigiendo además una descripción de la sección 7.7 que seguía documentando el
+comportamiento anual previo al Sprint 80). **Sigue sin resolver, documentado como bloqueo de
+infraestructura, no de decisión:** los valores mensuales reales anteriores a 2003 (base Dic-2008=100) que
+el despacho da por existentes en su fuente no están disponibles para esta rutina en ningún archivo
+commiteado — ver la pregunta de seguimiento 3 en `docs/Preguntas-Para-Abogado-Abiertas.md`.
 
 ---
 

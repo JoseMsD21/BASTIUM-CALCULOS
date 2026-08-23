@@ -17,6 +17,7 @@ from app.engine.indexation.historical_index import (
     get_tramos_ibc_usura_between,
     get_uvt_for_year,
 )
+from app.engine.time.calendar import CalendarUtils
 
 
 @pytest.fixture(autouse=True)
@@ -200,6 +201,25 @@ def test_ipc_interpolado_fecha_anterior_a_1967_lanza_value_error():
         get_ipc_interpolado_for_date(date(1966, 12, 31))
 
 
+def test_ipc_interpolado_antes_de_1954_08_01_retorna_indice_uno():
+    # Limite de vacio absoluto (Sprint 8, respuesta del despacho 22/08/2026):
+    # antes de que existiera estadistica nacional de IPC, el indice se fija en
+    # 1.000000 en vez de lanzar ValueError.
+    assert get_ipc_interpolado_for_date(date(1954, 7, 31)) == Decimal("1.000000")
+    assert get_ipc_interpolado_for_date(date(1900, 1, 1)) == Decimal("1.000000")
+
+
+def test_ipc_interpolado_en_1954_08_01_no_aplica_el_limite_de_vacio():
+    # El limite del despacho cubre solo el vacio ANTERIOR a 1954-08-01 -- esa
+    # fecha en adelante sigue el flujo normal, que para este año en particular
+    # todavia no tiene serie de variacion anual cargada (_IPC_VARIACION_ANUAL
+    # empieza en 1967) y por lo tanto sigue lanzando ValueError; el limite no
+    # inventa dato donde tampoco lo hay, solo resuelve el hueco anterior a la
+    # existencia misma del indice.
+    with pytest.raises(ValueError):
+        get_ipc_interpolado_for_date(date(1954, 8, 1))
+
+
 def test_ipc_interpolado_primer_anio_usa_ancla_implicita_de_100():
     # 1967 es el primer año de la serie; el año anterior (1966) no está en el
     # diccionario, así que v1 debe ser el ancla implícita 100 (misma convención
@@ -230,17 +250,66 @@ def _ipc_mensual_de_prueba(monkeypatch):
 
 
 def test_ipc_mensual_no_disponible_lanza_error_explicito():
-    # Sprint 80 pobló _IPC_MENSUAL con la serie real del DANE (2003-01 a
-    # 2026-03, ver docs/Archivos de referencia abogado/_markdown/Historico IPC.md),
-    # asi que ya no sirve un mes cualquiera dentro de ese rango para probar el
-    # error -- se usan las dos fronteras reales que la fuente NO cubre: antes
-    # de enero de 2003 (la tabla no llega tan atras) y despues de marzo de 2026
-    # (el archivo fuente trae abril-diciembre de 2026 en blanco, sin certificar
-    # todavia por el DANE -- nota "Actualizado el 9 de Abril de 2026").
+    # Antes de enero de 2003 la tabla (_IPC_MENSUAL) no tiene dato real ni forma
+    # de estimarlo (no es un mes "futuro", es un hueco historico) -- sigue
+    # lanzando IPCMensualNoDisponibleError. Los meses posteriores al ultimo
+    # certificado por el DANE ya NO lanzan: se estiman (Sprint 8, respuesta del
+    # despacho 22/08/2026 -- ver test_ipc_mensual_futuro_se_estima_con_media_geometrica).
     with pytest.raises(IPCMensualNoDisponibleError):
         get_ipc_mensual_for_month(2002, 12)
-    with pytest.raises(IPCMensualNoDisponibleError):
-        get_ipc_mensual_for_month(2026, 4)
+
+
+def test_ipc_mensual_futuro_se_estima_con_media_geometrica_de_ultimos_12_meses():
+    # Sprint 8 (respuesta del despacho 22/08/2026, "Sprint 8 (seguimiento 2)"):
+    # un mes que el DANE todavia no certifica no debe bloquear la liquidacion --
+    # se estima con la media geometrica de la variacion MENSUAL (no anual) de
+    # los ultimos 12 meses conocidos, formula exacta que exigio el despacho:
+    # VIPC_Estimada = [prod(1 + VIPC_m/100)^(1/12) - 1] * 100, aplicada de forma
+    # compuesta sobre el ultimo indice real conocido.
+    ultimo_anio, ultimo_mes = max(_IPC_MENSUAL)
+    ultimo_valor = _IPC_MENSUAL[(ultimo_anio, ultimo_mes)]
+
+    meses = sorted(_IPC_MENSUAL)[-13:]
+    producto = Decimal("1")
+    for anterior, actual in zip(meses, meses[1:], strict=False):
+        v_anterior = _IPC_MENSUAL[anterior]
+        v_actual = _IPC_MENSUAL[actual]
+        producto *= Decimal("1") + (v_actual - v_anterior) / v_anterior
+    tasa_esperada = producto ** (Decimal("1") / Decimal("12")) - Decimal("1")
+
+    siguiente_anio, siguiente_mes = (
+        (ultimo_anio, ultimo_mes + 1) if ultimo_mes < 12 else (ultimo_anio + 1, 1)
+    )
+    esperado_1_mes = ultimo_valor * (Decimal("1") + tasa_esperada)
+    assert get_ipc_mensual_for_month(siguiente_anio, siguiente_mes) == esperado_1_mes
+
+    # 2 meses adelante: la tasa se compone (no se suma linealmente).
+    anio_2, mes_2 = (
+        (siguiente_anio, siguiente_mes + 1)
+        if siguiente_mes < 12
+        else (siguiente_anio + 1, 1)
+    )
+    esperado_2_meses = ultimo_valor * (Decimal("1") + tasa_esperada) ** 2
+    assert get_ipc_mensual_for_month(anio_2, mes_2) == esperado_2_meses
+
+
+def test_ipc_interpolado_mensual_con_fecha_futura_usa_meses_estimados():
+    # Una fecha a mitad de un mes futuro (no certificado) debe interpolar entre
+    # dos meses estimados igual que lo hace entre dos meses reales.
+    ultimo_anio, ultimo_mes = max(_IPC_MENSUAL)
+    siguiente_anio, siguiente_mes = (
+        (ultimo_anio, ultimo_mes + 1) if ultimo_mes < 12 else (ultimo_anio + 1, 1)
+    )
+    fecha_mitad_mes = date(siguiente_anio, siguiente_mes, 15)
+
+    v_mes_anterior = get_ipc_mensual_for_month(ultimo_anio, ultimo_mes)
+    v_mes_actual = get_ipc_mensual_for_month(siguiente_anio, siguiente_mes)
+    ultimo_dia = CalendarUtils.safe_create_date(siguiente_anio, siguiente_mes, 31)
+    t1 = (fecha_mitad_mes - CalendarUtils.safe_create_date(ultimo_anio, ultimo_mes, 31)).days
+    t2 = (ultimo_dia - fecha_mitad_mes).days
+    esperado = (Decimal(t1) * v_mes_actual + Decimal(t2) * v_mes_anterior) / Decimal(t1 + t2)
+
+    assert get_ipc_interpolado_mensual_for_date(fecha_mitad_mes) == esperado
 
 
 def test_ipc_interpolado_mensual_en_cierre_de_mes_coincide_con_el_indice_del_mes(

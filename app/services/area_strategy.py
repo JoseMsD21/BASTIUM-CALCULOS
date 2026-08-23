@@ -563,10 +563,9 @@ class CivilFamiliaStrategy(AreaStrategy):
         generica, siempre que la tabla `_IPC_MENSUAL` (historical_index.py) cubra
         AMBAS fechas (causacion y corte).
 
-        Si CUALQUIERA de las dos fechas cae fuera del rango cargado (obligaciones con
-        `fecha_origen` anterior a enero de 2003, o una `fecha_corte` mas alla del
-        ultimo mes que el DANE haya certificado), `get_ipc_interpolado_mensual_for_date`
-        lanza `IPCMensualNoDisponibleError` -- en ese caso se hace *fallback* COMPLETO
+        Si CUALQUIERA de las dos fechas es ANTERIOR a enero de 2003 (primer mes
+        cargado en `_IPC_MENSUAL`), `get_ipc_interpolado_mensual_for_date` lanza
+        `IPCMensualNoDisponibleError` -- en ese caso se hace *fallback* COMPLETO
         a la interpolacion anual (`get_ipc_interpolado_for_date`) para AMBAS fechas,
         nunca solo para la que fallo: el indice mensual (base Diciembre-2018 = 100) y
         el indice anual acumulado (ancla implicita en 1966 = 100, ver
@@ -578,8 +577,12 @@ class CivilFamiliaStrategy(AreaStrategy):
         casos (todo lo posterior a 2003) sin dejar fuera silenciosamente los casos
         historicos anteriores -- que siguen recibiendo exactamente la misma
         interpolacion anual que usaban TODAS las obligaciones antes de este sprint.
-        Pregunta de seguimiento sobre si el despacho prefiere este fallback o exigir
-        bloqueo total fuera de rango: docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 80.
+
+        Una `fecha_corte` posterior al ultimo mes que el DANE haya certificado
+        YA NO cae en este fallback (Sprint 8, respuesta del despacho 22/08/2026):
+        `get_ipc_mensual_for_month` estima ese mes con la formula de "Estimacion
+        Futura" que exigio el despacho en vez de lanzar la excepcion -- ver
+        docstring de esa funcion en `historical_index.py`.
 
         `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay deflacion o si el
         capital es 0/negativo -- ver docstring de esa funcion."""
