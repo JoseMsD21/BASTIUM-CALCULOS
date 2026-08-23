@@ -267,8 +267,8 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
 - [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ⚠️ Parcial](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--parcial) — división lineal implementada (respuesta del despacho 2026-08-22); imputación proporcional y tope suspensivo quedan pendientes
 - [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
-- [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🟠 Reabierto](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--reabierto)
-- [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🟠 Reabierto](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--reabierto)
+- [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--bloqueado--pendiente-de-confirmación) — respuesta parcial del despacho (2026-08-22); falta la tabla actuarial completa, la serie DTF Pensional y resolver una ambigüedad que el propio despacho señaló en FAC3
+- [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--bloqueado--pendiente-de-confirmación) — misma respuesta parcial del Sprint 86, mismos datos faltantes
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🟠 Reabierto](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
@@ -6465,7 +6465,7 @@ UI (la propia plantilla lo marca como dudoso).
 
 ---
 
-## Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🟠 Reabierto
+## Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Media-Alta — funcionalidad jurídica completamente nueva y de alta complejidad actuarial; no hay código previo del que partir.
 **Depende de:** Nada del código actual; comparte maquinaria potencial con Sprint 87 (ver nota de reutilización cruzada abajo).
@@ -6493,9 +6493,23 @@ central; (b) confirmar si el despacho realmente litiga bonos pensionales tipo A 
 - Reserva actuarial reproducida contra un caso de prueba real aportado por el despacho.
 - Suite completa en verde.
 
+**Respuesta parcial del despacho (2026-08-22, ver `Preguntas-Para-Abogado-Respondidas.md`, Sprint 86/87) —
+sigue bloqueado, no es una decisión nueva no anticipada:** el despacho dio la estructura general de la
+fórmula (`VRA = FAC1×PR + FAC2×AR`, `VR = VRA / (1-0.005)`, la regla de Auxilio Funerario AR según PR) y
+un ejemplo puntual de la Tabla 2 (hombres, 55 años: FAC1=258.712212, FAC2=0.369543) — pero sigue faltando
+exactamente lo que pedía la pregunta original: (1) la tabla completa de FAC1/FAC2 por edad y sexo (solo se
+dio un punto), (2) la serie histórica de DTF Pensional mes a mes desde 1994, y (3) la tabla de Salario
+Medio Nacional para la interpolación. Además, el propio despacho señaló incertidumbre sobre FAC3 ("el PDF
+oficial presenta corrupción de caracteres en su impresión... la parametrización debe utilizar el estándar
+actuarial derivado... o la variación técnica corregida") — dos posibles fórmulas, sin que el despacho mismo
+resuelva cuál es la correcta. Implementar con solo un punto de la tabla y una fórmula que el propio
+despacho no está seguro de haber transcrito bien arriesgaría calcular mal un bono pensional real (dinero
+que reconoce el Estado). No se implementó código. Pregunta de seguimiento acotada (tabla completa, DTF
+Pensional, y cuál de las dos variantes de FAC3 es la correcta) en `Preguntas-Para-Abogado-Abiertas.md`.
+
 ---
 
-## Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🟠 Reabierto
+## Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Media — feature nueva, pero de menor complejidad que Sprint 86 porque reutiliza gran parte de su misma maquinaria (reserva actuarial + DTF
 Pensional) y del motor de IBL ya existente.
@@ -6528,6 +6542,10 @@ factores de reserva actuarial).
 **Definición de Hecho:**
 - Caso de prueba real aportado por el despacho.
 - Suite completa en verde.
+
+**Respuesta parcial del despacho (2026-08-22):** misma respuesta que el Sprint 86 (comparten fórmula de
+reserva actuarial) — sigue faltando la tabla completa de FAC1/FAC2, la serie DTF Pensional, y la
+ambigüedad de FAC3 sigue sin resolver. Ver el detalle completo en el Sprint 86. No se implementó código.
 
 ---
 

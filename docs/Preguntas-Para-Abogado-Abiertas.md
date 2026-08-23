@@ -86,7 +86,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
 - [Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?](#sprint-82-seguimiento--en-qué-área-de-bastium-vive-el-calculador-de-condenas-administrativas-dtf)
 - [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
-- [Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional](#sprint-8687--bono-pensional-y-cálculo-actuarial-de-cotizaciones-omisas-factores-de-reserva-y-tabla-dtf-pensional)
+- [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
 - [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
 - [Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?](#sprint-92--laboral-fecha-de-corte-real-entre-régimen-ley-501990-y-ley-7892002-para-la-indemnización-por-despido-fórmula-para-salario-10-smmlv-y-coexistencia-con-la-sanción-moratoria)
 - [Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?](#sprint-93--laboral-en-qué-procesos-se-usa-reajuste-por-ipc-vs-por-smmlv-para-salarios-dejados-de-percibir)
@@ -436,51 +436,30 @@ mismo, y si es así, los campos exactos que hacen falta capturar para implementa
 **Fecha:**
 ---
 
-## Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional
+## Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta
 
-**Contexto:** las plantillas comerciales de referencia (Ediciones Sistematizadas Equidad) para bono pensional (P12, P13, P14) y cálculo actuarial de
-cotizaciones omisas (P10) usan una fórmula de "Reserva Actuarial = (PR x F1 + AF x F2) x F3" basada en el Decreto 1296 de 2022, actualizada con la DTF
-Pensional (Decreto 1299 de 1994, Decreto 1887 de 1994). El desarrollo no pudo extraer con certeza, de la exportación a texto de esas plantillas, la
-definición exacta de los factores F1, F2, F3, ni la tabla histórica completa de tasas DTF Pensional mes a mes desde 1994.
+**Contexto:** la respuesta del despacho del 22/08/2026 (ver `Preguntas-Para-Abogado-Respondidas.md`, Sprint
+86/87) dio la estructura de la fórmula de reserva actuarial y la regla de Auxilio Funerario, pero no lo que
+realmente pedía la pregunta original:
 
-**Pregunta:** ¿puede el despacho aportar la definición exacta de los factores F1, F2 y F3 de la fórmula de reserva actuarial (Decreto 1296/2022), la
-definición de "AF", y la tabla histórica de DTF Pensional mensual desde enero de 1994? Alternativamente, ¿puede aportar los archivos Excel originales de
-estas plantillas (no la versión ya convertida a texto) para que el desarrollo los revise directamente?
+1. **FAC1/FAC2**: solo se dio UN punto de la Tabla 2 (hombres, 55 años: FAC1=258.712212, FAC2=0.369543) —
+   se necesita la tabla completa (todas las edades relevantes, ambos sexos).
+2. **DTF Pensional**: la serie histórica mensual desde enero de 1994 sigue sin llegar.
+3. **FAC3**: el propio despacho señaló que el PDF oficial tiene "corrupción de caracteres" en la fórmula, y
+   ofreció dos posibles lecturas ("el estándar actuarial derivado" o "la variación técnica corregida") sin
+   confirmar cuál es la correcta.
+4. **Salario Medio Nacional (SMN)**: se dio la fórmula de interpolación pero no la tabla de valores.
 
-**Qué necesito exactamente:** la fórmula completa con cada factor definido, o el archivo Excel original de P12/P13/P14/P10 sin convertir.
+**Pregunta:** ¿puede el despacho aportar (1) la tabla completa de FAC1/FAC2 por edad y sexo (Tabla 2), (2)
+la serie DTF Pensional mensual desde 1994, (3) la fórmula exacta de FAC3 sin la corrupción de caracteres
+del PDF (o confirmar cuál de las dos variantes propuestas es la correcta), y (4) la tabla de Salario Medio
+Nacional? Alternativamente, ¿pueden aportar los archivos Excel originales de P10/P12/P13/P14 sin convertir?
+
+**Qué necesito exactamente:** los 4 datos/tablas de arriba, o el archivo Excel original.
 
 **Respuesta del despacho:**
-El Decreto 1296 de 2022 actualizó los componentes matemáticos obligatorios para liquidar la reserva actuarial.
-
-Qué lógica puede seguirse?
-El motor debe programar la ecuación exacta del decreto: $$VRA = [FAC_1 \times PR + FAC_2 \times AR] \times FAC_3$$$$VR = \frac{VRA}{1 - 0.005}$$$ PR$: Pensión de Referencia.$AR$: Auxilio Funerario. (if PR < 5 SMMLV: AR = 5 SMMLV; if 5 <= PR <= 10 SMMLV: AR = PR).$FAC_1$ y $FAC_2$: Valores extraídos de la Tabla 2. (Ej: a los 55 años, Hombres FAC1=258.712212, FAC2=0.369543).$FAC_3$: Factor de capitalización. (Nota para el Dev: El PDF oficial presenta corrupción de caracteres en su impresión (ej. 1.0-3(1)). La parametrización debe utilizar el estándar actuarial derivado: FAC3 = ((1.03^t) - 1) / ((1.03^(t1+n)) - 1) o la variación técnica corregida para tiempo de convalidación).Interpolación Salario Medio Nacional (SMN): $V_0 = \frac{(d_2 \cdot V_1) + (d_1 \cdot V_2)}{d_1 + d_2}$.
-
-CONCRETAMENTE:
-# 1. Definición de Auxilio Funerario (AR) basado en Pensión de Referencia (PR)
-if PR < (5.0 * SMMLV):
-    AR = 5.0 * SMMLV
-elif PR >= (5.0 * SMMLV) and PR <= (10.0 * SMMLV):
-    AR = PR
-else:
-    AR = 10.0 * SMMLV
-
-# 2. Factor Actuarial 3 (Capitalización)
-# t = tiempo cotizado u omitido (años decimales)
-# n = tiempo faltante para pensión (años decimales)
-# t1 = suma de tiempos previos
-numerador = (1.03 ** t) - 1.0
-denominador = (1.03 ** (t1 + n)) - 1.0
-FAC3 = numerador / denominador
-
-# 3. Liquidación Total de la Reserva Actuarial
-# FAC1 y FAC2 salen de la tabla oficial (Resolución 1555 de 2010 cruzada con el decreto)
-VRA = ((FAC1 * PR) + (FAC2 * AR)) * FAC3
-
-# Se aplica el recargo por Comisión de Administración (0.5% = 0.005)
-VR_Final_A_Pagar = VRA / (1.0 - 0.005)
 
 **Fecha:**
-22/08/2026
 ---
 
 ## Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)
