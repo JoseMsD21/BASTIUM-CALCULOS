@@ -89,6 +89,85 @@ def calcular_tasa_reemplazo(
     return Rounding.money(r_final)
 
 
+# Regimenes pensionales historicos anteriores a la Ley 797/2003 (Sprint 70/91,
+# respuesta del despacho 2026-08-22): calcular_tasa_reemplazo (arriba) SOLO
+# cubre la formula vigente desde 2004 en adelante. Estas funciones son
+# aisladas -- ninguna esta conectada todavia a un router por fecha de
+# causacion: las fechas exactas de vigencia de cada regimen (cuando empieza y
+# termina cada uno) siguen sin confirmar, y enrutar mal una liquidacion real a
+# un regimen equivocado seria un error de dominio grave. Ver Pendientes.md,
+# Sprint 70, seccion "Definicion de Hecho" (pendiente el criterio de
+# seleccion por fecha).
+def calcular_tasa_reemplazo_regimen_1985_1989() -> Decimal:
+    """Regimen de Ley 33 de 1985 y Ley 71 de 1988: tasa de reemplazo fija del
+    75%, sin variables dinamicas (respuesta del despacho, Sprint 70,
+    22/08/2026)."""
+    return Decimal("75.00")
+
+
+def calcular_tasa_reemplazo_iss_pre_ley_100(semanas_cotizadas: int) -> Decimal:
+    """Regimen ISS anterior a la Ley 100 de 1993 (Acuerdo 049 de 1990):
+    exige minimo 500 semanas cotizadas. Base 45% desde 500 semanas, o 75%
+    desde 1.000 semanas; +3% por cada bloque de 50 semanas adicionales a la
+    base que corresponda, tope 90% (respuesta del despacho, Sprint 70,
+    22/08/2026)."""
+    if semanas_cotizadas < 500:
+        raise ValueError(
+            "El regimen ISS anterior a la Ley 100 (Acuerdo 049/1990) exige minimo "
+            "500 semanas cotizadas."
+        )
+    if semanas_cotizadas < 1000:
+        base = Decimal("45.00")
+        bloques = (semanas_cotizadas - 500) // 50
+    else:
+        base = Decimal("75.00")
+        bloques = (semanas_cotizadas - 1000) // 50
+    tasa = base + Decimal(bloques) * Decimal("3.00")
+    return Rounding.money(min(tasa, Decimal("90.00")))
+
+
+def calcular_tasa_reemplazo_ley_100_original(semanas_cotizadas: int) -> Decimal:
+    """Ley 100 de 1993 en su version original (antes de la reforma de la Ley
+    797/2003): exige minimo 1.000 semanas cotizadas. Base 65% desde 1.000
+    semanas; +2% por cada bloque de 50 semanas entre 1.000 y 1.200, +3% por
+    cada bloque de 50 semanas entre 1.200 y 1.400; tope 85% (respuesta del
+    despacho, Sprint 70, 22/08/2026)."""
+    if semanas_cotizadas < 1000:
+        raise ValueError(
+            "La Ley 100 de 1993 (version original) exige minimo 1.000 semanas cotizadas."
+        )
+    tasa = Decimal("65.00")
+    if semanas_cotizadas > 1000:
+        semanas_tramo_1 = min(semanas_cotizadas, 1200)
+        bloques_1 = (semanas_tramo_1 - 1000) // 50
+        tasa += Decimal(bloques_1) * Decimal("2.00")
+    if semanas_cotizadas > 1200:
+        semanas_tramo_2 = min(semanas_cotizadas, 1400)
+        bloques_2 = (semanas_tramo_2 - 1200) // 50
+        tasa += Decimal(bloques_2) * Decimal("3.00")
+    return Rounding.money(min(tasa, Decimal("85.00")))
+
+
+def calcular_tasa_reemplazo_invalidez_grado_2(semanas_cotizadas: int) -> Decimal:
+    """Pension de invalidez, grado 2 (perdida de capacidad laboral >= 66%):
+    exige minimo 800 semanas cotizadas. Base 54% desde 800 semanas, +2% por
+    cada bloque de 50 semanas adicionales, tope 75% (respuesta del despacho,
+    Sprint 70, 22/08/2026 -- coincide con la plantilla P9 del despacho ya
+    citada en el Sprint 91, filas 81-91).
+
+    NO existe una funcion equivalente para invalidez grado 1 todavia: el tope
+    que trajo esta misma respuesta del despacho (60%) no coincide con el que
+    ya habia confirmado la plantilla P9 (75%, Sprint 91) -- discrepancia sin
+    resolver, ver Preguntas-Para-Abogado-Abiertas.md."""
+    if semanas_cotizadas < 800:
+        raise ValueError(
+            "La pension de invalidez grado 2 exige minimo 800 semanas cotizadas."
+        )
+    bloques = (semanas_cotizadas - 800) // 50
+    tasa = Decimal("54.00") + Decimal(bloques) * Decimal("2.00")
+    return Rounding.money(min(tasa, Decimal("75.00")))
+
+
 def calcular_densidad_semanas(periodos_cotizados: list[tuple[date, date]]) -> int:
     """Semanas de cotizacion en dias calendario reales (365/366), no dias
     habiles ni ano comercial de 360 (Sentencia SL138-2024). Los periodos
