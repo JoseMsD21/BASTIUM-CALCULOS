@@ -1146,6 +1146,54 @@ rango 45%-90%). Ver `Pendientes.md`, Sprint 90.
 
 ---
 
+## Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?
+
+**Contexto:** el Sprint 93 implementó la categoría "Salarios y prestaciones dejadas de percibir", que
+reconstruye salario + prestaciones para un período sin contrato vigente (reintegro, salarios caídos), con
+reajuste anual IPC o SMMLV — las dos variantes que separaban las plantillas `L5` (IPC) y `L6` (SMMLV) del
+despacho. El software ya ofrecía ambas opciones y dejaba que el abogado eligiera cuál aplica caso por caso;
+no se había implementado ninguna regla automática que decidiera cuál usar, porque no bloqueaba la
+Definición de Hecho original del sprint.
+
+**Pregunta:** ¿en qué tipo de proceso se usa cada variante (reintegro con salarios caídos, contrato
+realidad con un período sin reconocimiento, u otro), y la elección entre IPC y SMMLV es discrecional del
+abogado según el caso, o depende de una regla fija? ¿Hay algún caso en que se deban aplicar ambos reajustes
+combinados?
+
+**Qué necesito exactamente:** confirmación de si la elección de índice es siempre discrecional, o una regla
+concreta que determine cuál índice corresponde a cada escenario.
+
+**Nota adicional (limitación del entorno de desarrollo):** los archivos
+`L5.SALARIOS-Y-PRESTACIONES-SOCIALES-DEJADAS-DE-PERCIBIR(incrementoinflacion).md` y
+`L6...(incremento-salario-minimo).md` citados como fuente del sprint no estaban disponibles en el entorno
+cloud donde se desarrolló (carpeta `docs/Archivos de referencia abogado/` excluida de git por copyright del
+despacho). La lógica de bloques anuales + reajuste + divisores 360/720 se implementó siguiendo la estructura
+descrita por escrito en `docs/Pendientes.md` y se verificó con casos sintéticos calculados a mano
+(`tests/services/test_salarios_dejados_de_percibir.py`), pero **no** se reconcilió línea por línea contra la
+planilla real de L5/L6. Se recomienda un chequeo cruzado manual del "GRAN TOTAL" contra un caso real antes
+de usar esta categoría en producción.
+
+**Respuesta del despacho:**
+La elección del índice para salarios dejados de percibir no es discrecional.
+
+Podría implementarse este código:
+
+if salario_base == SMMLV_del_año_de_causacion:
+    indice_aplicable = "VARIACION_SMMLV"
+else:
+    indice_aplicable = "IPC_DANE"
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** implementado como
+`determinar_tipo_reajuste_salarios_dejados_de_percibir` (`app/services/salarios_dejados_de_percibir.py`),
+wireado como validación obligatoria en `LaboralStrategy._validar_obligacion_laboral`
+(`app/services/area_strategy.py`): si el `tipo_reajuste_anual` elegido no coincide con lo que exige la
+regla (comparando el salario base contra el SMLMV del año de `fecha_inicio`), la liquidación lanza
+`ValueError` explícito. Ver `Pendientes.md`, Sprint 93.
+
+---
+
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
 
 **Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el
