@@ -260,7 +260,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🔵 Bloqueado — pendiente de confirmación](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--bloqueado--pendiente-de-confirmación) — la respuesta del despacho (2026-08-22) exige rediseñar el motor central de tasas; bloqueo no previsto, ver correo enviado
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
 - [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho ✅ Completado](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--completado) — el despacho confirmó que sí aplica el "+1" (respuesta 2026-08-22)
-- [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🟠 Reabierto](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--reabierto)
+- [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--bloqueado--pendiente-de-confirmación) — el despacho contestó (2026-08-22) pero la implementación exige una decisión de prioridad de imputación no especificada; bloqueo no previsto, ver correo enviado
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--completado)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟠 Reabierto](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--reabierto)
@@ -6178,7 +6178,7 @@ passed). Función aislada, sigue sin conectar a ningún flujo real de liquidaci�
 
 ---
 
-## Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🟠 Reabierto
+## Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación
 
 **Nota de la rutina autónoma (2026-08-20):** revisado al llegarle el turno en la cola — la Definición de
 Hecho de este sprint exige registrar la respuesta real del despacho (confirmando SÍ o NO) antes de poder
@@ -6215,6 +6215,39 @@ esa base (sumadas al final, sin generar interés adicional)?
 - Si confirma que SÍ debe estarlo (comportamiento actual): documentar la decisión explícitamente en el
   docstring de `_evento_costas_procesales`/Suma Única, sin cambiar código.
 - Suite completa en verde.
+
+**Bloqueo no previsto (2026-08-23, rutina autónoma) — decisión pendiente del usuario, no del despacho (el
+despacho ya contestó la pregunta legal; lo que falta es una decisión de implementación que la respuesta no
+cubrió):**
+
+El despacho confirmó (ver `Preguntas-Para-Abogado-Respondidas.md`, Sprint 79) que las costas "NO deben
+incluirse en la base que genera el interés civil del 6% ... Se suman al final, en seco" — y su propia
+fórmula de síntesis (`Gran_Total = Capital_Indexado + Interés_Mora + Costas_Aprobadas`) sugiere que esto
+NO es exclusivo de Suma Única: costas nunca deberían generar interés, con o sin ese algoritmo. Investigando
+el código (`app/engine/liquidation/engine.py`) se confirmó que hoy `COSTAS_PROCESALES` está en
+`_capital_concepts`, así que se suma directamente a `principal` — y `principal` **siempre** genera interés
+diario (`_capital_base_actual`), esté o no activo Suma Única. Es decir: el problema real es más amplio que
+lo que preguntaba el sprint original.
+
+**Por qué no se implementó directamente:** el modelo de deuda (`PendingDebt`, `app/engine/liquidation/
+models.py`) solo tiene 3 componentes -- `principal`, `interest`, `indexation` -- y `AllocationEngine`
+(imputación de pagos) tiene la prelación legal estricta codificada exactamente para esos 3 (indexación →
+intereses → capital, o capital → intereses → indexación en cascadas). Agregar costas como un 4° componente
+que no genera interés pero sí participa del total exige: (1) un campo nuevo en `PendingDebt`/
+`PaymentAllocation` (usado directamente en ~20 archivos), (2) decidir en qué punto de la prelación de pago
+entra costas -- dato que **ninguna respuesta del despacho especifica** (Sprint 18 tampoco lo cubrió), y
+(3) revisar reportes PDF/Word y la serialización de auditoría, que hoy solo conocen esos 3 componentes. Se
+evaluó una alternativa más simple (fechar el evento de costas al cierre de la liquidación en vez del
+origen, para que nunca alcance a generar interés sin tocar el modelo de deuda) pero introduciría un efecto
+secundario sistemático: la fila de auditoría "Corte final de liquidación" dejaría de aparecer en cualquier
+obligación con costas (el evento de costas ocuparía ese lugar), debilitando el rastro de auditoría como
+efecto colateral de arreglar otra cosa -- no es una solución limpia.
+
+**Qué se necesita para desbloquear:** que el usuario confirme (a) si el alcance real es "costas nunca
+generan interés" (universal, más amplio que lo que preguntaba este sprint) o solo dentro de Suma Única, y
+(b) en qué posición de la prelación de pago entra costas frente a indexación/intereses/capital. Documentado
+también en `Preguntas-Para-Abogado-Abiertas.md`, sección Sprint 79. Correo enviado a jmsd2125@gmail.com,
+asunto "BASTIUM bloqueado: Sprint 79".
 
 ---
 
