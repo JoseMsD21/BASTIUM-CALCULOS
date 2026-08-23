@@ -1194,6 +1194,54 @@ regla (comparando el salario base contra el SMLMV del año de `fecha_inicio`), l
 
 ---
 
+## Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio
+
+**Contexto:** en las plantillas de "contrato realidad" (privado y sector público), el aporte a salud/pensión
+reclamable se calcula con porcentajes (8.5%/12% en la privada, 8%/12% en la pública) distintos de los que ya
+usa el software para seguridad social laboral general (16% pensión + 12.5% salud, que corresponde al aporte
+total empleador+trabajador, confirmado con el despacho en el Sprint 16). Además, la plantilla del sector
+público trae una regla de la bonificación por servicio ("corresponde al 35%, pero hasta 2 smmlv, escriba
+50%") sin explicar de dónde sale ni sobre qué base se aplica.
+
+**Pregunta:** (1) en un reclamo de contrato realidad, ¿los aportes a salud/pensión que se reclaman son el
+total (empleador + trabajador, igual que el Sprint 16) o solo la porción a cargo del empleador (8.5%/8% y
+12%)? (2) ¿cuál es la regla completa de la bonificación por servicio del sector público (base de cálculo,
+por qué cambia de 35% a 50% con el tope de 2 SMMLV, y la norma que la respalda)?
+
+**Qué necesito exactamente:** confirmación del porcentaje/base de aportes aplicable, y la regla completa
+(con norma) de la bonificación por servicio.
+
+**Estado del software (2026-08-21):** ya se implementaron, aisladas y probadas, las dos piezas que NO
+dependen de esta respuesta: `calcular_aporte_contrato_realidad` (base × porcentaje) y
+`calcular_bonificacion_por_servicio_escalonada` (porcentaje condicionado a un tope), ambas en
+`app/engine/labor/contrato_realidad.py`, sin ningún porcentaje ni condición hardcodeada. No están cableadas
+a ningún formulario, `parametro_service` ni `LaboralStrategy` todavía, ni existe el motor de consolidado
+multi-año de contrato realidad: eso queda condicionado a esta respuesta.
+
+**Respuesta del despacho:**
+En un contrato realidad, el empleador sancionado debe cubrir el 100% del cálculo actuarial de pensión. No puede descontar el 4% retrospectivo del trabajador.
+
+Cómo puede aplicarse la bonificación del Decreto 0320 de 2026:
+
+Para liquidaciones de servidores territoriales, a partir del 1° de enero de 2026:
+
+Si Asignación_Básica + Gastos_Representación <= 2,968,262: Bonificación = 53%.
+
+Si supera dicho tope: Bonificación = 38%.
+
+Control de Vigencia: A partir de 2027, las tasas cambian a 54% y 39% respectivamente.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** sigue bloqueado — la respuesta no da un porcentaje/base
+simple de pensión, revela que requiere el mismo cálculo actuarial (FAC1/FAC2/FAC3, DTF Pensional) bloqueado
+en el Sprint 86/87; no menciona el aporte a salud; y la regla de bonificación (Decreto 0320/2026) no
+coincide con la que citaba textualmente la plantilla L8 (35%/50%, tope 2 SMMLV) — sin confirmar si la
+reemplaza o es un concepto distinto. No se implementó código nuevo. Pregunta de seguimiento en
+`Preguntas-Para-Abogado-Abiertas.md`, "Sprint 94 (seguimiento)". Ver `Pendientes.md`, Sprint 94.
+
+---
+
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
 
 **Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el

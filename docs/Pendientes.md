@@ -275,7 +275,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--parcial) — invalidez grado 2 y régimen 1994-2003 implementados; grado 1 bloqueado por discrepancia de tope (60% vs. 75%)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
-- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
+- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🟠 Reabierto](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🟠 Reabierto](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🟠 Reabierto](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
@@ -6937,7 +6937,7 @@ Suite completa en verde (1549 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 
-## Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto
+## Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación
 
 **Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — las dos piezas
 implementables sin la respuesta del despacho (`calcular_aporte_contrato_realidad` y
@@ -7015,6 +7015,30 @@ bonificación de servicio, bonificación de recreación y auxilios indexados) ni
 `LaboralStrategy`: eso sigue condicionado a la confirmación del despacho sobre base de aportes y regla de
 bonificación, ya registrada en `Preguntas-Para-Abogado-Abiertas.md` (Sprint 94). Por eso el sprint queda
 📋 Pendiente, no Completado. Suite completa: 1493 passed. Rama: `sprint-94-contrato-realidad`.
+
+**Sigue bloqueado (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 94"), pero la respuesta no resuelve el bloqueo original y
+abre una inconsistencia nueva:
+- **Aporte a pensión**: la respuesta no da un porcentaje/base simple (ni el total del Sprint 16 ni el
+  8.5%/8% de L7/L8) — dice que "el empleador sancionado debe cubrir el 100% del **cálculo actuarial** de
+  pensión". Esto significa que el aporte pensional de contrato realidad NO es `base × porcentaje`
+  (`calcular_aporte_contrato_realidad` no basta) — requiere el mismo cálculo actuarial (factores FAC1/FAC2/FAC3,
+  tabla completa por edad/sexo, DTF Pensional) que sigue bloqueado en el Sprint 86/87 por falta de datos
+  completos. Mismo bloqueo de fondo, no uno nuevo.
+- **Aporte a salud**: la respuesta no lo menciona en absoluto — sigue sin confirmar.
+- **Bonificación por servicio**: la respuesta trae una regla (Decreto 0320 de 2026, "servidores
+  territoriales", 53%/38% desde 2026 y 54%/39% desde 2027, tope $2.968.262 sobre Asignación Básica + Gastos
+  de Representación) que **no coincide** con la regla que citaba la plantilla L8 (35%/50%, tope 2 SMMLV) ni
+  en porcentajes ni en la base de cálculo ni en la condición del tope — no queda claro si el Decreto
+  0320/2026 reemplaza la regla de L8 (una norma más reciente que la actualiza) o si el despacho respondió
+  una pregunta relacionada pero distinta. Implementar cualquiera de las dos sin resolver esta discrepancia
+  arriesgaría calcular mal una bonificación real, así que no se codificó.
+
+No se implementó código nuevo (`calcular_aporte_contrato_realidad` y
+`calcular_bonificacion_por_servicio_escalonada` siguen tal como quedaron en el avance parcial). El motor de
+consolidado multi-año de contrato realidad sigue sin construir. Pregunta de seguimiento acotada (aporte
+salud, y la discrepancia Decreto 0320/2026 vs. L8) en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 94
+(seguimiento)". Suite completa en verde (sin tocar código de producción).
 
 ---
 
