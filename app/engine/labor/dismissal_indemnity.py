@@ -11,12 +11,6 @@ PISO_DIAS_TERMINO_FIJO = Decimal("15")
 MULTIPLICADOR_SMMLV_UMBRAL = Decimal("10")
 
 
-class RegimenNoSoportadoError(ValueError):
-    """La combinacion de datos pedida no tiene una formula confirmada por el
-    despacho todavia -- ver docs/Preguntas-Para-Abogado-Abiertas.md, seccion
-    Sprint 92. Se lanza en vez de adivinar una cifra."""
-
-
 @dataclass(frozen=True)
 class DismissalIndemnityResult:
     regimen: str
@@ -37,53 +31,38 @@ class DismissalIndemnityCalculator:
     INDEMNIZACION_DESPIDO) -- este calculador nunca los suma automaticamente
     ni asume que uno excluye al otro.
 
-    Regimenes soportados, con los numeros exactos transcritos en el sprint
-    (docs/Pendientes.md, Sprint 92) a partir de
-    `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md`:
+    Regimenes soportados (respuesta del despacho, Sprint 92, 22/08/2026 --
+    ver docs/Preguntas-Para-Abogado-Respondidas.md, "Sprint 92"):
 
-    - INDEFINIDO, salario < 10 SMMLV, regimen posterior a la Ley 50/1990
-      (modificado por la Ley 789/2002): 30 dias de salario basico el primer
-      año + 20 dias por cada año subsiguiente (y fraccion proporcional).
-      Formula continua (sin tramos adicionales por 5/10 años) -- asi la trae
-      el Art. 64 CST vigente, y el sprint no cita ningun quiebre distinto
-      para este regimen.
-    - INDEFINIDO, salario < 10 SMMLV, regimen anterior a la Ley 50/1990: 45
-      dias el primer año + 15 dias por cada año subsiguiente (misma formula
-      continua, unico dato que el sprint transcribe con cifras exactas para
-      este regimen).
+    - INDEFINIDO, salario >= 10 SMMLV, ingreso desde el 27/12/2002 (Ley
+      789/2002): 20 dias el primer año + 15 dias por cada año subsiguiente
+      (y fraccion proporcional), tabla propia sin tramos adicionales.
+    - INDEFINIDO, salario < 10 SMMLV (o salario >= 10 SMMLV con ingreso
+      anterior al 27/12/2002, cuando la distincion por salario todavia no
+      existia), ingreso desde el 01/01/1991 (Ley 50/1990): 30 dias el primer
+      año + 20 dias por cada año subsiguiente, formula continua sin tramos
+      adicionales.
+    - INDEFINIDO, ingreso anterior al 01/01/1991 (Decreto 2351/1965): 45 dias
+      el primer año; por cada año subsiguiente, una tasa fija segun la
+      antiguedad TOTAL del contrato (no progresiva año a año): 15 dias/año si
+      la antiguedad es menor a 5 años, 20 dias/año entre 5 y menos de 10
+      años, 30 dias/año desde 10 años. El limite inferior de cada tramo es
+      inclusivo (misma convencion que `semanas_minimas_requeridas`): exactamente
+      5 años cae en el tramo de 20, exactamente 10 años cae en el tramo de 30.
     - FIJO/OBRA_LABOR (cualquier salario): valor de los salarios
       correspondientes al tiempo que faltare para cumplir el plazo pactado,
       con un piso de 15 dias de salario cuando ese tiempo restante sea menor.
 
-    Deliberadamente NO soportado (lanza RegimenNoSoportadoError en vez de
-    inventar una cifra -- ver docs/Preguntas-Para-Abogado-Abiertas.md, Sprint
-    92):
-
-    - INDEFINIDO con salario >= 10 SMMLV: el sprint solo confirma que este
-      umbral existe y distingue tablas, pero no transcribe la formula/dias
-      exactos de la tabla "salario >= 10 SMMLV" (la plantilla original del
-      despacho, `L4...md`, no esta en este checkout).
-    - Cualquier tramo del regimen pre-Ley 50/1990 mas alla de la formula
-      continua de arriba (ej. una tasa distinta de dias/año subsiguiente a
-      partir de 5 o 10 años de antiguedad): el propio backlog advierte que la
-      plantilla original "trae varios regimenes por estos tramos", pero solo
-      transcribe una cifra (45+15) -- no se asume que esa tasa se mantiene
-      igual en tramos mas altos.
-
-    FECHA DE CORTE DEL REGIMEN (`FECHA_CORTE_LEY_50_1990`, default
-    1991-01-01): la plantilla original del despacho trae una inconsistencia
-    no resuelta (dos secciones citan "27 de diciembre de 1.992" para el
-    corte, pero una la atribuye a la Ley 789/2002 y la otra a la Ley 50 de
-    1990 -- que es de 1990, no de 1992). Este calculador usa por defecto el
-    1 de enero de 1991 (entrada en vigencia real y citable de la Ley 50 de
-    1990, publicada el 28 de diciembre de 1990) mientras el despacho no
-    confirme la fecha real -- ver docs/Preguntas-Para-Abogado-Abiertas.md,
-    seccion "Sprint 92". El parametro `fecha_corte_regimen` permite
-    sobreescribir este valor asumido sin tocar el codigo en cuanto llegue la
-    confirmacion.
+    FECHAS DE CORTE (`FECHA_CORTE_LEY_50_1990` 1991-01-01,
+    `FECHA_CORTE_LEY_789_2002` 2002-12-27): ambas confirmadas explicitamente
+    por el despacho con esas fechas calendario. Los parametros
+    `fecha_corte_regimen` y `fecha_corte_ley_789_2002` permiten
+    sobreescribirlas sin tocar el codigo si mas adelante se detecta un caso
+    real que exija otra fecha.
     """
 
     FECHA_CORTE_LEY_50_1990 = date(1991, 1, 1)
+    FECHA_CORTE_LEY_789_2002 = date(2002, 12, 27)
 
     @staticmethod
     def calcular(
@@ -96,6 +75,7 @@ class DismissalIndemnityCalculator:
         smlmv_mensual: Decimal,
         fecha_fin_pactada: date | None = None,
         fecha_corte_regimen: date | None = None,
+        fecha_corte_ley_789_2002: date | None = None,
     ) -> DismissalIndemnityResult:
         if not despido_injustificado:
             return DismissalIndemnityResult(
@@ -125,6 +105,11 @@ class DismissalIndemnityCalculator:
                 fecha_corte_regimen
                 if fecha_corte_regimen is not None
                 else DismissalIndemnityCalculator.FECHA_CORTE_LEY_50_1990
+            ),
+            fecha_corte_ley_789_2002=(
+                fecha_corte_ley_789_2002
+                if fecha_corte_ley_789_2002 is not None
+                else DismissalIndemnityCalculator.FECHA_CORTE_LEY_789_2002
             ),
         )
 
@@ -168,31 +153,13 @@ class DismissalIndemnityCalculator:
         fecha_terminacion: date,
         smlmv_mensual: Decimal,
         fecha_corte_regimen: date,
+        fecha_corte_ley_789_2002: date,
     ) -> DismissalIndemnityResult:
         if fecha_terminacion <= fecha_ingreso:
             raise ValueError(
                 "fecha_terminacion debe ser posterior a fecha_ingreso para calcular la "
                 "antiguedad del contrato."
             )
-
-        umbral_10_smmlv = smlmv_mensual * MULTIPLICADOR_SMMLV_UMBRAL
-        if salario_mensual >= umbral_10_smmlv:
-            raise RegimenNoSoportadoError(
-                f"Salario mensual ({salario_mensual}) >= 10 SMMLV ({umbral_10_smmlv}): "
-                "la formula de indemnizacion por despido para este umbral no esta "
-                "confirmada por el despacho todavia (ver "
-                "docs/Preguntas-Para-Abogado-Abiertas.md, seccion Sprint 92) -- no se "
-                "calcula para evitar inventar una cifra."
-            )
-
-        if fecha_ingreso < fecha_corte_regimen:
-            regimen = "INDEFINIDO_PRE_LEY_50_1990"
-            dias_primer_anio = Decimal("45")
-            dias_por_anio_subsiguiente = Decimal("15")
-        else:
-            regimen = "INDEFINIDO_POST_LEY_50_1990"
-            dias_primer_anio = Decimal("30")
-            dias_por_anio_subsiguiente = Decimal("20")
 
         # Antiguedad bajo la misma convencion "comercial" de año de 360 dias
         # (12 meses de 30 dias) ya usada por LaboralStrategy para prestaciones
@@ -210,6 +177,24 @@ class DismissalIndemnityCalculator:
         dias_resto = dias_totales - (Decimal(anios_completos) * DIAS_ANIO_COMERCIAL)
         antiguedad_anios = Decimal(anios_completos) + (dias_resto / DIAS_ANIO_COMERCIAL)
 
+        umbral_10_smmlv = smlmv_mensual * MULTIPLICADOR_SMMLV_UMBRAL
+        if salario_mensual >= umbral_10_smmlv and fecha_ingreso >= fecha_corte_ley_789_2002:
+            regimen = "INDEFINIDO_UMBRAL_10_SMMLV_LEY_789_2002"
+            dias_primer_anio = Decimal("20")
+            dias_por_anio_subsiguiente = Decimal("15")
+        elif fecha_ingreso < fecha_corte_regimen:
+            regimen = "INDEFINIDO_PRE_LEY_50_1990"
+            dias_primer_anio = Decimal("45")
+            dias_por_anio_subsiguiente = (
+                DismissalIndemnityCalculator._dias_subsiguiente_decreto_2351_1965(
+                    antiguedad_anios
+                )
+            )
+        else:
+            regimen = "INDEFINIDO_POST_LEY_50_1990"
+            dias_primer_anio = Decimal("30")
+            dias_por_anio_subsiguiente = Decimal("20")
+
         if antiguedad_anios > Decimal("1"):
             anios_subsiguientes = antiguedad_anios - Decimal("1")
             dias_indemnizacion = dias_primer_anio + (
@@ -225,3 +210,15 @@ class DismissalIndemnityCalculator:
             salario_diario=salario_diario,
             total=Rounding.money(salario_diario * dias_indemnizacion),
         )
+
+    @staticmethod
+    def _dias_subsiguiente_decreto_2351_1965(antiguedad_anios: Decimal) -> Decimal:
+        """Tasa de dias/año subsiguiente del regimen pre-Ley 50/1990 (Decreto
+        2351/1965), segun la antiguedad TOTAL del contrato (respuesta del
+        despacho, Sprint 92, 22/08/2026) -- una unica tasa aplicada a todos
+        los años subsiguientes, no una escala progresiva año a año."""
+        if antiguedad_anios < Decimal("5"):
+            return Decimal("15")
+        if antiguedad_anios < Decimal("10"):
+            return Decimal("20")
+        return Decimal("30")

@@ -3524,10 +3524,11 @@ class TestLaboralStrategy:
                 obligaciones=[obligacion], abonos=[], fecha_corte=date(2021, 6, 1)
             )
 
-    def test_despido_injustificado_salario_10_smmlv_agrega_alerta_no_bloqueante(self):
-        # SMLMV 2020 = 877803.00 -> 10 SMMLV = 8778030.00. Formula para este
-        # umbral no esta confirmada por el despacho (Sprint 92): la liquidacion
-        # no debe fallar, pero debe alertar que la indemnizacion no se calculo.
+    def test_despido_injustificado_salario_10_smmlv_usa_tabla_ley_789_2002(self):
+        # SMLMV 2020 = 877803.00 -> 10 SMMLV = 8778030.00. Formula confirmada
+        # por el despacho (Sprint 92, 22/08/2026): 20 dias primer año + 15
+        # dias/año subsiguiente para salario >= 10 SMMLV con ingreso posterior
+        # al 27/12/2002 (aqui, 2020-01-01) -- ya no es un regimen no soportado.
         obligacion = _obligacion_laboral(
             salario=Decimal("9000000.00"),
             fecha_pago_total=date(2020, 12, 31),
@@ -3539,8 +3540,10 @@ class TestLaboralStrategy:
         )
 
         tipos_evento = {item.balance.event_type for item in resultado.items}
-        assert "INDEMNIZACION_DESPIDO" not in tipos_evento
-        assert any("10 SMMLV" in alerta for alerta in resultado.alertas)
+        assert "INDEMNIZACION_DESPIDO" in tipos_evento
+        salario_diario = obligacion.valor / Decimal("30")
+        indemnizacion_esperada = (salario_diario * Decimal("20")).quantize(Decimal("0.01"))
+        assert indemnizacion_esperada == Decimal("6000000.00")
 
 
 def _obligacion_tributaria(

@@ -25,10 +25,7 @@ from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.interest.usury_validator import calcular_tope_usura
-from app.engine.labor.dismissal_indemnity import (
-    DismissalIndemnityCalculator,
-    RegimenNoSoportadoError,
-)
+from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.seguridad_social import SeguridadSocialCalculator
@@ -1392,41 +1389,31 @@ class LaboralStrategy(AreaStrategy):
         # (ver docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 92), asi que el
         # evento se agrega solo si `despido_injustificado` esta marcado, sin
         # depender de `hay_mora`.
-        alerta_indemnizacion_despido = None
         if obligacion.despido_injustificado:
-            try:
-                indemnizacion_despido = DismissalIndemnityCalculator.calcular(
-                    tipo_contrato=obligacion.tipo_contrato_laboral,
-                    salario_mensual=obligacion.valor,
-                    fecha_ingreso=obligacion.fecha_inicio,
-                    fecha_terminacion=obligacion.fecha_fin,
-                    despido_injustificado=True,
-                    smlmv_mensual=get_smlmv_for_year(obligacion.fecha_fin.year),
-                    fecha_fin_pactada=obligacion.fecha_fin_pactada,
-                )
-            except RegimenNoSoportadoError as error:
-                # Umbral >= 10 SMMLV: formula no confirmada por el despacho
-                # todavia (ver docstring de DismissalIndemnityCalculator) --
-                # no bloquea el resto de la liquidacion, se agrega como
-                # alerta no bloqueante (mismo mecanismo que "Doble
-                # Actualización Prohibida" mas abajo).
-                alerta_indemnizacion_despido = str(error)
-            else:
-                if indemnizacion_despido.total > Decimal("0.00"):
-                    eventos.append(
-                        Event(
-                            date=obligacion.fecha_fin,
-                            payload={
-                                "amount": indemnizacion_despido.total,
-                                "label": (
-                                    "Indemnizacion por despido injustificado Art. 64 CST "
-                                    f"({indemnizacion_despido.regimen}, "
-                                    f"{indemnizacion_despido.dias_indemnizacion} dias)"
-                                ),
-                            },
-                            event_type="INDEMNIZACION_DESPIDO",
-                        )
+            indemnizacion_despido = DismissalIndemnityCalculator.calcular(
+                tipo_contrato=obligacion.tipo_contrato_laboral,
+                salario_mensual=obligacion.valor,
+                fecha_ingreso=obligacion.fecha_inicio,
+                fecha_terminacion=obligacion.fecha_fin,
+                despido_injustificado=True,
+                smlmv_mensual=get_smlmv_for_year(obligacion.fecha_fin.year),
+                fecha_fin_pactada=obligacion.fecha_fin_pactada,
+            )
+            if indemnizacion_despido.total > Decimal("0.00"):
+                eventos.append(
+                    Event(
+                        date=obligacion.fecha_fin,
+                        payload={
+                            "amount": indemnizacion_despido.total,
+                            "label": (
+                                "Indemnizacion por despido injustificado Art. 64 CST "
+                                f"({indemnizacion_despido.regimen}, "
+                                f"{indemnizacion_despido.dias_indemnizacion} dias)"
+                            ),
+                        },
+                        event_type="INDEMNIZACION_DESPIDO",
                     )
+                )
 
         # Indexacion IPC (Sprint 43): ver docstring de la clase. Solo se agrega el
         # evento de indexacion cuando NO hay mora (excepcion 1, buena fe probada) --
@@ -1490,8 +1477,6 @@ class LaboralStrategy(AreaStrategy):
                 "vigente sobre las prestaciones sociales de este contrato -- la indexación "
                 "IPC no se aplicó sobre el mismo rubro/periodo (la moratoria prevalece).",
             )
-        if alerta_indemnizacion_despido is not None:
-            resultado = self._agregar_alerta(resultado, alerta_indemnizacion_despido)
         return resultado
 
     def _liquidar_salarios_dejados_de_percibir(

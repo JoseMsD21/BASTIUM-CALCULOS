@@ -3,10 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.engine.labor.dismissal_indemnity import (
-    DismissalIndemnityCalculator,
-    RegimenNoSoportadoError,
-)
+from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
 from database.models import TipoContratoLaboral
 
 SALARIO = Decimal("3000000.00")
@@ -91,24 +88,60 @@ def test_indefinido_pre_ley_50_1990_quiebre_exactamente_1_anio():
     assert resultado.dias_indemnizacion == Decimal("45")
 
 
-def test_indefinido_pre_ley_50_1990_quiebre_5_anios():
+def test_indefinido_pre_ley_50_1990_antiguedad_menor_a_5_anios_usa_tramo_15_dias():
+    # Decreto 2351/1965 (respuesta del despacho, Sprint 92, 22/08/2026): dias
+    # subsiguientes por tramo de antiguedad total (no progresivo por año) --
+    # antiguedad < 5 anios -> 15 dias/año subsiguiente.
+    resultado = _calcular(
+        fecha_ingreso=date(1985, 1, 1),
+        fecha_terminacion=date(1989, 1, 1),  # 4 anios
+    )
+    assert resultado.regimen == "INDEFINIDO_PRE_LEY_50_1990"
+    # 45 + 15 * 3 = 90
+    assert resultado.dias_indemnizacion == Decimal("90")
+
+
+def test_indefinido_pre_ley_50_1990_quiebre_exactamente_5_anios_usa_tramo_20_dias():
+    # antiguedad exactamente 5 anios cae en el tramo "5 a <10 años" (20
+    # dias/año), no en el tramo "<5 años" -- misma convencion de limite
+    # inferior inclusivo que semanas_minimas_requeridas.
     resultado = _calcular(
         fecha_ingreso=date(1984, 1, 1),
         fecha_terminacion=date(1989, 1, 1),  # 5 anios
     )
     assert resultado.regimen == "INDEFINIDO_PRE_LEY_50_1990"
-    # 45 + 15 * 4 = 105
-    assert resultado.dias_indemnizacion == Decimal("105")
+    # 45 + 20 * 4 = 125
+    assert resultado.dias_indemnizacion == Decimal("125")
 
 
-def test_indefinido_pre_ley_50_1990_quiebre_10_anios():
+def test_indefinido_pre_ley_50_1990_antiguedad_9_anios_usa_tramo_20_dias():
+    resultado = _calcular(
+        fecha_ingreso=date(1980, 1, 1),
+        fecha_terminacion=date(1989, 1, 1),  # 9 anios
+    )
+    assert resultado.regimen == "INDEFINIDO_PRE_LEY_50_1990"
+    # 45 + 20 * 8 = 205
+    assert resultado.dias_indemnizacion == Decimal("205")
+
+
+def test_indefinido_pre_ley_50_1990_quiebre_exactamente_10_anios_usa_tramo_30_dias():
     resultado = _calcular(
         fecha_ingreso=date(1979, 1, 1),
         fecha_terminacion=date(1989, 1, 1),  # 10 anios
     )
     assert resultado.regimen == "INDEFINIDO_PRE_LEY_50_1990"
-    # 45 + 15 * 9 = 180
-    assert resultado.dias_indemnizacion == Decimal("180")
+    # 45 + 30 * 9 = 315
+    assert resultado.dias_indemnizacion == Decimal("315")
+
+
+def test_indefinido_pre_ley_50_1990_antiguedad_mayor_a_10_anios_usa_tramo_30_dias():
+    resultado = _calcular(
+        fecha_ingreso=date(1970, 1, 1),
+        fecha_terminacion=date(1989, 1, 1),  # 19 anios
+    )
+    assert resultado.regimen == "INDEFINIDO_PRE_LEY_50_1990"
+    # 45 + 30 * 18 = 585
+    assert resultado.dias_indemnizacion == Decimal("585")
 
 
 def test_indefinido_ingreso_exactamente_en_la_fecha_de_corte_es_regimen_post():
@@ -119,15 +152,66 @@ def test_indefinido_ingreso_exactamente_en_la_fecha_de_corte_es_regimen_post():
     assert resultado.regimen == "INDEFINIDO_POST_LEY_50_1990"
 
 
-def test_indefinido_umbral_10_smmlv_no_soportado():
-    # Formula para salario >= 10 SMMLV no esta confirmada por el despacho
-    # (ver docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 92) -- debe fallar
-    # explicitamente en vez de adivinar una cifra.
-    with pytest.raises(RegimenNoSoportadoError):
-        _calcular(
-            salario_mensual=SMLMV_2026 * Decimal("10"),
-            smlmv_mensual=SMLMV_2026,
-        )
+def test_indefinido_umbral_10_smmlv_post_ley_789_2002_quiebre_1_anio():
+    # Ley 789/2002 (respuesta del despacho, Sprint 92, 22/08/2026): tabla
+    # separada para salario >= 10 SMMLV, vigente desde el 27-Dic-2002 --
+    # 20 dias primer año, 15 dias por año subsiguiente.
+    resultado = _calcular(
+        salario_mensual=SMLMV_2026 * Decimal("10"),
+        smlmv_mensual=SMLMV_2026,
+        fecha_ingreso=date(2020, 1, 1),
+        fecha_terminacion=date(2021, 1, 1),  # exactamente 1 anio
+    )
+    assert resultado.regimen == "INDEFINIDO_UMBRAL_10_SMMLV_LEY_789_2002"
+    assert resultado.dias_indemnizacion == Decimal("20")
+
+
+def test_indefinido_umbral_10_smmlv_post_ley_789_2002_anio_subsiguiente():
+    resultado = _calcular(
+        salario_mensual=SMLMV_2026 * Decimal("10"),
+        smlmv_mensual=SMLMV_2026,
+        fecha_ingreso=date(2015, 1, 1),
+        fecha_terminacion=date(2020, 1, 1),  # 5 anios exactos
+    )
+    assert resultado.regimen == "INDEFINIDO_UMBRAL_10_SMMLV_LEY_789_2002"
+    # 20 + 15 * 4 = 80
+    assert resultado.dias_indemnizacion == Decimal("80")
+
+
+def test_indefinido_umbral_10_smmlv_ingreso_exactamente_en_la_fecha_de_corte_789_2002():
+    resultado = _calcular(
+        salario_mensual=SMLMV_2026 * Decimal("10"),
+        smlmv_mensual=SMLMV_2026,
+        fecha_ingreso=date(2002, 12, 27),  # exactamente el corte por defecto
+        fecha_terminacion=date(2003, 12, 27),
+    )
+    assert resultado.regimen == "INDEFINIDO_UMBRAL_10_SMMLV_LEY_789_2002"
+
+
+def test_indefinido_umbral_10_smmlv_antes_de_ley_789_2002_usa_regimen_general():
+    # Antes del 27-Dic-2002 la distincion por salario >= 10 SMMLV no existia
+    # (respuesta del despacho, Sprint 92): un ingreso de 1995 con salario
+    # alto sigue el regimen general post-Ley 50/1990 (30+20), no la tabla de
+    # Ley 789/2002 ni un error.
+    resultado = _calcular(
+        salario_mensual=SMLMV_2026 * Decimal("10"),
+        smlmv_mensual=SMLMV_2026,
+        fecha_ingreso=date(1995, 1, 1),
+        fecha_terminacion=date(1996, 1, 1),
+    )
+    assert resultado.regimen == "INDEFINIDO_POST_LEY_50_1990"
+    assert resultado.dias_indemnizacion == Decimal("30")
+
+
+def test_indefinido_umbral_10_smmlv_antes_de_ley_50_1990_usa_regimen_general_pre_1990():
+    resultado = _calcular(
+        salario_mensual=SMLMV_2026 * Decimal("10"),
+        smlmv_mensual=SMLMV_2026,
+        fecha_ingreso=date(1989, 1, 1),
+        fecha_terminacion=date(1990, 1, 1),
+    )
+    assert resultado.regimen == "INDEFINIDO_PRE_LEY_50_1990"
+    assert resultado.dias_indemnizacion == Decimal("45")
 
 
 def test_indefinido_salario_justo_debajo_del_umbral_10_smmlv_si_se_soporta():

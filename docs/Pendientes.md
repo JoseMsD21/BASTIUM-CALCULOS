@@ -273,7 +273,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--parcial) — invalidez grado 2 y régimen 1994-2003 implementados; grado 1 bloqueado por discrepancia de tope (60% vs. 75%)
-- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟠 Reabierto](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
+- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🟠 Reabierto](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
@@ -6704,7 +6704,7 @@ seguimiento (tope de invalidez Grado 1 + régimen de transición, junto con el S
 
 ---
 
-## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟠 Reabierto
+## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado
 
 **Cierre (2026-08-20):** implementado en la rama `sprint-92-indemnizacion-despido-injustificado` (mergeada a
 `main`). `app/engine/labor/dismissal_indemnity.py::DismissalIndemnityCalculator` calcula:
@@ -6787,6 +6787,27 @@ para el umbral de 10 SMMLV; `LaboralStrategy` (`area_strategy.py:1052`) para el 
   piso de 15 días).
 - Confirmación del despacho sobre la fecha de corte 1990/1992 registrada en `Preguntas-Para-Abogado-Abiertas.md`.
 - Suite completa en verde.
+
+**Reapertura cerrada (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 92") con las 3 tablas que faltaban, con cifras exactas y
+fechas de corte concretas. Implementado en `app/engine/labor/dismissal_indemnity.py`:
+- **Dos fechas de corte, no una**: Ley 50/1990 desde 01-Ene-1991 (ya asumida por defecto, ahora confirmada
+  formalmente) y Ley 789/2002 desde 27-Dic-2002 (`FECHA_CORTE_LEY_789_2002`, nueva).
+- **Salario ≥10 SMMLV**: tabla propia (20 días primer año + 15 días/año subsiguiente), pero **solo aplica
+  a contratos con `fecha_ingreso >= 27-Dic-2002`** — antes de esa fecha la distinción por salario no existía
+  y el contrato usa el régimen general (30+20 o 45+tramos, según su propia fecha de ingreso). Se retiró
+  `RegimenNoSoportadoError` (ya no hay ninguna combinación sin fórmula) y su manejo en `LaboralStrategy`
+  (`app/services/area_strategy.py`).
+- **Tramos del régimen pre-Ley 50/1990 (Decreto 2351/1965)**: confirmado que SÍ escalona por antigüedad
+  total del contrato (no progresivo año a año): 15 días/año si antigüedad < 5 años, 20 días/año entre 5 y
+  <10 años, 30 días/año desde 10 años — reemplaza la fórmula continua de 15 días/año que tenía el código
+  antes de esta respuesta.
+- **Coexistencia con `SANCION_MORATORIA`**: confirmada explícitamente ("plena e independiente"), coincide
+  con el wiring ya implementado — sin cambios de código.
+
+18 tests actualizados/nuevos en `tests/engine/labor/test_dismissal_indemnity.py` y
+`tests/services/test_area_strategy.py`. Suite completa en verde (1544 tests) y `ruff check .` limpio antes
+de mergear.
 
 ---
 
