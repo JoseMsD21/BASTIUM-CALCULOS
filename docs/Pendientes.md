@@ -189,7 +189,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado](#sprint-5--carga-de-datos-históricos-ipc-smlmv-ibc-tasa-de-usura-uvt--completado)
 - [Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado](#sprint-6--calendario-de-días-hábiles-judiciales-y-términos-procesales--completado)
 - [Sprint 7 — Motor de prescripción y caducidad ✅ Completado](#sprint-7--motor-de-prescripción-y-caducidad--completado)
-- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟠 Reabierto](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--reabierto) — mecanismo mensual listo y probado; el despacho ya contestó (respuesta 2026-08-22)
+- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟡 En proceso](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--en-proceso) — rutina autónoma implementando la respuesta del despacho del 2026-08-22 (rama `sprint-8-estimacion-futura-y-floor-ipc-mensual`)
 - [Sprint 9 — Motor de auditoría / bitácora ✅ Completado](#sprint-9--motor-de-auditoría--bitácora--completado)
 - [Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado](#sprint-10--exportación-de-liquidación-a-pdfword--completado)
 - [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a) — ver corrección del Sprint 15 (11b)
@@ -816,7 +816,20 @@ o caducadas sin advertirlo ni excluirlas. Ese gap de integración (no de cálcul
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟠 Reabierto
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟡 En proceso
+
+**En proceso (rutina autónoma, 2026-08-23):** rama `sprint-8-estimacion-futura-y-floor-ipc-mensual`.
+Implementando la respuesta del despacho del 22/08/2026 a "Sprint 8 (seguimiento 2)" (ver
+`docs/Preguntas-Para-Abogado-Abiertas.md`): (a) límite de vacío absoluto (fechas anteriores a
+1954-08-01 → índice 1.0), (b) estimación futura de meses no certificados aún por el DANE vía media
+geométrica de las últimas 12 variaciones mensuales conocidas, en vez de caer a la interpolación
+anual como hacía hasta ahora. La sugerencia del despacho de reparametrizar a la base Dic-2008=100
+no cambia ningún resultado numérico dentro del rango ya cargado (2003-2026): es la misma serie
+continua que el DANE ya enlazó, y `IPCIndexation.calculate` solo usa la razón entre dos índices de
+la misma base — ver nota en el código. Los datos mensuales reales anteriores a 2003 (que el
+despacho da por existentes en su fuente) siguen sin estar disponibles para esta rutina: no viven en
+`docs/datos_publicos_fuente/` ni en ningún archivo commiteado — bloqueo de infraestructura, no de
+decisión, reportado en el correo resumen de esta corrida en vez de bloquear el sprint.
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
