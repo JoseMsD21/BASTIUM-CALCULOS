@@ -87,7 +87,6 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?](#sprint-82-seguimiento--en-qué-área-de-bastium-vive-el-calculador-de-condenas-administrativas-dtf)
 - [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
 - [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
-- [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
 - [Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?](#sprint-92--laboral-fecha-de-corte-real-entre-régimen-ley-501990-y-ley-7892002-para-la-indemnización-por-despido-fórmula-para-salario-10-smmlv-y-coexistencia-con-la-sanción-moratoria)
 - [Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?](#sprint-93--laboral-en-qué-procesos-se-usa-reajuste-por-ipc-vs-por-smmlv-para-salarios-dejados-de-percibir)
 - [Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio](#sprint-94--laboral-base-de-aportes-a-saludpensión-reclamables-en-contrato-realidad-y-regla-de-la-bonificación-por-servicio)
@@ -460,24 +459,6 @@ Nacional? Alternativamente, ¿pueden aportar los archivos Excel originales de P1
 **Respuesta del despacho:**
 
 **Fecha:**
----
-
-## Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)
-
-**Contexto:** las plantillas P15 e P16 calculan el IBL de un régimen distinto al de la Ley 100 (últimas 100 o 150 semanas cotizadas, con un factor fijo de
-4.33 y topes de 90%), pero ninguna de las dos cita el Acuerdo/Decreto específico que respalda esa fórmula ni el origen del factor 4.33.
-
-**Pregunta:** ¿cuál es la norma exacta (probablemente un Acuerdo del ISS anterior a la Ley 100 de 1993) que respalda la fórmula de IBL de 100/150 semanas
-con el factor 4.33 y el tope del 90%? ¿El despacho sigue liquidando casos bajo este régimen histórico?
-
-**Qué necesito exactamente:** cita de la norma exacta (número de Acuerdo/Decreto y artículo), y confirmación de si es una funcionalidad que el despacho
-realmente necesita hoy.
-
-**Respuesta del despacho:**
-El régimen aplicable es el Acuerdo 049 de 1990, con topes fijos en su estructura de tasas. El factor "4.33" (semanas/mes) no se exige legalmente como constante pura del IBL histórico, el sistema debe limitarse al 45% - 90% liquidado con las fórmulas de semanas del Sprint 70.
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?

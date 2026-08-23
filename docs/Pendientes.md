@@ -271,7 +271,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--bloqueado--pendiente-de-confirmación) — misma respuesta parcial del Sprint 86, mismos datos faltantes
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
-- [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🟠 Reabierto](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
+- [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--parcial) — invalidez grado 2 y régimen 1994-2003 implementados; grado 1 bloqueado por discrepancia de tope (60% vs. 75%)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟠 Reabierto](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
@@ -6604,7 +6604,7 @@ limitación conocida en el código, igual que la propia plantilla lo advierte.
 
 ---
 
-## Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🟠 Reabierto
+## Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado
 
 **Prioridad sugerida:** Baja-Media — régimen histórico (aplica a hechos generadores anteriores a 1994), menos frecuente que el resto pero con una fórmula
 genuinamente distinta a la que ya existe.
@@ -6629,6 +6629,19 @@ tope) -> Decimal`.
 - Norma legal exacta confirmada por el despacho antes de mergear.
 - Test de 100 semanas y test de 150 semanas con datos sintéticos.
 - Suite completa en verde.
+
+**Cierre (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 90"): confirma el Acuerdo 049 de 1990 como norma aplicable,
+pero **rechaza explícitamente** el mecanismo distinto de las plantillas P15/P16 (promedio de las últimas
+100/150 semanas cotizadas × factor fijo 4.33) — "el factor 4.33 (semanas/mes) no se exige legalmente como
+constante pura del IBL histórico". En su lugar indica que "el sistema debe limitarse al 45% - 90% liquidado
+con las fórmulas de semanas del Sprint 70", es decir: este régimen histórico ya queda completamente cubierto
+por `calcular_tasa_reemplazo_iss_pre_ley_100` (`app/engine/labor/ibl.py:108-126`, construida en el Sprint
+70/91 con la misma cita del Acuerdo 049/1990 y el mismo rango 45%-90%), aplicada sobre el IBL calculado con
+el mecanismo estándar (`calcular_ibl`, indexación por IPC) — no con un promedio de semanas ni un factor 4.33
+aparte. No se requiere código nuevo: la función que este sprint pedía ya existe con otro nombre y ya está
+probada (`tests/engine/labor/test_ibl.py`). Se cierra como completado sin cambios de código, solo
+documentación. Suite completa en verde (sin tocar código de producción).
 
 ---
 
