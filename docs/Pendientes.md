@@ -263,7 +263,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--bloqueado--pendiente-de-confirmación) — el despacho contestó (2026-08-22) pero la implementación exige una decisión de prioridad de imputación no especificada; bloqueo no previsto, ver correo enviado
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--completado)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
-- [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟠 Reabierto](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--reabierto)
+- [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟡 En proceso](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--en-proceso)
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
 - [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 🟠 Reabierto](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--reabierto)
 - [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
@@ -6311,7 +6311,11 @@ código propios de este sprint — ver Sprint 8 para el detalle técnico complet
 
 ---
 
-## Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟠 Reabierto
+## Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟡 En proceso
+
+**En proceso (rutina autónoma, 2026-08-23):** rama `sprint-82-formula-interes-dtf-condena-administrativa`,
+implementando la fórmula del despacho (22/08/2026) como función aislada, sin resolver la pregunta de área
+que sigue sin contestar.
 
 **Prioridad sugerida:** Baja — DTF no se usa hoy en ningún cálculo de BASTIUM; el único caso de uso identificado (`i10`, condenas administrativas) no tiene un área clara dentro de las 6 áreas actuales. Se propone cargar el dato de todas formas (bajo costo, fuente ya lista) pero sin construir el calculador hasta resolver la pregunta de área.
 **Depende de:** Nada para la carga de datos; el uso real depende de la respuesta a la pregunta nueva de este sprint.
