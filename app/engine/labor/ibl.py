@@ -172,7 +172,12 @@ def calcular_densidad_semanas(periodos_cotizados: list[tuple[date, date]]) -> in
     """Semanas de cotizacion en dias calendario reales (365/366), no dias
     habiles ni ano comercial de 360 (Sentencia SL138-2024). Los periodos
     solapados se unen antes de contar, para no cotizar "doble" el mismo dia
-    calendario."""
+    calendario. Conteo INCLUSIVO (+1 dia por periodo fusionado, respuesta del
+    despacho, Sprint 78, 22/08/2026): "se deben restar las fechas, sumar 1
+    (inclusivo) y dividir exactamente por 7" -- misma regla general de
+    conteo inclusivo del Sprint 3, ahora confirmada tambien para densidad
+    pensional (antes de esta respuesta, el sprint la dejaba deliberadamente
+    sin el +1 por falta de confirmacion)."""
     if not periodos_cotizados:
         return 0
     for inicio, fin in periodos_cotizados:
@@ -188,6 +193,6 @@ def calcular_densidad_semanas(periodos_cotizados: list[tuple[date, date]]) -> in
         else:
             fusionados.append((inicio, fin))
 
-    dias_totales = sum((fin - inicio).days for inicio, fin in fusionados)
+    dias_totales = sum((fin - inicio).days + 1 for inicio, fin in fusionados)
     semanas = (Decimal(dias_totales) / Decimal("7")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return int(semanas)
