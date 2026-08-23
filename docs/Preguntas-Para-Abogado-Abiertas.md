@@ -91,7 +91,6 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025](#sprint-95-seguimiento--porcentajes-de-los-4-conceptos-horas-extras-hed-hen-hefd-hefn-tras-la-ley-24662025)
 - [Sprint 96 (seguimiento) — auxilio de transporte pactado por día en trabajo doméstico](#sprint-96-seguimiento--auxilio-de-transporte-pactado-por-día-en-trabajo-doméstico)
 - [Sprint 97 (seguimiento) — decisión de arquitectura pendiente: ¿séptima área de derecho o submodo de Civil/Familia?, ¿cuáles variantes usa el despacho?, y tabla de mortalidad completa (hombres/mujeres inválidos)](#sprint-97-seguimiento--decisión-de-arquitectura-pendiente-séptima-área-de-derecho-o-submodo-de-civilfamilia-cuáles-variantes-usa-el-despacho-y-tabla-de-mortalidad-completa-hombresmujeres-inválidos)
-- [Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)](#sprint-98--tabla-completa-de-mortalidad-de-rentistas-resolución-1555-de-2010-superfinanciera)
 - [Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)](#sprint-102--ejemplo-numérico-resuelto-de-indexación-con-abonos-x9)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
@@ -569,46 +568,11 @@ inválidos completas.
 
 ---
 
-## Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)
-
-**Contexto:** las plantillas de lucro cesante futuro (víctima incapacitada, cónyuge e hijos, padres,
-pensionado de fondo privado) necesitan la expectativa de vida de la víctima según su edad y sexo, tomada de
-la tabla de mortalidad de rentistas de la Resolución 1555 de 2010 de la Superintendencia Financiera. Las
-plantillas traen esta tabla incrustada como referencia (hoja `TablasMortalidad`), pero el material revisado
-solo cubre edades desde 15 hasta cerca de 38 años — no se confirmó si la tabla incrustada en las plantillas
-llega hasta la edad máxima que puede necesitarse (ej. hasta 100+ años) ni si hay alguna actualización
-posterior a 2010 que el despacho use en su lugar.
-
-**Pregunta:** ¿pueden aportar la tabla completa de mortalidad de rentistas de la Resolución 1555 de 2010
-(hombres y mujeres, todas las edades), o confirmar si el despacho usa una fuente/versión distinta?
-
-**Qué necesito exactamente:** la tabla completa (edad → años de expectativa de vida, separada por sexo)
-desde la edad mínima relevante hasta la máxima, en cualquier formato (Excel, PDF, o el enlace oficial de la
-Superfinanciera).
-
-**Respuesta del despacho:**
-
-
-CONCRETAMENTE:
-# 1. FÓRMULAS MATRICES
-# Ra = Renta Actualizada Mensual
-# i = Tasa mensual pura (0.0048676)
-# n = Tiempo en meses exactos
-
-# A. Lucro Cesante Consolidado (Pasado/Vencido)
-LCC = Ra * (((1.0 + i) ** n) - 1.0) / i
-
-# B. Lucro Cesante Futuro (Anticipado)
-LCF = Ra * (((1.0 + i) ** n) - 1.0) / (i * ((1.0 + i) ** n))
-
-# 2. EXPECTATIVA DE VIDA (Conversión de Tablas a variable 'n')
-# El valor de la tabla de mortalidad de la Superfinanciera viene en AÑOS. 
-# El desarrollador debe multiplicarlo obligatoriamente por 12.
-n_meses_futuros = Expectativa_Vida_En_Anios_Segun_Tabla * 12.0
-
-**Fecha:**
-22/08/2026
----
+Nota: la pregunta del Sprint 98 (tabla completa de mortalidad de rentistas) recibió la misma respuesta que
+llegó bajo la pregunta del Sprint 97 en la misma ronda (22/08/2026) — ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 98", y el seguimiento ya consolidado en "Sprint 97
+(seguimiento)" arriba, que cubre exactamente lo que sigue faltando (tabla `hombres_invalidos` completa y
+`mujeres_invalidas`, ausente por completo).
 
 ## Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)
 

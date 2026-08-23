@@ -279,7 +279,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ⚠️ Parcial](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
-- [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🟠 Reabierto](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
+- [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
@@ -7260,7 +7260,7 @@ arquitectura se reformula como seguimiento en `Preguntas-Para-Abogado-Abiertas.m
 
 ---
 
-## Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🟠 Reabierto
+## Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Alta una vez resuelto Sprint 97 — es el núcleo matemático compartido por 6 de las 8 plantillas del dominio.
 
@@ -7291,6 +7291,18 @@ Diferencias entre las 6 variantes (todas reutilizan el mismo núcleo de arriba, 
 - Tabla de mortalidad cargada y con lookup por sexo/edad, con test de al menos 3 edades contra la fuente oficial (Resolución 1555/2010 Superfinanciera).
 - Al menos la variante X2 (víctima incapacitado) implementada y testeada end-to-end.
 - Suite completa en verde.
+
+**Sigue bloqueado (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 98") con el mismo contenido que ya llegó bajo la pregunta
+del Sprint 97 (misma ronda de respuestas) — las dos fórmulas de anualidad, ya implementadas de forma aislada
+en el Sprint 97 (`app/engine/civil/lucro_cesante_actuarial.py`). La tabla de mortalidad completa que pedía
+específicamente este sprint **sigue sin llegar completa**: la parte con datos reales (hombres_validos/
+mujeres_validas completas, hombres_invalidos truncada, mujeres_invalidas ausente) llegó bajo la respuesta del
+Sprint 97, no bajo esta. No se implementó código adicional (el núcleo matemático ya está cubierto por el
+Sprint 97; falta la tabla completa y la decisión de arquitectura, de la que este sprint depende). No se
+duplica la pregunta de seguimiento — ya quedó registrada como "Sprint 97 (seguimiento)" en
+`Preguntas-Para-Abogado-Abiertas.md`, que cubre exactamente lo que falta aquí también (tabla de mortalidad
+completa). Suite completa en verde (sin tocar código de producción).
 
 ---
 
