@@ -277,7 +277,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
-- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🟠 Reabierto](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
+- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ⚠️ Parcial](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🟠 Reabierto](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🟠 Reabierto](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
@@ -7120,7 +7120,7 @@ de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 95 (seguimiento)
 
 ---
 
-## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🟠 Reabierto
+## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ⚠️ Parcial
 
 **Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — la única pieza
 implementable sin la respuesta del despacho (`salario_diario_a_mensual`) ya está hecha y mergeada a `main`;
@@ -7179,6 +7179,32 @@ al formulario Laboral ni a `LaboralStrategy`: el resto del sprint (captura `sala
 difiere en fórmula del general tras la Ley 1788/2016) sigue condicionado a la respuesta del despacho, ya
 registrada en `Preguntas-Para-Abogado-Abiertas.md` (Sprint 96). Por eso el sprint queda 📋 Pendiente, no
 Completado. Suite completa: 1436 passed. Rama: `sprint-96-conversion-salario-diario-domestico`.
+
+**Cierre parcial (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 96") confirmando que no hay diferencia algebraica de
+fórmula tras la Ley 1788/2016, y agregando una regla nueva de piso para el IBC de seguridad social.
+Implementado:
+- **Modelo/migración**: columnas `salario_diario`/`dias_laborados_semana` en `Obligacion`
+  (`database/models.py`), migración idempotente `scripts/migrate_salario_domestico_sprint96.py` (con tests).
+- **`app/engine/labor/salario_domestico.py`**: nueva función `calcular_ibc_seguridad_social_domestico`
+  (`max(salario_proporcional, 1_SMMLV)`, respuesta literal del despacho).
+- **`LaboralStrategy.liquidar()`** (`app/services/area_strategy.py`): mismo patrón que `es_smmlv` — cuando
+  `salario_diario`/`dias_laborados_semana` están poblados, `valor` se resuelve vía `salario_diario_a_mensual`
+  antes de liquidar (reutiliza `LaborScheduler` sin cambios, tal como confirmó el despacho). El piso de IBC
+  se aplica **solo** a la base de `SeguridadSocialCalculator` (pensión/salud/ARL), nunca a las prestaciones
+  sociales (cesantías/prima/vacaciones), que siguen usando el salario proporcional real — y solo cuando
+  `salario_diario` está poblado, sin afectar el resto de contratos Laborales.
+- Tests nuevos en `tests/engine/labor/test_salario_domestico.py` (función IBC) y
+  `tests/services/test_area_strategy.py` (integración conversión + piso IBC, con montos verificados por
+  composición contra `LaborScheduler`/`SeguridadSocialCalculator` reales).
+
+**Sigue pendiente (queda ⚠️ Parcial, no ✅ Completado)**: la captura de `salario_diario`/
+`dias_laborados_semana` en el formulario Laboral (`app/views/obligaciones.py`) — hoy solo se puede poblar
+estos campos directamente en el modelo, no desde la UI. El "auxilio de transporte" pactado por día (también
+mencionado en la plantilla L2A) tampoco se implementó: no existe ningún concepto de auxilio de transporte en
+el motor de liquidación hoy (`grep -i "auxilio"` sin resultados en `app/engine/`), y la respuesta del
+despacho no lo mencionó — construirlo desde cero está fuera del alcance de esta respuesta. Suite completa en
+verde (1574 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 

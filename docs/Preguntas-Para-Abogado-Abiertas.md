@@ -89,7 +89,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
 - [Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8](#sprint-94-seguimiento--aporte-a-salud-en-contrato-realidad-y-si-el-decreto-03202026-reemplaza-la-regla-de-bonificación-por-servicio-de-la-plantilla-l8)
 - [Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025](#sprint-95-seguimiento--porcentajes-de-los-4-conceptos-horas-extras-hed-hen-hefd-hefn-tras-la-ley-24662025)
-- [Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?](#sprint-96--laboral-hay-diferencia-de-fórmula-no-solo-de-captura-para-trabajo-doméstico-tras-la-ley-17882016)
+- [Sprint 96 (seguimiento) — auxilio de transporte pactado por día en trabajo doméstico](#sprint-96-seguimiento--auxilio-de-transporte-pactado-por-día-en-trabajo-doméstico)
 - [Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?](#sprint-97--nueva-área-de-derecho-o-submodo-de-civilfamilia-para-indemnización-de-perjuicios)
 - [Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)](#sprint-98--tabla-completa-de-mortalidad-de-rentistas-resolución-1555-de-2010-superfinanciera)
 - [Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)](#sprint-102--ejemplo-numérico-resuelto-de-indexación-con-abonos-x9)
@@ -513,37 +513,31 @@ o tienen su propio porcentaje fijo?
 
 ---
 
-## Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?
+## Sprint 96 (seguimiento) — auxilio de transporte pactado por día en trabajo doméstico
 
-**Contexto:** la plantilla de liquidación de prestaciones para empleada doméstica que usa el despacho tiene
-la misma estructura de cálculo (cesantías, intereses, prima, vacaciones) que la plantilla general — la única
-diferencia visible es que convierte un salario diario y días laborados por semana a un equivalente mensual
-antes de aplicar las mismas fórmulas. Antes de construir esto como un simple conversor de datos (sin motor
-nuevo), necesito confirmar que no hay ninguna diferencia de fórmula que la plantilla no esté mostrando.
+**Contexto:** la primera ronda de esta pregunta (ver `Preguntas-Para-Abogado-Respondidas.md`, "Sprint 96")
+confirmó que no hay diferencia de fórmula para las prestaciones sociales (cesantías/intereses/prima/
+vacaciones) del trabajo doméstico, y ya se implementó la conversión salario_diario→mensual y el piso de IBC
+de seguridad social. La plantilla L2A también menciona un "auxilio de transporte" pactado por día con la
+misma lógica de conversión, pero **el motor de liquidación no tiene ningún concepto de auxilio de
+transporte hoy** (no existe en ninguna parte de `app/engine/`) — construirlo desde cero (cuándo aplica, con
+qué tope de salarios, cómo se indexa) está fuera del alcance de la respuesta ya recibida.
 
-**Pregunta:** después de la Ley 1788 de 2016 (que unificó la prima de servicios para el servicio doméstico
-con el régimen general), ¿queda alguna diferencia de fórmula entre las prestaciones sociales de un
-trabajador doméstico y el régimen general de cesantías/intereses/prima/vacaciones, o son exactamente las
-mismas fórmulas aplicadas sobre una base salarial calculada distinto (diario→mensual)?
+**Pregunta:** ¿el auxilio de transporte es un concepto que el despacho necesita liquidar en un contrato de
+trabajo doméstico? Si es así, ¿bajo qué regla se causa (tope de salarios, valor vigente por año) y se
+liquida junto con las demás prestaciones?
 
-**Qué necesito exactamente:** un sí/no sobre si hay diferencia de fórmula, y si la hay, cuál es.
+**Qué necesito exactamente:** confirmación de si esta funcionalidad es necesaria, y si lo es, la regla
+completa del auxilio de transporte a implementar.
 
-**Estado del software (2026-08-20):** ya se implementó, aislada y probada, la parte que NO depende de esta
-respuesta: el conversor puro `salario_diario_a_mensual` (`app/engine/labor/salario_domestico.py`,
-fórmula `salario_diario × días_laborados_semana / 7 × 30`). No está cableado a ningún formulario ni a
-`LaboralStrategy` todavía: eso queda condicionado a esta respuesta (si no hay diferencia de fórmula, el
-resto del Sprint 96 es solo agregar la captura de datos al formulario Laboral; si la hay, hay que
-identificarla antes de construir).
+**Nota adicional:** la captura de `salario_diario`/`dias_laborados_semana` en el formulario Laboral
+(`app/views/obligaciones.py`) tampoco se conectó todavía — el motor y el modelo de datos ya están listos y
+probados (`app/services/area_strategy.py`, `database/models.py`), pero hoy solo se pueden poblar
+directamente en el modelo, no desde la UI. Esto no depende de ninguna respuesta adicional del despacho, es
+trabajo de UI pendiente.
 
-**Respuesta del despacho:**
-No existe diferencia algebraica en las fórmulas de liquidación tras la Ley 1788.
+**Fecha:** 23/08/2026 (seguimiento tras respuesta del 22/08/2026)
 
-Qué puede hacerse?
-Reutilizar la clase general de LiquidacionPrestaciones, utilizando la base mensual. 
-Agregar la validación: IBC_Seguridad_Social = max(Salario_Proporcional, 1_SMMLV).
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?

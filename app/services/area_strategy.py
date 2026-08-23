@@ -28,6 +28,10 @@ from app.engine.interest.usury_validator import calcular_tope_usura
 from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
+from app.engine.labor.salario_domestico import (
+    calcular_ibc_seguridad_social_domestico,
+    salario_diario_a_mensual,
+)
 from app.engine.labor.seguridad_social import SeguridadSocialCalculator
 from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.models import LiquidationItem, PendingDebt, RunningBalance
@@ -1223,6 +1227,18 @@ class LaboralStrategy(AreaStrategy):
         # de que la obligacion se guardo.
         if obligacion.es_smmlv:
             obligacion.valor = get_smlmv_for_year(obligacion.fecha_origen.year)
+        # salario_diario/dias_laborados_semana (Sprint 96): mismo patron que
+        # es_smmlv arriba -- el `valor` digitado a mano se descarta y se
+        # resuelve en memoria desde el salario pactado por dia (trabajo
+        # domestico por dias/jornada parcial), via
+        # salario_diario_a_mensual. Respuesta del despacho (22/08/2026): "no
+        # existe diferencia algebraica en las formulas de liquidacion tras la
+        # Ley 1788" -- se reutiliza LaborScheduler sin cambios, solo con esta
+        # base convertida.
+        if obligacion.salario_diario is not None and obligacion.dias_laborados_semana is not None:
+            obligacion.valor = salario_diario_a_mensual(
+                obligacion.salario_diario, obligacion.dias_laborados_semana
+            )
         self._validar_obligacion_laboral(obligacion)
 
         # Sprint 93: SALARIOS_DEJADOS_DE_PERCIBIR se desvia por completo antes
@@ -1271,8 +1287,23 @@ class LaboralStrategy(AreaStrategy):
                 for evento in obligacion.eventos_laborales
                 if evento.tipo.value == "SUSPENSION"
             )
+            # IBC_Seguridad_Social = max(salario_proporcional, 1 SMMLV) --
+            # solo para trabajo domestico por dias/jornada parcial (Sprint
+            # 96, respuesta del despacho 22/08/2026): la cotizacion a
+            # seguridad social nunca puede basarse en un IBC menor a 1 SMMLV,
+            # aunque el salario proporcional real si sea menor. NO se aplica
+            # este piso a las prestaciones sociales de arriba (cesantias/
+            # prima/vacaciones), que siguen usando el salario proporcional
+            # real -- ni al resto de contratos Laborales (salario_diario
+            # None), fuera del alcance de esta respuesta.
+            base_seguridad_social = obligacion.valor
+            if obligacion.salario_diario is not None:
+                base_seguridad_social = calcular_ibc_seguridad_social_domestico(
+                    salario_proporcional=obligacion.valor,
+                    smmlv_mensual=get_smlmv_for_year(obligacion.fecha_fin.year),
+                )
             cotizaciones = SeguridadSocialCalculator.calcular(
-                salario_base=obligacion.valor,
+                salario_base=base_seguridad_social,
                 dias_trabajados=dias_trabajados,
                 dias_suspension=dias_suspension,
                 nivel_riesgo_arl=obligacion.nivel_riesgo_arl,

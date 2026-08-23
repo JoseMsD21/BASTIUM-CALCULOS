@@ -364,6 +364,17 @@ class Obligacion(Base):
     # despido antes de cumplirse el plazo). Nula para INDEFINIDO.
     fecha_fin_pactada: Mapped[date | None] = mapped_column(Date, nullable=True)
 
+    # salario_diario/dias_laborados_semana (Sprint 96): captura de un salario
+    # pactado por dia (trabajo domestico por dias/jornada parcial, comun con
+    # 1-3 dias/semana), en vez de un salario mensual directo. Cuando ambos
+    # estan poblados, LaboralStrategy.liquidar() descarta el `valor` digitado
+    # a mano y lo resuelve via
+    # app.engine.labor.salario_domestico.salario_diario_a_mensual -- mismo
+    # patron que `es_smmlv` arriba. Nulos para el resto de obligaciones
+    # (salario mensual directo, sin conversion).
+    salario_diario: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    dias_laborados_semana: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Sprint 61: tipo de accion (prescripcion, TipoAccion.value en minuscula,
     # ej. "ordinaria") o de proceso (caducidad, clave de
     # PLAZOS_CADUCIDAD_MESES_CONOCIDOS en mayuscula, ej. "CHEQUES") aplicable a

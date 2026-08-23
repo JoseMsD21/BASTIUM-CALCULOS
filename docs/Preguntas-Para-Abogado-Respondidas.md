@@ -1295,6 +1295,49 @@ de los 7 conceptos: `hora_inicio_jornada_nocturna` (vigencia inmediata desde 25/
 
 ---
 
+## Sprint 96 — Laboral: ¿hay diferencia de fórmula (no solo de captura) para trabajo doméstico tras la Ley 1788/2016?
+
+**Contexto:** la plantilla de liquidación de prestaciones para empleada doméstica que usa el despacho tiene
+la misma estructura de cálculo (cesantías, intereses, prima, vacaciones) que la plantilla general — la única
+diferencia visible es que convierte un salario diario y días laborados por semana a un equivalente mensual
+antes de aplicar las mismas fórmulas. Antes de construir esto como un simple conversor de datos (sin motor
+nuevo), necesito confirmar que no hay ninguna diferencia de fórmula que la plantilla no esté mostrando.
+
+**Pregunta:** después de la Ley 1788 de 2016 (que unificó la prima de servicios para el servicio doméstico
+con el régimen general), ¿queda alguna diferencia de fórmula entre las prestaciones sociales de un
+trabajador doméstico y el régimen general de cesantías/intereses/prima/vacaciones, o son exactamente las
+mismas fórmulas aplicadas sobre una base salarial calculada distinto (diario→mensual)?
+
+**Qué necesito exactamente:** un sí/no sobre si hay diferencia de fórmula, y si la hay, cuál es.
+
+**Estado del software (2026-08-20):** ya se implementó, aislada y probada, la parte que NO depende de esta
+respuesta: el conversor puro `salario_diario_a_mensual` (`app/engine/labor/salario_domestico.py`,
+fórmula `salario_diario × días_laborados_semana / 7 × 30`). No está cableado a ningún formulario ni a
+`LaboralStrategy` todavía: eso queda condicionado a esta respuesta (si no hay diferencia de fórmula, el
+resto del Sprint 96 es solo agregar la captura de datos al formulario Laboral; si la hay, hay que
+identificarla antes de construir).
+
+**Respuesta del despacho:**
+No existe diferencia algebraica en las fórmulas de liquidación tras la Ley 1788.
+
+Qué puede hacerse?
+Reutilizar la clase general de LiquidacionPrestaciones, utilizando la base mensual.
+Agregar la validación: IBC_Seguridad_Social = max(Salario_Proporcional, 1_SMMLV).
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** implementado en `app/services/area_strategy.py`
+(`LaboralStrategy.liquidar`) y `app/engine/labor/salario_domestico.py`: la conversión salario_diario→mensual
+se aplica antes de reutilizar `LaborScheduler` sin cambios, y el piso de IBC (`max(salario_proporcional,
+1_SMMLV)`) se aplica solo a la base de `SeguridadSocialCalculator`. Columnas nuevas
+`salario_diario`/`dias_laborados_semana` en `Obligacion`, migración en
+`scripts/migrate_salario_domestico_sprint96.py`. Sigue sin cablear al formulario de UI (queda como pieza
+pendiente, no una pregunta al despacho) y sin implementar el auxilio de transporte (no existe ningún
+concepto de auxilio de transporte en el motor todavía) — pregunta de seguimiento en
+`Preguntas-Para-Abogado-Abiertas.md`, "Sprint 96 (seguimiento)". Ver `Pendientes.md`, Sprint 96.
+
+---
+
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
 
 **Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el

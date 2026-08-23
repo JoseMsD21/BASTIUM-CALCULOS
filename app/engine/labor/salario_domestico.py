@@ -17,13 +17,12 @@ def salario_diario_a_mensual(salario_diario, dias_laborados_semana) -> Decimal:
     calendario reales. Sirve tanto para el salario como para el auxilio de
     transporte pactado por dia (misma formula).
 
-    Alcance deliberadamente limitado (ver docs/Pendientes.md, Sprint 96, y la
-    pregunta abierta en docs/Preguntas-Para-Abogado-Abiertas.md): esta funcion
-    solo resuelve la CONVERSION de salario diario a base mensual. No decide si el
-    regimen prestacional del trabajo domestico difiere en FORMULA del regimen
-    general tras la Ley 1788 de 2016 -- esa confirmacion del despacho sigue
-    pendiente, y hasta tenerla no se cablea esta conversion a ningun formulario ni
-    a LaboralStrategy.
+    Respuesta del despacho (Sprint 96, 22/08/2026): "no existe diferencia
+    algebraica en las formulas de liquidacion tras la Ley 1788" -- confirma
+    que las prestaciones se calculan reutilizando `LaborScheduler` (la misma
+    clase general) sobre esta base mensual convertida, sin motor nuevo. Ver
+    `calcular_ibc_seguridad_social_domestico` para el piso adicional que la
+    misma respuesta agrego para la base de seguridad social.
     """
     salario_diario = Decimal(str(salario_diario))
     dias_laborados_semana = Decimal(str(dias_laborados_semana))
@@ -38,3 +37,25 @@ def salario_diario_a_mensual(salario_diario, dias_laborados_semana) -> Decimal:
 
     base_mensual = salario_diario * dias_laborados_semana / DIAS_SEMANA * DIAS_MES_COMERCIAL
     return Rounding.money(base_mensual)
+
+
+def calcular_ibc_seguridad_social_domestico(salario_proporcional, smmlv_mensual) -> Decimal:
+    """IBC (Ingreso Base de Cotizacion) para seguridad social de un contrato
+    de trabajo domestico por dias/jornada parcial: nunca puede ser inferior a
+    1 SMMLV, aunque el salario proporcional efectivamente devengado (via
+    `salario_diario_a_mensual`) sea menor -- respuesta del despacho (Sprint
+    96, 22/08/2026): "IBC_Seguridad_Social = max(Salario_Proporcional,
+    1_SMMLV)".
+
+    Aplica SOLO a la base de cotizacion de seguridad social (pension/salud/
+    ARL) -- las prestaciones sociales (cesantias, prima, vacaciones) se
+    siguen liquidando sobre el salario proporcional real, sin este piso."""
+    salario_proporcional = Decimal(str(salario_proporcional))
+    smmlv_mensual = Decimal(str(smmlv_mensual))
+
+    if salario_proporcional < 0:
+        raise ValueError("El salario proporcional no puede ser negativo.")
+    if smmlv_mensual <= 0:
+        raise ValueError("El SMMLV mensual debe ser mayor que cero.")
+
+    return max(salario_proporcional, smmlv_mensual)
