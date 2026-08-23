@@ -863,3 +863,73 @@ base de 360 días de `LaboralStrategy.liquidar` (prestaciones sociales, Sprint 3
 distinto y sigue siendo la base correcta para ese caso, por diseño (ver Sprint 3). Con esto, el script de
 recálculo histórico del Sprint 47a no necesita una fecha de corte adicional: no hubo cambio de código que
 afecte liquidaciones ya guardadas.
+
+---
+
+## Sprint 70/91 — Tasa de reemplazo pensional: regímenes históricos e invalidez
+
+**Contexto:** `calcular_tasa_reemplazo` (`app/engine/labor/ibl.py`, Sprint 17) solo implementa la fórmula
+`r = 65.5 − 0.5·s` de la Ley 797/2003, vigente desde 2004. Una plantilla comercial del despacho (P9,
+hallada en el Sprint 91) sugirió que existen al menos 4 fórmulas más: dos regímenes históricos anteriores
+(1993-2003 y "régimen de transición"), y pensión de invalidez grados 1 y 2 — esta última con cifras que sí
+se pudieron extraer completas de la plantilla (grado 1: base 45%, +1,5%/50 semanas desde 500, tope **75%**;
+grado 2: base 54%, +2%/50 semanas desde 800, tope 75%).
+
+**Pregunta:** ¿pueden confirmar la fórmula exacta de cada régimen histórico (con su fecha exacta de
+vigencia), y las cifras de invalidez grados 1 y 2?
+
+**Respuesta del despacho:**
+La coexistencia de regímenes necesita un patrón Factory que pueda enrutar el cálculo según la fecha de los hechos jurídicamente relevantes y el régimen de transición del afiliado.
+
+Podría implementarse una lógica de Tasa de Reemplazo (r):
+
+Régimen 1985-1989 (Ley 33/85 y Ley 71/88): r = 75.0% fijo. Sin variables dinámicas.
+Régimen ISS Pre-Ley 100 (Acuerdo 049/1990):
+Base: 45% (500 semanas) o 75% (1.000 semanas).
+Incremento: +3.0% por cada grupo de 50 semanas adicionales a las 1.000.
+Tope algorítmico: min(r, 90.0).
+
+Régimen Ley 100 Original (1994-2003):
+Base: 65% (1.000 semanas).
+Incrementos: +2.0% / 50 sem (entre 1.000 y 1.200). +3.0% / 50 sem (entre 1.200 y 1.400).
+Tope algorítmico: min(r, 85.0).
+
+Régimen Ley 797/2003 y Ley 2381/2024:
+Variable s = IBL / SMMLV_vigente.
+Fórmula base decreciente: r = 65.5 - (0.5 * s).
+Límite de control: Nunca inferior a 55% ni superior a 65.5%.
+Incremento: +1.5% por cada 50 semanas adicionales a las 1.300.
+Tope algorítmico: min(r_final, 80.0).
+
+Pensión de Invalidez (Grado I - 50% a 65% PCL): r = 45.0 + (math.floor((semanas - 500) / 50) * 1.5).
+Tope: 60%.
+
+Pensión de Invalidez (Grado II - ≥ 66% PCL): r = 54.0 + (math.floor((semanas - 800) / 50) * 2.0).
+Tope: 75%.
+
+(Más el pseudocódigo Python completo de las 4 fórmulas y las 2 pensiones de invalidez — ver la copia
+íntegra en el historial de `Preguntas-Para-Abogado-Abiertas.md` si hace falta releerlo literal.)
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** implementadas y probadas como funciones aisladas en
+`app/engine/labor/ibl.py` — `calcular_tasa_reemplazo_regimen_1985_1989`,
+`calcular_tasa_reemplazo_iss_pre_ley_100`, `calcular_tasa_reemplazo_ley_100_original` y
+`calcular_tasa_reemplazo_invalidez_grado_2` (tests en `tests/engine/labor/test_ibl.py`, verificados contra
+las fórmulas exactas de esta respuesta). **Dos puntos quedan sin resolver, documentados como pregunta de
+seguimiento, no adivinados:**
+1. **Invalidez Grado 1**: el tope que trae esta respuesta (60%) NO coincide con el que ya había confirmado
+   la plantilla P9 con cifras concretas (75%, Sprint 91) — no se implementó ninguna función para este grado
+   hasta que el despacho aclare cuál de los dos toques es el correcto.
+2. **Router por fecha de causación**: el patrón "Factory" que pidió el despacho para elegir automáticamente
+   el régimen aplicable no se construyó — la respuesta da fórmulas pero no las fechas exactas de entrada en
+   vigencia de cada régimen (cuándo empieza y termina cada uno; "1985-1989" y "Pre-Ley 100" no traen día
+   exacto). Enrutar mal una liquidación real a un régimen equivocado por una fecha de corte mal supuesta es
+   un error de dominio grave — se prefirió dejar las funciones sin conectar antes que adivinar una fecha de
+   corte. Tampoco se abordó explícitamente el "régimen de transición" (Art. 36 Ley 100/1993, 75%/90%/"la
+   que corresponda") que preguntaba originalmente el Sprint 91 — la respuesta no lo menciona por ese
+   nombre.
+
+Ver la pregunta de seguimiento en
+[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición)
+y `Pendientes.md`, Sprints 70 y 91.

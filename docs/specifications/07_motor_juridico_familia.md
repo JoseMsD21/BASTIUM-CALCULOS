@@ -67,6 +67,12 @@ desde `ExpedienteFormDialog` (`app/views/expedientes.py`).
 - Wiring del modulo pensional (`app/engine/labor/ibl.py`, implementado como funciones puras standalone
   desde el Sprint 17: `calcular_ibl`, `calcular_tasa_reemplazo`, `calcular_densidad_semanas`,
   `semanas_minimas_requeridas`) a una `PensionalStrategy`/pantalla de GUI — hoy no es una de las 6 areas
-  operables listadas arriba.
+  operables listadas arriba. Desde el Sprint 70/91 (2026-08-23), el mismo modulo tambien trae
+  `calcular_tasa_reemplazo_regimen_1985_1989`, `calcular_tasa_reemplazo_iss_pre_ley_100`,
+  `calcular_tasa_reemplazo_ley_100_original` y `calcular_tasa_reemplazo_invalidez_grado_2` — formulas de
+  regimenes pensionales historicos confirmadas por el despacho, igual de aisladas, sin router por fecha de
+  causacion (las fechas exactas de vigencia de cada regimen siguen sin confirmar) ni wiring a ninguna
+  estrategia. La pension de invalidez grado 1 sigue sin funcion propia: su tope trae una discrepancia entre
+  dos fuentes del despacho (60% vs. 75%) sin resolver — ver `docs/Pendientes.md`, Sprint 70/91.
 - Costas judiciales con tabla real de rangos (hoy se ingresan como porcentaje manual en Honorarios) — ver
   `docs/Pendientes.md`, Sprint 18.
