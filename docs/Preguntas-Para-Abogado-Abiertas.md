@@ -80,7 +80,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 ## Índice
 
 - [Sprint 8 (seguimiento 3) — Tabla real de IPC mensual anterior a enero de 2003](#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003)
-- [Sprint 18 (seguimiento 2) — ¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?](#sprint-18-seguimiento-2--pcsja20-11556-y-psaa16-10554-son-el-mismo-acuerdo)
+- [Sprint 18 (seguimiento 3) — Discrepancia numérica entre la tabla granular verificada (PSAA16-10554) y las "tarifas duras" que aportó el despacho](#sprint-18-seguimiento-3--discrepancia-numérica-entre-la-tabla-granular-verificada-psaa16-10554-y-las-tarifas-duras-que-aportó-el-despacho)
 - [Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?](#sprint-43-seguimiento--es-válido-cobrar-interés-civil-sobre-el-capital-ya-indexado-en-honorarios)
 - [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt)
 - [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
@@ -133,56 +133,43 @@ de archivo (Excel/CSV) que ya aportaron para 2003-2026?
 **Fecha:**
 ---
 
-## Sprint 18 (seguimiento 2) — ¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?
+## Sprint 18 (seguimiento 3) — Discrepancia numérica entre la tabla granular verificada (PSAA16-10554) y las "tarifas duras" que aportó el despacho
 
-**Contexto:** el desarrollo había identificado y verificado directamente contra la fuente oficial
-(ramajudicial.gov.co) que el Acuerdo **PSAA16-10554** del 5 de agosto de 2016 del Consejo Superior de la
-Judicatura es el que regula las tarifas de agencias en derecho, y transcribió su tabla granular completa
-(18 tipos de proceso × instancia). La respuesta más reciente del despacho, sobre cómo conviven la tabla
-simple de 3 rangos con la tabla granular, cita en cambio el Acuerdo **PCSJA20-11556** como el que rige hoy.
+**Contexto:** la pregunta de seguimiento 2 (¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?) ya se
+contestó (22/08/2026, ver `Preguntas-Para-Abogado-Respondidas.md`, Sprint 18): el despacho confirmó que
+"el marco tarifario unificado obligatorio se rige por el Acuerdo PSAA16-10554" — coincide exactamente con
+lo ya implementado y verificado contra la fuente oficial (ramajudicial.gov.co), así que no hubo que tocar
+código por ese punto. La misma respuesta también confirmó, sin ambigüedad, que las agencias en derecho se
+tasan con "ponderación inversa: a mayor valor, menor porcentaje, respetando los topes" — exactamente la
+aproximación que ya usa `_interpolar_dentro_de_rango` (`app/engine/costs/agencias_en_derecho.py`), citando
+el mismo fundamento (Parágrafo 3, Art. 3 del Acuerdo). Ninguno de esos dos puntos requiere cambio de
+código.
 
-**Pregunta:** ¿el PCSJA20-11556 es una actualización/reemplazo del PSAA16-10554 (en cuyo caso el desarrollo
-necesitaría la tabla granular actualizada de ese acuerdo nuevo, no la de 2016), o son referencias al mismo
-acuerdo con una numeración distinta por error de transcripción?
+La respuesta agregó además, bajo el encabezado "Qué podría hacerse", una tabla de "tarifas duras" para 3
+categorías (Procesos Declarativos, Procesos Ejecutivos, Sucesiones y Liquidaciones) con rangos min/max que
+**no coinciden** con los ya transcritos en `TARIFAS_AGENCIAS_EN_DERECHO` desde el texto oficial del Acuerdo
+(ej. la respuesta da "Procesos Declarativos, Primera Instancia, Mayor Cuantía: 0.03-0.075", un rango
+distinto al que trae la tabla granular actual para esa misma categoría). Como la tabla granular actual fue
+verificada independientemente contra la fuente oficial del acuerdo, y como el propio despacho ya se
+equivocó una vez citando un número de acuerdo inexistente ("PCSJA20-11556", Sprint 18 original) y ahora
+enmarca esta tabla como una sugerencia tentativa ("por ahora se sabe", "qué **podría** hacerse", no una
+instrucción categórica de reemplazo), esta rutina NO sobrescribió la tabla ya verificada con estos números
+nuevos — el riesgo de introducir una cifra legal incorrecta sin una fuente primaria que la respalde es
+mayor que el de dejar la pregunta abierta.
 
-**Qué necesito exactamente:** confirmación de cuál de los dos números es el correcto, y si es un acuerdo
-distinto al PSAA16-10554, la tabla granular actualizada (18 tipos de proceso × instancia, o los que
-correspondan) del acuerdo vigente.
+**Pregunta:** ¿la tabla de "tarifas duras" de la respuesta del 22/08/2026 debe **reemplazar** la tabla
+granular ya implementada (transcrita y verificada contra el texto oficial del Acuerdo PSAA16-10554 en
+ramajudicial.gov.co), o es una aproximación/resumen que no debe usarse tal cual? Si debe reemplazarla,
+¿pueden confirmar la fuente exacta de esos números (para volver a verificarlos contra el texto oficial
+antes de tocar el motor de cálculo)?
+
+**Qué necesito exactamente:** un sí/no sobre si se reemplaza la tabla granular actual, y si es sí, el
+artículo/página exacto del Acuerdo (o la fuente que corresponda) de donde salen esos rangos, para
+verificarlos igual que se hizo con la tabla que ya está implementada.
 
 **Respuesta del despacho:**
-Por ahora se sabe que el marco tarifario unificado obligatorio se rige por el Acuerdo PSAA16-10554. Las agencias en derecho se tasan según el Acuerdo con una ponderación inversa: a mayor valor, menor porcentaje, respetando los topes.
-
-Qué podría hacerse?:
-El módulo TasacionCostas debe mapear las siguientes tarifas duras:
-
-Procesos Declarativos:
-
-Única Instancia (Pecu): min: 0.05, max: 0.15 (5% al 15%).
-
-Única Instancia (No Pecu): min: 1 SMMLV, max: 8 SMMLV.
-
-Primera Instancia (Menor Cuantía): min: 0.04, max: 0.10.
-
-Primera Instancia (Mayor Cuantía): min: 0.03, max: 0.075.
-
-Segunda Instancia: min: 1 SMMLV, max: 6 SMMLV.
-
-Procesos Ejecutivos (Seguir adelante la ejecución o excepciones favorables):
-
-Mínima Cuantía: min: 0.05, max: 0.15.
-
-Menor Cuantía: min: 0.04, max: 0.10.
-
-Mayor Cuantía: min: 0.03, max: 0.075.
-
-Segunda Instancia: min: 1 SMMLV, max: 6 SMMLV.
-
-Sucesiones y Liquidaciones (Objeciones e Inventarios):
-
-Mínima: min: 0.05, max: 0.15. Menor: min: 0.04, max: 0.10. Mayor: min: 0.03, max: 0.075.
 
 **Fecha:**
-22/08/2026
 ---
 
 ## Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?

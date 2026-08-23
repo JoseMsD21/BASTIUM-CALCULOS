@@ -575,15 +575,41 @@ Instrucción de Desarrollo:
 
 **Fecha:** (no especificada por el despacho al copiar la respuesta)
 
-**Estado en el código:** `costas_pct_manual` (validación de input manual, Sprint 4) ya usa la tabla simple
-de 3 rangos como tope — implementado provisionalmente el 2026-08-01 mientras se esperaba esta respuesta. La
-tabla granular (`app/engine/costs/agencias_en_derecho.py`, 18 categorías) ya gobierna el cálculo automático
-desde el cierre original del sprint, sin cambios. Con esta respuesta confirmada, falta: (1) confirmar con
-el despacho si "Acuerdo PCSJA20-11556" y "Acuerdo PSAA16-10554" son la misma norma con numeración distinta
-o si uno modificó al otro — el desarrollo había verificado independientemente el PSAA16-10554 contra la
-fuente oficial, y el despacho ahora cita el PCSJA20-11556 como el que rige; y (2) implementar la lógica de
-ultraactividad CPC→CGP (Art. 624 CGP) sobre la fecha de la providencia, que hoy no existe en el motor. Ver
-`Pendientes.md`, Sprint 18.
+**Estado en el código (actualizado 2026-08-14):** `costas_pct_manual` (validación de input manual, Sprint
+4) ya usa la tabla simple de 3 rangos como tope — implementado provisionalmente el 2026-08-01 mientras se
+esperaba esta respuesta. La tabla granular (`app/engine/costs/agencias_en_derecho.py`, 18 categorías) ya
+gobierna el cálculo automático desde el cierre original del sprint, sin cambios. La ultraactividad CPC→CGP
+(Art. 624 CGP) ya se implementó el 2026-08-14 (`validar_ultraactividad_cgp`). Seguía pendiente confirmar
+si "Acuerdo PCSJA20-11556" y "Acuerdo PSAA16-10554" son la misma norma — ver respuesta de seguimiento
+abajo.
+
+**Respuesta a la pregunta de seguimiento 2 (¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?):**
+Por ahora se sabe que el marco tarifario unificado obligatorio se rige por el Acuerdo PSAA16-10554. Las agencias en derecho se tasan según el Acuerdo con una ponderación inversa: a mayor valor, menor porcentaje, respetando los topes.
+
+Qué podría hacerse?:
+El módulo TasacionCostas debe mapear las siguientes tarifas duras:
+
+Procesos Declarativos: Única Instancia (Pecu): min 0.05, max 0.15. Única Instancia (No Pecu): min 1 SMMLV,
+max 8 SMMLV. Primera Instancia (Menor Cuantía): min 0.04, max 0.10. Primera Instancia (Mayor Cuantía): min
+0.03, max 0.075. Segunda Instancia: min 1 SMMLV, max 6 SMMLV.
+
+Procesos Ejecutivos: Mínima Cuantía: min 0.05, max 0.15. Menor Cuantía: min 0.04, max 0.10. Mayor
+Cuantía: min 0.03, max 0.075. Segunda Instancia: min 1 SMMLV, max 6 SMMLV.
+
+Sucesiones y Liquidaciones (Objeciones e Inventarios): Mínima: min 0.05, max 0.15. Menor: min 0.04, max
+0.10. Mayor: min 0.03, max 0.075.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** confirmado — el Acuerdo **PSAA16-10554** rige, exactamente
+lo que ya está implementado y verificado contra la fuente oficial (ramajudicial.gov.co); no requirió ningún
+cambio de código. La "ponderación inversa" también quedó confirmada tal cual ya la implementa
+`_interpolar_dentro_de_rango`, citando el mismo fundamento (Parágrafo 3, Art. 3 del Acuerdo). La tabla de
+"tarifas duras" que trae la respuesta, en cambio, no coincide numéricamente con la tabla granular ya
+verificada — esta rutina NO la usó para sobrescribir el motor de cálculo (más detalle, y la pregunta de
+seguimiento 3 pendiente, en
+[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-18-seguimiento-3--discrepancia-numérica-entre-la-tabla-granular-verificada-psaa16-10554-y-las-tarifas-duras-que-aportó-el-despacho)).
+Ver `Pendientes.md`, Sprint 18.
 
 ---
 

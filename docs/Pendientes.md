@@ -199,7 +199,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado](#sprint-15--tributario-completo-sanciones-imputación-y-modelo-de-obligación-tributaria-cierre-del-sprint-11b--completado)
 - [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
-- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🟠 Reabierto](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--reabierto) — validación de rango manual implementada; el despacho ya contestó (respuesta 2026-08-22)
+- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--completado) — el despacho confirmó el acuerdo y la ponderación inversa (respuesta 2026-08-22); discrepancia numérica de una tabla adicional queda como pregunta de seguimiento, sin bloquear el cierre
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
@@ -1789,7 +1789,7 @@ Suite completa en verde (653 passed, 1 skipped).
 
 ---
 
-## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🟠 Reabierto
+## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado
 
 **Prioridad sugerida:** Media — el Sprint 4 ya dejó `costas_pct_manual` como solución temporal por no
 conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa fuente.
@@ -1933,6 +1933,18 @@ mencionó sin dar fechas por distrito) — se usa solo la fecha general de vigen
 limitación conocida. No se agregó campo de captura en el formulario de UI (alcance excluido a propósito,
 mismo criterio que `costas_tipo_proceso`/`costas_instancia` en su momento). Suite completa en verde (1162
 tras el merge final del lote).
+
+**Cierre definitivo (2026-08-23, rutina autónoma):** el despacho respondió la pregunta de seguimiento 2
+(22/08/2026, ver `Preguntas-Para-Abogado-Respondidas.md`, Sprint 18): confirmó que el **Acuerdo
+PSAA16-10554** es el que rige (coincide exactamente con lo ya implementado y verificado contra
+ramajudicial.gov.co — sin cambios de código) y confirmó la "ponderación inversa" tal cual ya la implementa
+`_interpolar_dentro_de_rango`. La misma respuesta trajo además una tabla de "tarifas duras" que no
+coincide numéricamente con la tabla granular ya verificada — no se usó para sobrescribir el motor de
+cálculo, dado el riesgo de introducir una cifra legal sin fuente primaria verificable (el despacho ya
+citó una vez un número de acuerdo inexistente en este mismo sprint). Queda una pregunta de seguimiento 3,
+acotada y no bloqueante, en `Preguntas-Para-Abogado-Abiertas.md`. Sin cambios de código en este cierre —
+la Definición de Hecho ya estaba cumplida desde el cierre de la ultraactividad CPC→CGP (2026-08-14); esta
+actualización solo resuelve la pregunta pendiente que mantenía el sprint reabierto.
 
 ---
 
