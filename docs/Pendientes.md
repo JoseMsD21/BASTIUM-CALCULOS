@@ -251,7 +251,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 67 — Checkbox invisible en modo claro y oscuro (indicador de QCheckBox) ✅ Completado](#sprint-67--checkbox-invisible-en-modo-claro-y-oscuro-indicador-de-qcheckbox--completado)
 - [Sprint 68 — Parámetros: editar/eliminar de usuario, vigencia clara, unidad desplegable y tooltips homologados ✅ Completado](#sprint-68--parámetros-editareliminar-de-usuario-vigencia-clara-unidad-desplegable-y-tooltips-homologados--completado)
 - [Sprint 69 — Configuraciones: Restablecer datos de fábrica ✅ Completado](#sprint-69--configuraciones-restablecer-datos-de-fábrica--completado)
-- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟠 Reabierto](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt--reabierto)
+- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟡 En proceso](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt--en-proceso)
 - [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
 - [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
@@ -272,7 +272,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🟠 Reabierto](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
-- [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟠 Reabierto](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--reabierto)
+- [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟡 En proceso](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--en-proceso)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟠 Reabierto](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
@@ -5560,7 +5560,10 @@ pudo confirmar de forma headless — queda para que el usuario lo revise.
 
 ---
 
-## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟠 Reabierto
+## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟡 En proceso
+
+**En proceso (rutina autónoma, 2026-08-23):** rama `sprint-70-91-regimenes-tasa-reemplazo-pensional`,
+implementando la respuesta del despacho del 22/08/2026 junto con el Sprint 91.
 
 **Prioridad sugerida:** Alta — afecta directamente la corrección jurídica de cualquier liquidación
 pensional o laboral cuyo hecho generador haya ocurrido bajo una ley distinta a la que el motor usa hoy.
@@ -6481,7 +6484,10 @@ tope) -> Decimal`.
 
 ---
 
-## Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟠 Reabierto
+## Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟡 En proceso
+
+**En proceso (rutina autónoma, 2026-08-23):** rama `sprint-70-91-regimenes-tasa-reemplazo-pensional`,
+implementando la respuesta del despacho del 22/08/2026 junto con el Sprint 70.
 
 **Prioridad sugerida:** Media-Alta — `calcular_tasa_reemplazo` de `app/engine/labor/ibl.py:60-89` **solo implementa la tabla "desde el año 2004 en
 adelante"** de la Ley 797/2003; las otras 3 variantes que trae la misma plantilla de referencia (P9) no están cubiertas y producirían resultados
