@@ -974,3 +974,35 @@ obligación RECURRENTE con beneficiario no determinable, un checkbox + fecha se 
 obligatorios — "Guardar" bloquea sin ellos. La respuesta sigue sin dar un criterio operacional para "cuándo
 un cónyuge superó su vulnerabilidad" (el reemplazo es que la autoridad fije la fecha, no que el software la
 calcule) — no hace falta esa regla ahora que la fecha es manual. Ver `Pendientes.md`, Sprint 74.
+
+---
+
+## Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?
+
+**Contexto:** el software cuenta días con la fórmula inclusiva `Dias = (Fecha_Fin - Fecha_Inicio) + 1` para
+prestaciones sociales (Sprint 3), pero `calcular_densidad_semanas` (densidad pensional, Sprint 17) usaba
+una resta simple sin el "+1" — verificado contra un caso de prueba judicial real (348 días → 50 semanas),
+sin confirmar si ahí el "+1" también debía aplicar o si era, a propósito, la excepción.
+
+**Pregunta:** para contar los días que se convierten en "semanas cotizadas" de pensión, ¿debe sumarse 1 día
+al resultado de la resta de fechas (igual que para prestaciones), o el conteo sin ese "+1" es correcto para
+este cálculo específico?
+
+**Respuesta del despacho:**
+En materia de pensiones, la Corte Suprema de Justicia en la sentencia SL138-2024 prohibió el uso del año comercial de 360 días para el cómputo de las semanas de pensión.
+
+Qué puede hacerse?
+
+Para prestaciones sociales como primas y cesantías: Resta inclusiva ((Fin - Inicio) + 1) sobre base de 360 días anuales.
+
+Para semanas pensionales: No se usa el factor de año, sino que se suman los días calendario reales con resta inclusiva y se divide estrictamente entre 7. Semanas_Reales = sumatoria_dias_calendario_totales / 7
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** confirmado — sí aplica el "+1" inclusivo. Implementado en
+`calcular_densidad_semanas` (`app/engine/labor/ibl.py`): cada período fusionado suma `(fin - inicio).days +
+1` antes de dividir por 7. El caso de prueba judicial ya citado (348 días) sigue dando 50 semanas con el
++1 (349/7 = 49,86 → 50) — no era una excepción real, solo una coincidencia de redondeo. El caso de períodos
+solapados sí cambió de resultado (6 → 7 semanas), documentado en el test correspondiente. Función aislada,
+sigue sin conectar a ningún flujo real de liquidación (mismo estado que antes de este sprint). Ver
+`Pendientes.md`, Sprint 78.
