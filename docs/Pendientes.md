@@ -278,7 +278,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ⚠️ Parcial](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
-- [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🟠 Reabierto](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
+- [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🟠 Reabierto](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
@@ -7208,7 +7208,7 @@ verde (1574 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 
-## Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🟠 Reabierto
+## Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Alta como decisión (bloquea Sprint 98-Sprint 100), Media como implementación — el despacho envió 8 plantillas completas (X1-X6, X8, X10) de un dominio jurídico que hoy no existe en BASTIUM ni siquiera como esqueleto activo.
 
@@ -7241,6 +7241,22 @@ Las 8 plantillas de Ediciones Sistematizadas Equidad que cubren este dominio (`X
 - Decisión documentada en `Preguntas-Para-Abogado-Respondidas.md` sobre área nueva vs. submodo de Civil/Familia, alcance real (qué variantes construir), y confirmación de tasa/tabla de mortalidad.
 - Si se aprueba, esqueleto de `AreaStrategy`/modelo de datos creado y testeado, sin fórmulas de negocio todavía.
 - Suite completa en verde.
+
+**Sigue bloqueado, avance parcial (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 97"), pero **no contestó la pregunta de arquitectura**
+(séptima área de derecho vs. submodo de Civil/Familia, ni cuáles de las 6 variantes de reparto de
+beneficiario usa realmente el despacho) — en su lugar, adelantó las fórmulas matemáticas que el propio sprint
+había marcado explícitamente fuera de alcance ("ninguna línea de código de cálculo... queda para Sprint
+98/99/100"). Dado que las dos fórmulas de anualidad (Consolidado/Futuro) y la regla de interpolación de
+edades sí quedaron completa y precisamente especificadas, se implementaron como funciones aisladas (mismo
+patrón que Sprints 70/82/91/94): `app/engine/civil/lucro_cesante_actuarial.py`
+(`calcular_lucro_cesante_consolidado`, `calcular_lucro_cesante_futuro`,
+`interpolar_expectativa_vida_rentista`), con 15 tests
+(`tests/engine/civil/test_lucro_cesante_actuarial.py`). Deliberadamente **sin** wiring a ningún
+`AreaStrategy`/modelo de datos (la decisión de arquitectura sigue sin resolver) y **sin** la tabla de
+mortalidad hardcodeada (la que trajo la respuesta viene truncada — ver Sprint 98). La pregunta de
+arquitectura se reformula como seguimiento en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 97
+(seguimiento)". Suite completa en verde (1589 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 

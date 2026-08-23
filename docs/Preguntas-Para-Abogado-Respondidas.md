@@ -1338,6 +1338,73 @@ concepto de auxilio de transporte en el motor todavía) — pregunta de seguimie
 
 ---
 
+## Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?
+
+**Contexto:** el despacho envió 8 plantillas comerciales (daño emergente, lucro cesante en 6 variantes de
+beneficiario, y beneficio dejado de percibir como fruto civil) que usan una fórmula actuarial completa
+(anualidad + tabla de mortalidad de rentistas) que hoy no existe en BASTIUM. Lo que existe hoy en el
+software (categorías "Daño emergente" y "Lucro cesante consolidado" dentro de Civil/Familia) es solo una
+etiqueta de un capital plano con interés simple e indexación IPC — no reproduce ninguna de las fórmulas de
+las plantillas.
+
+**Pregunta:** ¿el despacho litiga habitualmente casos de responsabilidad civil extracontractual (daño
+emergente, lucro cesante de víctima incapacitada, de cónyuge/hijos o de padres de víctima fallecida), y
+quiere que BASTIUM construya este motor como una séptima área de derecho, o prefiere que se integre como
+una extensión de Civil/Familia? ¿De las 6 variantes de lucro cesante que trajeron las plantillas (víctima
+incapacitado, cónyuge e hijos, padres de víctima adulta, padres de hijo menor, pensionado de fondo privado,
+beneficio dejado de percibir), cuáles usa realmente el despacho?
+
+**Qué necesito exactamente:** confirmación de si esto es una prioridad real de uso (no solo material de
+referencia que llegó junto con las demás plantillas), y si es así, cuál de las 6 variantes conviene construir
+primero.
+
+**Respuesta del despacho:**
+La liquidación de perjuicios requiere de las dos fórmulas actuariales (Consolidado y Futuro) y las Tablas de Mortalidad de la Resolución 1555 de 2010.
+
+Para la mortalidad y los perjuicios:
+
+Fórmulas Matrices: Consolidado = Ra × ((1+i)^n - 1)/i ; Futuro = Ra × ((1+i)^n - 1)/(i × (1+i)^n)
+
+Carga de Tabla de Supervivencia (Base de Datos a inyectar):
+Usando los datos oficiales de la Resolución 1555 de 2010, el diccionario a codificar para las expectativas de vida (e°x) es: hombres_validos: {15: 64.8, 16: 63.9, 17: 62.9, 20: 60.0, 30: 50.3, 40: 40.8, 50: 31.6, 60: 23.0, 70: 15.3, 80: 9.3, 90: 5.1, 100: 2.4, 110: 0.5}. mujeres_validas: {15: 70.0, 16: 69.1, 17: 68.1, 20: 65.1, 30: 55.4, 40: 45.7, 50: 36.2, 60: 27.0, 70: 18.6, 80: 11.3, 90: 5.8, 100: 2.5, 110: 0.5}. hombres_invalidos: {1: 43.47, 15: 38.09, 20: 35.95, 25: 33.70... 90: 3.68, 100: 1.89, 110: 1.0}.
+
+Interpolación Actuarial de Edades: Si la víctima tiene "33 años y 7 meses", el sistema interpolará matemáticamente entre la expectativa a los 33 y a los 34.
+
+Cálculo Futuro: El valor devuelto de la tabla (años) se multiplica estrictamente por 12 para convertirse en la variable n (meses) de la ecuación.
+
+CONCRETAMENTE:
+```
+# 1. FORMULAS MATRICES
+# Ra = Renta Actualizada Mensual
+# i = Tasa mensual pura (0.0048676)
+# n = Tiempo en meses exactos
+
+# A. Lucro Cesante Consolidado (Pasado/Vencido)
+LCC = Ra * (((1.0 + i) ** n) - 1.0) / i
+
+# B. Lucro Cesante Futuro (Anticipado)
+LCF = Ra * (((1.0 + i) ** n) - 1.0) / (i * ((1.0 + i) ** n))
+
+# 2. EXPECTATIVA DE VIDA (Conversion de Tablas a variable 'n')
+# El valor de la tabla de mortalidad de la Superfinanciera viene en AÑOS.
+# El desarrollador debe multiplicarlo obligatoriamente por 12.
+n_meses_futuros = Expectativa_Vida_En_Anios_Segun_Tabla * 12.0
+```
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** la respuesta no contestó la pregunta de arquitectura que
+se hizo (área nueva vs. submodo, ni qué variantes usa el despacho) — trajo en su lugar las fórmulas
+matemáticas. Las fórmulas de anualidad (Consolidado/Futuro) y la interpolación de edades sí quedaron
+completas y se implementaron como funciones aisladas, sin conectar a ningún área ni modelo de datos, en
+`app/engine/civil/lucro_cesante_actuarial.py` (`tests/engine/civil/test_lucro_cesante_actuarial.py`). La
+tabla de mortalidad que trajo la respuesta viene incompleta (`hombres_invalidos` truncada con "...", y no
+incluye ninguna tabla `mujeres_invalidas`) — no se hardcodeó. Pregunta de seguimiento (arquitectura, alcance,
+y las dos tablas de inválidos faltantes) en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 97 (seguimiento)".
+Ver `Pendientes.md`, Sprint 97.
+
+---
+
 ## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
 
 **Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el
