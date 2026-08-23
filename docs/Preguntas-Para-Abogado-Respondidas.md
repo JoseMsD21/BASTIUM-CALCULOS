@@ -1143,3 +1143,77 @@ mecanismo distinto de las plantillas P15/P16 (promedio de últimas 100/150 seman
 al régimen 45%-90% del Acuerdo 049/1990 que el Sprint 70/91 ya había implementado y probado como
 `calcular_tasa_reemplazo_iss_pre_ley_100` (`app/engine/labor/ibl.py:108-126`, misma cita normativa, mismo
 rango 45%-90%). Ver `Pendientes.md`, Sprint 90.
+
+---
+
+## Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?
+
+**Contexto:** la plantilla comercial `L4.INDEMNIZACIONPORDESPIDOLABORALYSANCIONMORATORIA.md` que usa el
+despacho trae dos regímenes de indemnización por despido injustificado según cuándo ingresó el trabajador,
+pero cita la misma fecha ("27 de diciembre de 1.992") para ambos regímenes, atribuyéndosela una vez a la
+Ley 789 de 2002 y otra vez a la Ley 50 de 1990 — que es de 1990, no de 1992. El Sprint 92 (implementado,
+`app/engine/labor/dismissal_indemnity.py::DismissalIndemnityCalculator`) ya construyó el cálculo con lo que
+sí quedó confirmado con cifras exactas por el propio backlog, dejando 3 puntos condicionados/sin calcular en
+vez de adivinar:
+
+1. **Fecha de corte del régimen** (45+15 días vs. 30+20 días): el software usa por defecto el 1° de enero de
+   1991 (entrada en vigencia real y citable de la Ley 50 de 1990) mientras no se confirme lo contrario.
+2. **Salario ≥10 SMMLV**: el backlog solo confirmó que este umbral existe y distingue tablas, pero no trajo
+   la fórmula/días exactos de esa tabla — el software **no calcula** la indemnización en este caso (lanza un
+   error explícito, `RegimenNoSoportadoError`, y la liquidación sigue con una alerta en vez de bloquearse).
+3. **Tramos del régimen pre-Ley 50/1990 más allá de la fórmula continua confirmada** (45 días primer año + 15
+   días por cada año subsiguiente): el backlog advierte que la plantilla original "trae varios regímenes por
+   estos tramos" (probablemente una tasa distinta a partir de 5 o 10 años de antigüedad, como en el régimen
+   del Decreto 2351/1965 anterior a la Ley 50), pero solo transcribió una cifra — el software aplica la
+   fórmula continua de 15 días/año sin importar la antigüedad, lo que podría **subestimar** la indemnización
+   en contratos muy antiguos si el régimen real escalona la tasa en tramos más altos.
+
+Adicionalmente, `INDEMNIZACION_DESPIDO` (Art. 64 CST, este sprint) y `SANCION_MORATORIA` (Art. 65 CST, ya
+implementada) quedaron conectadas de forma **independiente** en `LaboralStrategy`: ambas pueden coexistir en
+el mismo expediente (el usuario decide si marca una, la otra, o las dos), sin que el software las sume con
+ningún supuesto oculto ni bloquee su coexistencia — el backlog dice que son legalmente compatibles pero pide
+confirmarlo explícitamente antes de tratarlas como una regla automática.
+
+**Pregunta:** (a) ¿el corte entre el régimen "favorable" (45 días primer año + 15/20 días subsiguientes) y el
+régimen posterior (30 días primer año + 20 días subsiguientes) es el 1° de enero de 1991 (entrada en
+vigencia de la Ley 50 de 1990), o es realmente el 27 de diciembre de 1992 como cita la plantilla? (b) ¿cuál
+es la fórmula/tabla completa de días de indemnización para un trabajador con salario ≥10 SMMLV (a término
+indefinido)? (c) ¿el régimen anterior a la Ley 50/1990 escalona la tasa de días/año subsiguiente en tramos
+de antigüedad (ej. una tasa distinta a partir de 5 o 10 años), o los 15 días/año se mantienen fijos sin
+importar la antigüedad total? (d) ¿confirma que la indemnización por despido injustificado (Art. 64 CST) y
+la indemnización moratoria (Art. 65 CST) pueden coexistir y liquidarse juntas en el mismo expediente sin
+ninguna regla de exclusión o compensación entre ellas?
+
+**Qué necesito exactamente:** la fecha exacta de corte; la tabla completa de días de indemnización para
+salario ≥10 SMMLV (a término indefinido); la tabla completa por tramos de antigüedad del régimen anterior a
+la Ley 50/1990 (si existe más de un tramo); y una confirmación sí/no de la coexistencia con la sanción
+moratoria.
+
+**Respuesta del despacho:**
+Las fechas de corte son las que dictan el régimen aplicable. La convivencia de la indemnización por despido y la sanción moratoria es plena e independiente.
+
+Qué puede hacerse:
+
+Corte 1 (Ley 50/1990): Aplica desde el 01-Enero-1991.
+
+Corte 2 (Ley 789/2002): Aplica desde el 27-Diciembre-2002.
+
+Indefinidos $\ge$ 10 SMMLV:
+Primer año: 20 días.
+Subsiguientes: 15 días/año.
+
+Tramos Pre-1991 (Decreto 2351/65):
+Primer año: 45 días.
+Subsiguientes: 15 días (si antigüedad < 5 años), 20 días (5 a <10 años), 30 días (>10 años).
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** implementado en `app/engine/labor/dismissal_indemnity.py`.
+Las dos fechas de corte quedaron como constantes (`FECHA_CORTE_LEY_50_1990` 1991-01-01,
+`FECHA_CORTE_LEY_789_2002` 2002-12-27, ambas overridable); la tabla de salario ≥10 SMMLV (20+15 días) solo
+aplica a contratos con `fecha_ingreso >= 27-Dic-2002` (antes de esa fecha no existía la distinción por
+salario, así que ese caso cae en el régimen general por fecha de ingreso); el régimen Decreto 2351/1965 pasó
+de una tasa continua de 15 días/año a la tasa escalonada confirmada (15/20/30 días/año según la antigüedad
+total del contrato, con límite inferior de cada tramo inclusivo — exactamente 5 y exactamente 10 años caen
+en el tramo superior). `RegimenNoSoportadoError` se retiró (ya no existe ninguna combinación sin fórmula
+confirmada). Ver `Pendientes.md`, Sprint 92.
