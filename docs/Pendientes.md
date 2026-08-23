@@ -189,7 +189,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 5 — Carga de datos históricos (IPC, SMLMV, IBC, Tasa de Usura, UVT) ✅ Completado](#sprint-5--carga-de-datos-históricos-ipc-smlmv-ibc-tasa-de-usura-uvt--completado)
 - [Sprint 6 — Calendario de días hábiles judiciales y términos procesales ✅ Completado](#sprint-6--calendario-de-días-hábiles-judiciales-y-términos-procesales--completado)
 - [Sprint 7 — Motor de prescripción y caducidad ✅ Completado](#sprint-7--motor-de-prescripción-y-caducidad--completado)
-- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔵 Bloqueado — pendiente de confirmación](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--bloqueado--pendiente-de-confirmación) — mecanismo mensual listo y probado; ya se encontró la fuente real del DANE (Sprint 80), falta confirmar 2 detalles de alcance con el despacho
+- [Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟠 Reabierto](#sprint-8--conectar-indexación-ipc-al-área-civilfamilia--reabierto) — mecanismo mensual listo y probado; el despacho ya contestó (respuesta 2026-08-22)
 - [Sprint 9 — Motor de auditoría / bitácora ✅ Completado](#sprint-9--motor-de-auditoría--bitácora--completado)
 - [Sprint 10 — Exportación de liquidación a PDF/Word ✅ Completado](#sprint-10--exportación-de-liquidación-a-pdfword--completado)
 - [Sprint 11 — Derecho Tributario (DIAN) ✅ Completado (11a)](#sprint-11--derecho-tributario-dian--completado-11a) — ver corrección del Sprint 15 (11b)
@@ -199,7 +199,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 15 — Tributario completo: sanciones, imputación y modelo de Obligación Tributaria (cierre del Sprint 11b) ✅ Completado](#sprint-15--tributario-completo-sanciones-imputación-y-modelo-de-obligación-tributaria-cierre-del-sprint-11b--completado)
 - [Sprint 16 — Seguridad social, incapacidades y suspensiones contractuales (Laboral) ✅ Completado](#sprint-16--seguridad-social-incapacidades-y-suspensiones-contractuales-laboral--completado)
 - [Sprint 17 — Módulo pensional (IBL, tasa de reemplazo, densidad de semanas) ✅ Completado](#sprint-17--módulo-pensional-ibl-tasa-de-reemplazo-densidad-de-semanas--completado)
-- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🔵 Bloqueado — pendiente de confirmación](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--bloqueado--pendiente-de-confirmación) — validación de rango manual implementada; pregunta abierta sobre si la tabla simple reemplaza la granular
+- [Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🟠 Reabierto](#sprint-18--costas-judiciales-con-tabla-real-de-rangos-acuerdo-psaa16-10554--reabierto) — validación de rango manual implementada; el despacho ya contestó (respuesta 2026-08-22)
 - [Sprint 19 — Anatocismo comercial condicionado (Art. 886 C.Co.) ✅ Completado](#sprint-19--anatocismo-comercial-condicionado-art-886-cco--completado)
 - [Sprint 20 — Indexación sobre capital ya indexado (algoritmo "Suma Única") ✅ Completado](#sprint-20--indexación-sobre-capital-ya-indexado-algoritmo-suma-única--completado)
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
@@ -224,7 +224,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 40 — El interés causado no aparece en la tabla del PDF (bug transversal a todas las áreas) ✅ Completado](#sprint-40--el-interés-causado-no-aparece-en-la-tabla-del-pdf-bug-transversal-a-todas-las-áreas--completado)
 - [Sprint 41 — Familia: obligaciones recurrentes con reajuste anual, concepto por mes y cuotas seleccionables para abono ✅ Completado](#sprint-41--familia-obligaciones-recurrentes-con-reajuste-anual-concepto-por-mes-y-cuotas-seleccionables-para-abono--completado)
 - [Sprint 42 — Conectar el motor de prescripción/caducidad al flujo real de liquidación ✅ Completado](#sprint-42--conectar-el-motor-de-prescripcióncaducidad-al-flujo-real-de-liquidación--completado)
-- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) ✅ Completado](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--completado)
+- [Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🟠 Reabierto](#sprint-43--indexación-ipc-como-opción-disponible-en-todas-las-áreas-hoy-exclusiva-de-civilfamilia--reabierto)
 - [Sprint 44 — Laboral: salario mínimo automático, descuentos, edición de obligaciones/eventos y fecha de corte ✅ Completado](#sprint-44--laboral-salario-mínimo-automático-descuentos-edición-de-obligacioneseventos-y-fecha-de-corte--completado)
 - [Sprint 45 — Sancionatorio: transparencia de la unidad SMLMV/UVT y aclaración del caso de capital creciente ✅ Completado](#sprint-45--sancionatorio-transparencia-de-la-unidad-smlmvuvt-y-aclaración-del-caso-de-capital-creciente--completado)
 - [Sprint 46 — El saldo a favor de un sobrepago no aparece en el PDF/Word ni en la pantalla de resultado ✅ Completado](#sprint-46--el-saldo-a-favor-de-un-sobrepago-no-aparece-en-el-pdfword-ni-en-la-pantalla-de-resultado--completado)
@@ -251,41 +251,41 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 67 — Checkbox invisible en modo claro y oscuro (indicador de QCheckBox) ✅ Completado](#sprint-67--checkbox-invisible-en-modo-claro-y-oscuro-indicador-de-qcheckbox--completado)
 - [Sprint 68 — Parámetros: editar/eliminar de usuario, vigencia clara, unidad desplegable y tooltips homologados ✅ Completado](#sprint-68--parámetros-editareliminar-de-usuario-vigencia-clara-unidad-desplegable-y-tooltips-homologados--completado)
 - [Sprint 69 — Configuraciones: Restablecer datos de fábrica ✅ Completado](#sprint-69--configuraciones-restablecer-datos-de-fábrica--completado)
-- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🔵 Bloqueado — pendiente de confirmación](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt--bloqueado--pendiente-de-confirmación)
+- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟠 Reabierto](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt--reabierto)
 - [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
 - [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
-- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) ✅ Completado](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--completado-implementación-de-vigencia-automática-para-niños-criterio-operacional-de-cónyugepadresotro-sigue-condicionado-a-la-respuesta-del-despacho)
+- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟠 Reabierto](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--reabierto)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
-- [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--completado-4-hallazgos-corregidos-1-pregunta-abierta)
+- [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🟠 Reabierto](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--reabierto)
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
-- [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🔵 Bloqueado — pendiente de confirmación](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--bloqueado--pendiente-de-confirmación)
-- [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--bloqueado--pendiente-de-confirmación)
-- [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--completado)
+- [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟠 Reabierto](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--reabierto)
+- [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🟠 Reabierto](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--reabierto)
+- [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 🟠 Reabierto](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--reabierto)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
-- [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable ✅ Completado](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--completado)
+- [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟠 Reabierto](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--reabierto)
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
-- [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ✅ Completado](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--completado-documentación-decisión-de-comportamiento-condicionada-a-la-respuesta-del-despacho)
+- [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 🟠 Reabierto](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--reabierto)
 - [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
-- [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--bloqueado--pendiente-de-confirmación)
-- [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--bloqueado--pendiente-de-confirmación)
+- [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🟠 Reabierto](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--reabierto)
+- [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🟠 Reabierto](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--reabierto)
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
-- [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--bloqueado--pendiente-de-confirmación)
-- [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--bloqueado--pendiente-de-confirmación)
-- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado-fecha-de-corte-19901992-umbral-10-smmlv-y-tramos-del-régimen-pre-1990-más-allá-de-la-fórmula-continua-confirmada-quedan-condicionados-a-confirmación-del-despacho)
-- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--pendiente)
-- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--pendiente)
-- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🔵 Bloqueado — pendiente de confirmación](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--pendiente)
-- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🔵 Bloqueado — pendiente de confirmación](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--pendiente)
-- [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--bloqueado--pendiente-de-confirmación)
-- [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--pendiente-de-confirmación)
+- [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🟠 Reabierto](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
+- [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟠 Reabierto](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--reabierto)
+- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟠 Reabierto](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
+- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
+- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
+- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🟠 Reabierto](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
+- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🟠 Reabierto](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
+- [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🟠 Reabierto](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
+- [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🟠 Reabierto](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--completado-bug-de-dominio-confirmado-corrección-diferida-al-sprint-104)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
-- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🔵 Bloqueado — pendiente de confirmación](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--bloqueado--pendiente-de-confirmación)
+- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🟠 Reabierto](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--reabierto)
 
 ---
 
@@ -816,7 +816,7 @@ o caducadas sin advertirlo ni excluirlas. Ese gap de integración (no de cálcul
 
 ---
 
-## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🔵 Bloqueado — pendiente de confirmación
+## Sprint 8 — Conectar indexación IPC al área Civil/Familia 🟠 Reabierto
 
 **Prioridad sugerida:** Media.
 **Depende de:** Sprint 5 (sin datos históricos de IPC, no hay forma de resolver `IPC_inicial`/`IPC_final`
@@ -1768,7 +1768,7 @@ Suite completa en verde (653 passed, 1 skipped).
 
 ---
 
-## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) ✅ Completado
+## Sprint 18 — Costas judiciales con tabla real de rangos (Acuerdo PSAA16-10554) 🟠 Reabierto
 
 **Prioridad sugerida:** Media — el Sprint 4 ya dejó `costas_pct_manual` como solución temporal por no
 conseguir la fuente; este sprint es exclusivamente conseguir y estructurar esa fuente.
@@ -3784,7 +3784,7 @@ tests tras el merge final).
 
 ---
 
-## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) ✅ Completado
+## Sprint 43 — Indexación IPC como opción disponible en todas las áreas (hoy exclusiva de Civil/Familia) 🟠 Reabierto
 
 **Prioridad sugerida:** Media — no es un bug, es un límite de alcance documentado desde el Sprint 8, pero el
 usuario pide explícitamente que la indexación sea "opcional para cualquier liquidación de cualquier área",
@@ -5519,7 +5519,7 @@ pudo confirmar de forma headless — queda para que el usuario lo revise.
 
 ---
 
-## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🔵 Bloqueado — pendiente de confirmación
+## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟠 Reabierto
 
 **Prioridad sugerida:** Alta — afecta directamente la corrección jurídica de cualquier liquidación
 pensional o laboral cuyo hecho generador haya ocurrido bajo una ley distinta a la que el motor usa hoy.
@@ -5745,7 +5745,7 @@ tests en el momento del cierre).
 
 ---
 
-## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) ✅ Completado (implementación de vigencia automática para niños; criterio operacional de cónyuge/padres/otro sigue condicionado a la respuesta del despacho)
+## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟠 Reabierto
 
 **Rama de trabajo:** `sprint-74-tipos-beneficiario-alimentos` (rutina autónoma, 2026-08-20).
 
@@ -5925,7 +5925,7 @@ sin que ninguna revisión previa corriera `ruff check .` sobre el repo completo)
 
 ---
 
-## Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) ✅ Completado (4 hallazgos corregidos, 1 pregunta abierta)
+## Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🟠 Reabierto
 
 **Contexto:** el usuario probó el flujo completo de Civil/Familia con un caso real (Radicado 2224),
 comparando los resultados de BASTIUM contra un Excel real del despacho para el mismo caso. La prueba
@@ -6025,7 +6025,7 @@ confirmado reproduciéndolo también en `main`, sin relación con este cambio). 
 
 ---
 
-## Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🔵 Bloqueado — pendiente de confirmación
+## Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟠 Reabierto
 
 **Nota de la rutina autónoma (2026-08-20):** revisado al llegarle el turno en la cola — el propio sprint
 ya dice explícitamente "no cambiar el código sin esta confirmación" y no hay ninguna pieza de código
@@ -6064,7 +6064,7 @@ confirmación — mismo criterio de rigor que el resto del proyecto (Sprints 5/7
 
 ---
 
-## Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🔵 Bloqueado — pendiente de confirmación
+## Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🟠 Reabierto
 
 **Nota de la rutina autónoma (2026-08-20):** revisado al llegarle el turno en la cola — la Definición de
 Hecho de este sprint exige registrar la respuesta real del despacho (confirmando SÍ o NO) antes de poder
@@ -6104,7 +6104,7 @@ esa base (sumadas al final, sin generar interés adicional)?
 
 ---
 
-## Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado
+## Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 🟠 Reabierto
 
 **Prioridad sugerida:** Alta — Sprint 8 lleva bloqueado desde 2026-08-01 exclusivamente por falta de este dato real; esta serie lo resuelve para el 90%+ de los casos recientes.
 **Depende de:** Sprint 5 (series históricas), Sprint 8 (motor de interpolación mensual ya construido y probado, solo falta la tabla de datos).
@@ -6156,7 +6156,7 @@ esa base (sumadas al final, sin generar interés adicional)?
 
 ---
 
-## Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable ✅ Completado
+## Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟠 Reabierto
 
 **Prioridad sugerida:** Baja — DTF no se usa hoy en ningún cálculo de BASTIUM; el único caso de uso identificado (`i10`, condenas administrativas) no tiene un área clara dentro de las 6 áreas actuales. Se propone cargar el dato de todas formas (bajo costo, fuente ya lista) pero sin construir el calculador hasta resolver la pregunta de área.
 **Depende de:** Nada para la carga de datos; el uso real depende de la respuesta a la pregunta nueva de este sprint.
@@ -6214,7 +6214,7 @@ que colgaba la suite indefinidamente — ver Sprint 103.
 
 ---
 
-## Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ✅ Completado (documentación; decisión de comportamiento condicionada a la respuesta del despacho)
+## Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 🟠 Reabierto
 
 **Prioridad sugerida:** Media — toca solo el área Tributario, pero es una discrepancia concreta y cuantificable entre lo que hace BASTIUM y lo que hacen las propias plantillas del despacho para el mismo escenario legal (E.T. art. 635 / Concepto DIAN 415 de 2021).
 **Depende de:** Sprint 11a (motor de interés tributario), Sprint 15 (techo de usura Art. 867-1).
@@ -6283,7 +6283,7 @@ UI (la propia plantilla lo marca como dudoso).
 
 ---
 
-## Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación
+## Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🟠 Reabierto
 
 **Prioridad sugerida:** Media-Alta — funcionalidad jurídica completamente nueva y de alta complejidad actuarial; no hay código previo del que partir.
 **Depende de:** Nada del código actual; comparte maquinaria potencial con Sprint 87 (ver nota de reutilización cruzada abajo).
@@ -6313,7 +6313,7 @@ central; (b) confirmar si el despacho realmente litiga bonos pensionales tipo A 
 
 ---
 
-## Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación
+## Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🟠 Reabierto
 
 **Prioridad sugerida:** Media — feature nueva, pero de menor complejidad que Sprint 86 porque reutiliza gran parte de su misma maquinaria (reserva actuarial + DTF
 Pensional) y del motor de IBL ya existente.
@@ -6404,7 +6404,7 @@ limitación conocida en el código, igual que la propia plantilla lo advierte.
 
 ---
 
-## Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🔵 Bloqueado — pendiente de confirmación
+## Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🟠 Reabierto
 
 **Prioridad sugerida:** Baja-Media — régimen histórico (aplica a hechos generadores anteriores a 1994), menos frecuente que el resto pero con una fórmula
 genuinamente distinta a la que ya existe.
@@ -6432,7 +6432,7 @@ tope) -> Decimal`.
 
 ---
 
-## Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🔵 Bloqueado — pendiente de confirmación
+## Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟠 Reabierto
 
 **Prioridad sugerida:** Media-Alta — `calcular_tasa_reemplazo` de `app/engine/labor/ibl.py:60-89` **solo implementa la tabla "desde el año 2004 en
 adelante"** de la Ley 797/2003; las otras 3 variantes que trae la misma plantilla de referencia (P9) no están cubiertas y producirían resultados
@@ -6472,7 +6472,7 @@ futura `PensionalStrategy`).
 
 ---
 
-## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado (fecha de corte 1990/1992, umbral ≥10 SMMLV y tramos del régimen pre-1990 más allá de la fórmula continua confirmada quedan condicionados a confirmación del despacho)
+## Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟠 Reabierto
 
 **Cierre (2026-08-20):** implementado en la rama `sprint-92-indemnizacion-despido-injustificado` (mergeada a
 `main`). `app/engine/labor/dismissal_indemnity.py::DismissalIndemnityCalculator` calcula:
@@ -6558,7 +6558,7 @@ para el umbral de 10 SMMLV; `LaboralStrategy` (`area_strategy.py:1052`) para el 
 
 ---
 
-## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado (verificación sintética de la lógica de bloques anuales; reconciliación línea por línea contra la planilla real L5/L6 pendiente por archivo no disponible en este entorno)
+## Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto
 
 **Cierre (2026-08-20):** implementado en la rama `sprint-93-salarios-dejados-de-percibir` (mergeada a
 `main`). Nueva categoría `SALARIOS_DEJADOS_DE_PERCIBIR` en `app/core/constants.py::CATEGORIAS_LABORAL`,
@@ -6668,7 +6668,7 @@ categorías Laboral).
 
 ---
 
-## Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación
+## Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto
 
 **Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — las dos piezas
 implementables sin la respuesta del despacho (`calcular_aporte_contrato_realidad` y
@@ -6749,7 +6749,7 @@ bonificación, ya registrada en `Preguntas-Para-Abogado-Abiertas.md` (Sprint 94)
 
 ---
 
-## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🔵 Bloqueado — pendiente de confirmación
+## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos 🟠 Reabierto
 
 **Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — la única pieza
 implementable sin la respuesta del despacho (`calcular_hora_extra`/`calcular_recargo`) ya está hecha y
@@ -6808,7 +6808,7 @@ completa: 1450 passed. Rama: `sprint-95-horas-extra-recargos`.
 
 ---
 
-## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🔵 Bloqueado — pendiente de confirmación
+## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial 🟠 Reabierto
 
 **Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — la única pieza
 implementable sin la respuesta del despacho (`salario_diario_a_mensual`) ya está hecha y mergeada a `main`;
@@ -6870,7 +6870,7 @@ Completado. Suite completa: 1436 passed. Rama: `sprint-96-conversion-salario-dia
 
 ---
 
-## Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación
+## Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🟠 Reabierto
 
 **Prioridad sugerida:** Alta como decisión (bloquea Sprint 98-Sprint 100), Media como implementación — el despacho envió 8 plantillas completas (X1-X6, X8, X10) de un dominio jurídico que hoy no existe en BASTIUM ni siquiera como esqueleto activo.
 
@@ -6906,7 +6906,7 @@ Las 8 plantillas de Ediciones Sistematizadas Equidad que cubren este dominio (`X
 
 ---
 
-## Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación
+## Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🟠 Reabierto
 
 **Prioridad sugerida:** Alta una vez resuelto Sprint 97 — es el núcleo matemático compartido por 6 de las 8 plantillas del dominio.
 
@@ -7075,7 +7075,7 @@ indefinido). Suite completa (`tests` menos `tests/views`): 857 passed en 41s. Si
 
 ---
 
-## Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🔵 Bloqueado — pendiente de confirmación
+## Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 🟠 Reabierto
 
 **Prioridad sugerida:** Media/Alta — es un bug de dominio confirmado con cifras exactas, no una hipótesis;
 afecta a cualquier obligación Civil/Familia con Suma Única activa (`interes_sobre_capital_indexado=True`)
