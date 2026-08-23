@@ -259,7 +259,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🔵 Bloqueado — pendiente de confirmación](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--bloqueado--pendiente-de-confirmación) — la respuesta del despacho (2026-08-22) exige rediseñar el motor central de tasas; bloqueo no previsto, ver correo enviado
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
-- [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟠 Reabierto](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--reabierto)
+- [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟡 En proceso](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--en-proceso)
 - [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🟠 Reabierto](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--reabierto)
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--completado)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
@@ -6131,7 +6131,10 @@ confirmado reproduciéndolo también en `main`, sin relación con este cambio). 
 
 ---
 
-## Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟠 Reabierto
+## Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟡 En proceso
+
+**En proceso (rutina autónoma, 2026-08-23):** rama `sprint-78-conteo-inclusivo-densidad-semanas`,
+implementando la respuesta del despacho del 22/08/2026 (sí aplica el "+1" inclusivo).
 
 **Nota de la rutina autónoma (2026-08-20):** revisado al llegarle el turno en la cola — el propio sprint
 ya dice explícitamente "no cambiar el código sin esta confirmación" y no hay ninguna pieza de código
