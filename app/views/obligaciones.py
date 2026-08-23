@@ -38,7 +38,10 @@ from app.services.recurrencia_fechas_fijas import (
     deserializar_fechas_anuales,
     serializar_fechas_anuales,
 )
-from app.services.vigencia_alimentos import calcular_vigencia_alimentos
+from app.services.vigencia_alimentos import (
+    calcular_vigencia_alimentos,
+    validar_fecha_corte_beneficiario_obligatoria,
+)
 from app.views.form_utils import (
     agregar_ayuda,
     guardar_o_actualizar,
@@ -294,6 +297,37 @@ class ObligacionFormDialog(QDialog):
             "Vista previa del calculo de vigencia con la fecha de corte del "
             "expediente como referencia -- el resultado real puede variar segun "
             "la fecha de corte que se use al liquidar."
+        )
+
+        # Fecha de corte obligatoria (Sprint 74, respuesta del despacho
+        # 22/08/2026): cuando la vigencia del beneficiario NO es determinable
+        # automaticamente (Cónyuge/Padres/Otro, o Niño con discapacidad SIN
+        # marcar permanente), el despacho exige que el usuario proporcione la
+        # fecha de corte el mismo, "porque requiere una fecha de exoneracion
+        # dictada por la autoridad" -- nunca se asume por defecto. Visible
+        # solo cuando aplica (ver _actualizar_vigencia_beneficiario), gatillado
+        # por un checkbox explicito en vez de aceptar en silencio el valor por
+        # defecto del QDateEdit (mismo criterio de rigor que el resto de la
+        # app: nunca inventar un dato legal sin que el usuario lo confirme).
+        self.check_fecha_corte_beneficiario = QCheckBox(
+            "La autoridad ya fijó la fecha de corte/exoneración"
+        )
+        self.check_fecha_corte_beneficiario.setToolTip(
+            "Obligatorio cuando la vigencia no es determinable automaticamente "
+            "(Cónyuge/Padres/Otro, o Niño con discapacidad no permanente): el "
+            "sistema no puede calcular esta fecha por si solo, la debe "
+            "proporcionar el usuario segun la decision de la autoridad."
+        )
+        self.campo_fecha_corte_beneficiario = QDateEdit(QDate.currentDate())
+        self.campo_fecha_corte_beneficiario.setCalendarPopup(True)
+        self.campo_fecha_corte_beneficiario.setEnabled(False)
+        self.campo_fecha_corte_beneficiario.setToolTip(
+            "Fecha de corte/exoneración fijada por la autoridad para esta "
+            "obligación -- topa la generación de cuotas igual que la vigencia "
+            "automática de un Niño beneficiario."
+        )
+        self.check_fecha_corte_beneficiario.toggled.connect(
+            self.campo_fecha_corte_beneficiario.setEnabled
         )
 
         self.campo_tasa_moratoria = QLineEdit("24.00")
@@ -728,6 +762,13 @@ class ObligacionFormDialog(QDialog):
             "Relación con el demandante (opcional)", self.campo_relacion_demandante
         )
         self.layout_beneficiario.addRow("Vigencia calculada", self.label_vigencia_beneficiario)
+        self.layout_beneficiario.addRow(self.check_fecha_corte_beneficiario)
+        self.layout_beneficiario.addRow(
+            "Fecha de corte/exoneración", self.campo_fecha_corte_beneficiario
+        )
+        self.label_fecha_corte_beneficiario = self.layout_beneficiario.labelForField(
+            self.campo_fecha_corte_beneficiario
+        )
 
         # Grid de 2 columnas en vez de una sola QVBoxLayout apilada (Sprint 72): con las
         # 3 secciones en una sola columna, la ventana crecia tanto en alto que el boton
@@ -898,6 +939,7 @@ class ObligacionFormDialog(QDialog):
         # referencia (incluyendo los de Laboral: check_pagada, campo_fecha_pago_total)
         # ya existen antes de que la señal pueda dispararse.
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_campos_visibles)
+        self.combo_tipo.currentIndexChanged.connect(self._actualizar_vigencia_beneficiario)
         self.combo_tipo_recurrencia.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_es_smmlv.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
@@ -1148,6 +1190,14 @@ class ObligacionFormDialog(QDialog):
                     bool(beneficiario.discapacidad_permanente)
                 )
                 self.campo_relacion_demandante.setText(beneficiario.relacion_demandante or "")
+                # Fecha de corte obligatoria (Sprint 74, respuesta del despacho
+                # 22/08/2026): reutiliza Obligacion.fecha_fin (mismo campo que
+                # fecha_fin_efectiva_recurrente ya esperaba como
+                # fecha_fin_manual) -- precarga el checkbox+fecha solo si ya
+                # habia una fecha guardada.
+                if obligacion.fecha_fin is not None:
+                    self.check_fecha_corte_beneficiario.setChecked(True)
+                    self.campo_fecha_corte_beneficiario.setDate(_qdate(obligacion.fecha_fin))
         finally:
             session.close()
 
@@ -1295,6 +1345,21 @@ class ObligacionFormDialog(QDialog):
         self.check_discapacidad_permanente.setVisible(tipo == "NINO_DISCAPACIDAD")
         self._actualizar_vigencia_beneficiario()
 
+    def _mostrar_fecha_corte_beneficiario(self, mostrar: bool) -> None:
+        """Muestra/oculta el checkbox + campo de fecha de corte obligatoria
+        (Sprint 74, respuesta del despacho 22/08/2026) -- solo relevante
+        cuando la vigencia del beneficiario no es determinable
+        automaticamente. Al ocultar, tambien desmarca el checkbox: si el
+        abogado cambia de tipo de beneficiario a uno SI determinable (ej.
+        Niño), la fecha de corte manual que haya quedado marcada de un tipo
+        anterior no debe seguir aplicando en silencio."""
+        self.check_fecha_corte_beneficiario.setVisible(mostrar)
+        self.campo_fecha_corte_beneficiario.setVisible(mostrar)
+        if self.label_fecha_corte_beneficiario is not None:
+            self.label_fecha_corte_beneficiario.setVisible(mostrar)
+        if not mostrar:
+            self.check_fecha_corte_beneficiario.setChecked(False)
+
     def _actualizar_vigencia_beneficiario(self) -> None:
         """Vista previa en vivo (Sprint 74) de `calcular_vigencia_alimentos` con
         la fecha de hoy como referencia -- no es el calculo real de la
@@ -1303,9 +1368,16 @@ class ObligacionFormDialog(QDialog):
         mientras captura. Para CONYUGE/PADRES/OTRO (o NINO_DISCAPACIDAD sin
         marcar permanente) el `motivo` deja explicito que la vigencia no es
         determinable automaticamente -- nunca queda en blanco ni inventa un
-        valor."""
+        valor.
+
+        Tambien muestra/oculta la fecha de corte obligatoria (respuesta del
+        despacho, 22/08/2026): solo aplica a obligaciones RECURRENTE (la
+        vigencia por beneficiario solo tiene sentido para cuotas periodicas,
+        no para una obligacion PUNTUAL de un solo evento)."""
+        es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
         if not self.grupo_beneficiario.isChecked():
             self.label_vigencia_beneficiario.setText("")
+            self._mostrar_fecha_corte_beneficiario(False)
             return
         tipo = TipoBeneficiario(self.combo_tipo_beneficiario.currentData())
         qdate_nacimiento = self.campo_fecha_nacimiento_beneficiario.date()
@@ -1316,6 +1388,7 @@ class ObligacionFormDialog(QDialog):
             self.label_vigencia_beneficiario.setText(
                 "La fecha de nacimiento no puede ser posterior a hoy."
             )
+            self._mostrar_fecha_corte_beneficiario(False)
             return
         beneficiario_preview = Beneficiario(
             nombre="",
@@ -1330,6 +1403,9 @@ class ObligacionFormDialog(QDialog):
         )
         resultado = calcular_vigencia_alimentos(beneficiario_preview, date.today())
         self.label_vigencia_beneficiario.setText(resultado.motivo)
+        self._mostrar_fecha_corte_beneficiario(
+            es_recurrente and not resultado.determinable_automaticamente
+        )
 
     def _actualizar_campos_visibles(self) -> None:
         if self._area == "LABORAL":
@@ -1467,6 +1543,8 @@ class ObligacionFormDialog(QDialog):
         if self._area == "CIVIL_FAMILIA":
             self._validar_beneficiario()
 
+        fecha_fin_beneficiario = self._fecha_corte_beneficiario_manual()
+
         parseo_por_area = {
             "SANCIONATORIO": self._parse_campos_sancionatorio,
             "HONORARIOS": self._parse_campos_honorarios,
@@ -1499,13 +1577,25 @@ class ObligacionFormDialog(QDialog):
             interes_sobre_capital_indexado=self.check_interes_sobre_capital_indexado.isChecked(),
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
-            fecha_fin=None,
+            fecha_fin=fecha_fin_beneficiario if tipo == TipoObligacion.RECURRENTE else None,
             tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
             **campos_area,
         )
         self._guardar_beneficiario(session, obligacion_id)
         session.close()
         return obligacion_id
+
+    def _fecha_corte_beneficiario_manual(self) -> date | None:
+        """Fecha de corte manual (Sprint 74, respuesta del despacho
+        22/08/2026) si el abogado la proporciono -- None si no aplica (grupo
+        de beneficiario desmarcado, area distinta de Civil/Familia, o
+        checkbox de fecha de corte sin marcar)."""
+        if self._area != "CIVIL_FAMILIA" or not self.grupo_beneficiario.isChecked():
+            return None
+        if not self.check_fecha_corte_beneficiario.isChecked():
+            return None
+        qdate = self.campo_fecha_corte_beneficiario.date()
+        return date(qdate.year(), qdate.month(), qdate.day())
 
     def _validar_beneficiario(self) -> None:
         """Valida los campos de `grupo_beneficiario` ANTES de persistir nada
@@ -1524,6 +1614,32 @@ class ObligacionFormDialog(QDialog):
         )
         if fecha_nacimiento > date.today():
             raise ValueError("La fecha de nacimiento del beneficiario no puede ser futura.")
+
+        # Fecha de corte obligatoria (Sprint 74, respuesta del despacho
+        # 22/08/2026): solo aplica a RECURRENTE -- una obligacion PUNTUAL no
+        # tiene "vigencia" en el sentido de cuotas periodicas que topar.
+        if TipoObligacion(self.combo_tipo.currentData()) == TipoObligacion.RECURRENTE:
+            tipo_beneficiario = TipoBeneficiario(self.combo_tipo_beneficiario.currentData())
+            beneficiario_preview = Beneficiario(
+                nombre="",
+                fecha_nacimiento=fecha_nacimiento,
+                tipo=tipo_beneficiario,
+                estudia=(
+                    self.check_estudia.isChecked()
+                    if tipo_beneficiario == TipoBeneficiario.NINO
+                    else None
+                ),
+                discapacidad_permanente=(
+                    self.check_discapacidad_permanente.isChecked()
+                    if tipo_beneficiario == TipoBeneficiario.NINO_DISCAPACIDAD
+                    else None
+                ),
+            )
+            validar_fecha_corte_beneficiario_obligatoria(
+                beneficiario_preview,
+                self._fecha_corte_beneficiario_manual(),
+                date.today(),
+            )
 
     def _guardar_beneficiario(self, session, obligacion_id: int) -> None:
         """Crea/actualiza/elimina el `Beneficiario` 1:1 de esta obligacion

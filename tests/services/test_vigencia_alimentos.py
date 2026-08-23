@@ -17,12 +17,14 @@ from datetime import date
 
 import pytest
 
+from app.core.exceptions import FechaCorteAlimentosRequeridaError
 from app.services.vigencia_alimentos import (
     EDAD_LIMITE_NINO_ESTUDIA,
     EDAD_LIMITE_NINO_NO_ESTUDIA,
     calcular_edad,
     calcular_vigencia_alimentos,
     fecha_fin_efectiva_recurrente,
+    validar_fecha_corte_beneficiario_obligatoria,
 )
 from database.models import Beneficiario, TipoBeneficiario
 
@@ -222,3 +224,56 @@ def test_fecha_fin_efectiva_nino_discapacidad_permanente_no_aporta_fecha():
         discapacidad_permanente=True,
     )
     assert fecha_fin_efectiva_recurrente(None, beneficiario, date(2026, 1, 1)) is None
+
+
+# --- validar_fecha_corte_beneficiario_obligatoria (Sprint 74, respuesta del ---
+# --- despacho 22/08/2026: fecha de corte obligatoria si no es determinable) --
+
+
+def test_fecha_corte_obligatoria_sin_beneficiario_no_lanza():
+    validar_fecha_corte_beneficiario_obligatoria(None, None, date(2026, 1, 1))
+
+
+def test_fecha_corte_obligatoria_nino_no_la_exige():
+    beneficiario = _beneficiario(fecha_nacimiento=date(2015, 1, 1), tipo=TipoBeneficiario.NINO)
+    validar_fecha_corte_beneficiario_obligatoria(beneficiario, None, date(2026, 1, 1))
+
+
+def test_fecha_corte_obligatoria_nino_discapacidad_permanente_no_la_exige():
+    beneficiario = _beneficiario(
+        fecha_nacimiento=date(2000, 1, 1),
+        tipo=TipoBeneficiario.NINO_DISCAPACIDAD,
+        discapacidad_permanente=True,
+    )
+    validar_fecha_corte_beneficiario_obligatoria(beneficiario, None, date(2026, 1, 1))
+
+
+@pytest.mark.parametrize(
+    "tipo",
+    [TipoBeneficiario.CONYUGE, TipoBeneficiario.PADRES, TipoBeneficiario.OTRO],
+)
+def test_fecha_corte_obligatoria_tipos_no_determinables_sin_fecha_lanza_error(tipo):
+    beneficiario = _beneficiario(fecha_nacimiento=date(1990, 1, 1), tipo=tipo)
+    with pytest.raises(FechaCorteAlimentosRequeridaError):
+        validar_fecha_corte_beneficiario_obligatoria(beneficiario, None, date(2026, 1, 1))
+
+
+def test_fecha_corte_obligatoria_nino_discapacidad_no_permanente_sin_fecha_lanza_error():
+    beneficiario = _beneficiario(
+        fecha_nacimiento=date(2000, 1, 1),
+        tipo=TipoBeneficiario.NINO_DISCAPACIDAD,
+        discapacidad_permanente=False,
+    )
+    with pytest.raises(FechaCorteAlimentosRequeridaError):
+        validar_fecha_corte_beneficiario_obligatoria(beneficiario, None, date(2026, 1, 1))
+
+
+@pytest.mark.parametrize(
+    "tipo",
+    [TipoBeneficiario.CONYUGE, TipoBeneficiario.PADRES, TipoBeneficiario.OTRO],
+)
+def test_fecha_corte_obligatoria_tipos_no_determinables_con_fecha_no_lanza(tipo):
+    beneficiario = _beneficiario(fecha_nacimiento=date(1990, 1, 1), tipo=tipo)
+    validar_fecha_corte_beneficiario_obligatoria(
+        beneficiario, date(2030, 1, 1), date(2026, 1, 1)
+    )

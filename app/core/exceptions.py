@@ -64,3 +64,13 @@ class DatoFaltanteError(ValueError):
     de pedirlo: no se inyecto un prompt_fn y tampoco hay stdin interactivo
     disponible (ver app/engine/text/nlp_extractor.py, Sprint 27) -- evita el
     bloqueo original en un ejecutable sin consola adjunta."""
+
+
+class FechaCorteAlimentosRequeridaError(ValueError):
+    """Se lanza cuando una obligacion alimentaria RECURRENTE tiene un
+    Beneficiario cuya vigencia no es determinable automaticamente (CONYUGE,
+    PADRES, OTRO, o NINO_DISCAPACIDAD sin discapacidad_permanente) y no se
+    proporciono una fecha de corte manual -- respuesta del despacho, Sprint
+    74 (22/08/2026): "El usuario debe proveer la fecha de corte
+    obligatoriamente (porque requiere una fecha de exoneracion dictada por
+    la autoridad)". Nunca se asume una fecha por defecto."""
