@@ -90,7 +90,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8](#sprint-94-seguimiento--aporte-a-salud-en-contrato-realidad-y-si-el-decreto-03202026-reemplaza-la-regla-de-bonificación-por-servicio-de-la-plantilla-l8)
 - [Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025](#sprint-95-seguimiento--porcentajes-de-los-4-conceptos-horas-extras-hed-hen-hefd-hefn-tras-la-ley-24662025)
 - [Sprint 96 (seguimiento) — auxilio de transporte pactado por día en trabajo doméstico](#sprint-96-seguimiento--auxilio-de-transporte-pactado-por-día-en-trabajo-doméstico)
-- [Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?](#sprint-97--nueva-área-de-derecho-o-submodo-de-civilfamilia-para-indemnización-de-perjuicios)
+- [Sprint 97 (seguimiento) — decisión de arquitectura pendiente: ¿séptima área de derecho o submodo de Civil/Familia?, ¿cuáles variantes usa el despacho?, y tabla de mortalidad completa (hombres/mujeres inválidos)](#sprint-97-seguimiento--decisión-de-arquitectura-pendiente-séptima-área-de-derecho-o-submodo-de-civilfamilia-cuáles-variantes-usa-el-despacho-y-tabla-de-mortalidad-completa-hombresmujeres-inválidos)
 - [Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)](#sprint-98--tabla-completa-de-mortalidad-de-rentistas-resolución-1555-de-2010-superfinanciera)
 - [Sprint 102 — Ejemplo numérico resuelto de indexación con abonos (X9)](#sprint-102--ejemplo-numérico-resuelto-de-indexación-con-abonos-x9)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
@@ -540,59 +540,33 @@ trabajo de UI pendiente.
 
 ---
 
-## Sprint 97 — ¿Nueva área de derecho o submodo de Civil/Familia para indemnización de perjuicios?
+## Sprint 97 (seguimiento) — decisión de arquitectura pendiente: ¿séptima área de derecho o submodo de Civil/Familia?, ¿cuáles variantes usa el despacho?, y tabla de mortalidad completa (hombres/mujeres inválidos)
 
-**Contexto:** el despacho envió 8 plantillas comerciales (daño emergente, lucro cesante en 6 variantes de
-beneficiario, y beneficio dejado de percibir como fruto civil) que usan una fórmula actuarial completa
-(anualidad + tabla de mortalidad de rentistas) que hoy no existe en BASTIUM. Lo que existe hoy en el
-software (categorías "Daño emergente" y "Lucro cesante consolidado" dentro de Civil/Familia) es solo una
-etiqueta de un capital plano con interés simple e indexación IPC — no reproduce ninguna de las fórmulas de
-las plantillas.
+**Contexto:** la primera ronda de esta pregunta (ver `Preguntas-Para-Abogado-Respondidas.md`, "Sprint 97")
+obtuvo respuesta el 22/08/2026, pero la respuesta no contestó la pregunta que se hizo — en vez de la decisión
+de arquitectura y el alcance real de uso, trajo las fórmulas matemáticas de anualidad (ya implementadas de
+forma aislada, sin conectar: `app/engine/civil/lucro_cesante_actuarial.py`) y una tabla de mortalidad
+parcial. La pregunta original sigue exactamente igual de abierta:
 
-**Pregunta:** ¿el despacho litiga habitualmente casos de responsabilidad civil extracontractual (daño
-emergente, lucro cesante de víctima incapacitada, de cónyuge/hijos o de padres de víctima fallecida), y
-quiere que BASTIUM construya este motor como una séptima área de derecho, o prefiere que se integre como
-una extensión de Civil/Familia? ¿De las 6 variantes de lucro cesante que trajeron las plantillas (víctima
-incapacitado, cónyuge e hijos, padres de víctima adulta, padres de hijo menor, pensionado de fondo privado,
-beneficio dejado de percibir), cuáles usa realmente el despacho?
+1. **Arquitectura**: ¿este motor se construye como una séptima área de derecho separada, o como una
+   extensión de Civil/Familia?
+2. **Alcance real**: ¿cuáles de las 6 variantes de reparto de beneficiario (víctima incapacitada, cónyuge e
+   hijos, padres de víctima adulta, padres de hijo menor, pensionado de fondo privado, beneficio dejado de
+   percibir) litiga realmente el despacho?
+3. **Tabla de mortalidad incompleta**: la respuesta trajo `hombres_validos` y `mujeres_validas` completas
+   (edades 15-110), pero `hombres_invalidos` llegó truncada ("...25: 33.70... 90: 3.68...", con un salto sin
+   explicar entre esos dos puntos) y **no incluye ninguna tabla `mujeres_invalidas`** — necesaria para
+   cualquier víctima incapacitada mujer.
 
-**Qué necesito exactamente:** confirmación de si esto es una prioridad real de uso (no solo material de
-referencia que llegó junto con las demás plantillas), y si es así, cuál de las 6 variantes conviene construir
-primero.
+**Pregunta:** (a) ¿nueva área de derecho o submodo de Civil/Familia? (b) ¿cuáles variantes construir
+primero? (c) ¿pueden completar la tabla `hombres_invalidos` (todas las edades, sin saltos) y aportar la
+tabla `mujeres_invalidas` completa?
 
-**Respuesta del despacho:**
-La liquidación de perjuicios requiere de las dos fórmulas actuariales (Consolidado y Futuro) y las Tablas de Mortalidad de la Resolución 1555 de 2010.  
+**Qué necesito exactamente:** la decisión de arquitectura y alcance, y las dos tablas de mortalidad de
+inválidos completas.
 
-Para la mortalidad y los perjuicios:
+**Fecha:** 23/08/2026 (reformulación tras respuesta no concluyente del 22/08/2026)
 
-Fórmulas Matrices:$Consolidado = Ra \times \frac{(1+i)^n - 1}{i}$$Futuro = Ra \times \frac{(1+i)^n - 1}{i \times (1+i)^n}$
-
-Carga de Tabla de Supervivencia (Base de Datos a inyectar):
-Usando los datos oficiales de la Resolución 1555 de 2010, el diccionario a codificar para las expectativas de vida ($e^\circ_x$) es:  hombres_validos: {15: 64.8, 16: 63.9, 17: 62.9, 20: 60.0, 30: 50.3, 40: 40.8, 50: 31.6, 60: 23.0, 70: 15.3, 80: 9.3, 90: 5.1, 100: 2.4, 110: 0.5}.  mujeres_validas: {15: 70.0, 16: 69.1, 17: 68.1, 20: 65.1, 30: 55.4, 40: 45.7, 50: 36.2, 60: 27.0, 70: 18.6, 80: 11.3, 90: 5.8, 100: 2.5, 110: 0.5}.  hombres_invalidos: {1: 43.47, 15: 38.09, 20: 35.95, 25: 33.70... 90: 3.68, 100: 1.89, 110: 1.0}. 
-
-Interpolación Actuarial de Edades: Si la víctima tiene "33 años y 7 meses", el sistema interpolará matemáticamente entre la expectativa a los 33 y a los 34.
-
-Cálculo Futuro: El valor devuelto de la tabla (años) se multiplica estrictamente por 12 para convertirse en la variable $n$ (meses) de la ecuación.  
-
-CONCRETAMENTE:
-# 1. FÓRMULAS MATRICES
-# Ra = Renta Actualizada Mensual
-# i = Tasa mensual pura (0.0048676)
-# n = Tiempo en meses exactos
-
-# A. Lucro Cesante Consolidado (Pasado/Vencido)
-LCC = Ra * (((1.0 + i) ** n) - 1.0) / i
-
-# B. Lucro Cesante Futuro (Anticipado)
-LCF = Ra * (((1.0 + i) ** n) - 1.0) / (i * ((1.0 + i) ** n))
-
-# 2. EXPECTATIVA DE VIDA (Conversión de Tablas a variable 'n')
-# El valor de la tabla de mortalidad de la Superfinanciera viene en AÑOS. 
-# El desarrollador debe multiplicarlo obligatoriamente por 12.
-n_meses_futuros = Expectativa_Vida_En_Anios_Segun_Tabla * 12.0
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 98 — Tabla completa de mortalidad de rentistas (Resolución 1555 de 2010, Superfinanciera)
