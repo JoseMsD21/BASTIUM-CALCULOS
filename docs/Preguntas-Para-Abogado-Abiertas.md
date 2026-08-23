@@ -84,7 +84,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 70/91 (seguimiento) — Fechas exactas de vigencia por régimen, invalidez Grado 1, y "régimen de transición"](#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición)
 - [Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?](#sprint-76--fórmula-de-tasa-del-art-16172232-cc-lineal-diaria-efectiva-compuesta-diaria-o-mensual-con-prorrateo-de-30-días)
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
-- [Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?](#sprint-82--el-despacho-litiga-contra-entidades-públicas-condenas-administrativas-con-intereses-a-la-tasa-dtf)
+- [Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?](#sprint-82-seguimiento--en-qué-área-de-bastium-vive-el-calculador-de-condenas-administrativas-dtf)
 - [Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?](#sprint-84--interés-moratorio-tributario-et-art-635-366-días-lineal-convención-dian-o-365-compuesto-fórmula-actual-de-bastium)
 - [Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional](#sprint-8687--bono-pensional-y-cálculo-actuarial-de-cotizaciones-omisas-factores-de-reserva-y-tabla-dtf-pensional)
 - [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
@@ -385,42 +385,26 @@ que necesita confirmar el usuario.
 
 ---
 
-## Sprint 82 — ¿El despacho litiga contra entidades públicas (condenas administrativas con intereses a la tasa DTF)?
+## Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?
 
-**Contexto:** encontramos que una de las plantillas del despacho (`i10.INTERESES-TASADOS-A-LA-DTF-CONDENAS-ADMINISTRATIVAS.md`) liquida intereses de mora en condenas o conciliaciones contra el Estado, a una tasa equivalente a la DTF durante los primeros 10 meses después de la ejecutoria (Art. 195 núm. 4 de la Ley 1437 de 2011), y luego a la tasa comercial. Ninguna de las 6 áreas actuales de BASTIUM (Civil/Familia, Comercial, Laboral, Sancionatorio, Honorarios, Tributario) contempla explícitamente litigios contra entidades públicas de esta naturaleza.
+**Contexto:** la respuesta del despacho (22/08/2026, ver `Preguntas-Para-Abogado-Respondidas.md`, Sprint
+82) dio la fórmula completa del interés de mora en condenas contra el Estado (Art. 195 núm. 4 Ley
+1437/2011, régimen dual DTF/1,5x IBC), ya implementada y probada como función aislada
+(`app/engine/interest/condena_administrativa_dtf.py`). Pero la pregunta original — la que en realidad
+bloqueaba conectar esta fórmula a una liquidación real — nunca se contestó: ¿el despacho maneja casos de
+litigio contra entidades públicas, y si es así, en cuál de las 6 áreas actuales de BASTIUM (Civil/Familia,
+Comercial, Laboral, Sancionatorio, Honorarios, Tributario) deberían vivir, o hace falta un área/flujo
+nuevo?
 
-**Pregunta:** ¿el despacho maneja casos de este tipo (demandas o conciliaciones contra el Estado con condena en dinero)? Si es así, ¿en cuál de las áreas actuales de BASTIUM encajarían, o se necesitaría un área/flujo nuevo?
+**Pregunta:** ¿pueden confirmar (1) si el despacho realmente tiene o espera tener casos de este tipo, y (2)
+en qué área de BASTIUM debería aparecer el formulario/cálculo (o si se necesita una séptima área nueva)?
 
-**Qué necesito exactamente:** un sí/no sobre si este escenario es relevante para el despacho, y si es así, a qué área debería asignarse (o confirmación de que se necesita una nueva).
+**Qué necesito exactamente:** un sí/no sobre si es relevante para el despacho, y la asignación de área para
+poder conectar la fórmula (ya lista) a una pantalla y a una liquidación real.
 
 **Respuesta del despacho:**
-El Artículo 195 del CPACA instauró un régimen dual (DTF transitoria seguida de tasa comercial).
-
-Qué puede hacerse?
-El cálculo es iterativo día a día:
-
-limite_gracia_dias = 304  # Promedio 10 meses reales
-for dia in rango(1, dias_transcurridos + 1):
-    if dia <= limite_gracia_dias:
-        # Tramo A (DTF)
-        tasa_diaria = (1 + DTF_EA_histórica) ** (1/365) - 1
-    else:
-        # Tramo B (Comercial)
-        tasa_diaria = (1 + (1.5 * IBC_EA_histórica)) ** (1/365) - 1
-        
-Como consejo que puede ponerse en la interfaz, debe invitarse a validar si transcurren 3 meses inactivos sin cobro tras la ejecutoria, en ese caso el contador de intereses se congela por suspensión total de devengo.
-
-CONCRETAMENTE:
-# TRAMO 1 (DTF): Desde el día 1 hasta el día 304 (Equivalente a 10 meses)
-# Se convierte la DTF Efectiva Anual a diaria compuesta.
-Tasa_Diaria_DTF = ((1.0 + DTF_Efectiva_Anual) ** (1.0 / 365.0)) - 1.0
-
-# TRAMO 2 (COMERCIAL): A partir del día 305 en adelante
-# Se usa 1.5 veces el Interés Bancario Corriente (IBC) convertido a diario compuesto.
-Tasa_Diaria_Comercial = ((1.0 + (1.5 * IBC_Efectiva_Anual)) ** (1.0 / 365.0)) - 1.0
 
 **Fecha:**
-22/08/2026
 ---
 
 ## Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?
