@@ -81,7 +81,6 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 
 - [Sprint 8 (seguimiento 3) — Tabla real de IPC mensual anterior a enero de 2003](#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003)
 - [Sprint 18 (seguimiento 3) — Discrepancia numérica entre la tabla granular verificada (PSAA16-10554) y las "tarifas duras" que aportó el despacho](#sprint-18-seguimiento-3--discrepancia-numérica-entre-la-tabla-granular-verificada-psaa16-10554-y-las-tarifas-duras-que-aportó-el-despacho)
-- [Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?](#sprint-43-seguimiento--es-válido-cobrar-interés-civil-sobre-el-capital-ya-indexado-en-honorarios)
 - [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt)
 - [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
 - [Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?](#sprint-76--fórmula-de-tasa-del-art-16172232-cc-lineal-diaria-efectiva-compuesta-diaria-o-mensual-con-prorrateo-de-30-días)
@@ -170,50 +169,6 @@ verificarlos igual que se hizo con la tabla que ya está implementada.
 **Respuesta del despacho:**
 
 **Fecha:**
----
-
-## Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?
-
-**Contexto:** la respuesta del despacho para Honorarios (ver Sprint 43 en
-`Preguntas-Para-Abogado-Respondidas.md`) trae la fórmula `Capital_Honorarios × (IPC_Final / IPC_Inicial) +
-Interés_Civil_6%_Anual(Capital_Actualizado)` — es decir, el interés civil del 6% se calcula **sobre el
-capital ya indexado**, no sobre el capital original. Esto es distinto de cómo funciona hoy el resto del
-motor: en Civil/Familia (Sprint 8), el interés se calcula solo sobre el capital original, nunca sobre el
-capital ya indexado — quedó documentado como limitación conocida en su momento, precisamente porque
-combinar interés + indexación sobre la misma base puede considerarse una doble actualización no permitida
-en algunos escenarios (revisado también en la respuesta del Sprint 15, sobre la prohibición de "doble
-consideración" del componente inflacionario).
-
-**Pregunta:** ¿es jurídicamente correcto que el interés civil del 6% anual en Honorarios se calcule sobre
-el capital ya indexado (interés compuesto sobre la corrección monetaria), o el ordenamiento exige que el
-interés se calcule siempre sobre el capital original, aplicándose la indexación como un rubro aparte que no
-genera intereses sobre sí mismo?
-
-**Qué necesito exactamente:** confirmación de una de las dos opciones, o la aclaración exacta si depende de
-si el título ejecutivo pactó expresamente el interés sobre "capital actualizado" o no.
-
-**Respuesta del despacho:**
-El cobro de interés civil del 6% sobre el capital de honorarios ya indexado es jurídicamente válido, pues la indexación restituye el poder adquisitivo (el valor real) y el interés resarce la privación del dinero (el lucro). No constituye anatocismo.
-
-Qué puede hacerse?
-Para la estrategia Suma Única - Honorarios, el orden de las operaciones en el motor debe ser:
-
-Capital_Actualizado = Capital_Original * (IPC_Final / IPC_Inicial)
-
-Intereses_Mora = CalcularInteresCivil(Base=Capital_Actualizado, Tasa=0.06)
-
-En síntesis:
-# 1. HONORARIOS (Interés civil sobre capital indexado)
-Capital_Indexado = Capital_Original * (IPC_Final / IPC_Inicial)
-
-# El interés se calcula usando el Capital_Indexado como base
-Interes_Mora = Calcular_Interes_Civil(Base=Capital_Indexado, Tasa_Anual=0.06)
-
-# 2. COSTAS PROCESALES (Suma plana al final, NUNCA generan intereses)
-Gran_Total_Liquidacion = Capital_Indexado + Interes_Mora + Costas_Aprobadas
-
-**Fecha:**
-22/08/2026
 ---
 
 ## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)
