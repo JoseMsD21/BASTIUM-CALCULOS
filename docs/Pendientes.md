@@ -255,7 +255,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
 - [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
-- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟠 Reabierto](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--reabierto)
+- [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟡 En proceso](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--en-proceso)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
 - [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🟠 Reabierto](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--reabierto)
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
@@ -5800,7 +5800,12 @@ tests en el momento del cierre).
 
 ---
 
-## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟠 Reabierto
+## Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) 🟡 En proceso
+
+**En proceso (rutina autónoma, 2026-08-23):** rama
+`sprint-74-fecha-corte-obligatoria-beneficiario-no-determinable`, implementando la respuesta del despacho
+del 22/08/2026: fecha de corte obligatoria cuando la vigencia del beneficiario no es determinable
+automáticamente.
 
 **Rama de trabajo:** `sprint-74-tipos-beneficiario-alimentos` (rutina autónoma, 2026-08-20).
 
