@@ -251,7 +251,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 67 — Checkbox invisible en modo claro y oscuro (indicador de QCheckBox) ✅ Completado](#sprint-67--checkbox-invisible-en-modo-claro-y-oscuro-indicador-de-qcheckbox--completado)
 - [Sprint 68 — Parámetros: editar/eliminar de usuario, vigencia clara, unidad desplegable y tooltips homologados ✅ Completado](#sprint-68--parámetros-editareliminar-de-usuario-vigencia-clara-unidad-desplegable-y-tooltips-homologados--completado)
 - [Sprint 69 — Configuraciones: Restablecer datos de fábrica ✅ Completado](#sprint-69--configuraciones-restablecer-datos-de-fábrica--completado)
-- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟠 Reabierto](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt--reabierto)
+- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) ⚠️ Parcial](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt--parcial) — 4 fórmulas de régimen pensional implementadas; router por fecha de causación pendiente de fechas exactas de vigencia (ver Sprint 91)
 - [Sprint 71 — Checkbox "aplica indexación IPC" invisible en Agregar Obligación (seguimiento Sprint 67) ✅ Completado](#sprint-71--checkbox-aplica-indexación-ipc-invisible-en-agregar-obligación-seguimiento-sprint-67--completado)
 - [Sprint 72 — Rediseño del formulario "Agregar Obligación": tamaño inicial y layout responsivo ✅ Completado](#sprint-72--rediseño-del-formulario-agregar-obligación-tamaño-inicial-y-layout-responsivo--completado)
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
@@ -272,7 +272,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas 🟠 Reabierto](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
-- [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟠 Reabierto](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--reabierto)
+- [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--parcial) — invalidez grado 2 y régimen 1994-2003 implementados; grado 1 bloqueado por discrepancia de tope (60% vs. 75%)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) 🟠 Reabierto](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 🟠 Reabierto](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🟠 Reabierto](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
@@ -5560,7 +5560,7 @@ pudo confirmar de forma headless — queda para que el usuario lo revise.
 
 ---
 
-## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) 🟠 Reabierto
+## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT) ⚠️ Parcial
 
 **Prioridad sugerida:** Alta — afecta directamente la corrección jurídica de cualquier liquidación
 pensional o laboral cuyo hecho generador haya ocurrido bajo una ley distinta a la que el motor usa hoy.
@@ -5620,6 +5620,20 @@ de "caso de uso concreto" que este sprint necesitaba. La pregunta de este sprint
 `Preguntas-Para-Abogado-Abiertas.md` se amplió con ese borrador para que el despacho lo confirme/corrija en
 vez de partir de cero. Sigue bloqueado — la fuente es una plantilla comercial de terceros, no verificación
 directa de la norma.
+
+**Cierre parcial (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 70/91") con las fórmulas de 4 regímenes de tasa de
+reemplazo (1985-1989, ISS Pre-Ley 100/Acuerdo 049-1990, Ley 100 original 1994-2003 —además de invalidez
+grado 2, que confirma la Ley 797/2003 ya implementada desde el Sprint 17). Implementadas y probadas como
+funciones aisladas en `app/engine/labor/ibl.py` (`calcular_tasa_reemplazo_regimen_1985_1989`,
+`calcular_tasa_reemplazo_iss_pre_ley_100`, `calcular_tasa_reemplazo_ley_100_original`), sin conectar
+todavía a un router por fecha de causación (la respuesta no dio las fechas exactas de vigencia de cada
+régimen que ese router necesita — ver Sprint 91 para el detalle de qué falta y por qué no se adivinó).
+`docs/specifications/07_motor_juridico_familia.md` actualizado. Suite completa en verde. La Definición de
+Hecho original de este sprint (routing end-to-end por fecha de causación, verificado con un caso real por
+ley) sigue sin cumplirse por eso mismo — de ahí el estado ⚠️ Parcial en vez de ✅ Completado. Pregunta de
+seguimiento acotada (fechas exactas de vigencia, más los 2 puntos del Sprint 91) en
+`Preguntas-Para-Abogado-Abiertas.md`, "Sprint 70/91 (seguimiento)".
 
 ---
 
@@ -6481,7 +6495,7 @@ tope) -> Decimal`.
 
 ---
 
-## Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición 🟠 Reabierto
+## Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial
 
 **Prioridad sugerida:** Media-Alta — `calcular_tasa_reemplazo` de `app/engine/labor/ibl.py:60-89` **solo implementa la tabla "desde el año 2004 en
 adelante"** de la Ley 797/2003; las otras 3 variantes que trae la misma plantilla de referencia (P9) no están cubiertas y producirían resultados
@@ -6518,6 +6532,25 @@ futura `PensionalStrategy`).
 - Tests de invalidez grado 1 y grado 2 reproduciendo exactamente las cifras de P9.md (ej. 800 semanas grado 2 → 54%, 1500 semanas grado 1 → 75%).
 - Fórmula 1993-2003 y régimen de transición confirmados con el despacho antes de codificar.
 - Suite completa en verde.
+
+**Cierre parcial (2026-08-23, rutina autónoma):** el despacho respondió (22/08/2026, ver
+`Preguntas-Para-Abogado-Respondidas.md`, "Sprint 70/91"). De los 3 puntos originales de este sprint:
+- **Régimen 1993-2003**: confirmado como "Régimen Ley 100 Original (1994-2003)" — implementado y probado
+  en `calcular_tasa_reemplazo_ley_100_original` (`app/engine/labor/ibl.py`), tests en
+  `tests/engine/labor/test_ibl.py`.
+- **Invalidez Grado 2**: confirmado exactamente igual a lo que ya había extraído la plantilla P9 (base 54%,
+  +2%/50 semanas desde 800, tope 75%) — implementado en `calcular_tasa_reemplazo_invalidez_grado_2`.
+- **Invalidez Grado 1**: **NO implementado.** El tope que trae esta respuesta (60%) contradice
+  numéricamente el que ya había confirmado la plantilla P9 con cifras concretas verificadas (75%, este
+  mismo sprint, fila 91: "1500 semanas → 75,0%"). Implementar cualquiera de los dos toques sin resolver la
+  contradicción arriesgaría calcular mal una pensión de invalidez real — se documentó la discrepancia y se
+  dejó sin construir en vez de adivinar.
+- **Régimen de transición**: la respuesta no lo menciona por ese nombre — sigue sin confirmar si "Régimen
+  1985-1989" es la respuesta a esto o si la pregunta sigue abierta.
+
+`docs/specifications/07_motor_juridico_familia.md` actualizado. Suite completa en verde. Pregunta de
+seguimiento (tope de invalidez Grado 1 + régimen de transición, junto con el Sprint 70) en
+`Preguntas-Para-Abogado-Abiertas.md`, "Sprint 70/91 (seguimiento)".
 
 ---
 

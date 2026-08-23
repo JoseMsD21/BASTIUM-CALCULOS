@@ -207,6 +207,122 @@ def test_tasa_reemplazo_smlmv_cero_lanza_error():
         )
 
 
+# Sprint 70/91 (respuesta del despacho, 2026-08-22): formulas de tasa de
+# reemplazo de regimenes pensionales historicos, distintas de la Ley
+# 797/2003 (2004 en adelante) que ya prueban los tests de arriba. Funciones
+# aisladas, sin conectar a ningun flujo de liquidacion todavia -- el router
+# por fecha de causacion (que regimen aplica a cada fecha) queda pendiente de
+# que el despacho confirme las fechas exactas de vigencia de cada regimen
+# (ver Pendientes.md, Sprint 70). La pension de invalidez Grado 1 tambien
+# queda fuera de esta implementacion: el tope que trajo el despacho (60%) no
+# coincide con el que ya habia confirmado una fuente anterior (75%, plantilla
+# P9 del despacho, Sprint 91) -- discrepancia sin resolver, ver pregunta de
+# seguimiento en Preguntas-Para-Abogado-Abiertas.md.
+
+
+def test_tasa_reemplazo_regimen_1985_1989_es_fija_75_por_ciento():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_regimen_1985_1989
+
+    assert calcular_tasa_reemplazo_regimen_1985_1989() == Decimal("75.00")
+
+
+def test_tasa_reemplazo_iss_pre_ley_100_base_45_desde_500_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_iss_pre_ley_100
+
+    assert calcular_tasa_reemplazo_iss_pre_ley_100(500) == Decimal("45.00")
+
+
+def test_tasa_reemplazo_iss_pre_ley_100_con_bono_antes_de_1000_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_iss_pre_ley_100
+
+    # 700 semanas: exceso de 200 sobre la base de 500 -> 4 bloques de 50 -> +12%.
+    assert calcular_tasa_reemplazo_iss_pre_ley_100(700) == Decimal("57.00")
+
+
+def test_tasa_reemplazo_iss_pre_ley_100_continuidad_en_1000_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_iss_pre_ley_100
+
+    # La formula de <1000 y la de >=1000 deben coincidir exactamente en el limite:
+    # 45 + floor((1000-500)/50)*3 = 45+30 = 75; base de >=1000 = 75 + 0 bloques = 75.
+    assert calcular_tasa_reemplazo_iss_pre_ley_100(999) == Decimal("72.00")
+    assert calcular_tasa_reemplazo_iss_pre_ley_100(1000) == Decimal("75.00")
+
+
+def test_tasa_reemplazo_iss_pre_ley_100_base_75_desde_1000_semanas_con_bono():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_iss_pre_ley_100
+
+    # 1200 semanas: exceso de 200 sobre 1000 -> 4 bloques de 50 -> +12% sobre 75.
+    assert calcular_tasa_reemplazo_iss_pre_ley_100(1200) == Decimal("87.00")
+
+
+def test_tasa_reemplazo_iss_pre_ley_100_no_sube_del_tope_90():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_iss_pre_ley_100
+
+    assert calcular_tasa_reemplazo_iss_pre_ley_100(2000) == Decimal("90.00")
+
+
+def test_tasa_reemplazo_iss_pre_ley_100_menos_de_500_semanas_lanza_error():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_iss_pre_ley_100
+
+    with pytest.raises(ValueError):
+        calcular_tasa_reemplazo_iss_pre_ley_100(499)
+
+
+def test_tasa_reemplazo_ley_100_original_base_65_desde_1000_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_ley_100_original
+
+    assert calcular_tasa_reemplazo_ley_100_original(1000) == Decimal("65.00")
+
+
+def test_tasa_reemplazo_ley_100_original_bono_2_por_ciento_entre_1000_y_1200():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_ley_100_original
+
+    # 1100 semanas: 2 bloques de 50 dentro del tramo 1.000-1.200 -> +4%.
+    assert calcular_tasa_reemplazo_ley_100_original(1100) == Decimal("69.00")
+
+
+def test_tasa_reemplazo_ley_100_original_bono_3_por_ciento_entre_1200_y_1400():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_ley_100_original
+
+    # 1000-1200: 4 bloques x 2% = 8% -> 73%. 1200-1300: 2 bloques x 3% = 6% -> 79%.
+    assert calcular_tasa_reemplazo_ley_100_original(1300) == Decimal("79.00")
+
+
+def test_tasa_reemplazo_ley_100_original_no_sube_del_tope_85():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_ley_100_original
+
+    assert calcular_tasa_reemplazo_ley_100_original(2000) == Decimal("85.00")
+
+
+def test_tasa_reemplazo_ley_100_original_menos_de_1000_semanas_lanza_error():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_ley_100_original
+
+    with pytest.raises(ValueError):
+        calcular_tasa_reemplazo_ley_100_original(999)
+
+
+def test_tasa_reemplazo_invalidez_grado_2_base_54_desde_800_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_2
+
+    assert calcular_tasa_reemplazo_invalidez_grado_2(800) == Decimal("54.00")
+
+
+def test_tasa_reemplazo_invalidez_grado_2_bono_2_por_ciento_cada_50_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_2
+
+    # 1400 semanas: 12 bloques de 50 -> +24% -> 78% -> topado a 75%.
+    assert calcular_tasa_reemplazo_invalidez_grado_2(1400) == Decimal("75.00")
+    # 1000 semanas: 4 bloques de 50 -> +8% -> 62%, sin tope.
+    assert calcular_tasa_reemplazo_invalidez_grado_2(1000) == Decimal("62.00")
+
+
+def test_tasa_reemplazo_invalidez_grado_2_menos_de_800_semanas_lanza_error():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_2
+
+    with pytest.raises(ValueError):
+        calcular_tasa_reemplazo_invalidez_grado_2(799)
+
+
 def test_densidad_semanas_calendario_real_vs_ano_comercial_360():
     from app.engine.labor.ibl import calcular_densidad_semanas
 

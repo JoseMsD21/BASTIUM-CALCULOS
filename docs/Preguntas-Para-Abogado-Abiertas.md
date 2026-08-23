@@ -81,7 +81,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 
 - [Sprint 8 (seguimiento 3) — Tabla real de IPC mensual anterior a enero de 2003](#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003)
 - [Sprint 18 (seguimiento 3) — Discrepancia numérica entre la tabla granular verificada (PSAA16-10554) y las "tarifas duras" que aportó el despacho](#sprint-18-seguimiento-3--discrepancia-numérica-entre-la-tabla-granular-verificada-psaa16-10554-y-las-tarifas-duras-que-aportó-el-despacho)
-- [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt)
+- [Sprint 70/91 (seguimiento) — Fechas exactas de vigencia por régimen, invalidez Grado 1, y "régimen de transición"](#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición)
 - [Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo](#sprint-74--familia-tipos-de-beneficiario-de-alimentos-y-reglas-de-vigencia-por-tipo)
 - [Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?](#sprint-76--fórmula-de-tasa-del-art-16172232-cc-lineal-diaria-efectiva-compuesta-diaria-o-mensual-con-prorrateo-de-30-días)
 - [Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?](#sprint-78--conteo-de-días-para-densidad-pensional-semanas-cotizadas-aplica-el-1-inclusivo)
@@ -90,7 +90,6 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 84 — Interés moratorio tributario (E.T. art. 635): ¿366 días lineal (convención DIAN) o 365 compuesto (fórmula actual de BASTIUM)?](#sprint-84--interés-moratorio-tributario-et-art-635-366-días-lineal-convención-dian-o-365-compuesto-fórmula-actual-de-bastium)
 - [Sprint 86/87 — Bono pensional y cálculo actuarial de cotizaciones omisas: factores de reserva y tabla DTF Pensional](#sprint-8687--bono-pensional-y-cálculo-actuarial-de-cotizaciones-omisas-factores-de-reserva-y-tabla-dtf-pensional)
 - [Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)](#sprint-90--fundamento-legal-de-la-fórmula-ibl-de-últimas-100150-semanas-régimen-iss-anterior-a-1994)
-- [Sprint 91 (seguimiento del Sprint 70) — Tabla completa de tasa de reemplazo por régimen: 1993-2003, régimen de transición e invalidez](#sprint-91-seguimiento-del-sprint-70--tabla-completa-de-tasa-de-reemplazo-por-régimen-1993-2003-régimen-de-transición-e-invalidez)
 - [Sprint 92 — Laboral: ¿fecha de corte real entre régimen Ley 50/1990 y Ley 789/2002 para la indemnización por despido, fórmula para salario ≥10 SMMLV, y coexistencia con la sanción moratoria?](#sprint-92--laboral-fecha-de-corte-real-entre-régimen-ley-501990-y-ley-7892002-para-la-indemnización-por-despido-fórmula-para-salario-10-smmlv-y-coexistencia-con-la-sanción-moratoria)
 - [Sprint 93 — Laboral: ¿en qué procesos se usa reajuste por IPC vs. por SMMLV para salarios dejados de percibir?](#sprint-93--laboral-en-qué-procesos-se-usa-reajuste-por-ipc-vs-por-smmlv-para-salarios-dejados-de-percibir)
 - [Sprint 94 — Laboral: base de aportes a salud/pensión reclamables en contrato realidad, y regla de la bonificación por servicio](#sprint-94--laboral-base-de-aportes-a-saludpensión-reclamables-en-contrato-realidad-y-regla-de-la-bonificación-por-servicio)
@@ -171,126 +170,38 @@ verificarlos igual que se hizo con la tabla que ya está implementada.
 **Fecha:**
 ---
 
-## Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)
+## Sprint 70/91 (seguimiento) — Fechas exactas de vigencia por régimen, invalidez Grado 1, y "régimen de transición"
 
-**Contexto:** hoy el software resuelve las fórmulas y cifras legales (tasa de reemplazo pensional,
-porcentajes, topes) con una sola versión de cada fórmula, sin distinguir qué ley aplicaba en la fecha en
-que ocurrió el hecho generador del caso. En la práctica, la ley que rige un caso depende de la fecha en que
-el hecho ocurrió, no de la fecha actual: por ejemplo, quien se pensionó en 1997 se rige por la Ley 100 de
-1993, quien se pensionó en 2024 por la Ley 797 de 2003, y quien se pensione desde que entró en vigencia la
-Ley 2381 de 2024 se rige por esa ley nueva. Lo mismo aplica en Derecho Laboral y Seguridad Social, donde el
-Código Sustantivo del Trabajo y el Código de Procedimiento del Trabajo han tenido varias modificaciones con
-fechas de vigencia propias.
+**Contexto:** la respuesta del despacho del 22/08/2026 (ver `Preguntas-Para-Abogado-Respondidas.md`,
+"Sprint 70/91") confirmó 4 fórmulas de tasa de reemplazo pensional que ya se implementaron y probaron como
+funciones aisladas en `app/engine/labor/ibl.py` (régimen 1985-1989, ISS Pre-Ley 100/Acuerdo 049-1990, Ley
+100 original 1994-2003, e invalidez grado 2). Quedaron 3 puntos sin resolver que esta rutina no adivinó:
 
-**Pregunta:** para las fórmulas y cifras que dependen de la ley vigente al momento del hecho (empezando por
-la tasa de reemplazo pensional del Sprint 17, hoy implementada como una sola fórmula fija `r = 65.5 −
-0.5·s` de la Ley 100/Ley 797), ¿pueden confirmar la lista de leyes relevantes con su fecha exacta de entrada
-en vigencia y qué fórmula/cifra corresponde a cada una, empezando por: Ley 100 de 1993, Ley 797 de 2003, y
-Ley 2381 de 2024? ¿Hay otras leyes/reformas del CST o del CPT con vigencias específicas que el motor deba
-distinguir de la misma forma?
+1. **Fechas exactas de vigencia de cada régimen** — la respuesta pidió un patrón "Factory" que enrute el
+   cálculo por fecha de los hechos, pero no dio el día exacto en que empieza/termina cada régimen (solo
+   rangos aproximados como "1985-1989" o "Pre-Ley 100"). Sin esa fecha exacta, no se construyó el router:
+   enrutar una liquidación real a un régimen equivocado por una fecha de corte mal supuesta sería un error
+   de dominio grave.
+2. **Invalidez Grado 1** — esta respuesta da un tope de 60%, pero una fuente anterior (plantilla comercial
+   P9 del despacho, con cifras concretas verificadas: 500 semanas→45,0%, ...,1500 semanas→75,0%, Sprint 91)
+   ya había confirmado un tope de 75% para el mismo grado. No se implementó ninguna función para Grado 1
+   mientras esta discrepancia no se resuelva.
+3. **"Régimen de transición"** (Art. 36 Ley 100 de 1993, tasa fija "75%/90%/la que corresponda") — la
+   pregunta original del Sprint 91 lo pedía por ese nombre; la respuesta del 22/08 no lo menciona
+   explícitamente. No está claro si "Régimen 1985-1989" es la respuesta a esto, o si sigue sin contestar.
 
-**Qué necesito exactamente:** una tabla de Ley → fecha de entrada en vigencia → fórmula o cifra que
-corresponde → a qué módulo del software aplica (pensional, laboral, otro). No hace falta que sea exhaustiva
-de una sola vez — puede empezar por las 3 leyes pensionales mencionadas y ampliarse después.
+**Pregunta:** (1) ¿cuál es la fecha exacta de entrada en vigencia y de cese de cada régimen (1985-1989, ISS
+Pre-Ley 100/Acuerdo 049 de 1990, Ley 100 original, Ley 797/2003)? (2) Para invalidez Grado 1, ¿el tope
+correcto es 60% (esta respuesta) o 75% (la plantilla P9)? (3) ¿El "régimen de transición" del Art. 36 Ley
+100/1993 (con sus reglas propias de quién puede acogerse) es un régimen aparte de los ya confirmados, o se
+resuelve con la tabla de "Régimen 1985-1989"/"ISS Pre-Ley 100" ya dada?
 
-**Actualización (2026-08-19) — borrador de punto de partida encontrado en una plantilla comercial del
-despacho, para confirmar o corregir (no tomar como definitivo):** `P9.TASA-DE-REEMPLAZO-LEY-797-2003.md`
-trae, además de la fórmula que ya implementa BASTIUM (`r = 65.5 − 0.5·s`, vigente "desde el año 2004 en
-adelante"), otras 2 tablas de tasa de reemplazo que el código de hoy NO cubre: una para "Ley 797 de 2003,
-desde 1993 hasta 2003" y otra para el "Régimen de Transición" (tasa fija 75%/90%/"la que corresponda"). La
-plantilla no deja ver la fórmula matemática completa de esas 2 tablas con datos de ejemplo, así que este
-hallazgo no reemplaza la pregunta original — solo confirma con una fuente adicional que faltan al menos 2
-fórmulas más, y da un punto de partida concreto para pedirlas. Ver Sprint 91 en `Pendientes.md`, que
-también añade a la lista 2 tablas de tasa de reemplazo para pensión de invalidez (grados 1 y 2) con cifras
-que sí se pudieron extraer completas de la misma plantilla (base 45%/54% + incrementos de 1,5%/2% cada 50
-semanas, tope 75%) — inclúyanlas también en la respuesta si aplican al alcance de BASTIUM.
+**Qué necesito exactamente:** una tabla de régimen → fecha desde → fecha hasta (o "vigente"), la
+confirmación del tope de invalidez Grado 1, y la aclaración sobre el régimen de transición.
 
 **Respuesta del despacho:**
-La coexistencia de regímenes necesita un patrón Factory que pueda enrutar el cálculo según la fecha de los hechos jurídicamente relevantes y el régimen de transición del afiliado.
-
-Podría implementarse una lógica de Tasa de Reemplazo (r):
-
-Régimen 1985-1989 (Ley 33/85 y Ley 71/88): r = 75.0% fijo. Sin variables dinámicas.
-Régimen ISS Pre-Ley 100 (Acuerdo 049/1990):
-Base: 45% (500 semanas) o 75% (1.000 semanas).
-Incremento: $+3.0\%$ por cada grupo de 50 semanas adicionales a las 1.000.
-Tope algorítmico: min(r, 90.0).
-
-Régimen Ley 100 Original (1994-2003):
-Base: 65% (1.000 semanas).
-Incrementos: $+2.0\%$ / 50 sem (entre 1.000 y 1.200). $+3.0\%$ / 50 sem (entre 1.200 y 1.400).
-Tope algorítmico: min(r, 85.0).
-
-Régimen Ley 797/2003 y Ley 2381/2024:
-Variable s = IBL / SMMLV_vigente.
-Fórmula base decreciente: r = 65.5 - (0.5 * s). 
-Límite de control: Nunca inferior a 55% ni superior a 65.5%.
-Incremento: $+1.5\%$ por cada 50 semanas adicionales a las 1.300.
-Tope algorítmico: min(r_final, 80.0).
-
-Pensión de Invalidez (Grado I - 50% a 65% PCL): r = 45.0 + (math.floor((semanas - 500) / 50) * 1.5). 
-Tope: 60%.
-
-Pensión de Invalidez (Grado II - $\ge$ 66% PCL): r = 54.0 + (math.floor((semanas - 800) / 50) * 2.0). 
-Tope: 75%.
-
-import math
-
-# 1. ACUERDO 049/1990 (Régimen ISS Pre-Ley 100)
-if semanas_cotizadas < 1000:
-    # Se exigen mínimo 500 semanas
-    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
-    tasa_r = 45.0 + (bloques_extra * 3.0)
-else:
-    bloques_extra = math.floor((semanas_cotizadas - 1000) / 50)
-    tasa_r = 75.0 + (bloques_extra * 3.0)
-
-tasa_final = min(tasa_r, 90.0) # Tope legal del 90%
-
-# 2. LEY 100 DE 1993 (Versión Original 1994-2003)
-tasa_r = 65.0
-if semanas_cotizadas > 1000:
-    semanas_tramo_1 = min(semanas_cotizadas, 1200)
-    bloques_tramo_1 = math.floor((semanas_tramo_1 - 1000) / 50)
-    tasa_r += (bloques_tramo_1 * 2.0)
-    
-if semanas_cotizadas > 1200:
-    semanas_tramo_2 = min(semanas_cotizadas, 1400)
-    bloques_tramo_2 = math.floor((semanas_tramo_2 - 1200) / 50)
-    tasa_r += (bloques_tramo_2 * 3.0)
-
-tasa_final = min(tasa_r, 85.0) # Tope legal del 85%
-
-# 3. LEY 797/2003 Y LEY 2381/2024
-s = IBL / SMMLV_Vigente
-tasa_base = 65.5 - (0.5 * s)
-
-# La tasa base no puede ser inferior al 55% ni superior al 65.5%
-tasa_base = max(55.0, min(tasa_base, 65.5))
-
-if semanas_cotizadas > 1300:
-    bloques_extra = math.floor((semanas_cotizadas - 1300) / 50)
-    tasa_r = tasa_base + (bloques_extra * 1.5)
-else:
-    tasa_r = tasa_base
-
-tasa_final = min(tasa_r, 80.0) # Tope legal del 80%
-
-# 4. PENSIÓN DE INVALIDEZ (ORIGEN COMÚN)
-if porcentaje_perdida_capacidad >= 50.0 and porcentaje_perdida_capacidad < 66.0:
-    # GRADO 1
-    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
-    tasa_r = 45.0 + (bloques_extra * 1.5)
-    tasa_final = min(tasa_r, 60.0)
-    
-elif porcentaje_perdida_capacidad >= 66.0:
-    # GRADO 2
-    bloques_extra = math.floor((semanas_cotizadas - 800) / 50)
-    tasa_r = 54.0 + (bloques_extra * 2.0)
-    tasa_final = min(tasa_r, 75.0)
 
 **Fecha:**
-22/08/2026
 ---
 
 ## Sprint 74 — Familia: tipos de beneficiario de alimentos y reglas de vigencia por tipo
@@ -692,109 +603,6 @@ realmente necesita hoy.
 
 **Respuesta del despacho:**
 El régimen aplicable es el Acuerdo 049 de 1990, con topes fijos en su estructura de tasas. El factor "4.33" (semanas/mes) no se exige legalmente como constante pura del IBL histórico, el sistema debe limitarse al 45% - 90% liquidado con las fórmulas de semanas del Sprint 70.
-
-**Fecha:**
-22/08/2026
----
-
-## Sprint 91 (seguimiento del Sprint 70) — Tabla completa de tasa de reemplazo por régimen: 1993-2003, régimen de transición e invalidez
-
-**Contexto:** la plantilla comercial P9 (Tasa de Reemplazo Ley 797/2003) trae, además de la fórmula que ya implementa BASTIUM (r = 65.5 − 0.5·s, vigente
-desde 2004), otras 3 tablas para: el período 1993-2003, el régimen de transición (tasa fija 75%/90%/"la que corresponda"), y pensión de invalidez grados 1 y
-2 (bases 45%/54% con incrementos de 1,5%/2% cada 50 semanas). El desarrollo pudo extraer las cifras exactas de invalidez (confirmadas contra la propia
-tabla numérica de la plantilla), pero no la fórmula matemática completa de los otros dos regímenes (1993-2003 y transición), que la plantilla no deja ver
-con datos de ejemplo.
-
-**Pregunta:** ¿puede el despacho confirmar (a) la fórmula exacta de tasa de reemplazo aplicable a causantes de pensión entre 1993 y 2003, (b) la regla
-exacta de cuándo aplica 75% vs. 90% vs. "la que corresponda" en el régimen de transición, y (c) si las cifras de invalidez que trae la plantilla comercial
-(grado 1: 45% + 1,5%/50 semanas sobre 500, tope 75%; grado 2: 54% + 2%/50 semanas sobre 800, tope 75%) son correctas?
-
-**Qué necesito exactamente:** las 2 fórmulas faltantes con su fundamento normativo exacto, y una confirmación sí/no de las cifras de invalidez citadas.
-
-**Respuesta del despacho:**
-
-La coexistencia de regímenes necesita un patrón Factory que pueda enrutar el cálculo según la fecha de los hechos jurídicamente relevantes y el régimen de transición del afiliado.
-
-Podría implementarse una lógica de Tasa de Reemplazo (r):
-
-Régimen 1985-1989 (Ley 33/85 y Ley 71/88): r = 75.0% fijo. Sin variables dinámicas.
-Régimen ISS Pre-Ley 100 (Acuerdo 049/1990):
-Base: 45% (500 semanas) o 75% (1.000 semanas).
-Incremento: $+3.0\%$ por cada grupo de 50 semanas adicionales a las 1.000.
-Tope algorítmico: min(r, 90.0).
-
-Régimen Ley 100 Original (1994-2003):
-Base: 65% (1.000 semanas).
-Incrementos: $+2.0\%$ / 50 sem (entre 1.000 y 1.200). $+3.0\%$ / 50 sem (entre 1.200 y 1.400).
-Tope algorítmico: min(r, 85.0).
-
-Régimen Ley 797/2003 y Ley 2381/2024:
-Variable s = IBL / SMMLV_vigente.
-Fórmula base decreciente: r = 65.5 - (0.5 * s). 
-Límite de control: Nunca inferior a 55% ni superior a 65.5%.
-Incremento: $+1.5\%$ por cada 50 semanas adicionales a las 1.300.
-Tope algorítmico: min(r_final, 80.0).
-
-Pensión de Invalidez (Grado I - 50% a 65% PCL): r = 45.0 + (math.floor((semanas - 500) / 50) * 1.5). 
-Tope: 60%.
-
-Pensión de Invalidez (Grado II - $\ge$ 66% PCL): r = 54.0 + (math.floor((semanas - 800) / 50) * 2.0). 
-Tope: 75%.
-
-import math
-
-# 1. ACUERDO 049/1990 (Régimen ISS Pre-Ley 100)
-if semanas_cotizadas < 1000:
-    # Se exigen mínimo 500 semanas
-    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
-    tasa_r = 45.0 + (bloques_extra * 3.0)
-else:
-    bloques_extra = math.floor((semanas_cotizadas - 1000) / 50)
-    tasa_r = 75.0 + (bloques_extra * 3.0)
-
-tasa_final = min(tasa_r, 90.0) # Tope legal del 90%
-
-# 2. LEY 100 DE 1993 (Versión Original 1994-2003)
-tasa_r = 65.0
-if semanas_cotizadas > 1000:
-    semanas_tramo_1 = min(semanas_cotizadas, 1200)
-    bloques_tramo_1 = math.floor((semanas_tramo_1 - 1000) / 50)
-    tasa_r += (bloques_tramo_1 * 2.0)
-    
-if semanas_cotizadas > 1200:
-    semanas_tramo_2 = min(semanas_cotizadas, 1400)
-    bloques_tramo_2 = math.floor((semanas_tramo_2 - 1200) / 50)
-    tasa_r += (bloques_tramo_2 * 3.0)
-
-tasa_final = min(tasa_r, 85.0) # Tope legal del 85%
-
-# 3. LEY 797/2003 Y LEY 2381/2024
-s = IBL / SMMLV_Vigente
-tasa_base = 65.5 - (0.5 * s)
-
-# La tasa base no puede ser inferior al 55% ni superior al 65.5%
-tasa_base = max(55.0, min(tasa_base, 65.5))
-
-if semanas_cotizadas > 1300:
-    bloques_extra = math.floor((semanas_cotizadas - 1300) / 50)
-    tasa_r = tasa_base + (bloques_extra * 1.5)
-else:
-    tasa_r = tasa_base
-
-tasa_final = min(tasa_r, 80.0) # Tope legal del 80%
-
-# 4. PENSIÓN DE INVALIDEZ (ORIGEN COMÚN)
-if porcentaje_perdida_capacidad >= 50.0 and porcentaje_perdida_capacidad < 66.0:
-    # GRADO 1
-    bloques_extra = math.floor((semanas_cotizadas - 500) / 50)
-    tasa_r = 45.0 + (bloques_extra * 1.5)
-    tasa_final = min(tasa_r, 60.0)
-    
-elif porcentaje_perdida_capacidad >= 66.0:
-    # GRADO 2
-    bloques_extra = math.floor((semanas_cotizadas - 800) / 50)
-    tasa_r = 54.0 + (bloques_extra * 2.0)
-    tasa_final = min(tasa_r, 75.0)
 
 **Fecha:**
 22/08/2026
