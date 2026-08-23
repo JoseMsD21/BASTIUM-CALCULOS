@@ -314,6 +314,35 @@ y Sprint 8 en `Pendientes.md`.
 
 ---
 
+## Sprint 80 — Cobertura parcial de la serie mensual de IPC (2003-2026) y qué hacer con fechas anteriores
+
+**Contexto:** ya conseguimos la tabla real de índices IPC mensuales que el despacho pidió (ver respuesta al
+Sprint 8), pero con dos particularidades frente a lo que se había pedido: (1) viene en una sola base
+continua (diciembre 2018 = 100), ya "enlazada" oficialmente por el DANE, en vez de las dos bases separadas
+(2008 y 2018) con un Factor de Enlace que el software calculara; y (2) solo cubre desde enero de 2003 en
+adelante — no hay índice mensual disponible para fechas anteriores a 2003.
+
+**Pregunta:** (1) ¿La serie ya enlazada por el DANE en una sola base (diciembre 2018 = 100) es aceptable
+para indexar, o el despacho necesita específicamente las dos bases separadas con el Factor de Enlace
+calculado por el software? (2) Para liquidaciones con `fecha_origen` anterior a enero de 2003, ¿el
+software debe (a) bloquear la indexación IPC exigiendo que el usuario indique manualmente el índice, (b)
+usar la variación % anual ya cargada (interpolación anual), o (c) alguna otra solución?
+
+**Respuesta del despacho:** la misma respuesta que contestó la pregunta de seguimiento 2 del Sprint 8 (ver
+arriba) — la serie aplicable es la de base Diciembre-2008=100 con continuidad "desde décadas anteriores a
+2003", más las fórmulas de "Límite de Vacío Absoluto" y "Estimación Futura".
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** resuelta junto con el Sprint 8 (misma respuesta del
+despacho, mismo commit). La frontera de fechas posteriores al último mes certificado ya no cae al fallback
+de interpolación anual — se estima con la media geométrica. La frontera anterior a 2003 sigue usando el
+fallback a interpolación anual documentado: es la única opción posible sin el dato real, que el despacho
+da por existente pero que esta rutina no tiene forma de obtener (bloqueo de infraestructura, no de
+decisión — ver Sprint 8 (seguimiento 3) en `Preguntas-Para-Abogado-Abiertas.md`).
+
+---
+
 ## Sprint 11 — Derecho Tributario (DIAN)
 
 **Contexto:** Este fue el primer sprint que agregó liquidaciones tributarias (DIAN) al software, un

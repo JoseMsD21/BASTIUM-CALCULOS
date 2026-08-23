@@ -261,7 +261,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
 - [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟠 Reabierto](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--reabierto)
 - [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🟠 Reabierto](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--reabierto)
-- [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 🟠 Reabierto](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--reabierto)
+- [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--completado)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 🟠 Reabierto](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--reabierto)
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
@@ -6125,7 +6125,7 @@ esa base (sumadas al final, sin generar interés adicional)?
 
 ---
 
-## Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 🟠 Reabierto
+## Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado
 
 **Prioridad sugerida:** Alta — Sprint 8 lleva bloqueado desde 2026-08-01 exclusivamente por falta de este dato real; esta serie lo resuelve para el 90%+ de los casos recientes.
 **Depende de:** Sprint 5 (series históricas), Sprint 8 (motor de interpolación mensual ya construido y probado, solo falta la tabla de datos).
@@ -6150,6 +6150,14 @@ esa base (sumadas al final, sin generar interés adicional)?
 - Suite completa en verde.
 
 **Cierre (2026-08-20):** Completado. Trabajado en local el 2026-08-19 (rama `sprint-80-...`, con revisión de calidad aplicada) usando el archivo original con acceso directo; quedó divergido de `main` por unos días mientras la rutina autónoma en la nube avanzaba otros sprints en paralelo. Reconciliado hoy contra el `main` actual (fusión manual, sin pérdida de trabajo de ningún lado): `_IPC_MENSUAL` poblada 2003-01 a 2026-03 (último dato real certificado — ver corrección en el párrafo de contexto sobre el dato de abril-2026 que en realidad era abril-2025), `CivilFamiliaStrategy._evento_indexacion` usa `get_ipc_interpolado_mensual_for_date` dentro de ese rango con fallback documentado a la interpolación anual fuera de rango, `docs/specifications/03_motor_indexacion.md` y `README.md` actualizados. Suite completa: 1483 passed (incluye la recalculación del test de divergencia X9 del Sprint 102/104, cuyo resultado numérico cambió al pasar de interpolación anual a mensual — la brecha conceptual sigue documentada igual en el Sprint 104).
+
+**Cierre definitivo (2026-08-23, rutina autónoma):** la pregunta de seguimiento sobre las dos fronteras sin
+índice mensual (antes de 2003 y después del último mes certificado) quedó contestada por el despacho el
+22/08/2026 e implementada en el Sprint 8 (mismo commit): la frontera posterior al último mes certificado
+ya no cae al fallback anual — se estima con media geométrica ("Estimación Futura"); la frontera anterior a
+2003 sigue en fallback anual documentado, bloqueada solo por falta de dato real (bloqueo de
+infraestructura, ver Sprint 8 (seguimiento 3) en `Preguntas-Para-Abogado-Abiertas.md`). Sin cambios de
+código propios de este sprint — ver Sprint 8 para el detalle técnico completo.
 
 ---
 
