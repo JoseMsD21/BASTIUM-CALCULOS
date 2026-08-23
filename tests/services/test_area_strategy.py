@@ -3714,9 +3714,11 @@ class TestTributarioStrategy:
         # Caso real del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 15):
         # impuesto de $100.000.000 vencido el 2018-05-10, liquidado el 2023-05-10 (5 anios
         # de mora).
-        # El interes E.T. 635 ya calculado (123.160.595,20) mas la indexacion IPC sin topar
-        # (32.814.627,80) superarian el techo de usura plena (130.933.902,61) -- la
-        # indexacion debe recortarse a 7.773.307,41 (verificado independientemente en
+        # Sprint 84 (respuesta del despacho, 22/08/2026): el interes E.T. 635 y el techo de
+        # usura plena ahora usan division lineal 365/366 (no la formula compuesta anterior)
+        # -- el interes E.T. 635 (140.031.700,20) mas la indexacion IPC sin topar
+        # (32.814.627,80) superarian el techo de usura plena (150.031.700,86) -- la
+        # indexacion debe recortarse a 10.000.000,66 (verificado independientemente en
         # tests/engine/tax/test_actualizacion_867_1.py, mismo caso).
         impuesto = _obligacion_tributaria(
             categoria="IMPUESTO_A_CARGO",
@@ -3730,10 +3732,10 @@ class TestTributarioStrategy:
 
         saldo = resultado.final_balance()
         assert saldo.principal == Decimal("100000000.00")
-        assert saldo.interest == Decimal("123160595.20")
-        assert saldo.indexation == Decimal("7773307.41")
+        assert saldo.interest == Decimal("140031700.20")
+        assert saldo.indexation == Decimal("10000000.66")
         assert saldo.interest + saldo.indexation == Decimal(
-            "130933902.61"
+            "150031700.86"
         )  # == techo de usura plena
         # Sprint 43: el recorte anterior ya existia desde el Sprint 15 -- lo nuevo es la
         # alerta no bloqueante que pide el despacho cuando el techo realmente recorta.
