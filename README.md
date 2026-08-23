@@ -177,14 +177,20 @@ Una vez instalado, la forma más simple de abrir el programa es haciendo **doble
 `Iniciar BASTIUM.bat`** (en la raíz del repo) — no requiere abrir ninguna terminal. El comando
 `python main.py` de arriba sigue funcionando igual si prefieres la terminal.
 
+**Requisito de Python: 3.12 o más nuevo** (probado en 3.14) — el código usa sintaxis de función genérica
+(PEP 695) que no existe en 3.11 ni versiones anteriores; con una versión más vieja, `pip install`
+funciona pero el programa falla al abrir con un `SyntaxError`. Ver
+[Guía de Usuario, sección 2.1](docs/GUIA_USUARIO.md#21-qué-necesitas-tener-instalado-antes-de-empezar).
+
 **No hace falta ningún paso manual de migración.** `main.py` corre `aplicar_migraciones_pendientes()`
 automáticamente en cada arranque (Sprint 51) — agrega cualquier columna/índice que un `bastium.db` viejo
 todavía no tenga y siembra `parametros_legales` si está vacía, comparando el esquema real contra el
 modelo actual antes de tocar nada. Es idempotente y no afecta datos existentes: si ya está todo al día no
-hace nada; si te falta algo, lo agrega solo. Esto reemplaza los ~9 scripts `scripts/migrate_*.py` que
-antes había que recordar correr a mano uno por uno según de qué sprint viniera tu `bastium.db` — ya no
-hace falta, aunque los scripts individuales se conservan (`scripts/`) y siguen siendo idempotentes por si
-alguna vez hace falta correr uno de forma aislada o auditar qué hace cada uno.
+hace nada; si te falta algo, lo agrega solo. Esto reemplaza los 21 scripts `scripts/migrate_*.py`
+(actualizado 2026-08-22 — este número sube con cada sprint que toca el esquema) que antes había que
+recordar correr a mano uno por uno según de qué sprint viniera tu `bastium.db` — ya no hace falta, aunque
+los scripts individuales se conservan (`scripts/`) y siguen siendo idempotentes por si alguna vez hace
+falta correr uno de forma aislada o auditar qué hace cada uno.
 
 ## Actualizar a una versión nueva
 
@@ -196,6 +202,10 @@ git pull origin main
 pip install -r requirements.txt
 python main.py
 ```
+
+Si tu instalación es de hace varios meses, revisá tu versión de Python (`python --version`) antes de
+actualizar — el mínimo subió a 3.12 en algún punto del desarrollo; con una versión más vieja el segundo
+comando puede fallar o el programa puede no abrir después de actualizar.
 
 No hay que correr ningún script de migración a mano ni borrar `bastium.db`: el paso 3 lo actualiza solo
 (ver la nota de arriba) y tus datos capturados nunca se sobrescriben. Detalle completo, incluyendo qué

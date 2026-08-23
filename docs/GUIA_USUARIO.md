@@ -81,14 +81,19 @@ injustificado) — más detalle en la
 ### 2.1. Qué necesitas tener instalado antes de empezar
 
 - **Windows** (el programa se desarrolló y probó en Windows).
-- **Python 3.14** (o una versión cercana). Si no sabes si lo tienes instalado, abre una terminal
-  (`PowerShell`) y escribe:
+- **Python 3.12 o más nuevo** (recomendado 3.14, la versión con la que se prueba el proyecto). Esto
+  **no es solo una recomendación**: el código usa sintaxis de Python que no existe en 3.11 ni
+  anteriores (genéricos de función, PEP 695) — con una versión más vieja, el programa ni siquiera
+  llega a abrir, falla al instalar con un error de sintaxis. Si no sabes qué versión tienes, abre una
+  terminal (`PowerShell`) y escribe:
   ```
   python --version
   ```
-  Si te muestra algo como `Python 3.14.6`, ya lo tienes. Si te da un error, necesitas instalar Python
-  primero desde [python.org](https://www.python.org/downloads/) (marca la casilla "Add Python to PATH"
-  durante la instalación).
+  Si te muestra `Python 3.12.x`, `3.13.x` o `3.14.x`, estás bien. Si te muestra una versión más vieja
+  (3.11 o anterior) o te da un error, instala una versión reciente desde
+  [python.org](https://www.python.org/downloads/) (marca la casilla "Add Python to PATH" durante la
+  instalación) — no hace falta desinstalar una versión vieja que ya tengas, Windows puede tener varias
+  al mismo tiempo.
 
 ### 2.2. Ubicar la carpeta del proyecto
 
@@ -142,10 +147,13 @@ Si instalas BASTIUM en otro computador y te aparece este mismo error, repite est
 ```
 
 Este comando corre todas las pruebas automáticas del programa. Si al final ves algo como
-`687 passed, 1 skipped` (un número seguido de "passed", sin ningún "failed"), significa que todo está
-instalado y funcionando correctamente. El número exacto sube con cada sprint nuevo, así que no te
-preocupes si no coincide exactamente — lo que importa es que no aparezca ningún "failed". Si ves errores,
-revisa la [sección 9](#9-preguntas-frecuentes-y-solución-de-problemas).
+`1493 passed` (un número seguido de "passed", sin ningún "failed"; actualizado 2026-08-22 — el número
+exacto sube con cada sprint nuevo, así que no te preocupes si no coincide exactamente), significa que
+todo está instalado y funcionando correctamente. Lo que importa es que no aparezca ningún "failed". Si
+ves errores, revisa la [sección 9](#9-preguntas-frecuentes-y-solución-de-problemas). Si el error es de
+sintaxis (algo como `SyntaxError` mencionando corchetes `[T]` después de un nombre de función), revisá
+primero la versión de Python del [paso 2.1](#21-qué-necesitas-tener-instalado-antes-de-empezar) — es el
+síntoma típico de tener una versión anterior a la 3.12.
 
 ### 2.7. Actualizar a una versión nueva (si ya tenías BASTIUM instalado)
 
@@ -170,6 +178,12 @@ git pull origin main
   agrega lo que le falte (columnas, índices, valores legales), sin importar de qué sprint venga tu
   base ni si ya está al día — en ese caso simplemente no hace nada. Tus datos capturados
   (expedientes, obligaciones, abonos) nunca se borran ni se sobrescriben en este proceso.
+- **Si tu instalación es de hace varios meses, revisá también tu versión de Python** (paso
+  [2.1](#21-qué-necesitas-tener-instalado-antes-de-empezar)) antes de actualizar — el requisito mínimo
+  subió a Python 3.12 en algún punto del desarrollo (el código empezó a usar sintaxis que versiones
+  más viejas no entienden). Si tu Python es anterior a 3.12, instalá una versión más nueva antes de
+  correr `pip install -r requirements.txt`, o el segundo comando de arriba puede fallar o el programa
+  puede no abrir después de actualizar.
 
 Solo necesitas la instalación completa de la [sección 2.1 a 2.6](#2-instalación-paso-a-paso) si es
 la primera vez que instalas BASTIUM en ese computador.
