@@ -1118,3 +1118,28 @@ PDF oficial). No se implementó ningún código: construir el motor con solo un 
 fórmula que el despacho mismo no confirma arriesgaría calcular mal un bono pensional real. Pregunta de
 seguimiento acotada (los 4 datos que faltan) en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 86/87
 (seguimiento)". Ver `Pendientes.md`, Sprints 86 y 87.
+
+---
+
+## Sprint 90 — Fundamento legal de la fórmula IBL de últimas 100/150 semanas (régimen ISS anterior a 1994)
+
+**Contexto:** las plantillas P15 e P16 calculan el IBL de un régimen distinto al de la Ley 100 (últimas 100
+o 150 semanas cotizadas, con un factor fijo de 4.33 y topes de 90%), pero ninguna de las dos cita el
+Acuerdo/Decreto específico que respalda esa fórmula ni el origen del factor 4.33.
+
+**Pregunta:** ¿cuál es la norma exacta (probablemente un Acuerdo del ISS anterior a la Ley 100 de 1993) que
+respalda la fórmula de IBL de 100/150 semanas con el factor 4.33 y el tope del 90%? ¿El despacho sigue
+liquidando casos bajo este régimen histórico?
+
+**Respuesta del despacho:**
+El régimen aplicable es el Acuerdo 049 de 1990, con topes fijos en su estructura de tasas. El factor "4.33"
+(semanas/mes) no se exige legalmente como constante pura del IBL histórico, el sistema debe limitarse al
+45% - 90% liquidado con las fórmulas de semanas del Sprint 70.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** cerrado sin cambios de código. La respuesta rechaza el
+mecanismo distinto de las plantillas P15/P16 (promedio de últimas 100/150 semanas × factor 4.33) y remite
+al régimen 45%-90% del Acuerdo 049/1990 que el Sprint 70/91 ya había implementado y probado como
+`calcular_tasa_reemplazo_iss_pre_ley_100` (`app/engine/labor/ibl.py:108-126`, misma cita normativa, mismo
+rango 45%-90%). Ver `Pendientes.md`, Sprint 90.
