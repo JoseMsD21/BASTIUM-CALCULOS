@@ -283,7 +283,34 @@ se modela como tabla nueva en `database/models.py` o como claves versionadas den
 (mismo patrón que el resto de series, Sprint 13), y (3) conseguir la tabla real. La página 62 del PDF de
 requisitos (`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`) solo trae variación **anual**
 1967-2025 (la misma fuente ya transcrita en `_IPC_VARIACION_ANUAL`) — no resuelve este punto, es
-exactamente el hueco que motivó esta pregunta. Ver `Pendientes.md`, Sprint 8.
+exactamente el hueco que motivó esta pregunta.
+
+**Respuesta a la pregunta de seguimiento 2 (tabla real de índices IPC mensuales, doble base 2008/2018):**
+La serie histórica aplicable no es la de 2018, sino la consolidada bajo la base de Diciembre 2008 = 100, la cual tiene continuidad ininterrumpida desde décadas anteriores a 2003. No existe un vacío real en los datos mensuales.
+Posibles cambios:
+Base de Datos: Podría parametrizarse la tabla oficial del DANE con la constante de enlace diciembre 2008 = 100. 
+Límite de Vacío Absoluto: Para fechas previas a la estadística nacional, inyectar un control de flujo: if fecha_corte < datetime.date(1954, 8, 1):
+    indice_ipc = 1.000000
+Interpolación Obligatoria: Si la fecha requerida no es el último día del mes, el sistema no puede tomar el mes completo. Podría aplicar la fórmula: V0 = (d1×V2 + d2×V1) / (d1+d2) (donde V1 es el IPC del mes anterior, V2 el del mes posterior, d1 días transcurridos y d2 días faltantes).
+Estimación Futura: Si se requiere un mes no certificado aún por el DANE, aplicar la media geométrica de los últimos 12 meses conocidos: VIPC_estimada = [prod(1 + VIPC_m/100) para m en los ultimos 12 meses]^(1/12) - 1, expresada en porcentaje.
+
+**Fecha:** 22/08/2026
+
+**Estado en el código (actualizado 2026-08-23):** el despacho aportó las fórmulas de "Límite de Vacío
+Absoluto" y "Estimación Futura" — ambas ya construidas y probadas (Sprint 8, rama
+`sprint-8-estimacion-futura-y-floor-ipc-mensual`): `get_ipc_interpolado_for_date` retorna `1.000000` para
+fechas anteriores al 01/08/1954, y `get_ipc_mensual_for_month` estima con media geométrica compuesta
+cualquier mes posterior al último certificado en `_IPC_MENSUAL`, en vez de bloquear la liquidación. La
+sugerencia de reparametrizar a la base Diciembre-2008=100 no requirió ningún cambio: `_IPC_MENSUAL` ya es
+la serie única que el DANE enlazó (ver Sprint 80), y `IPCIndexation.calculate` solo usa la razón entre dos
+índices de la misma base — cualquier base consistente da el mismo resultado dentro del rango ya cargado
+(2003-2026). **Sigue sin resolver**: los valores mensuales reales anteriores a 2003 que el despacho da por
+existentes en su fuente (base Dic-2008=100, continuidad desde antes de 2003) — esta rutina no tiene acceso
+a esos valores en ningún archivo commiteado ni en `docs/datos_publicos_fuente/` (que solo cubre 2003-2026,
+ver su README). Es un bloqueo de infraestructura (falta el archivo/dato accesible), no una decisión
+pendiente — ver la pregunta de seguimiento 3 en
+[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003)
+y Sprint 8 en `Pendientes.md`.
 
 ---
 

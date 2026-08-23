@@ -79,7 +79,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 
 ## Índice
 
-- [Sprint 8 (seguimiento 2) — Tabla real de índices IPC mensuales del DANE (doble base 2008/2018)](#sprint-8-seguimiento-2--tabla-real-de-índices-ipc-mensuales-del-dane-doble-base-20082018)
+- [Sprint 8 (seguimiento 3) — Tabla real de IPC mensual anterior a enero de 2003](#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003)
 - [Sprint 18 (seguimiento 2) — ¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?](#sprint-18-seguimiento-2--pcsja20-11556-y-psaa16-10554-son-el-mismo-acuerdo)
 - [Sprint 43 (seguimiento) — ¿Es válido cobrar interés civil sobre el capital ya indexado en Honorarios?](#sprint-43-seguimiento--es-válido-cobrar-interés-civil-sobre-el-capital-ya-indexado-en-honorarios)
 - [Sprint 70 — Motor de vigencia de leyes por año (Ley 100/1993, Ley 797/2003, Ley 2381/2024 y transiciones CST/CPT)](#sprint-70--motor-de-vigencia-de-leyes-por-año-ley-1001993-ley-7972003-ley-23812024-y-transiciones-cstcpt)
@@ -105,52 +105,33 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 
 ---
 
-## Sprint 8 (seguimiento 2) — Tabla real de índices IPC mensuales del DANE (doble base 2008/2018)
+## Sprint 8 (seguimiento 3) — Tabla real de IPC mensual anterior a enero de 2003
 
-**Contexto:** el despacho ya confirmó la metodología exacta que debe usar el motor de IPC mensual (ver
-Sprint 8 en `Preguntas-Para-Abogado-Respondidas.md`): operar siempre sobre el Número Índice (no variación
-%), soportando dos bases (diciembre 2008 = 100 y diciembre 2018 = 100) enlazadas por un Factor de Enlace
-calculado en el mes de traslape. Con esa metodología ya confirmada, sigue faltando el único insumo que el
-desarrollo no puede producir por sí mismo: **los valores reales** del índice mes a mes. La página 62 del
-PDF de requisitos (`REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`) solo trae la variación
-**anual** 1967-2025 (ya transcrita en el software), no el índice mensual con sus dos bases.
+**Contexto:** el despacho ya respondió la pregunta de seguimiento 2 (ver
+`Preguntas-Para-Abogado-Respondidas.md`, Sprint 8) con las fórmulas de "Límite de Vacío Absoluto" (fechas
+anteriores al 01/08/1954 → índice 1.000000) y "Estimación Futura" (media geométrica de los últimos 12
+meses para fechas posteriores al último mes certificado) — ambas ya implementadas y probadas. La
+respuesta también afirma que la serie bajo la base Diciembre 2008 = 100 "tiene continuidad ininterrumpida
+desde décadas anteriores a 2003" y que "no existe un vacío real en los datos mensuales". Sin embargo, el
+único archivo con datos reales de IPC mensual accesible para el desarrollo (`ipc_mensual_dane_2003_2026.csv`
+en `docs/datos_publicos_fuente/`, extraído programáticamente del Excel que aportó el despacho) solo cubre
+enero de 2003 en adelante, base Diciembre 2018 = 100. Para fechas anteriores a 2003 (y, en particular,
+para el tramo 1954-08 a 1966, donde tampoco hay variación anual cargada en `_IPC_VARIACION_ANUAL`), el
+software sigue sin ningún índice mensual real, y la interpolación anual (que cubre 1967-2025) tampoco
+llega hasta 1954.
 
-**Pregunta:** ¿el despacho tiene acceso a la serie histórica mensual de IPC del DANE en las dos bases
-(diciembre 2008 = 100 y diciembre 2018 = 100), por ejemplo vía Legis, Actualícese Premium, o la suscripción
-de datos que use el despacho? Si es así, ¿pueden aportar esa tabla (Excel, CSV, o el enlace de descarga)?
+**Pregunta:** ¿puede el despacho aportar la tabla real de índices IPC mensuales (base Diciembre 2008 = 100,
+o cualquier base con su factor de enlace) para el período 01/08/1954 a diciembre de 2002 — el mismo tipo
+de archivo (Excel/CSV) que ya aportaron para 2003-2026?
 
-**Qué necesito exactamente:** la tabla de índice IPC mensual (no variación %) con una columna que indique
-a qué base pertenece cada valor (2008 o 2018), cubriendo desde el año más antiguo que el despacho necesite
-liquidar hasta el mes más reciente certificado por el DANE. Si no se consigue la serie completa, sirve
-acotar desde qué año en adelante hace falta — misma lógica que se usó con la UVT en el Sprint 14.
+**Qué necesito exactamente:** igual que con la serie 2003-2026, un archivo con un valor de índice por mes
+(no variación %), cubriendo desde agosto de 1954 (o el año más antiguo disponible) hasta diciembre de
+2002. Si la fuente exacta que menciona el despacho no está en un archivo descargable, sirve la referencia
+(nombre de la publicación DANE, o el enlace) para extraerla directamente.
 
 **Respuesta del despacho:**
-La serie histórica aplicable no es la de 2018, sino la consolidada bajo la base de Diciembre 2008 = 100, la cual tiene continuidad ininterrumpida desde décadas anteriores a 2003. No existe un vacío real en los datos mensuales.
-Posibles cambios:
-Base de Datos: Podría parametrizarse la tabla oficial del DANE con la constante de enlace diciembre 2008 = 100. 
-Límite de Vacío Absoluto: Para fechas previas a la estadística nacional, inyectar un control de flujo: if fecha_corte < datetime.date(1954, 8, 1):
-    indice_ipc = 1.000000
-Interpolación Obligatoria: Si la fecha requerida no es el último día del mes, el sistema no puede tomar el mes completo. Podría aplicar la fórmula: $$V_0 = \frac{(d_1 \cdot V_2) + (d_2 \cdot V_1)}{d_1 + d_2}$$ (Donde $V_1$ es el IPC del mes anterior, $V_2$ el del mes posterior, $d_1$ días transcurridos y $d_2$ días faltantes).
-Estimación Futura: Si se requiere un mes no certificado aún por el DANE, aplicar la media geométrica de los últimos 12 meses conocidos: $$VIPC_{estimada} = \left[ \left( \prod_{m=1}^{12} \left(1 + \frac{VIPC_m}{100}\right) \right)^{\frac{1}{12}} - 1 \right] \times 100$$
-
-En síntesis:
-# 1. INTERPOLACIÓN LINEAL DE DÍAS (Cuando la fecha no es fin de mes)
-# V1: IPC del mes anterior
-# V2: IPC del mes posterior
-# d1: Días transcurridos desde el inicio del mes hasta la fecha de corte
-# d2: Días faltantes desde la fecha de corte hasta el fin de mes
-IPC_Interpolado = ((d1 * V2) + (d2 * V1)) / (d1 + d2)
-
-# 2. ESTIMACIÓN FUTURA (Meses no certificados aún por el DANE)
-# Se calcula la media geométrica de las variaciones mensuales (VIPC) de los últimos 12 meses.
-producto_acumulado = 1.0
-for variacion in ultimos_12_meses_VIPC:
-    producto_acumulado = producto_acumulado * (1 + (variacion / 100.0))
-
-VIPC_Estimada = ((producto_acumulado ** (1.0 / 12.0)) - 1.0) * 100.0
 
 **Fecha:**
-22/08/2026
 ---
 
 ## Sprint 18 (seguimiento 2) — ¿PCSJA20-11556 y PSAA16-10554 son el mismo acuerdo?
