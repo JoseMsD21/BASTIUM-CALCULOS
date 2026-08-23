@@ -257,7 +257,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 73 — Obligaciones recurrentes con fechas personalizadas no mensuales (ej. gastos de vestuario) ✅ Completado](#sprint-73--obligaciones-recurrentes-con-fechas-personalizadas-no-mensuales-ej-gastos-de-vestuario--completado)
 - [Sprint 74 — Familia: intake inicial de edad, beneficiario y tipo de alimentos (árbol de decisión) ✅ Completado](#sprint-74--familia-intake-inicial-de-edad-beneficiario-y-tipo-de-alimentos-árbol-de-decisión--completado) — fecha de corte obligatoria para beneficiarios no determinables (respuesta del despacho 2026-08-22)
 - [Sprint 75 — Cuotas recurrentes en Civil/Familia y Comercial, con selección de pago por rango e imputación en cascada ✅ Completado](#sprint-75--cuotas-recurrentes-en-civilfamilia-y-comercial-con-selección-de-pago-por-rango-e-imputación-en-cascada--completado)
-- [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🟠 Reabierto](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--reabierto)
+- [Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🔵 Bloqueado — pendiente de confirmación](#sprint-76--hallazgos-de-una-prueba-práctica-en-civilfamilia-reporte-reajuste-anual-tasa-diaria--bloqueado--pendiente-de-confirmación) — la respuesta del despacho (2026-08-22) exige rediseñar el motor central de tasas; bloqueo no previsto, ver correo enviado
 - [Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado](#sprint-77--persistir-liquidationresultalertas-en-las-exportaciones-pdfword--completado)
 - [Sprint 78 — Conteo inclusivo (`+1`) en `calcular_densidad_semanas` — confirmar con el despacho 🟠 Reabierto](#sprint-78--conteo-inclusivo-1-en-calcular_densidad_semanas--confirmar-con-el-despacho--reabierto)
 - [Sprint 79 — Confirmar si las costas procesales deben entrar en la base de interés de "Suma Única" 🟠 Reabierto](#sprint-79--confirmar-si-las-costas-procesales-deben-entrar-en-la-base-de-interés-de-suma-única--reabierto)
@@ -5995,7 +5995,7 @@ sin que ninguna revisión previa corriera `ruff check .` sobre el repo completo)
 
 ---
 
-## Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🟠 Reabierto
+## Sprint 76 — Hallazgos de una prueba práctica en Civil/Familia (reporte, reajuste anual, tasa diaria) 🔵 Bloqueado — pendiente de confirmación
 
 **Contexto:** el usuario probó el flujo completo de Civil/Familia con un caso real (Radicado 2224),
 comparando los resultados de BASTIUM contra un Excel real del despacho para el mismo caso. La prueba
@@ -6047,6 +6047,42 @@ código, no solo por lectura. Suite completa tras los 4 fixes de código: 1147/1
 **Archivos tocados:** `app/services/motor_universal.py`, `app/services/area_strategy.py`,
 `app/reports/pdf.py`, `app/reports/word.py`, `app/views/obligaciones.py`,
 `tests/views/test_obligaciones.py`, `docs/GUIA_USUARIO.md`.
+
+**Bloqueo no previsto (2026-08-23, rutina autónoma) — fecha de la pregunta: 27/07/2026 (hallazgo original);
+fecha de esta respuesta del despacho: 22/08/2026; decisión pendiente del usuario, no del despacho (el
+despacho ya contestó, pero la implementación que propone es demasiado grande/riesgosa para que la rutina
+la ejecute sola sin que el usuario la revise primero):**
+
+El despacho respondió (ver `Preguntas-Para-Abogado-Abiertas.md`, Sprint 76) que la conversión de tasa
+anual→diaria/mensual NO es una sola fórmula: depende del tipo de obligación. Para "obligaciones de dinero
+puro y litigios comerciales simples" pide la fórmula lineal simple (Opción A, ya casi idéntica a lo que se
+había planteado). Pero para "tasación de perjuicios y daño emergente/lucro cesante" exige una fórmula
+completamente distinta y nueva: una constante mensual fija (`0,48676%`), aplicada de forma compuesta sobre
+"meses comerciales" (`n = años×12 + meses + días_restantes/30`, con `Gran_Total = Capital_Actualizado ×
+(1 + tasa_mensual)^n`) — un régimen de conteo de tiempo que el motor no usa en ningún otro lado hoy.
+
+**Por qué esta rutina NO implementó esto directamente, en vez de solo documentarlo:**
+1. **Alcance:** `EffectiveRateConverter.annual_to_daily` (`app/engine/interest/rate_conversion.py`) es el
+   conversor de tasa que usan las 6 áreas del derecho, no solo Civil/Familia — cambiarlo (o bifurcarlo)
+   afecta el resultado numérico de cualquier liquidación futura en toda la aplicación.
+2. **Clasificación ambigua:** el despacho pide un "conmutador" que distinga "crédito ordinario simple" de
+   "liquidación de perjuicios", pero no dice cómo mapear esa distinción a los datos que ya captura BASTIUM
+   (`Obligacion.categoria` varía por área y no tiene hoy ningún campo equivalente a "es una liquidación de
+   perjuicios") — adivinar el mapeo arriesga clasificar mal obligaciones reales ya guardadas.
+3. **Impacto retroactivo:** un cambio de esta magnitud en el motor central de tasas es exactamente el tipo
+   de cambio que el Sprint 47 trató con un protocolo dedicado de recálculo histórico (marcado
+   "OBSOLETO — REQUIERE RECÁLCULO", memoriales, etc.) para arreglos mucho más pequeños (aritmética de
+   fechas). Tocar la fórmula de tasa sin ese mismo nivel de cuidado podría dejar liquidaciones ya
+   presentadas ante un juzgado con un cálculo que de repente no coincide con lo que generaría el software
+   hoy, sin ningún registro de por qué cambió.
+
+**Qué se necesita para desbloquear:** que el usuario (no el despacho, que ya contestó) revise la propuesta
+del despacho y confirme (a) el diseño exacto del "conmutador" y cómo se mapea a los datos ya existentes,
+(b) si aplica retroactivamente a liquidaciones ya guardadas y con qué protocolo, y (c) si procede como un
+sprint de diseño/implementación dedicado (probablemente varios sprints, dado el alcance) en vez de intentar
+resolverlo dentro de este mismo Sprint 76. Documentado también en `Preguntas-Para-Abogado-Abiertas.md`,
+sección Sprint 76, para que quede visible junto a la respuesta original. Correo enviado a
+jmsd2125@gmail.com, asunto "BASTIUM bloqueado: Sprint 76".
 
 ---
 
