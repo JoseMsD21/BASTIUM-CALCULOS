@@ -330,6 +330,16 @@ Gran_Total = Capital_Actualizado * ((1.0 + tasa_mensual_pura) ** n_meses)
 
 **Fecha:**
 22/08/2026
+
+**Bloqueado, pendiente del USUARIO (no del despacho) — 2026-08-23:** esta respuesta ya resuelve la pregunta
+legal (qué fórmula usar según el tipo de obligación), pero la implementación que propone (un "conmutador"
+que bifurca el motor central de tasas — usado por las 6 áreas — entre esta fórmula y la lineal, con un
+régimen de conteo de tiempo nuevo de "meses comerciales") es demasiado grande y de demasiado impacto
+retroactivo para que la rutina autónoma la ejecute sola. Ver `Pendientes.md`, Sprint 76, sección "Bloqueo
+no previsto" para el detalle completo de por qué se detuvo, y qué necesita confirmar el usuario antes de
+que se pueda programar (el mapeo exacto de "crédito ordinario simple" vs. "liquidación de perjuicios" a
+los datos que ya captura BASTIUM, y si aplica con o sin recálculo retroactivo de liquidaciones existentes).
+
 ---
 
 ## Sprint 78 — Conteo de días para densidad pensional (semanas cotizadas): ¿aplica el "+1" inclusivo?
