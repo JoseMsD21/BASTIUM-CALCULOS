@@ -3,26 +3,19 @@ from decimal import Decimal
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QFormLayout, QLabel, QLineEdit
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-import database.session as session_module
 from app.views.form_utils import (
     agregar_ayuda,
     guardar_o_actualizar,
     hacer_redimensionable,
     set_row_visible,
 )
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
+from database.models import AreaDerecho, Expediente, Obligacion, TipoObligacion
+from tests.views.conftest import crear_sesion_en_memoria
 
 
 def _sesion_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
-    return session_module.get_session()
+    return crear_sesion_en_memoria(monkeypatch)
 
 
 def test_guardar_o_actualizar_sin_id_existente_crea_una_fila_nueva(monkeypatch):

@@ -4,22 +4,15 @@ from decimal import Decimal
 import pytest
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import QDialog, QLabel
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.abonos import AbonoFormDialog
-from database.models import Abono, AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
+from database.models import Abono, AreaDerecho, Expediente, Obligacion, TipoObligacion
+from tests.views.conftest import crear_sesion_en_memoria
 
 
 def _obligacion_de_prueba(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
-
-    session = session_module.get_session()
+    session = crear_sesion_en_memoria(monkeypatch)
     expediente = Expediente(
         radicado="2026-020",
         demandante="Ana",
@@ -259,13 +252,7 @@ def _obligacion_con_valor(monkeypatch, valor: Decimal) -> int:
     """Igual que `_obligacion_de_prueba` pero con un `valor` a medida -- lo
     necesita `test_editar_abono_no_cuenta_su_propio_valor_anterior_como_sobrepago`
     para reproducir el escenario exacto donde el bug original se manifestaba."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
-
-    session = session_module.get_session()
+    session = crear_sesion_en_memoria(monkeypatch)
     expediente = Expediente(
         radicado="2026-021",
         demandante="Ana",

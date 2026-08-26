@@ -4,8 +4,6 @@ from decimal import Decimal
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QFormLayout, QGridLayout, QLabel
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.exceptions import FechaCorteAlimentosRequeridaError
@@ -13,7 +11,6 @@ from app.services.recurrencia_fechas_fijas import deserializar_fechas_anuales
 from app.views.obligaciones import ObligacionFormDialog
 from database.models import (
     AreaDerecho,
-    Base,
     Beneficiario,
     Expediente,
     Obligacion,
@@ -23,6 +20,7 @@ from database.models import (
     TipoReajusteAnual,
     TipoRecurrencia,
 )
+from tests.views.conftest import crear_sesion_en_memoria
 
 
 def _filas_con_etiqueta_huerfana(layout: QFormLayout) -> list[str]:
@@ -47,13 +45,7 @@ def _filas_con_etiqueta_huerfana(layout: QFormLayout) -> list[str]:
 
 
 def _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA) -> int:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
-
-    session = session_module.get_session()
+    session = crear_sesion_en_memoria(monkeypatch)
     expediente = Expediente(
         radicado="2026-010",
         demandante="Ana",
