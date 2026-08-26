@@ -58,7 +58,7 @@ comprometa la aplicación o los datos de un expediente), repórtala de forma pri
 
 No reportes vulnerabilidades sobre los cálculos jurídicos en sí por este canal — esos se reportan
 como bugs normales, vía issue público con la plantilla de
-[reporte de bug](.github/ISSUE_TEMPLATE/bug_report.md) — salvo que el error de cálculo derive de una
+[reporte de bug](../.github/ISSUE_TEMPLATE/bug_report.md) — salvo que el error de cálculo derive de una
 falla de seguridad (ej. datos corruptos por una inyección).
 
 ## Versiones soportadas

@@ -18,7 +18,9 @@
 
 ## Entornos
 
-- Local: `python -m pytest` (Windows/macOS/Linux, Python 3.14, con display para las pruebas de GUI).
+- Local: `python -m pytest` (Windows, Python 3.14, con display para las pruebas de GUI — es la única
+  plataforma en la que el proyecto se desarrolla y se prueba, ver
+  [GUIA_USUARIO.md, sección 2.1](GUIA_USUARIO.md#21-qué-necesitas-tener-instalado-antes-de-empezar)).
 - CI (GitHub Actions, `.github/workflows/ci.yml`): `windows-latest`, corre `ruff check .` y luego
   `pytest -q` con `QT_QPA_PLATFORM=offscreen`, en cada push y pull request a `main`.
 
