@@ -45,8 +45,9 @@ C.C.), Comercial, Sancionatorio, Honorarios/Litigio, Laboral y Tributario.
     (`usury_validator`) sobre la tasa remuneratoria y moratoria.
   - `SancionatorioStrategy`: multas administrativas expresadas en SMLMV o UVT, con conversion automatica
     segun la fecha del hecho (`smlmv_to_uvt.py`).
-  - `HonorariosStrategy`: cobro de honorarios profesionales y cuota litis, validando los topes del 30%
-    (cuota litis sola) y 50% (total) del beneficio obtenido, leidos como parametros legales versionados
+  - `HonorariosStrategy`: cobro de honorarios profesionales y cuota litis, validando el tope unico del 50%
+    acumulado (honorarios fijos + cuota litis) del beneficio obtenido -- el doble tope en cascada (30%
+    individual + 50% total) se elimino en el Sprint 4 -- leido como parametro legal versionado
     (`parametro_service`, Sprint 13).
   - `LaboralStrategy`: liquidacion final (finiquito) de un contrato — cesantias, intereses a cesantias,
     prima, vacaciones e indemnizacion moratoria bifasica del Art. 65 CST, con cotizaciones de seguridad

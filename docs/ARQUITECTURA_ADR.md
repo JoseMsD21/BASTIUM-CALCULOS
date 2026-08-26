@@ -36,8 +36,9 @@ migración.
 
 **Decisión:** `main.py` corre `aplicar_migraciones_pendientes()` en cada arranque: compara el esquema real
 contra el modelo actual y agrega solo lo que falte (columnas, índices, siembra de
-`parametros_legales`), sin tocar datos existentes. Reemplaza los ~9 scripts `scripts/migrate_*.py`
-manuales que existían antes (Sprint 51).
+`parametros_legales`), sin tocar datos existentes. Reemplaza los scripts `scripts/migrate_*.py` manuales
+que existían antes (Sprint 51) — su número sube con cada sprint que toca el esquema (ver README, sección
+de instalación), así que no se fija aquí una cifra que quedaría desactualizada.
 
 **Alternativas consideradas:** Alembic (herramienta estándar de migraciones versionadas para SQLAlchemy) —
 descartada por requerir que el usuario corra comandos a mano; los scripts `migrate_*.py` individuales se

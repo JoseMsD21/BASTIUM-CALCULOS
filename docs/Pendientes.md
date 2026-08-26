@@ -314,7 +314,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices 📋 Pendiente](#sprint-112--concurrencia-y-rendimiento-operaciones-nuevas-sin-threading-n1-reintroducido-y-migraciones-sin-recalcular-índices--pendiente)
 - [Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente](#sprint-113--seguridad-versionado-y-housekeeping-organizacional-auditoría-2026-08-25--pendiente)
 - [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común ✅ Completado](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--pendiente)
-- [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) 📋 Pendiente](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--pendiente)
+- [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) ✅ Completado](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--pendiente)
 
 ---
 
@@ -8361,7 +8361,7 @@ accidentales; `AreaRegistry` sigue desacoplado, 0 ramas `if area ==`/`isinstance
 
 ---
 
-## Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) 📋 Pendiente
+## Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) ✅ Completado
 
 **Prioridad sugerida:** Alta para los hallazgos 1-2 (documentación que oculta bugs ya confirmados); baja-
 media para el resto.
@@ -8422,6 +8422,28 @@ ya cerró).
 - Ningún documento de gobierno (`GESTION_RIESGOS.md`, specs) omite un bug 🔴/⚠️ vigente que el propio
   documento se compromete a reflejar.
 - Enlaces verificados (todas las rutas citadas resuelven a un archivo real).
+
+**Cierre (rutina autónoma, 2026-08-26):**
+- Hallazgo 1: agregada la limitación conocida del Sprint 104 (bug de reindexación de Suma Única + abonos,
+  con las cifras exactas del caso sintético) a `docs/specifications/03_motor_indexacion.md`.
+- Hallazgo 2: agregadas las filas R9 (Sprint 108, ✅ Mitigado) y R10 (Sprint 104, ⚠️ Parcial) a
+  `docs/GESTION_RIESGOS.md`.
+- Hallazgo 3: corregido `docs/specifications/07_motor_juridico_familia.md` para reflejar el tope único del
+  50% acumulado de `HonorariosStrategy` (el doble tope en cascada se eliminó en el Sprint 4).
+- Hallazgo 4: `CHANGELOG.md` puesto al día con la narrativa y los bullets de Added/Changed de los Sprints
+  113 y 114 (consolidado junto con el propio Sprint 113, que ya había cerrado la brecha hasta el Sprint
+  112).
+- Hallazgo 5: **no aplicable en este entorno** — `docs/local/GUIA_PRESENTACION.md` está en `.gitignore`
+  (línea 30) y no existe en este sandbox (mismo tipo de restricción que
+  `docs/Archivos de referencia abogado/`, ver notas de entorno). No se puede editar ni verificar un archivo
+  que no está commiteado al repositorio; queda pendiente para quien tenga acceso local a `docs/local/`.
+- Hallazgo 6: corregido el enlace relativo de `docs/SECURITY.md` (línea 61 hoy, no 33 — el archivo creció)
+  a `../.github/ISSUE_TEMPLATE/bug_report.md`.
+- Hallazgo 7: `docs/ARQUITECTURA_ADR.md` (ADR-002) ya no fija una cifra de scripts `migrate_*.py` (hoy 23,
+  antes decía "~9") — redacción abierta igual que el README.
+- Hallazgo 8: `docs/REQUISITOS_NO_FUNCIONALES.md` y `docs/PLAN_CALIDAD_PRUEBAS.md` alineados con
+  `GUIA_USUARIO.md` (Windows, desarrollado y probado en Windows; CI corre solo en `windows-latest`).
+- Suite completa: 1628 passed (cambios exclusivamente de documentación); `ruff check .` limpio.
 
 ---
 

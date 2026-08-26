@@ -97,5 +97,14 @@ Sprint 80, ahora acotado a ese único hueco histórico real.
   acotado del Sprint 80, ver `docs/Pendientes.md`).
 - La UVT ya está cargada y conectada en producción (Sprints 5 y 14 — ver arriba, "Componentes"); solo la
   **UVR** sigue sin cargar (fuera de alcance).
+- **Bug de dominio confirmado, sin corregir (Sprint 104):** para una obligación Civil/Familia con Suma
+  Única activa (`interes_sobre_capital_indexado=True`) que recibe abonos parciales antes del `fecha_corte`
+  de la liquidación, el motor indexa el capital una sola vez hasta el corte global en vez de reindexar el
+  saldo residual después de cada abono (patrón "X9" que documenta el despacho). Caso sintético verificado:
+  capital $1.000.000, `fecha_origen=2024-07-01`, abonos de $400.000 (2025-01-01) y $300.000 (2025-06-01),
+  `fecha_corte=2025-12-31` — el motor actual da saldo final $377.633,53, el patrón X9 daría $348.549,45
+  (diferencia $29.084,08, no es redondeo). Pendiente de confirmación del despacho sobre cuál mecánica es la
+  correcta antes de reescribir el motor — ver Sprint 104 en `docs/Pendientes.md` y
+  `docs/Preguntas-Para-Abogado-Abiertas.md`.
 
-Ver `docs/Pendientes.md`, Sprints 8, 20 y 80.
+Ver `docs/Pendientes.md`, Sprints 8, 20, 80 y 104.

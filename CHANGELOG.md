@@ -122,7 +122,16 @@ inconsistencia de título de diálogo homologada. Sprint 112 (auditoría 2026-08
 hallazgos de concurrencia/rendimiento — "Restablecer datos de fábrica" y "Generar cuotas" ahora corren en hilo
 de fondo con `QProgressDialog` (antes congelaban la UI sin aviso), el preview de "Pago por rango" deja de
 abrir una sesión SQL nueva por cada cuota al teclear, y 3 columnas nuevas de `audit_logs` (Sprint 47) ganan
-índice para evitar un full table scan en cada corrida del script de recálculo histórico.
+índice para evitar un full table scan en cada corrida del script de recálculo histórico. Sprint 113
+(auditoría 2026-08-25, cerrado 2026-08-26): riesgo conocido de `bastium.db` sin cifrado en reposo
+documentado en `docs/SECURITY.md`; este mismo archivo de CHANGELOG puesto al día hasta el Sprint 112;
+`pytest-cov` agregado y el pipeline de CI corre ahora en matriz Python 3.13/3.14 con `--cov-fail-under=90`.
+Sprint 114 (auditoría 2026-08-25, cerrado 2026-08-26): 4 hallazgos de mantenibilidad — fixture de sesión
+SQLite en memoria de `tests/views/` centralizada en `tests/views/conftest.py` (8 archivos dejan de
+duplicarla), `LaboralStrategy.liquidar()` reducido de ~300 a ~107 líneas extrayendo cada categoría a un
+método privado, `FormDialogBase` nueva para los 6 diálogos de formulario que repetían el mismo patrón
+"guardar y cerrar", y la convención "validación de forma → vista; validación de dominio/cálculo → services"
+documentada como ADR-006. Ningún cambio de comportamiento en ninguno de los dos sprints.
 
 ### Added
 - Laboral: indemnización por despido injustificado, Art. 64 CST (Sprint 92): `DismissalIndemnityCalculator`
@@ -407,6 +416,17 @@ abrir una sesión SQL nueva por cada cuota al teclear, y 3 columnas nuevas de `a
   Dashboard, afirmaban que prescripción/caducidad seguía sin conectarse (ya lo estaba desde el Sprint 42),
   y que la UVT seguía sin cargar (cargada desde los Sprints 5/14). `CONTRIBUTING.md` actualizado con los
   prefijos de commit realmente usados en el repo (`merge:`, `refactor:`, `perf:`, `style:`, `build:`).
+- Housekeeping organizacional (Sprint 113): `docs/SECURITY.md` documenta el riesgo conocido de
+  `bastium.db` sin cifrado en reposo; `requirements.txt` gana `pytest-cov`; `.github/workflows/ci.yml`
+  corre la suite en matriz Python 3.13/3.14 con `--cov=app --cov=database --cov-fail-under=90`.
+- Mantenibilidad interna, sin cambios de comportamiento (Sprint 114): la fixture de sesión SQLite en
+  memoria duplicada en 8 archivos de `tests/views/` se centraliza en `tests/views/conftest.py`;
+  `LaboralStrategy.liquidar()` (`app/services/area_strategy.py`) se reduce de ~300 a ~107 líneas
+  extrayendo cada categoría (prestaciones sociales, seguridad social, mora Art. 65 CST, despido
+  injustificado, descuentos del empleador) a un método privado; `FormDialogBase`
+  (`app/views/form_utils.py`) centraliza el patrón "guardar y cerrar" que repetían 6 diálogos de
+  formulario; ADR-006 documenta la convención "validación de forma → vista; validación de dominio/cálculo
+  → services".
 - El campo "Vigente hasta" ahora explica en la propia UI por qué está deshabilitado cuando el parámetro
   no usa fecha de fin, en vez de desaparecer sin explicación.
 
