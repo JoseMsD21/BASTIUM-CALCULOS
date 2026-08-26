@@ -295,7 +295,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
-- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ⚠️ Parcial](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
+- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ✅ Completado](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
@@ -7186,7 +7186,7 @@ de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 95 (seguimiento)
 
 ---
 
-## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ⚠️ Parcial
+## Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ✅ Completado
 
 **Nota de la rutina autónoma (2026-08-22):** revisado al llegarle el turno en la cola — la única pieza
 implementable sin la respuesta del despacho (`salario_diario_a_mensual`) ya está hecha y mergeada a `main`;
@@ -7271,6 +7271,26 @@ mencionado en la plantilla L2A) tampoco se implementó: no existe ningún concep
 el motor de liquidación hoy (`grep -i "auxilio"` sin resultados en `app/engine/`), y la respuesta del
 despacho no lo mencionó — construirlo desde cero está fuera del alcance de esta respuesta. Suite completa en
 verde (1574 tests) y `ruff check .` limpio antes de mergear.
+
+**Cierre (rutina autónoma, 2026-08-26):** la propia pregunta de seguimiento ("Sprint 96 (seguimiento)" en
+`Preguntas-Para-Abogado-Abiertas.md`) confirma explícitamente que la captura de `salario_diario`/
+`dias_laborados_semana` "no depende de ninguna respuesta adicional del despacho, es trabajo de UI
+pendiente" — se cierra ese único punto que faltaba de la Definición de Hecho original:
+- `app/views/obligaciones.py` (`ObligacionFormDialog`, categoría Laboral): nueva casilla
+  `check_salario_diario` ("Salario pactado por día...") que, marcada, oculta "Valor" (mismo patrón que
+  `check_es_smmlv`) y muestra 2 campos nuevos, "Salario diario" y "Días laborados por semana" (`QSpinBox`,
+  1-7). `_guardar_laboral` resuelve `valor` con `salario_diario_a_mensual` como foto inicial (igual
+  criterio que `es_smmlv`) y persiste las 2 columnas nuevas; `_precargar_desde_obligacion` las restaura al
+  editar.
+- `docs/GUIA_USUARIO.md`, sección 5.11, actualizada con el nuevo campo.
+- 6 tests nuevos en `tests/views/test_obligaciones.py` (visibilidad por área, ocultamiento de "Valor",
+  guardado con el valor mensual calculado — verificado contra la fórmula exacta de la plantilla L2A,
+  guardado sin marcar el checkbox, precarga al editar, validación de salario diario negativo). Suite
+  completa: 1634 passed; `ruff check .` limpio.
+- **Sigue fuera de alcance** (no era parte de la Definición de Hecho de este sprint): el "auxilio de
+  transporte" pactado por día — sigue condicionado a la respuesta del despacho sobre si es necesario y bajo
+  qué regla se causa, ver `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 96 (seguimiento)" (pregunta que
+  permanece abierta, sin tocar en este cierre).
 
 ---
 

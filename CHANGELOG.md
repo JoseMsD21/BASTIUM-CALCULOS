@@ -134,6 +134,13 @@ método privado, `FormDialogBase` nueva para los 6 diálogos de formulario que r
 documentada como ADR-006. Ningún cambio de comportamiento en ninguno de los dos sprints.
 
 ### Added
+- Laboral: captura de salario pactado por día en el formulario, para trabajo doméstico por días/jornada
+  parcial (Sprint 96): la casilla "Salario pactado por día" en `ObligacionFormDialog` (categoría Laboral)
+  oculta "Valor" y muestra "Salario diario"/"Días laborados por semana" (1-7); el salario base mensual se
+  resuelve automáticamente con `salario_diario_a_mensual`
+  (`app/engine/labor/salario_domestico.py`, Sprint 96) tanto al guardar como en cada liquidación. El motor
+  y el modelo de datos (`salario_diario`/`dias_laborados_semana` en `Obligacion`) ya existían desde la
+  primera respuesta del despacho — esta es la conexión a la UI que faltaba.
 - Laboral: indemnización por despido injustificado, Art. 64 CST (Sprint 92): `DismissalIndemnityCalculator`
   (`app/engine/labor/dismissal_indemnity.py`) calcula contrato indefinido con salario <10 SMMLV (30 días
   primer año + 20 días/año subsiguiente si el contrato inició después del 1° de enero de 1991 — Ley 50/1990

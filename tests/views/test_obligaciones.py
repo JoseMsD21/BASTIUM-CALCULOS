@@ -2314,6 +2314,126 @@ def test_guarda_obligacion_laboral_sin_es_smmlv_por_defecto(qtbot, monkeypatch):
     session.close()
 
 
+def test_check_salario_diario_visible_solo_para_area_laboral(qtbot, monkeypatch):
+    expediente_id_laboral = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    dialog_laboral = ObligacionFormDialog(expediente_id=expediente_id_laboral, area="LABORAL")
+    qtbot.addWidget(dialog_laboral)
+    dialog_laboral.show()
+    assert dialog_laboral.check_salario_diario.isVisible() is True
+
+    expediente_id_civil = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog_civil = ObligacionFormDialog(expediente_id=expediente_id_civil, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog_civil)
+    dialog_civil.show()
+    assert dialog_civil.check_salario_diario.isVisible() is False
+
+
+def test_campo_valor_se_oculta_al_marcar_salario_diario_en_laboral(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.campo_valor.isVisible() is True
+    assert dialog.campo_salario_diario.isVisible() is False
+    assert dialog.campo_dias_laborados_semana.isVisible() is False
+
+    dialog.check_salario_diario.setChecked(True)
+    assert dialog.campo_valor.isVisible() is False
+    assert dialog.campo_salario_diario.isVisible() is True
+    assert dialog.campo_dias_laborados_semana.isVisible() is True
+
+    dialog.check_salario_diario.setChecked(False)
+    assert dialog.campo_valor.isVisible() is True
+    assert dialog.campo_salario_diario.isVisible() is False
+    assert dialog.campo_dias_laborados_semana.isVisible() is False
+
+
+def test_guarda_obligacion_laboral_con_salario_diario_resuelve_el_valor_mensual(
+    qtbot, monkeypatch
+):
+    # Formula de la plantilla L2A (Sprint 96): salario_diario x dias_laborados_semana / 7 x 30.
+    # $50.000 x 3 / 7 x 30 = $642.857,142857... -> redondeado a $642.857,14.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato domestico")
+    dialog.campo_fecha_origen.setDate(date(2024, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2024, 12, 31))
+    dialog.check_salario_diario.setChecked(True)
+    dialog.campo_salario_diario.setText("50000.00")
+    dialog.campo_dias_laborados_semana.setValue(3)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.salario_diario == Decimal("50000.00")
+    assert guardada.dias_laborados_semana == 3
+    assert guardada.valor == Decimal("642857.14")
+    assert guardada.es_smmlv is False
+    session.close()
+
+
+def test_guarda_obligacion_laboral_sin_salario_diario_por_defecto(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 12, 31))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.salario_diario is None
+    assert guardada.dias_laborados_semana is None
+    session.close()
+
+
+def test_editar_obligacion_laboral_precarga_salario_diario(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog_crear = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog_crear)
+    dialog_crear.campo_concepto.setText("Liquidacion de contrato domestico")
+    dialog_crear.campo_fecha_origen.setDate(date(2024, 1, 1))
+    dialog_crear.campo_fecha_fin.setDate(date(2024, 12, 31))
+    dialog_crear.check_salario_diario.setChecked(True)
+    dialog_crear.campo_salario_diario.setText("50000.00")
+    dialog_crear.campo_dias_laborados_semana.setValue(3)
+    obligacion_id = dialog_crear.guardar()
+
+    dialog_editar = ObligacionFormDialog(
+        expediente_id=expediente_id, area="LABORAL", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog_editar)
+
+    assert dialog_editar.check_salario_diario.isChecked() is True
+    assert dialog_editar.campo_salario_diario.text() == "50000.00"
+    assert dialog_editar.campo_dias_laborados_semana.value() == 3
+
+
+def test_salario_diario_negativo_lanza_error_de_validacion(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato domestico")
+    dialog.campo_fecha_origen.setDate(date(2024, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2024, 12, 31))
+    dialog.check_salario_diario.setChecked(True)
+    dialog.campo_salario_diario.setText("-50000.00")
+    dialog.campo_dias_laborados_semana.setValue(3)
+
+    with pytest.raises(ValueError):
+        dialog.guardar()
+
+
 # --- Sprint 44, punto 2: edicion de una obligacion ya guardada --------------
 
 
