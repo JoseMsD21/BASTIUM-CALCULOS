@@ -955,6 +955,49 @@ def test_guarda_obligacion_laboral_termino_fijo_con_fecha_fin_pactada(qtbot, mon
     session.close()
 
 
+def test_guarda_obligacion_laboral_fecha_fin_pactada_anterior_a_fecha_fin_lanza_error(
+    qtbot, monkeypatch
+):
+    # Sprint 111 (regresion del Sprint 24): DismissalIndemnityCalculator ya
+    # rechazaba fecha_fin_pactada <= fecha_terminacion, pero solo al liquidar
+    # -- un error de captura (ej. año mal digitado) se guardaba sin aviso.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 6, 1))
+    indice_fijo = dialog.combo_tipo_contrato_laboral.findData("FIJO")
+    dialog.combo_tipo_contrato_laboral.setCurrentIndex(indice_fijo)
+    # Anterior a campo_fecha_fin (2020-06-01) -- el plazo pactado ya se habria
+    # cumplido antes de la terminacion, sin tiempo restante que indemnizar.
+    dialog.campo_fecha_fin_pactada.setDate(date(2020, 1, 1))
+
+    with pytest.raises(ValueError, match="posterior a la fecha de fin"):
+        dialog.guardar()
+
+
+def test_guarda_obligacion_laboral_fecha_fin_pactada_igual_a_fecha_fin_lanza_error(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="LABORAL")
+    qtbot.addWidget(dialog)
+    dialog.campo_concepto.setText("Liquidacion de contrato")
+    dialog.campo_valor.setText("3000000.00")
+    dialog.campo_fecha_origen.setDate(date(2020, 1, 1))
+    dialog.campo_fecha_fin.setDate(date(2020, 6, 1))
+    indice_fijo = dialog.combo_tipo_contrato_laboral.findData("FIJO")
+    dialog.combo_tipo_contrato_laboral.setCurrentIndex(indice_fijo)
+    dialog.campo_fecha_fin_pactada.setDate(date(2020, 6, 1))  # == fecha_fin
+
+    with pytest.raises(ValueError, match="posterior a la fecha de fin"):
+        dialog.guardar()
+
+
 def test_campo_fecha_fin_pactada_visible_solo_para_termino_fijo_u_obra_labor(qtbot, monkeypatch):
     expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.LABORAL)
 
@@ -1180,6 +1223,147 @@ def test_tributario_fecha_origen_posterior_a_fecha_de_corte_lanza_error(qtbot, m
 
     with pytest.raises(ValueError):
         dialog.guardar()
+
+
+def test_tributario_impuesto_a_cargo_valor_negativo_lanza_error(qtbot, monkeypatch):
+    # Sprint 111 (regresion del Sprint 24): _guardar_tributario no validaba
+    # signo/rango de ningun campo numerico, a diferencia de las demas areas.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.combo_categoria.setCurrentIndex(0)  # IMPUESTO_A_CARGO
+    dialog.campo_concepto.setText("Impuesto de renta 2024")
+    dialog.campo_valor.setText("-10000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    import pytest
+
+    with pytest.raises(ValueError, match="mayor que cero"):
+        dialog.guardar()
+
+
+def test_tributario_impuesto_a_cargo_valor_cero_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.combo_categoria.setCurrentIndex(0)  # IMPUESTO_A_CARGO
+    dialog.campo_concepto.setText("Impuesto de renta 2024")
+    dialog.campo_valor.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    import pytest
+
+    with pytest.raises(ValueError, match="mayor que cero"):
+        dialog.guardar()
+
+
+def test_tributario_base_sancion_extemporaneidad_negativa_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("SANCION_EXTEMPORANEIDAD")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Sancion extemporaneidad renta 2024")
+    dialog.campo_base_sancion.setText("-10000000.00")
+    dialog.campo_meses_extemporaneidad.setValue(2)
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    import pytest
+
+    with pytest.raises(ValueError, match="mayor que cero"):
+        dialog.guardar()
+
+
+def test_tributario_base_sancion_inexactitud_negativa_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("SANCION_INEXACTITUD")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Sancion inexactitud renta 2024")
+    dialog.campo_base_sancion.setText("-5000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    import pytest
+
+    with pytest.raises(ValueError, match="mayor que cero"):
+        dialog.guardar()
+
+
+def test_tributario_base_sancion_error_aritmetico_negativa_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("SANCION_ERROR_ARITMETICO")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Sancion error aritmetico renta 2024")
+    dialog.campo_base_sancion.setText("-1000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    import pytest
+
+    with pytest.raises(ValueError, match="mayor que cero"):
+        dialog.guardar()
+
+
+@pytest.mark.parametrize(
+    "campo_negativo",
+    [
+        "campo_ingresos_brutos",
+        "campo_devoluciones",
+        "campo_costos",
+        "campo_deducciones",
+        "campo_rentas_exentas",
+    ],
+)
+def test_tributario_renta_liquida_campo_negativo_lanza_error(qtbot, monkeypatch, campo_negativo):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("RENTA_LIQUIDA")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Renta liquida gravable 2024")
+    dialog.campo_ingresos_brutos.setText("100000000.00")
+    dialog.campo_devoluciones.setText("0.00")
+    dialog.campo_costos.setText("40000000.00")
+    dialog.campo_deducciones.setText("20000000.00")
+    dialog.campo_rentas_exentas.setText("5000000.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+    getattr(dialog, campo_negativo).setText("-1.00")
+
+    with pytest.raises(ValueError, match="no puede ser negativo"):
+        dialog.guardar()
+
+
+def test_tributario_renta_liquida_devoluciones_en_cero_no_lanza_error(qtbot, monkeypatch):
+    # Cero es un valor valido para estos 5 campos (ej. sin devoluciones ese
+    # periodo) -- solo lo negativo debe rechazarse.
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    indice = dialog.combo_categoria.findData("RENTA_LIQUIDA")
+    dialog.combo_categoria.setCurrentIndex(indice)
+    dialog.campo_concepto.setText("Renta liquida gravable 2024")
+    dialog.campo_ingresos_brutos.setText("100000000.00")
+    dialog.campo_devoluciones.setText("0.00")
+    dialog.campo_costos.setText("40000000.00")
+    dialog.campo_deducciones.setText("20000000.00")
+    dialog.campo_rentas_exentas.setText("0.00")
+    dialog.campo_fecha_origen.setDate(date(2024, 3, 1))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.rentas_exentas == Decimal("0.00")
+    session.close()
 
 
 def test_guarda_sancion_extemporaneidad_con_meses_de_atraso(qtbot, monkeypatch):

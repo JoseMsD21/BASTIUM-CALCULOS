@@ -2009,6 +2009,17 @@ class ObligacionFormDialog(QDialog):
             fecha_fin_pactada = date(
                 qdate_fin_pactada.year(), qdate_fin_pactada.month(), qdate_fin_pactada.day()
             )
+            # Sprint 111 (regresion del Sprint 24): DismissalIndemnityCalculator
+            # (dismissal_indemnity.py) ya rechaza fecha_fin_pactada <=
+            # fecha_terminacion, pero solo se disparaba al liquidar -- un error
+            # de captura (ej. año de vencimiento mal digitado) se guardaba sin
+            # aviso y solo aparecia semanas despues, al liquidar la
+            # indemnizacion por despido injustificado.
+            if fecha_fin_pactada <= fecha_fin:
+                raise ValueError(
+                    "La fecha de fin pactada debe ser posterior a la fecha de fin/"
+                    "terminacion del contrato."
+                )
 
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
@@ -2063,6 +2074,11 @@ class ObligacionFormDialog(QDialog):
         deducciones = None
         rentas_exentas = None
 
+        # Sprint 111 (regresion del Sprint 24): a diferencia de Civil/Familia,
+        # Sancionatorio, Honorarios y Comercial, este metodo no validaba
+        # signo/rango de ningun campo numerico -- un valor/base_sancion con
+        # el signo invertido (error de captura comun) se guardaba sin aviso
+        # y solo se manifestaba como un resultado absurdo en el PDF final.
         if categoria == "IMPUESTO_A_CARGO":
             try:
                 valor = Decimal(self.campo_valor.text())
@@ -2070,12 +2086,16 @@ class ObligacionFormDialog(QDialog):
                 raise ValueError(
                     "El valor del impuesto a cargo debe ser un numero valido."
                 ) from error
+            if valor <= Decimal("0"):
+                raise ValueError("El valor del impuesto a cargo debe ser mayor que cero.")
 
         elif categoria == "SANCION_EXTEMPORANEIDAD":
             try:
                 base_sancion = Decimal(self.campo_base_sancion.text())
             except InvalidOperation as error:
                 raise ValueError("La base de la sancion debe ser un numero valido.") from error
+            if base_sancion <= Decimal("0"):
+                raise ValueError("La base de la sancion debe ser mayor que cero.")
             meses_extemporaneidad = self.campo_meses_extemporaneidad.value()
 
         elif categoria in ("SANCION_INEXACTITUD", "SANCION_ERROR_ARITMETICO"):
@@ -2083,6 +2103,8 @@ class ObligacionFormDialog(QDialog):
                 base_sancion = Decimal(self.campo_base_sancion.text())
             except InvalidOperation as error:
                 raise ValueError("La base de la sancion debe ser un numero valido.") from error
+            if base_sancion <= Decimal("0"):
+                raise ValueError("La base de la sancion debe ser mayor que cero.")
             if categoria == "SANCION_INEXACTITUD":
                 sancion_agravada = self.check_sancion_agravada.isChecked()
 
@@ -2097,6 +2119,17 @@ class ObligacionFormDialog(QDialog):
                 raise ValueError(
                     "Los 5 campos de renta liquida gravable deben ser numeros validos."
                 ) from error
+            # Cada uno puede ser cero (ej. sin devoluciones ese periodo) pero
+            # nunca negativo -- son magnitudes contables, no diferencias.
+            for campo_valor, nombre_campo in (
+                (ingresos_brutos, "Ingresos brutos"),
+                (devoluciones, "Devoluciones, rebajas y descuentos"),
+                (costos, "Costos"),
+                (deducciones, "Deducciones"),
+                (rentas_exentas, "Rentas exentas"),
+            ):
+                if campo_valor < Decimal("0"):
+                    raise ValueError(f"{nombre_campo} no puede ser negativo.")
 
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
