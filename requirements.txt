@@ -6,5 +6,6 @@ matplotlib
 PySide6
 pytest
 pytest-qt
+pytest-cov
 holidays
 ruff

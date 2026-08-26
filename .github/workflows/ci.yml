@@ -9,6 +9,16 @@ on:
 jobs:
   test:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.14 es la version principal (target-version de ruff en pyproject.toml);
+        # 3.13 se agrega (Sprint 113) como piso minimo verificado en CI -- el
+        # codigo ya usa sintaxis de generics PEP 695 (ej.
+        # app/services/cascada_cuotas.py), asi que 3.12 seria el minimo real,
+        # pero 3.13 basta para confirmar que no hay una dependencia oculta en
+        # una caracteristica exclusiva de 3.14.
+        python-version: ["3.13", "3.14"]
 
     steps:
       - name: Checkout
@@ -17,7 +27,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.python-version }}
 
       - name: Instalar dependencias
         run: pip install -r requirements.txt
@@ -25,7 +35,7 @@ jobs:
       - name: Correr ruff (lint)
         run: python -m ruff check .
 
-      - name: Correr pytest
+      - name: Correr pytest con cobertura
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest -q
+        run: python -m pytest -q --cov=app --cov=database --cov-report=term-missing --cov-fail-under=90
