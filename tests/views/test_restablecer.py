@@ -57,6 +57,9 @@ def test_restablecer_view_no_hace_nada_si_se_cancela_la_confirmacion(qtbot, tmp_
 
 
 def test_restablecer_view_confirmado_llama_backup_y_restablecer_en_orden(qtbot, tmp_path):
+    # Sprint 112: backup + borrado ahora corren en el QThreadPool (no en el
+    # hilo de UI) -- se espera la señal `restablecimiento_finalizado`, mismo
+    # patron que `ExpedienteDetallePage`/`liquidacion_finalizada` (Sprint 26).
     vista = RestablecerView()
     qtbot.addWidget(vista)
     orden_llamadas = []
@@ -75,12 +78,14 @@ def test_restablecer_view_confirmado_llama_backup_y_restablecer_en_orden(qtbot, 
             side_effect=lambda: orden_llamadas.append("restablecer"),
         ) as mock_restablecer,
         patch("app.views.restablecer.QMessageBox.information"),
+        qtbot.waitSignal(vista.restablecimiento_finalizado, timeout=5000),
     ):
         vista._restablecer()
 
     mock_backup.assert_called_once()
     mock_restablecer.assert_called_once()
     assert orden_llamadas == ["backup", "restablecer"]
+    assert vista.boton_restablecer.isEnabled() is True
 
 
 def test_restablecer_view_no_borra_si_el_backup_falla(qtbot):
@@ -98,8 +103,35 @@ def test_restablecer_view_no_borra_si_el_backup_falla(qtbot):
         ),
         patch("app.views.restablecer.restablecer_datos_fabrica") as mock_restablecer,
         patch("app.views.restablecer.QMessageBox.critical") as mock_critical,
+        qtbot.waitSignal(vista.restablecimiento_finalizado, timeout=5000),
     ):
         vista._restablecer()
 
     mock_restablecer.assert_not_called()
     mock_critical.assert_called_once()
+    assert vista.boton_restablecer.isEnabled() is True
+
+
+def test_restablecer_view_muestra_dialogo_de_progreso_mientras_corre(qtbot, tmp_path):
+    # Sprint 112 (hallazgo 1): antes no habia ningun indicio visual durante
+    # el restablecimiento -- ahora el boton se deshabilita y se muestra un
+    # QProgressDialog mientras la tarea corre en el hilo de fondo.
+    vista = RestablecerView()
+    qtbot.addWidget(vista)
+
+    with (
+        patch(
+            "app.views.restablecer.ConfirmarRestablecerDialog.exec",
+            return_value=QDialog.DialogCode.Accepted,
+        ),
+        patch(
+            "app.views.restablecer.crear_backup_de_base_de_datos",
+            return_value=tmp_path / "x.bak",
+        ),
+        patch("app.views.restablecer.restablecer_datos_fabrica"),
+        patch("app.views.restablecer.QMessageBox.information"),
+        qtbot.waitSignal(vista.restablecimiento_finalizado, timeout=5000),
+    ):
+        vista._restablecer()
+        assert vista.boton_restablecer.isEnabled() is False
+        assert vista._dialogo_progreso.isVisible()

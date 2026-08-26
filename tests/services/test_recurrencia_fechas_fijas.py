@@ -361,3 +361,65 @@ def test_generar_cuotas_fechas_fijas_aplica_reajuste_smmlv_opcional():
     assert por_fecha[date(2026, 6, 15)] == Decimal("150000.00")
     # 2027: reajustado +10% sobre 150000 -> 165000.00.
     assert por_fecha[date(2027, 6, 15)] == Decimal("165000.00")
+
+
+def test_generar_cuotas_fechas_fijas_multiples_anios_no_abre_una_sesion_por_transicion(
+    monkeypatch,
+):
+    # Sprint 112 (hallazgo 2, mismo caso que generar_cuotas_mensuales): 3 años
+    # (2 transiciones) no deben abrir una sesion SQLAlchemy por cada una.
+    session = session_module.get_session()
+    expediente_id = _expediente_civil(session)
+    for anio, valor in {
+        2026: Decimal("1000000.00"),
+        2027: Decimal("1100000.00"),
+        2028: Decimal("1155000.00"),
+    }.items():
+        session.add(
+            ParametroLegal(
+                clave="SMLMV",
+                valor=valor,
+                vigente_desde=date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=datetime.now(),
+            )
+        )
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.RECURRENTE,
+        concepto="GASTOS DE VESTUARIO",
+        categoria="CHILD_SUPPORT",
+        fecha_origen=date(2026, 1, 1),
+        fecha_inicio=date(2026, 1, 1),
+        valor=Decimal("150000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+        tipo_recurrencia=TipoRecurrencia.FECHAS_ANUALES_FIJAS,
+        fechas_anuales_fijas=serializar_fechas_anuales(["06-15"]),
+        tipo_reajuste_anual=TipoReajusteAnual.SMMLV,
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    session = session_module.get_session()
+    padre = session.get(Obligacion, obligacion_id)
+
+    llamadas_get_session: list[None] = []
+    get_session_original = session_module.get_session
+
+    def get_session_contada():
+        llamadas_get_session.append(None)
+        return get_session_original()
+
+    monkeypatch.setattr(session_module, "get_session", get_session_contada)
+
+    cuotas = generar_cuotas_fechas_fijas(padre, fecha_corte=date(2028, 12, 31))
+    session.close()
+
+    assert len(cuotas) == 3  # una por año (2026, 2027, 2028)
+    # 1 sesion para el guardado de las cuotas + 1 sesion para precargar TODAS
+    # las filas de SMLMV de una vez -- nunca una por cada transicion de año.
+    assert len(llamadas_get_session) == 2

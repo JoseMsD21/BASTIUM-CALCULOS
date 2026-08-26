@@ -49,6 +49,7 @@ from datetime import date
 
 import database.session as session_module
 from app.engine.time.calendar import CalendarUtils
+from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
 from app.services.reajuste_anual import reajustar_capital_anual
 from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
 from database.models import (
@@ -101,6 +102,7 @@ def deserializar_fechas_anuales(texto: str | None) -> list[str]:
     return json.loads(texto)
 
 
+@cache_de_liquidacion()
 def generar_cuotas_fechas_fijas(
     obligacion_recurrente: Obligacion, fecha_corte: date
 ) -> list[Obligacion]:
@@ -152,6 +154,16 @@ def generar_cuotas_fechas_fijas(
         (int(mm_dd.split("-")[0]), int(mm_dd.split("-")[1])) for mm_dd in fechas_mm_dd
     )
     aplica_reajuste = tipo_reajuste is not None and tipo_reajuste != TipoReajusteAnual.NINGUNO
+
+    # Sprint 112 (hallazgo 2, mismo patron que generar_cuotas_mensuales):
+    # reajustar_capital_anual abre su propia sesion SQLAlchemy por cada
+    # transicion de año sin precarga -- @cache_de_liquidacion() (arriba)
+    # habilita el espacio, solo se trae la clave que realmente se usa.
+    if aplica_reajuste:
+        if tipo_reajuste == TipoReajusteAnual.SMMLV:
+            precargar_parametro("SMLMV")
+        elif tipo_reajuste == TipoReajusteAnual.IPC:
+            precargar_parametro("IPC_INDICE_ACUMULADO")
 
     session = session_module.get_session()
     try:

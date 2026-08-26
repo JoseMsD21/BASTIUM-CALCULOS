@@ -27,8 +27,10 @@ from PySide6.QtWidgets import (
 
 import database.session as session_module
 from app.core.exceptions import IPCMensualNoDisponibleError, ParametroNoDisponibleError
+from app.engine.temporal.prescripcion import CLAVE_POR_TIPO_ACCION
 from app.services.area_strategy import CivilFamiliaStrategy, ComercialStrategy
 from app.services.cascada_cuotas import deuda_pendiente_cuota, distribuir_pago_en_cascada
+from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
 from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable
 from database.models import Abono
 
@@ -106,15 +108,34 @@ class PagoPorRangoDialog(QDialog):
         session = session_module.get_session()
         try:
             cuotas_y_deuda = []
-            for cuota in self._cuotas:
-                abonos_existentes = (
-                    session.query(Abono).filter(Abono.obligacion_id == cuota.id).all()
-                )
-                rate_provider = strategy._construir_rate_provider_obligacion(cuota, fecha_pago)
-                deuda = deuda_pendiente_cuota(
-                    cuota, abonos_existentes, fecha_pago, rate_provider
-                )
-                cuotas_y_deuda.append((cuota, deuda))
+            # Sprint 112 (hallazgo 3): _calcular_preview corre en cada tecla
+            # (textChanged) -- sin cache_de_liquidacion(), cada cuota del
+            # rango seleccionado reabria su propia sesion SQLAlchemy tanto
+            # para resolver la tasa (get_parametro con la MISMA fecha_pago,
+            # ya colapsada por la cache de cache_de_liquidacion()) como para
+            # el chequeo de prescripcion que UniversalLiquidationService.
+            # liquidar() hace de forma incondicional por cada evento
+            # (motor_universal.py -> filtrar_cuotas_prescritas ->
+            # calcular_prescripcion), con la fecha_origen DE CADA CUOTA (no
+            # fecha_pago) -- ese chequeo necesita ademas precargar_parametro
+            # (mismo patron que el Sprint 53 ya resolvio para el Dashboard,
+            # test_dashboard.py). Solo 6 claves posibles
+            # (CLAVE_POR_TIPO_ACCION), precargarlas todas es barato y evita
+            # tener que adivinar cual tipo_accion_proceso trae cada cuota.
+            with cache_de_liquidacion():
+                for clave in CLAVE_POR_TIPO_ACCION.values():
+                    precargar_parametro(clave)
+                for cuota in self._cuotas:
+                    abonos_existentes = (
+                        session.query(Abono).filter(Abono.obligacion_id == cuota.id).all()
+                    )
+                    rate_provider = strategy._construir_rate_provider_obligacion(
+                        cuota, fecha_pago
+                    )
+                    deuda = deuda_pendiente_cuota(
+                        cuota, abonos_existentes, fecha_pago, rate_provider
+                    )
+                    cuotas_y_deuda.append((cuota, deuda))
         except (ParametroNoDisponibleError, IPCMensualNoDisponibleError) as error:
             # Mismo criterio de fallo abierto que _refrescar_alertas_vencimiento en
             # app/views/dashboard.py: una cuota con aplica_indexacion_ipc=True puede

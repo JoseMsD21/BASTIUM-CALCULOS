@@ -120,6 +120,48 @@ def test_genera_cuotas_mensuales_con_capital_reajustado_por_smmlv_cada_enero(mon
     assert date(2026, 4, 5) not in por_fecha
 
 
+def test_generar_cuotas_mensuales_multiples_anios_no_abre_una_sesion_por_transicion(monkeypatch):
+    # Sprint 112 (hallazgo 2): reajustar_capital_anual llama get_smlmv_for_year
+    # (2 veces por transicion de año, anio y anio-1) sin envolver el bucle en
+    # cache_de_liquidacion()/precargar_parametro -- cada llamada abria su
+    # propia sesion SQLAlchemy. Mismo caso del Sprint 25/53 (test_dashboard.py)
+    # aplicado aqui: 3 años (2 transiciones) NO deben abrir 4+ sesiones extra.
+    session = session_module.get_session()
+    expediente_id = _expediente_civil(session)
+    _sembrar_smlmv(
+        session,
+        {
+            2024: Decimal("1000000.00"),
+            2025: Decimal("1100000.00"),
+            2026: Decimal("1155000.00"),
+        },
+    )
+    obligacion = _obligacion_recurrente_smmlv(session, expediente_id)
+    obligacion_id = obligacion.id
+    session.close()
+
+    session = session_module.get_session()
+    padre = session.get(Obligacion, obligacion_id)
+
+    llamadas_get_session: list[None] = []
+    get_session_original = session_module.get_session
+
+    def get_session_contada():
+        llamadas_get_session.append(None)
+        return get_session_original()
+
+    monkeypatch.setattr(session_module, "get_session", get_session_contada)
+
+    cuotas = generar_cuotas_mensuales(padre, fecha_corte=date(2026, 3, 5))
+    session.close()
+
+    assert len(cuotas) == 17
+    # 1 sesion para el guardado de las cuotas (dentro de
+    # generar_cuotas_mensuales) + 1 sesion para precargar TODAS las filas de
+    # SMLMV de una vez -- nunca una por cada una de las 2 transiciones de año.
+    assert len(llamadas_get_session) == 2
+
+
 def test_genera_cuotas_mensuales_se_topa_por_la_vigencia_del_beneficiario_nino(monkeypatch):
     """Sprint 74: si la obligacion tiene un Beneficiario NINO sin discapacidad
     persistido, generar_cuotas_mensuales debe dejar de generar cuotas una vez el

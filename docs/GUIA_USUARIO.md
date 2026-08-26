@@ -399,7 +399,8 @@ Usa este tipo para deudas que se pagan mes a mes (ej. cuota de alimentos mensual
    capital constante de siempre, como si "Reajuste anual" estuviera en "Ninguno". Si editas el valor, la
    tasa o el reajuste de una obligación que ya tiene cuotas generadas, o si la eliminas y la vuelves a
    crear, tienes que volver a hacer clic en "Generar cuotas" (es seguro repetirlo: no duplica cuotas ya
-   generadas, solo las confirma).
+   generadas, solo las confirma). Con obligaciones recurrentes largas (varios años, decenas de cuotas)
+   ves una ventana de progreso mientras se generan, sin que la ventana deje de responder.
 
 Si "Reajuste anual" quedó en "Ninguno" y no le diste clic a "Generar cuotas", el programa sigue generando
 automáticamente una cuota efímera por cada mes al liquidar (no persistida), desde la fecha de inicio hasta
@@ -1065,7 +1066,9 @@ queda recordado para la próxima vez que abras BASTIUM.
 obligaciones, abonos, eventos, descuentos y los parámetros legales que hayas cargado tú mismo — los
 parámetros de sistema no se tocan y el tema vuelve a claro. Antes de borrar se crea automáticamente una
 copia de seguridad en la carpeta `backups/`. Pide escribir "RESTABLECER" para confirmar; no hay papelera
-ni deshacer, solo restaurar el backup manualmente si te equivocas.
+ni deshacer, solo restaurar el backup manualmente si te equivocas. Con historiales grandes (meses o años de
+expedientes), la copia y el borrado pueden tardar unos segundos — mientras corren, ves una ventana de
+progreso y el botón queda deshabilitado; el programa no se congela ni parece colgado.
 
 **Editar y eliminar valores que tú mismo cargaste:** dentro del historial de una clave (doble clic sobre
 su fila en la tabla), cada valor que tú hayas agregado tiene sus propios botones "Editar" y "Eliminar" —
