@@ -313,7 +313,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) 🔴 Bug confirmado sin corregir](#sprint-111--validación-de-datos-regresiones-del-sprint-24-en-formularios-nuevos-tributario-contrato-a-término-fijo-descuentos-laborales--bug-confirmado-sin-corregir)
 - [Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices 📋 Pendiente](#sprint-112--concurrencia-y-rendimiento-operaciones-nuevas-sin-threading-n1-reintroducido-y-migraciones-sin-recalcular-índices--pendiente)
 - [Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente](#sprint-113--seguridad-versionado-y-housekeeping-organizacional-auditoría-2026-08-25--pendiente)
-- [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común 📋 Pendiente](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--pendiente)
+- [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común ✅ Completado](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--pendiente)
 - [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) 📋 Pendiente](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--pendiente)
 
 ---
@@ -8277,7 +8277,7 @@ explícitamente en `docs/SECURITY.md` (hoy solo cubre inyección/RCE/exposición
 
 ---
 
-## Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común 📋 Pendiente
+## Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común ✅ Completado
 
 **Prioridad sugerida:** Media para el hallazgo 2 (riesgo de regresión al agregar la próxima categoría
 laboral); baja para el resto (housekeeping).
@@ -8337,6 +8337,27 @@ accidentales; `AreaRegistry` sigue desacoplado, 0 ramas `if area ==`/`isinstance
   categoría.
 - Los 6 diálogos heredan de `FormDialogBase`.
 - Suite completa en verde tras el refactor, sin cambios de comportamiento.
+
+**Cierre (rutina autónoma, 2026-08-26):**
+- Hallazgo 1: se creó `tests/views/conftest.py` (`crear_sesion_en_memoria`) y se migraron los 8 archivos
+  (`test_dashboard.py`, `test_form_utils.py`, `test_pago_por_rango.py`, `test_descuentos_laborales.py`,
+  `test_eventos_laborales.py`, `test_expedientes.py`, `test_abonos.py`, `test_obligaciones.py`) a usarla.
+  Cero ocurrencias de `create_engine("sqlite:///:memory:")` fuera de `conftest.py`.
+- Hallazgo 2: `LaboralStrategy.liquidar()` (`app/services/area_strategy.py`) se redujo de ~300 a ~107
+  líneas, extrayendo `_resolver_valor_pactado`, `_eventos_prestaciones_sociales`,
+  `_eventos_seguridad_social`, `_eventos_mora_articulo_65`, `_eventos_despido_injustificado` y
+  `_eventos_descuentos_empleador` (mismo patrón que `_liquidar_salarios_dejados_de_percibir`, Sprint 93).
+- Hallazgo 3: se creó `FormDialogBase(QDialog)` en `app/views/form_utils.py` con `_guardar_y_cerrar`
+  genérico (el resultado de `guardar()` queda en `self.resultado_guardado`); los 6 diálogos
+  (`AbonoFormDialog`, `ParametroFormDialog`, `ExpedienteFormDialog`, `ObligacionFormDialog`,
+  `DescuentoLaboralFormDialog`, `EventoLaboralFormDialog`) ahora heredan de ella.
+  `ExpedienteFormDialog._expediente_id_creado` (nunca leído fuera del propio archivo) se reemplazó por el
+  atributo genérico de la base.
+- Hallazgo 4: se agregó el ADR-006 en `docs/ARQUITECTURA_ADR.md` declarando la convención "validación de
+  forma → vista; validación de dominio/cálculo → services".
+- Suite completa: 1628 passed (mismo conteo que antes del refactor, sin cambios de comportamiento);
+  `ruff check .` limpio. Sin impacto en README.md/GUIA_USUARIO.md (refactor interno, ningún flujo de
+  usuario cambia).
 
 ---
 

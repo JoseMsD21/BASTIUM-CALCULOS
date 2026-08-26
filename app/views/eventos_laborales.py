@@ -2,15 +2,20 @@ from datetime import date
 
 from PySide6.QtCore import QDate
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QComboBox, QDateEdit, QDialog, QFormLayout, QMessageBox, QPushButton
+from PySide6.QtWidgets import QComboBox, QDateEdit, QFormLayout, QPushButton
 
 import database.session as session_module
-from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable, set_row_visible
+from app.views.form_utils import (
+    FormDialogBase,
+    guardar_o_actualizar,
+    hacer_redimensionable,
+    set_row_visible,
+)
 from app.views.icons import icon
 from database.models import EventoLaboral, MotivoSuspension, TipoEventoLaboral
 
 
-class EventoLaboralFormDialog(QDialog):
+class EventoLaboralFormDialog(FormDialogBase):
     def __init__(self, obligacion_id: int, parent=None, evento_id: int | None = None):
         super().__init__(parent)
         hacer_redimensionable(self)
@@ -126,10 +131,3 @@ class EventoLaboralFormDialog(QDialog):
         )
         session.close()
         return evento_id
-
-    def _guardar_y_cerrar(self) -> None:
-        try:
-            self.guardar()
-            self.accept()
-        except ValueError as error:
-            QMessageBox.warning(self, "Datos invalidos", str(error))

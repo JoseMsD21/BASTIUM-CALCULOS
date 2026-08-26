@@ -1,9 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 import database.session as session_module
 from app.core.constants import AREAS_DERECHO
 from app.engine.audit.service import registrar_liquidacion
@@ -12,20 +9,16 @@ from app.engine.temporal.prescripcion import TipoAccion, calcular_prescripcion
 from app.views.dashboard import DashboardView
 from database.models import (
     AreaDerecho,
-    Base,
     Expediente,
     Obligacion,
     ParametroLegal,
     TipoObligacion,
 )
+from tests.views.conftest import crear_sesion_en_memoria
 
 
 def _sesion_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
+    crear_sesion_en_memoria(monkeypatch)
 
 
 def _crear_expediente(session, radicado: str, area: AreaDerecho) -> Expediente:

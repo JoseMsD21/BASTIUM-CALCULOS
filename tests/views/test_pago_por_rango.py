@@ -3,8 +3,6 @@ from decimal import Decimal
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import QDialog
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.services.reajuste_anual import generar_cuotas_mensuales
@@ -12,27 +10,22 @@ from app.views.pago_por_rango import PagoPorRangoDialog
 from database.models import (
     Abono,
     AreaDerecho,
-    Base,
     Expediente,
     Obligacion,
     ParametroLegal,
     TipoObligacion,
     TipoReajusteAnual,
 )
+from tests.views.conftest import crear_sesion_en_memoria
 
 
 def _sesion_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
     # Sprint 61: tasa_efectiva_anual=0.00 (usada en todo este archivo para que
     # el ejemplo sea deterministico) ahora activa el fallback a
     # CIVIL_ANNUAL_RATE en CivilFamiliaStrategy -- se siembra en 0.00 para
     # preservar exactamente el mismo comportamiento (cero interes) sin que
     # _calcular_preview capture un ParametroNoDisponibleError.
-    session = session_module.get_session()
+    session = crear_sesion_en_memoria(monkeypatch)
     session.add(
         ParametroLegal(
             clave="CIVIL_ANNUAL_RATE",

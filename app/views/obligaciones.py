@@ -7,14 +7,12 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateEdit,
-    QDialog,
     QFormLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -43,6 +41,7 @@ from app.services.vigencia_alimentos import (
     validar_fecha_corte_beneficiario_obligatoria,
 )
 from app.views.form_utils import (
+    FormDialogBase,
     agregar_ayuda,
     guardar_o_actualizar,
     hacer_redimensionable,
@@ -62,7 +61,7 @@ from database.models import (
 )
 
 
-class ObligacionFormDialog(QDialog):
+class ObligacionFormDialog(FormDialogBase):
     # Campos condicionales por area que `Obligacion` siempre espera recibir (aunque sea
     # en None) -- cada `_parse_campos_<area>()` solo devuelve las claves que esa area
     # necesita sobreescribir; el resto queda en su valor por defecto de aqui (Sprint 22,
@@ -2158,10 +2157,3 @@ class ObligacionFormDialog(QDialog):
         )
         session.close()
         return obligacion_id
-
-    def _guardar_y_cerrar(self) -> None:
-        try:
-            self.guardar()
-            self.accept()
-        except ValueError as error:
-            QMessageBox.warning(self, "Datos invalidos", str(error))

@@ -4,29 +4,21 @@ from decimal import Decimal
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from database.models import (
     AreaDerecho,
-    Base,
     DescuentoLaboral,
     Expediente,
     Obligacion,
     TipoObligacion,
 )
+from tests.views.conftest import crear_sesion_en_memoria
 
 
 def _obligacion_laboral_de_prueba(monkeypatch) -> int:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
-
-    session = session_module.get_session()
+    session = crear_sesion_en_memoria(monkeypatch)
     expediente = Expediente(
         radicado="2026-080",
         demandante="Trabajador",

@@ -1219,26 +1219,7 @@ class LaboralStrategy(AreaStrategy):
             )
 
         obligacion = obligaciones[0]
-        # es_smmlv (Sprint 44, punto 1): el valor digitado a mano se descarta y
-        # se resuelve en memoria (nunca se persiste aqui -- eso lo hace el
-        # formulario al guardar) desde el SMLMV vigente del año de origen del
-        # contrato, para que la liquidacion siempre use el SMLMV mas
-        # actualizado en parametros_legales, incluso si se corrigio despues
-        # de que la obligacion se guardo.
-        if obligacion.es_smmlv:
-            obligacion.valor = get_smlmv_for_year(obligacion.fecha_origen.year)
-        # salario_diario/dias_laborados_semana (Sprint 96): mismo patron que
-        # es_smmlv arriba -- el `valor` digitado a mano se descarta y se
-        # resuelve en memoria desde el salario pactado por dia (trabajo
-        # domestico por dias/jornada parcial), via
-        # salario_diario_a_mensual. Respuesta del despacho (22/08/2026): "no
-        # existe diferencia algebraica en las formulas de liquidacion tras la
-        # Ley 1788" -- se reutiliza LaborScheduler sin cambios, solo con esta
-        # base convertida.
-        if obligacion.salario_diario is not None and obligacion.dias_laborados_semana is not None:
-            obligacion.valor = salario_diario_a_mensual(
-                obligacion.salario_diario, obligacion.dias_laborados_semana
-            )
+        self._resolver_valor_pactado(obligacion)
         self._validar_obligacion_laboral(obligacion)
 
         # Sprint 93: SALARIOS_DEJADOS_DE_PERCIBIR se desvia por completo antes
@@ -1259,158 +1240,18 @@ class LaboralStrategy(AreaStrategy):
         # sociales, no se extendio a cotizaciones de seguridad social en
         # este sprint).
         dias_trabajados = (obligacion.fecha_fin - obligacion.fecha_inicio).days
-        # dias_trabajados_prestaciones (Sprint 30, corregido 2026-08-03):
-        # conteo inclusivo (+1) sobre base comercial de 360 dias (12 meses de
-        # 30 dias) -- confirmado por el despacho para cesantias/intereses/
-        # prima/vacaciones (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 3).
-        # NO es el mismo valor que dias_trabajados de arriba.
-        dias_trabajados_prestaciones = CalendarUtils.dias_comerciales_360(
-            obligacion.fecha_inicio, obligacion.fecha_fin
-        )
-        eventos = LaborScheduler(
-            salario_base=obligacion.valor,
-            dias_trabajados=dias_trabajados_prestaciones,
-            fecha_liquidacion=obligacion.fecha_fin,
-        ).generate()
-
-        monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
-
-        evento_costas = _evento_costas_procesales(
-            obligacion, pretensiones_reconocidas=monto_prestaciones
-        )
-        if evento_costas is not None:
-            eventos.append(evento_costas)
+        eventos, monto_prestaciones = self._eventos_prestaciones_sociales(obligacion)
 
         if obligacion.incluir_seguridad_social:
-            dias_suspension = sum(
-                (evento.fecha_fin - evento.fecha_inicio).days
-                for evento in obligacion.eventos_laborales
-                if evento.tipo.value == "SUSPENSION"
-            )
-            # IBC_Seguridad_Social = max(salario_proporcional, 1 SMMLV) --
-            # solo para trabajo domestico por dias/jornada parcial (Sprint
-            # 96, respuesta del despacho 22/08/2026): la cotizacion a
-            # seguridad social nunca puede basarse en un IBC menor a 1 SMMLV,
-            # aunque el salario proporcional real si sea menor. NO se aplica
-            # este piso a las prestaciones sociales de arriba (cesantias/
-            # prima/vacaciones), que siguen usando el salario proporcional
-            # real -- ni al resto de contratos Laborales (salario_diario
-            # None), fuera del alcance de esta respuesta.
-            base_seguridad_social = obligacion.valor
-            if obligacion.salario_diario is not None:
-                base_seguridad_social = calcular_ibc_seguridad_social_domestico(
-                    salario_proporcional=obligacion.valor,
-                    smmlv_mensual=get_smlmv_for_year(obligacion.fecha_fin.year),
-                )
-            cotizaciones = SeguridadSocialCalculator.calcular(
-                salario_base=base_seguridad_social,
-                dias_trabajados=dias_trabajados,
-                dias_suspension=dias_suspension,
-                nivel_riesgo_arl=obligacion.nivel_riesgo_arl,
-                fecha_referencia=obligacion.fecha_fin,
-            )
-            for concepto, monto, etiqueta in [
-                (
-                    "COTIZACION_PENSION",
-                    cotizaciones.monto_pension,
-                    "Cotizacion Pension (seguridad social no pagada)",
-                ),
-                (
-                    "COTIZACION_SALUD",
-                    cotizaciones.monto_salud,
-                    "Cotizacion Salud (seguridad social no pagada)",
-                ),
-                (
-                    "COTIZACION_ARL",
-                    cotizaciones.monto_arl,
-                    "Cotizacion ARL (seguridad social no pagada)",
-                ),
-                (
-                    "COTIZACION_FSP",
-                    cotizaciones.monto_fsp,
-                    "Cotizacion FSP (Fondo de Solidaridad Pensional)",
-                ),
-            ]:
-                if monto > Decimal("0.00"):
-                    eventos.append(
-                        Event(
-                            date=obligacion.fecha_fin,
-                            payload={"amount": monto, "label": etiqueta},
-                            event_type=concepto,
-                        )
-                    )
-
-            for evento in obligacion.eventos_laborales:
-                if evento.tipo.value == "SUSPENSION":
-                    eventos.append(
-                        Event(
-                            date=evento.fecha_fin,
-                            payload={
-                                "amount": Decimal("0.00"),
-                                "label": (
-                                    f"Suspension ({evento.motivo_suspension.value}) "
-                                    f"{evento.fecha_inicio}-{evento.fecha_fin}: no causa ARL"
-                                ),
-                            },
-                            event_type="SUSPENSION_INFORMATIVA",
-                        )
-                    )
-                else:
-                    dias_incapacidad = (evento.fecha_fin - evento.fecha_inicio).days
-                    desglose = IncapacidadCalculator.calcular(
-                        tipo=evento.tipo,
-                        ibc_mensual=cotizaciones.ibc_mensual,
-                        dias_incapacidad=dias_incapacidad,
-                    )
-                    for tramo in desglose.tramos:
-                        es_empleador = tramo.pagador == "EMPLEADOR"
-                        eventos.append(
-                            Event(
-                                date=evento.fecha_fin,
-                                payload={
-                                    "amount": tramo.monto if es_empleador else Decimal("0.00"),
-                                    "label": (
-                                        f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
-                                        f"{tramo.pagador} ({tramo.porcentaje:.2%}): "
-                                        f"${tramo.monto:,.2f}"
-                                    ),
-                                },
-                                event_type="INCAPACIDAD_EMPLEADOR"
-                                if es_empleador
-                                else "INCAPACIDAD_INFORMATIVA",
-                            )
-                        )
+            self._eventos_seguridad_social(obligacion, dias_trabajados, eventos)
 
         # fecha_pago_total (si existe) es cuando realmente se extinguio la
         # deuda; nunca puede ser posterior a fecha_corte para efectos de este
         # reporte -- si el pago real fue despues del corte elegido, la mora
         # se calcula solo hasta el corte (foto historica), no hasta el pago.
-        if obligacion.fecha_pago_total is not None:
-            fecha_referencia_mora = min(obligacion.fecha_pago_total, fecha_corte)
-        else:
-            fecha_referencia_mora = fecha_corte
-
-        hay_mora = False
-        if fecha_referencia_mora > obligacion.fecha_fin:
-            monto_adeudado = monto_prestaciones
-            mora = MoratoryIndemnityCalculator.calcular(
-                salario_mensual=obligacion.valor,
-                monto_adeudado=monto_adeudado,
-                fecha_terminacion=obligacion.fecha_fin,
-                fecha_pago_o_corte=fecha_referencia_mora,
-            )
-            if mora.total > Decimal("0.00"):
-                hay_mora = True
-                eventos.append(
-                    Event(
-                        date=fecha_referencia_mora,
-                        payload={
-                            "amount": mora.total,
-                            "label": "Indemnizacion moratoria Art. 65 CST",
-                        },
-                        event_type="SANCION_MORATORIA",
-                    )
-                )
+        hay_mora = self._eventos_mora_articulo_65(
+            obligacion, fecha_corte, monto_prestaciones, eventos
+        )
 
         # Indemnizacion por despido injustificado, Art. 64 CST (Sprint 92) --
         # concepto legal distinto de la moratoria de arriba (Art. 65 CST):
@@ -1421,31 +1262,7 @@ class LaboralStrategy(AreaStrategy):
         # (ver docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 92), asi que el
         # evento se agrega solo si `despido_injustificado` esta marcado, sin
         # depender de `hay_mora`.
-        if obligacion.despido_injustificado:
-            indemnizacion_despido = DismissalIndemnityCalculator.calcular(
-                tipo_contrato=obligacion.tipo_contrato_laboral,
-                salario_mensual=obligacion.valor,
-                fecha_ingreso=obligacion.fecha_inicio,
-                fecha_terminacion=obligacion.fecha_fin,
-                despido_injustificado=True,
-                smlmv_mensual=get_smlmv_for_year(obligacion.fecha_fin.year),
-                fecha_fin_pactada=obligacion.fecha_fin_pactada,
-            )
-            if indemnizacion_despido.total > Decimal("0.00"):
-                eventos.append(
-                    Event(
-                        date=obligacion.fecha_fin,
-                        payload={
-                            "amount": indemnizacion_despido.total,
-                            "label": (
-                                "Indemnizacion por despido injustificado Art. 64 CST "
-                                f"({indemnizacion_despido.regimen}, "
-                                f"{indemnizacion_despido.dias_indemnizacion} dias)"
-                            ),
-                        },
-                        event_type="INDEMNIZACION_DESPIDO",
-                    )
-                )
+        self._eventos_despido_injustificado(obligacion, eventos)
 
         # Indexacion IPC (Sprint 43): ver docstring de la clase. Solo se agrega el
         # evento de indexacion cuando NO hay mora (excepcion 1, buena fe probada) --
@@ -1473,18 +1290,7 @@ class LaboralStrategy(AreaStrategy):
         # reporte distinga un descuento autorizado de uno que no lo fue (la
         # etiqueta queda en el concepto de la fila); matematicamente ambos
         # reducen el neto adeudado exactamente igual.
-        for descuento in obligacion.descuentos_laborales:
-            calificacion = "legal" if descuento.es_legal else "ilegal"
-            etiqueta = f"Descuento del empleador ({calificacion})"
-            if descuento.motivo:
-                etiqueta += f": {descuento.motivo}"
-            eventos.append(
-                Event(
-                    date=descuento.fecha,
-                    payload={"amount": descuento.monto, "label": etiqueta},
-                    event_type="PAYMENT",
-                )
-            )
+        self._eventos_descuentos_empleador(obligacion, eventos)
 
         pagos = [
             Payment(date=abono.fecha, amount=abono.monto, reference=abono.referencia or "")
@@ -1510,6 +1316,252 @@ class LaboralStrategy(AreaStrategy):
                 "IPC no se aplicó sobre el mismo rubro/periodo (la moratoria prevalece).",
             )
         return resultado
+
+    def _resolver_valor_pactado(self, obligacion) -> None:
+        """Sprint 44/96: `obligacion.valor` digitado a mano se descarta y se
+        resuelve en memoria (nunca se persiste aqui -- eso lo hace el
+        formulario al guardar), para que la liquidacion siempre use el dato
+        mas actualizado.
+
+        es_smmlv (Sprint 44, punto 1): se resuelve desde el SMLMV vigente del
+        año de origen del contrato, incluso si se corrigio despues de que la
+        obligacion se guardo.
+
+        salario_diario/dias_laborados_semana (Sprint 96): mismo patron que
+        es_smmlv arriba, pero para trabajo domestico por dias/jornada
+        parcial -- se resuelve desde el salario pactado por dia via
+        salario_diario_a_mensual. Respuesta del despacho (22/08/2026): "no
+        existe diferencia algebraica en las formulas de liquidacion tras la
+        Ley 1788" -- se reutiliza LaborScheduler sin cambios, solo con esta
+        base convertida.
+        """
+        if obligacion.es_smmlv:
+            obligacion.valor = get_smlmv_for_year(obligacion.fecha_origen.year)
+        if obligacion.salario_diario is not None and obligacion.dias_laborados_semana is not None:
+            obligacion.valor = salario_diario_a_mensual(
+                obligacion.salario_diario, obligacion.dias_laborados_semana
+            )
+
+    def _eventos_prestaciones_sociales(self, obligacion) -> tuple[list, Decimal]:
+        """Genera los eventos de capital de las 4 prestaciones estatutarias
+        (cesantias/intereses/prima/vacaciones) via LaborScheduler mas costas
+        procesales, si aplican.
+
+        dias_trabajados_prestaciones (Sprint 30, corregido 2026-08-03):
+        conteo inclusivo (+1) sobre base comercial de 360 dias (12 meses de
+        30 dias) -- confirmado por el despacho para cesantias/intereses/
+        prima/vacaciones (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 3).
+        NO es el mismo valor que `dias_trabajados` (calendario real) que usa
+        seguridad social.
+        """
+        dias_trabajados_prestaciones = CalendarUtils.dias_comerciales_360(
+            obligacion.fecha_inicio, obligacion.fecha_fin
+        )
+        eventos = LaborScheduler(
+            salario_base=obligacion.valor,
+            dias_trabajados=dias_trabajados_prestaciones,
+            fecha_liquidacion=obligacion.fecha_fin,
+        ).generate()
+
+        monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))
+
+        evento_costas = _evento_costas_procesales(
+            obligacion, pretensiones_reconocidas=monto_prestaciones
+        )
+        if evento_costas is not None:
+            eventos.append(evento_costas)
+
+        return eventos, monto_prestaciones
+
+    def _eventos_seguridad_social(self, obligacion, dias_trabajados: int, eventos: list) -> None:
+        """Cotizaciones IBC (pension, salud, ARL, FSP) e incapacidades --
+        opt-in via `obligacion.incluir_seguridad_social` (ver
+        docs/Pendientes.md, Sprint 16, y
+        docs/superpowers/specs/2026-07-18-area-laboral-design.md). Muta
+        `eventos` directamente en vez de retornar una lista nueva.
+        """
+        dias_suspension = sum(
+            (evento.fecha_fin - evento.fecha_inicio).days
+            for evento in obligacion.eventos_laborales
+            if evento.tipo.value == "SUSPENSION"
+        )
+        # IBC_Seguridad_Social = max(salario_proporcional, 1 SMMLV) --
+        # solo para trabajo domestico por dias/jornada parcial (Sprint
+        # 96, respuesta del despacho 22/08/2026): la cotizacion a
+        # seguridad social nunca puede basarse en un IBC menor a 1 SMMLV,
+        # aunque el salario proporcional real si sea menor. NO se aplica
+        # este piso a las prestaciones sociales de arriba (cesantias/
+        # prima/vacaciones), que siguen usando el salario proporcional
+        # real -- ni al resto de contratos Laborales (salario_diario
+        # None), fuera del alcance de esta respuesta.
+        base_seguridad_social = obligacion.valor
+        if obligacion.salario_diario is not None:
+            base_seguridad_social = calcular_ibc_seguridad_social_domestico(
+                salario_proporcional=obligacion.valor,
+                smmlv_mensual=get_smlmv_for_year(obligacion.fecha_fin.year),
+            )
+        cotizaciones = SeguridadSocialCalculator.calcular(
+            salario_base=base_seguridad_social,
+            dias_trabajados=dias_trabajados,
+            dias_suspension=dias_suspension,
+            nivel_riesgo_arl=obligacion.nivel_riesgo_arl,
+            fecha_referencia=obligacion.fecha_fin,
+        )
+        for concepto, monto, etiqueta in [
+            (
+                "COTIZACION_PENSION",
+                cotizaciones.monto_pension,
+                "Cotizacion Pension (seguridad social no pagada)",
+            ),
+            (
+                "COTIZACION_SALUD",
+                cotizaciones.monto_salud,
+                "Cotizacion Salud (seguridad social no pagada)",
+            ),
+            (
+                "COTIZACION_ARL",
+                cotizaciones.monto_arl,
+                "Cotizacion ARL (seguridad social no pagada)",
+            ),
+            (
+                "COTIZACION_FSP",
+                cotizaciones.monto_fsp,
+                "Cotizacion FSP (Fondo de Solidaridad Pensional)",
+            ),
+        ]:
+            if monto > Decimal("0.00"):
+                eventos.append(
+                    Event(
+                        date=obligacion.fecha_fin,
+                        payload={"amount": monto, "label": etiqueta},
+                        event_type=concepto,
+                    )
+                )
+
+        for evento in obligacion.eventos_laborales:
+            if evento.tipo.value == "SUSPENSION":
+                eventos.append(
+                    Event(
+                        date=evento.fecha_fin,
+                        payload={
+                            "amount": Decimal("0.00"),
+                            "label": (
+                                f"Suspension ({evento.motivo_suspension.value}) "
+                                f"{evento.fecha_inicio}-{evento.fecha_fin}: no causa ARL"
+                            ),
+                        },
+                        event_type="SUSPENSION_INFORMATIVA",
+                    )
+                )
+            else:
+                dias_incapacidad = (evento.fecha_fin - evento.fecha_inicio).days
+                desglose = IncapacidadCalculator.calcular(
+                    tipo=evento.tipo,
+                    ibc_mensual=cotizaciones.ibc_mensual,
+                    dias_incapacidad=dias_incapacidad,
+                )
+                for tramo in desglose.tramos:
+                    es_empleador = tramo.pagador == "EMPLEADOR"
+                    eventos.append(
+                        Event(
+                            date=evento.fecha_fin,
+                            payload={
+                                "amount": tramo.monto if es_empleador else Decimal("0.00"),
+                                "label": (
+                                    f"Incapacidad {evento.tipo.value} dias {tramo.dias} - "
+                                    f"{tramo.pagador} ({tramo.porcentaje:.2%}): "
+                                    f"${tramo.monto:,.2f}"
+                                ),
+                            },
+                            event_type="INCAPACIDAD_EMPLEADOR"
+                            if es_empleador
+                            else "INCAPACIDAD_INFORMATIVA",
+                        )
+                    )
+
+    def _eventos_mora_articulo_65(
+        self, obligacion, fecha_corte: date, monto_prestaciones: Decimal, eventos: list
+    ) -> bool:
+        """Indemnizacion moratoria Art. 65 CST -- muta `eventos` y retorna
+        `hay_mora`, que el resto de `liquidar()` necesita para la exclusion
+        mutua con la indexacion IPC (ver docstring de la clase).
+        """
+        if obligacion.fecha_pago_total is not None:
+            fecha_referencia_mora = min(obligacion.fecha_pago_total, fecha_corte)
+        else:
+            fecha_referencia_mora = fecha_corte
+
+        hay_mora = False
+        if fecha_referencia_mora > obligacion.fecha_fin:
+            monto_adeudado = monto_prestaciones
+            mora = MoratoryIndemnityCalculator.calcular(
+                salario_mensual=obligacion.valor,
+                monto_adeudado=monto_adeudado,
+                fecha_terminacion=obligacion.fecha_fin,
+                fecha_pago_o_corte=fecha_referencia_mora,
+            )
+            if mora.total > Decimal("0.00"):
+                hay_mora = True
+                eventos.append(
+                    Event(
+                        date=fecha_referencia_mora,
+                        payload={
+                            "amount": mora.total,
+                            "label": "Indemnizacion moratoria Art. 65 CST",
+                        },
+                        event_type="SANCION_MORATORIA",
+                    )
+                )
+        return hay_mora
+
+    def _eventos_despido_injustificado(self, obligacion, eventos: list) -> None:
+        """Indemnizacion por despido injustificado, Art. 64 CST (Sprint 92).
+        Muta `eventos` directamente; no-op si `despido_injustificado` no esta
+        marcado.
+        """
+        if obligacion.despido_injustificado:
+            indemnizacion_despido = DismissalIndemnityCalculator.calcular(
+                tipo_contrato=obligacion.tipo_contrato_laboral,
+                salario_mensual=obligacion.valor,
+                fecha_ingreso=obligacion.fecha_inicio,
+                fecha_terminacion=obligacion.fecha_fin,
+                despido_injustificado=True,
+                smlmv_mensual=get_smlmv_for_year(obligacion.fecha_fin.year),
+                fecha_fin_pactada=obligacion.fecha_fin_pactada,
+            )
+            if indemnizacion_despido.total > Decimal("0.00"):
+                eventos.append(
+                    Event(
+                        date=obligacion.fecha_fin,
+                        payload={
+                            "amount": indemnizacion_despido.total,
+                            "label": (
+                                "Indemnizacion por despido injustificado Art. 64 CST "
+                                f"({indemnizacion_despido.regimen}, "
+                                f"{indemnizacion_despido.dias_indemnizacion} dias)"
+                            ),
+                        },
+                        event_type="INDEMNIZACION_DESPIDO",
+                    )
+                )
+
+    def _eventos_descuentos_empleador(self, obligacion, eventos: list) -> None:
+        """Descuentos del empleador (Sprint 44, punto 3): se inyectan como
+        eventos PAYMENT mas -- mismo mecanismo de pagos/allocation que ya
+        usan los abonos. `es_legal` es solo metadata descriptiva.
+        """
+        for descuento in obligacion.descuentos_laborales:
+            calificacion = "legal" if descuento.es_legal else "ilegal"
+            etiqueta = f"Descuento del empleador ({calificacion})"
+            if descuento.motivo:
+                etiqueta += f": {descuento.motivo}"
+            eventos.append(
+                Event(
+                    date=descuento.fecha,
+                    payload={"amount": descuento.monto, "label": etiqueta},
+                    event_type="PAYMENT",
+                )
+            )
 
     def _liquidar_salarios_dejados_de_percibir(
         self, obligacion, abonos: list, fecha_corte: date

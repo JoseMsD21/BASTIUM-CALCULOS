@@ -35,7 +35,7 @@ from app.services.parametro_service import (
     valor_vigente_hoy,
     vigencia_hasta_mostrar,
 )
-from app.views.form_utils import agregar_ayuda, hacer_redimensionable
+from app.views.form_utils import FormDialogBase, agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
 from database.models import AreaDerecho, ParametroLegal
 
@@ -78,7 +78,7 @@ def _texto_areas(fila: ParametroLegal | None) -> str:
         return "?"
 
 
-class ParametroFormDialog(QDialog):
+class ParametroFormDialog(FormDialogBase):
     def __init__(self, parent=None, parametro_id: int | None = None):
         super().__init__(parent)
         hacer_redimensionable(self)
@@ -434,14 +434,6 @@ class ParametroFormDialog(QDialog):
             motivo=motivo,
             vigente_hasta=vigente_hasta,
         )
-
-    def _guardar_y_cerrar(self) -> None:
-        try:
-            self.guardar()
-            self.accept()
-        except ValueError as error:
-            QMessageBox.warning(self, "Datos invalidos", str(error))
-
 
 class HistorialParametroDialog(QDialog):
     # Sprint 58: etiqueta de columna + nota de formula por CADA clave

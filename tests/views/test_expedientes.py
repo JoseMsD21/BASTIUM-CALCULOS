@@ -3,21 +3,16 @@ from decimal import Decimal
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QLabel, QMessageBox
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 import database.session as session_module
 from app.core.constants import AREAS_DERECHO
 from app.views.expedientes import ExpedienteFormDialog, ExpedientesListView
-from database.models import AreaDerecho, Base, Expediente, Obligacion, TipoObligacion
+from database.models import AreaDerecho, Expediente, Obligacion, TipoObligacion
+from tests.views.conftest import crear_sesion_en_memoria
 
 
 def _sesion_en_memoria(monkeypatch):
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    monkeypatch.setattr(
-        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
-    )
+    crear_sesion_en_memoria(monkeypatch)
 
 
 def test_campos_no_autoexplicativos_tienen_tooltip(qtbot, monkeypatch):
