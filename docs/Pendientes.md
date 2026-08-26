@@ -286,6 +286,11 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--completado-bug-de-dominio-confirmado-corrección-diferida-al-sprint-104)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
 - [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) ⚠️ Parcial](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--reabierto)
+- [Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 📋 Pendiente](#sprint-105--intake-de-caso-área-del-derecho--tipo-de-proceso--subtipo-con-checklist-de-obligaciones-predefinidas--pendiente)
+- [Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 📋 Pendiente](#sprint-106--formato-de-fecha-único-díamesaño-y-año-del-actatítulo-capturado-una-sola-vez-por-caso--pendiente)
+- [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Pendiente](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--pendiente)
+- [Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word 🔴 Bug confirmado sin corregir](#sprint-108--bug-confirmado-bordes-de-tabla-en-borgoña-deben-ser-negro-y-fila-totales-en-negro-debe-ser-borgoña-en-pdfword--bug-confirmado-sin-corregir)
+- [Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) 📋 Pendiente](#sprint-109--especificación-de-color-para-gráficas-de-líneacurva-con-degradado-borgoña-estándar-a-futuro--pendiente)
 
 ---
 
@@ -7525,6 +7530,262 @@ interés aplica junto con la indexación en Suma Única (que hoy no está conect
 original `test_civil_familia_suma_unica_con_abonos_no_reproduce_el_patron_x9` (Sprint 102) sigue documentando
 la brecha del motor actual sin cambios — no se tocó el comportamiento en producción. Suite completa en verde
 (1597 tests) y `ruff check .` limpio antes de mergear.
+
+---
+
+**Nota de recuperación (2026-08-25):** los Sprints 105-109 de abajo salieron del análisis de novedades del
+despacho del 2026-08-23 (10/08 y 22/08/2026) — un lote de UX/UI transversal independiente de las preguntas
+legales que procesó la rutina en la nube (Sprints 70-104 arriba), por lo que la nube no tenía forma de
+saber que existían. Quedaron fuera de `main` por un descuido al sincronizar con la nube (se guardaron en un
+`git stash` que se descartó sin re-aplicar); se recuperaron del commit del stash todavía presente en la base
+de objetos de git y se re-verificaron los 4 hallazgos de código contra el estado actual del repositorio
+(2026-08-25) antes de restaurarlos — los 4 siguen exactamente igual (`app/reports/pdf.py` sigue con el GRID
+en `c_burgundy`; `app/views/expedientes.py` sigue sin `tipo_proceso`; `app/views/obligaciones.py` sigue con
+`campo_fecha_inicio` y el placeholder `MM-DD`; no existe ningún `Line2D`/`fill_between`/`LineCollection` en
+`app/`).
+
+## Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 📋 Pendiente
+
+**Prioridad sugerida:** Alta — es la puerta de entrada de cualquier expediente; hoy el abogado arma cada
+obligación desde cero aunque el subtipo de caso ya determine casi siempre el mismo conjunto de obligaciones.
+
+**Depende de:** Sprint 74 (entidad `Beneficiario`, útil como parte del intake de Familia) y, si se decide
+integrarlo, Sprint 41/73/75 (los generadores de cuotas que las obligaciones predefinidas deberían poder
+disparar directamente).
+
+**Contexto (reportado por el despacho, 2026-08-13/2026-08-22, con aclaración explícita del propio despacho
+sobre el flujo):** en la recepción del caso, después de elegir el área del derecho, debe aparecer una
+casilla para el tipo de proceso (declarativo, monitorio, ejecutivo); al elegir el tipo de proceso, debe
+aparecer una lista de subtipos de caso propios de esa combinación (ej. Civil/Familia + Ejecutivo →
+"Ejecutivo de alimentos"); y al elegir el subtipo, el sistema ya debe tener preparadas las obligaciones
+típicas de ese subtipo (para un ejecutivo de alimentos: la cuota de alimentos recurrente siempre está,
+opcionalmente pueden estar subsidios, vestuario, 50% de educación/salud, etc.) en vez de que el abogado
+tenga que redactar obligación por obligación desde cero — como una "lista de compras" donde se marcan las
+predefinidas o se agregan obligaciones particulares con nombre y periodicidad libres.
+
+**Hallazgos (verificados leyendo el código, 2026-08-23):** `ExpedienteFormDialog` (`app/views/expedientes.py:30-101`)
+solo tiene `self.combo_area` ("Área del derecho") — no existe ningún campo de tipo de proceso ni de subtipo
+de caso en `ExpedienteFormDialog` ni en `database/models.py`. Confirmado con búsqueda de "tipo_proceso" en
+todo el proyecto: el único uso existente es `costas_tipo_proceso` (Sprint 18, para calcular agencias en
+derecho), un concepto distinto y ya construido, no reutilizable directamente para esta clasificación de
+intake. Es alcance enteramente nuevo.
+
+**Decisión de diseño a tomar con el usuario antes de codificar (no asumir, mismo criterio que Sprints
+13/16/20/41/74):**
+- Catálogo exacto de tipos de proceso y subtipos por área (empezando por Civil/Familia + Ejecutivo, el
+  ejemplo dado), y qué obligaciones predefinidas trae cada subtipo — esto es un catálogo jurídico, no una
+  decisión de UI.
+- Modelo de datos: ¿campos nuevos en `Expediente` (`tipo_proceso`, `subtipo_caso`) más una tabla de
+  "plantillas de obligaciones por subtipo", o basta con una lista hardcodeada en el servicio que arma el
+  formulario de "Agregar obligación" precargado?
+- Si una obligación predefinida (ej. cuota de alimentos) debe crearse automáticamente al elegir el subtipo,
+  o solo quedar sugerida/marcable en una lista para que el abogado confirme.
+
+**Código nuevo a crear (una vez confirmado el catálogo):**
+- Campo(s) `tipo_proceso`/`subtipo_caso` en `Expediente`, con migración de esquema.
+- Combos en cascada en `ExpedienteFormDialog`: Área → Tipo de proceso (solo los válidos para esa área) →
+  Subtipo (solo los válidos para esa combinación), cada uno poblándose al elegir el anterior.
+- Un catálogo de obligaciones predefinidas por subtipo (nombre, periodicidad, si es obligatoria u opcional)
+  y una pantalla tipo "lista de compras" para marcarlas o agregar obligaciones particulares al confirmar el
+  expediente.
+
+**Definición de Hecho:**
+- Elegir Civil/Familia → Ejecutivo → "Ejecutivo de alimentos" presenta la cuota de alimentos como obligación
+  ya marcada, y subsidios/vestuario/educación/salud como opciones marcables, sin tener que abrir "Agregar
+  obligación" desde cero para cada una.
+- El abogado puede seguir agregando una obligación particular con nombre y periodicidad libres, sin que el
+  catálogo predefinido se lo impida.
+- Suite completa en verde.
+
+---
+
+## Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 📋 Pendiente
+
+**Prioridad sugerida:** Media-alta — es una regla transversal a todas las áreas y formularios, no aislada a
+una pantalla; cuanto más tarde se corrija, más pantallas nuevas heredarán la inconsistencia.
+
+**Depende de:** Nada técnicamente. Se beneficia de Sprint 105 (si el año del acta/título queda en
+`Expediente`, ese mismo campo es el candidato natural para capturarlo una sola vez ahí).
+
+**Contexto (reportado por el despacho, 2026-08-22):** "PARA TODO EL DESARROLLO DEBE TENERSE UN SOLO FORMATO
+DE FECHA: DÍA/MES/AÑO." Señala en concreto que el campo de fechas anuales fijas (Sprint 73) pide el formato
+norteamericano mes-día y debe pasar a día-mes; y pide que el año en que entró en vigencia el acta/título se
+capture una sola vez en los datos del caso (junto con el tipo de título y su fecha exacta de entrada en
+vigencia), en vez de repetirlo en cada obligación.
+
+**Hallazgos (verificados leyendo el código, 2026-08-23):**
+- `self.campo_fechas_anuales_fijas` (`app/views/obligaciones.py:222-225`) es un `QLineEdit` de texto libre
+  con placeholder `"06-15, 12-15, 03-22"` y tooltip que pide explícitamente el formato `"MM-DD"` — mes antes
+  que día, exactamente lo que el despacho pide cambiar.
+- No se encontró ningún `QDateEdit::setDisplayFormat` en todo `app/` (`grep` sin resultados) — los
+  `QDateEdit` del proyecto (`campo_fecha_origen`, `campo_fecha_inicio`, `campo_fecha_nacimiento_beneficiario`,
+  `campo_fecha_vencimiento`, etc.) corren con el formato de fecha por defecto de Qt/el sistema operativo, sin
+  ninguna garantía explícita de que sea día/mes/año en todas las máquinas donde corra la app.
+- No existe ningún campo de "año/fecha de vigencia del acta o título" a nivel de `Expediente` — cada
+  `Obligacion` trae su propia `fecha_origen`/`fecha_causacion` de forma independiente.
+
+**Decisión de diseño a tomar antes de codificar:**
+- Confirmar si el campo de fechas anuales fijas pasa a un widget estructurado (ej. 2 `QSpinBox`
+  día/mes, o un `QDateEdit` con año fijo/ignorado) en vez de texto libre, para eliminar la ambigüedad de
+  raíz en vez de solo cambiar el texto del tooltip.
+- Confirmar el modelo de datos para "año/fecha de vigencia del acta o título" en `Expediente` (ver Sprint
+  105) y cómo las obligaciones nuevas de ese expediente heredan ese año por defecto sin tener que
+  reescribirlo.
+
+**Código nuevo a crear:**
+- `setDisplayFormat("dd/MM/yyyy")` en todos los `QDateEdit` del proyecto (`obligaciones.py`, `abonos.py`,
+  `expedientes.py`, y cualquier otro formulario con fecha).
+- Reemplazar el formato `MM-DD` del campo de fechas anuales fijas por `DD-MM` (o un widget estructurado), con
+  migración de los datos ya guardados en `Obligacion.fechas_anuales_fijas` si existen registros previos.
+- Campo nuevo en `Expediente` para el tipo de título y su fecha/año de vigencia, con migración de esquema, y
+  wiring para que los formularios de obligación lo usen como valor por defecto en vez de pedirlo de nuevo.
+
+**Definición de Hecho:**
+- Todo campo de fecha visible en la app (formularios de Obligación, Abono, Expediente) muestra y acepta
+  día/mes/año, sin excepciones.
+- El campo de fechas anuales fijas pide y muestra día-mes, no mes-día.
+- El año/fecha de vigencia del acta o título se captura una sola vez en los datos del expediente y las
+  obligaciones nuevas de ese expediente lo usan por defecto.
+- Suite completa en verde.
+
+---
+
+## Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Pendiente
+
+**Prioridad sugerida:** Media — no es un bug de cálculo (Sprint 8/20/43 ya calculan correctamente cuando el
+checkbox está marcado), es un cambio de en qué momento del flujo se toma la decisión.
+
+**Depende de:** Sprint 8 (indexación IPC), Sprint 20 (Suma Única / interés sobre capital indexado), Sprint
+43 (checkbox disponible en las 6 áreas), Sprint 71 (visibilidad del checkbox — este sprint no reemplaza esa
+corrección visual, la reubica).
+
+**Contexto (reportado por el despacho, 2026-08-10):** "la casilla de aplicar indexación de IPC debe
+aparecer cuando ya esté hecha la liquidación, pues automáticamente se debe indexar. Sólo cuando esté lista
+la liquidación por pura pedagogía se le puede presentar una tabla al juez donde no se actualiza con
+indexación." Es decir: el despacho quiere liquidar primero (con indexación aplicada por defecto) y solo
+después, sobre el resultado ya proyectado, decidir si presenta también una versión sin indexar con fines
+pedagógicos ante el juez. Lo mismo aplica a "interés sobre capital indexado" (Suma Única, Sprint 20): debe
+poder decidirse sobre la liquidación ya lista, no solo al capturar la obligación.
+
+**Hallazgos (verificados leyendo el código, 2026-08-23):** `check_aplica_indexacion_ipc` y el checkbox de
+`interes_sobre_capital_indexado` (`app/views/obligaciones.py`, dentro de `grupo_tasas_intereses`) son campos
+de `ObligacionFormDialog` — se marcan al capturar la obligación, **antes** de liquidar, y quedan fijos en
+`Obligacion` en base de datos. No existe ningún control en `ResultadoLiquidacionView`
+(`app/views/liquidaciones.py`) para alternar la indexación sobre una liquidación ya calculada — recalcular
+con el checkbox distinto hoy exige volver a editar la obligación y liquidar de nuevo desde cero.
+
+**Decisión de diseño a tomar con el usuario antes de codificar:**
+- ¿La liquidación pasa a indexar por defecto siempre que la obligación lo permita (sin checkbox previo), y
+  el control se mueve por completo a `ResultadoLiquidacionView` como un toggle que recalcula in situ (ej.
+  "Ver sin indexación (pedagógico)")? ¿O el checkbox de captura se mantiene como está y se agrega un segundo
+  control posterior, puramente de presentación, que no cambia el dato guardado?
+- Si el toggle recalcula, debe seguir el mismo motor (`UniversalLiquidationService`) para no duplicar lógica
+  de indexación — evaluar si conviene exponer una función que reciba el resultado ya calculado y solo
+  reste/sume el componente de indexación, en vez de recalcular todo desde cero.
+
+**Código nuevo a crear (una vez decidido):**
+- Control en `ResultadoLiquidacionView` para alternar indexación IPC / interés sobre capital indexado sobre
+  una liquidación ya proyectada, sin perder el resto del resultado calculado.
+- Ajuste de `ObligacionFormDialog` según lo que se decida (quitar el checkbox previo, dejarlo como valor por
+  defecto editable después, o mantenerlo intacto si el toggle posterior es solo de presentación).
+
+**Definición de Hecho:**
+- Una liquidación ya proyectada puede mostrarse con y sin indexación IPC (y con y sin interés sobre capital
+  indexado, donde aplique) sin tener que volver a capturar la obligación desde cero.
+- Suite completa en verde.
+
+---
+
+## Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word 🔴 Bug confirmado sin corregir
+
+**Prioridad sugerida:** Media-alta — es un bug de identidad visual confirmado leyendo el código, no una
+hipótesis, y afecta a todos los documentos judiciales que la app genera hoy.
+
+**Depende de:** Sprint 31 (paleta de marca ya centralizada en `app/core/theme_colors.py`: `PRIMARIO =
+"#AE1C21"` borgoña, `SECUNDARIO = "#F5F1E9"` crema — mismos valores que `c_burgundy`/`c_cream` en
+`app/reports/pdf.py`, ya son la misma fuente de verdad).
+
+**Contexto (reportado por el despacho, 2026-08-22):** "LAS LINEAS Y BORDES DE LAS TABLAS DEBEN SER DE COLOR
+NEGRO, EL CONTENIDO TAMBIÉN, EXCEPTO LOS VALORES TOTALES QUE VAN EN EL ROJO BORGOÑA... Y LOS ENCABEZADOS DE
+LAS COLUMNAS VAN EN EXTRABOLD COLOR CREMA SOBRE FONDO NEGRO. EL RESTO DE LA TABLA DEBE SER COLOR CREMA IGUAL
+QUE EL FONDO DEL DOCUMENTO."
+
+**Hallazgos (verificados leyendo `app/reports/pdf.py`, 2026-08-23) — 3 mismatches confirmados, repetidos en
+las 5 tablas de cronología del archivo (líneas ~115-127, ~236-243, ~306-313, ~352-358, ~400-406):**
+1. `("GRID", (0, 0), (-1, -1), 1, self.c_burgundy)` — el borde/grid de la tabla es **borgoña**, debía ser
+   **negro**.
+2. La fila de `TOTALES` hereda `("TEXTCOLOR", (0, 1), (-1, -1), self.c_black)` de las filas de cuerpo, con
+   solo `("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold")` como diferencia — queda en **negro negrita**, no
+   hay ningún `TEXTCOLOR` que la ponga en **borgoña** como pide el despacho.
+3. El encabezado (`("BACKGROUND", (0,0),(-1,0), c_black)` + `("TEXTCOLOR", (0,0),(-1,0), c_cream)`) ya tiene
+   fondo negro y texto crema correctos, pero **no usa la fuente ExtraBold** — corre con el `Helvetica`/
+   `Helvetica-Bold` de reportlab, no con `AncizarSans-ExtraBold.ttf` (ya existe en `app/assets/fonts/` desde
+   el Sprint 31, pero nunca se registró como fuente de reportlab en `pdf.py`).
+   El resto del cuerpo (fondo crema, texto negro) ya es correcto y no requiere cambios.
+
+**Pendiente de verificar (no se leyó en este análisis, mismo patrón esperado):** `app/reports/word.py` define
+los mismos 3 colores (`self.c_burgundy = RGBColor(0xAE,0x1C,0x21)`, usado en títulos/subtítulos) — revisar
+si sus tablas de cronología tienen el mismo mismatch de bordes/totales antes de dar el sprint por cerrado.
+
+**Código a corregir:**
+- `app/reports/pdf.py`: cambiar el color de `GRID` de `c_burgundy` a `c_black` en las 5 tablas de
+  cronología; agregar `TEXTCOLOR` en borgoña a la fila de `TOTALES`/`TOTAL` de cada una; registrar
+  `AncizarSans-ExtraBold.ttf` con `reportlab.pdfbase.pdfmetrics.registerFont` y usarlo en el `FONTNAME` del
+  encabezado.
+- `app/reports/word.py`: aplicar el mismo criterio si el diagnóstico confirma el mismo mismatch.
+
+**Definición de Hecho:**
+- El grid/borde de las tablas de cronología en PDF y Word es negro.
+- La fila de totales queda en borgoña de marca (`#AE1C21`), en negrita.
+- El encabezado de columnas usa `AncizarSans-ExtraBold` (o el peso extrabold disponible), crema sobre negro.
+- El resto del cuerpo de la tabla se mantiene crema con texto negro (ya correcto, sin regresión).
+- Suite completa en verde, con tests que verifiquen los estilos de `TableStyle` (no solo que el PDF se genere
+  sin excepción).
+
+---
+
+## Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) 📋 Pendiente
+
+**Prioridad sugerida:** Baja — no hay ninguna gráfica de línea/curva en el código hoy; este sprint deja el
+estándar documentado para cuando se construya una, en vez de dejar la regla suelta en un mensaje del
+despacho.
+
+**Depende de:** Sprint 31 (paleta de marca) y Sprint 50 (gráficas del dashboard, hoy de barras).
+
+**Contexto (reportado por el despacho, 2026-08-22):** "EN LAS GRAFICAS ESTADÍSTICAS LAS LÍNEAS DEBEN SER
+NEGRAS PARA CADA EJE, LA LINEA DE LA CURVA DEBE SER BORGOÑA DE LA MARCA Y SU DEGRADADO DEBE SER DEL MISMO
+COLOR... EN CASO QUE HAYAN DOS CURVAS CONVERGIENDO EN LA GRÁFICA, LA CURVA SECUNDARIA DEBE SER COLOR NEGRO
+PURO Y SU DEGRADADO TAMBIÉN. LAS LETRAS Y VALORES TAMBIÉN DEBEN SER NEGRO PURO."
+
+**Hallazgos (verificados leyendo el código, 2026-08-23):** ninguna gráfica del proyecto es de línea/curva
+hoy — `app/reports/charts.py` (`ax.barh(...)`) y `app/views/dashboard.py`
+(`self._ejes_por_area.bar(etiquetas, conteos, color=colores.PRIMARIO)`) son ambas de **barras**. La única
+coincidencia parcial ya existente: `app/reports/charts.py` ya pinta los ejes (`spines`) en negro
+(`self.color_black`) y oculta los ejes superior/derecho — ese criterio de "ejes negros" ya se cumple donde
+hay ejes, pero no hay ninguna curva ni degradado que verificar todavía.
+
+**Decisión de diseño a tomar con el usuario:** ¿esta especificación es preventiva (documentar el estándar
+para cuando exista una necesidad real de gráfica de evolución temporal, ej. saldo de un expediente en el
+tiempo) o el despacho tiene en mente una gráfica concreta que falta construir? Si es lo segundo, ese caso de
+uso debe salir como su propio sprint de alcance (qué gráfica, con qué datos), y este sprint solo aporta la
+paleta.
+
+**Código nuevo a crear (cuando exista una gráfica de curva real):**
+- Ejes y texto en negro puro (`#000000`), reutilizando el mismo criterio que ya aplica
+  `app/reports/charts.py` a sus `spines`.
+- Curva principal en `PRIMARIO` (`#AE1C21`, borgoña de marca) con relleno degradado hacia el eje usando
+  `matplotlib.collections.LineCollection`/`fill_between` con `alpha` decreciente hacia el eje (más intenso
+  cerca de la curva, más sutil cerca del eje) — patrón estándar de matplotlib para "área bajo la curva" con
+  degradado, no una función nueva del proyecto.
+- Si hay una curva secundaria (dos series convergiendo), esa segunda curva y su degradado en negro puro, no
+  en un color distinto.
+
+**Definición de Hecho:**
+- Documentado en `app/core/theme_colors.py` (o `docs/DISENO_UI_UX.md`) como el estándar de color para
+  cualquier gráfica de línea/curva futura, citable por su nombre en vez de repetir la especificación cada
+  vez.
+- Si se construye una gráfica de curva real en este sprint o uno posterior, cumple exactamente esta
+  especificación, verificado visualmente (no solo que el código compile).
 
 ---
 
