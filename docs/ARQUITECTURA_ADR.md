@@ -101,3 +101,34 @@ reporte de error incluya, sin querer, datos de un expediente real.
 **Consecuencias:** No hay visibilidad remota de cómo se usa la app en producción ni de errores no
 reportados manualmente por el usuario; el reporte de bugs depende de que el usuario abra un issue (ver
 [SECURITY.md](SECURITY.md)) o escriba directamente.
+
+---
+
+### ADR-006: Validación de forma en la vista, validación de dominio en services
+
+**Contexto:** Los formularios de `app/views/` (`ObligacionFormDialog`, `AbonoFormDialog`, etc.) y las
+strategies de `app/services/area_strategy.py` (`LaboralStrategy`, `TributarioStrategy`, etc.) validan datos
+en dos momentos distintos de la vida de una obligación: al capturarla en el formulario, y al liquidarla.
+Sin una regla explícita, cada sprint nuevo corre el riesgo de duplicar la misma validación en ambas capas
+(o de agregarla solo en una, dejando la otra sin cubrir según la vía de entrada de los datos).
+
+**Decisión:** Una validación de **forma** (campo obligatorio, número mayor que cero, fecha posterior a
+otra fecha, formato numérico válido) vive en la vista, en el método `guardar()` de cada
+`FormDialogBase` (`app/views/form_utils.py`, Sprint 114) — son datos que un formulario nunca debería dejar
+pasar hacia la base de datos, y el usuario necesita el error inmediatamente, junto al campo que lo causó.
+Una validación de **dominio o de cálculo** (reglas del área de derecho, topes legales, combinaciones de
+campos que solo tienen sentido a la luz de una fórmula de liquidación) vive en `app/services/` —
+`AreaStrategy.liquidar()` y los validadores que invoca (ej. `_validar_obligacion_laboral`) — porque esa
+lógica debe aplicar sin importar si la obligación se creó desde el formulario, se editó después, o llegó
+por otra vía (ej. una migración de datos), y porque suele depender de más de un campo o de la fecha de
+corte de la liquidación, no solo del valor tecleado en un campo individual.
+
+**Alternativas consideradas:** Validar todo en la vista (más simple de escribir, pero deja sin cubrir
+cualquier obligación que no pase por el formulario) — descartada porque `liquidar()` es la última línea de
+defensa real contra datos inconsistentes, y varias reglas de dominio (ej. los topes del Art. 867-1, la
+exclusión mutua entre indexación IPC y mora) no tienen sentido como validación de un solo campo aislado.
+
+**Consecuencias:** Un `ValueError` de dominio que sube desde `AreaStrategy.liquidar()` puede llegar hasta
+la UI de liquidación sin el contexto de "qué campo del formulario lo causó" (el formulario ya se cerró);
+a cambio, la regla de negocio se aplica una sola vez, de forma consistente, sin importar la vía de entrada
+de los datos.
