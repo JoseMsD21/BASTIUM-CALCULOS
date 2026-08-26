@@ -162,6 +162,19 @@ completo/"Editar" que les faltaba, mismo patrón que ya tiene Eventos Laborales)
 sin implementar: conectar a futuro los 18 parámetros de prescripción/caducidad que hoy no tiene ningún
 botón real que los dispare).
 
+**Sprints 110-115 (nuevos, 2026-08-25): segunda auditoría técnica transversal completa del repositorio**
+(6 agentes en paralelo, uno por bloque de categorías — motor de cálculo, concurrencia/rendimiento,
+dependencias/seguridad/organizacional, mantenibilidad/arquitectura, validación/UX/tests, documentación —,
+mismo método que los Sprints 23-30/47-48/52-54, repetido ahora contra el estado del código tras ~80 sprints
+adicionales. Cada agente confirmó primero por grep en este mismo archivo que su hallazgo no estuviera ya
+documentado o corregido, y los hallazgos de mayor severidad se releyeron/reprodujeron manualmente antes de
+documentarlos acá — el más grave (Sprint 110) se verificó ejecutando el código real. Los más urgentes:
+Sprint 110 (dos crashes reales y reproducibles hoy mismo: la tabla de tasas IBC/Usura no tiene datos más
+allá del 2026-07-31 y no extrapola, así que cualquier liquidación Laboral o Tributaria con mora larga
+liquidada con la fecha de hoy lanza una excepción sin capturar) y Sprint 111 (el formulario Tributario,
+agregado 4 días después de que el Sprint 24 corrigiera este mismo problema en las demás áreas, no valida
+signo/rango de ningún campo numérico).
+
 **Sprints 80-102 (nuevos, 2026-08-19): ~60 plantillas y documentos de referencia enviados por el despacho
 (Ediciones Sistematizadas Equidad + Superintendencia Financiera), convertidos a Markdown con
 [MarkItDown](https://github.com/microsoft/markitdown) y comparados contra el código real por 4
@@ -296,6 +309,12 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Pendiente](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--pendiente)
 - [Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word 🔴 Bug confirmado sin corregir](#sprint-108--bug-confirmado-bordes-de-tabla-en-borgoña-deben-ser-negro-y-fila-totales-en-negro-debe-ser-borgoña-en-pdfword--bug-confirmado-sin-corregir)
 - [Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) 📋 Pendiente](#sprint-109--especificación-de-color-para-gráficas-de-líneacurva-con-degradado-borgoña-estándar-a-futuro--pendiente)
+- [Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) 🔴 Bug confirmado sin corregir](#sprint-110--bug-confirmado-el-motor-de-tasas-ibcusura-no-extrapola-más-allá-de-2026-07-31-crash-en-laboral-y-tributario--bug-confirmado-sin-corregir)
+- [Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) 🔴 Bug confirmado sin corregir](#sprint-111--validación-de-datos-regresiones-del-sprint-24-en-formularios-nuevos-tributario-contrato-a-término-fijo-descuentos-laborales--bug-confirmado-sin-corregir)
+- [Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices 📋 Pendiente](#sprint-112--concurrencia-y-rendimiento-operaciones-nuevas-sin-threading-n1-reintroducido-y-migraciones-sin-recalcular-índices--pendiente)
+- [Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente](#sprint-113--seguridad-versionado-y-housekeeping-organizacional-auditoría-2026-08-25--pendiente)
+- [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común 📋 Pendiente](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--pendiente)
+- [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) 📋 Pendiente](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--pendiente)
 
 ---
 
@@ -7843,6 +7862,391 @@ paleta.
   vez.
 - Si se construye una gráfica de curva real en este sprint o uno posterior, cumple exactamente esta
   especificación, verificado visualmente (no solo que el código compile).
+
+---
+
+## Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) 🔴 Bug confirmado sin corregir
+
+**Prioridad sugerida:** Máxima — no es un caso borde raro: cualquier liquidación Laboral (indemnización
+moratoria Art. 65 CST) o Tributaria (actualización usura plena Art. 867-1 E.T.) con mora superior a 2-3
+años, liquidada con la fecha de hoy o cualquier fecha posterior al 2026-07-31, lanza una excepción sin
+capturar hoy mismo en producción.
+
+**Depende de:** Nada — es un bug de datos/lógica en código ya existente (Sprints 5, 92, 15).
+
+**Hallazgos (auditoría de código, 2026-08-25, verificados leyendo y ejecutando el código real):**
+
+1. **`app/engine/indexation/historical_index.py`** — la tabla `_TRAMOS_IBC_USURA` (línea 723, comentario
+   de rango en línea 675: "1971-10-29 a 2026-07-31") termina el 2026-07-31. `get_ibc_usura_for_date`
+   (línea 1042) lanza `ValueError("No hay tramo de IBC/Usura configurado para la fecha {fecha}.")`
+   (línea 1053) para cualquier fecha posterior, **sin extrapolar** al último tramo conocido — a diferencia
+   de `get_ipc_interpolado_for_date`, que sí tiene un fallback documentado para este mismo escenario
+   (decisión explícita del Sprint 8). `get_tramos_ibc_usura_between` (línea 1058) tiene el mismo problema
+   para rangos (línea 1086).
+2. **Crash reproducido en Laboral** — `app/engine/labor/moratory_indemnity.py:66`
+   (`MoratoryIndemnityCalculator.calcular`, fase 2 día a día) llama `get_ibc_usura_for_date(dia)` sin
+   capturar la excepción. Wireado en producción vía `app/services/area_strategy.py:1396`
+   (`LaboralStrategy`). Reproducido: `MoratoryIndemnityCalculator.calcular(salario_mensual=2000000,
+   monto_adeudado=5000000, fecha_terminacion=date(2024,1,1), fecha_pago_o_corte=date(2026,8,25))` lanza
+   `ValueError: No hay tramo de IBC/Usura configurado para la fecha 2026-08-01`.
+3. **Crash reproducido en Tributario, sin mensaje útil** — `app/engine/tax/actualizacion_867_1.py:95`
+   (`calcular_interes_usura_plena`) construye un diccionario `tasa_por_dia` a partir de
+   `get_tramos_ibc_usura_between` (que no lanza si *algunos* tramos existen en el rango) y luego indexa
+   `tasa_por_dia[dia]` sin comprobar que la clave exista. Wireado vía
+   `app/services/area_strategy.py:2018/2105` (`TributarioStrategy._evento_actualizacion_867_1`), para
+   cualquier obligación `IMPUESTO_A_CARGO` con `protegida_inflacion_uvr=True` y mora > 3 años. Reproducido:
+   `calcular_interes_usura_plena(Decimal('1000000'), date(2020,1,1), date(2026,8,25))` lanza
+   `KeyError: datetime.date(2026, 8, 1)` — sin ningún mensaje explicativo, peor experiencia que el
+   `ValueError` del punto 2.
+4. **Bug de lógica relacionado, hoy sin impacto real (función aislada, no cableada):**
+   `app/engine/indexation/suma_unica_con_abonos.py:117-123`
+   (`liquidar_obligacion_con_abonos_tramo_por_tramo`) no acota `capital_base` cuando un abono supera la
+   deuda total (intereses + capital) de un tramo — el remanente negativo se arrastra a los tramos
+   siguientes. Reproducido: capital $1.000.000, abono de $50.000.000 el 2024-06-01, corte 2025-01-01 →
+   `gran_total_adeudado = -54.034.338,13` (un "adeudado" negativo sin sentido de negocio). Esta función es
+   deliberadamente independiente todavía (Sprint 104, ⚠️ Parcial — no está cableada a ningún
+   `AreaStrategy`), así que no afecta ninguna liquidación real hoy, pero se activaría el día que se
+   conecte; sus 8 tests actuales no cubren este caso borde.
+
+**Código nuevo a crear / corregir:**
+- Decidir con el despacho (o aplicar por defecto y documentar) un criterio de extrapolación para
+  `get_ibc_usura_for_date`/`get_tramos_ibc_usura_between` cuando la fecha pedida sea posterior al último
+  tramo cargado — mismo patrón que `get_ipc_interpolado_for_date`/`ultimo_anio_disponible` ya resuelve
+  para IPC (reutilizar ese mecanismo en vez de inventar uno nuevo).
+- Mientras no exista esa decisión, al menos capturar la excepción en `LaboralStrategy`/`TributarioStrategy`
+  y convertirla en una alerta no bloqueante en vez de tumbar la liquidación completa (mismo patrón de
+  manejo de excepciones de dominio que ya usa `app/views/concurrency.py`, Sprint 26).
+- Corregir `calcular_interes_usura_plena` para validar explícitamente `dia in tasa_por_dia` antes de
+  indexar, con un mensaje de error tan claro como el de `get_ibc_usura_for_date` (aplica incluso si se
+  resuelve el problema de raíz, como defensa en profundidad).
+- Acotar `capital_base = max(Decimal("0.00"), capital_indexado - remanente_para_capital)` en
+  `suma_unica_con_abonos.py`, y decidir con el despacho cómo tratar el sobrante (¿resta a tramos futuros?
+  ¿saldo a favor, mismo campo `saldo_a_favor` del Sprint 23?) antes de cablear esta función a producción.
+- Establecer (o al menos documentar) un proceso de mantenimiento periódico de `_TRAMOS_IBC_USURA` — el
+  mismo tipo de "deuda de datos que vence" que ya se identificó para otras series históricas.
+
+**Riesgos / notas técnicas conocidas:**
+- Como la fecha de corte de una liquidación normalmente es "hoy", este bug empeora solo con el paso del
+  tiempo real (cada día que pasa sin actualizar la tabla, más liquidaciones lo disparan) — no depende de
+  ningún dato del usuario, es puramente una función de la fecha del sistema.
+
+**Definición de Hecho:**
+- Test que reproduce exactamente los escenarios 2 y 3 de arriba con una fecha de corte posterior al último
+  tramo cargado, y confirma que ya no lanza una excepción sin capturar (extrapola, o falla con un mensaje
+  claro y no bloqueante según lo que decida el despacho).
+- Test de `suma_unica_con_abonos.py` con un abono mayor a la deuda del tramo que confirme
+  `gran_total_adeudado >= 0`.
+- Suite completa en verde.
+
+---
+
+## Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) 🔴 Bug confirmado sin corregir
+
+**Prioridad sugerida:** Alta — el Sprint 24 (2026-07-21, cerrado 2026-08-17) ya había corregido exactamente
+este tipo de falta en 5 de 6 áreas; el formulario Tributario se agregó 4 días después de ese cierre
+(commit `cc8a1e5`, 2026-07-25) sin heredar el mismo criterio.
+
+**Depende de:** Sprint 24 (reutiliza `_validar_rango`/`_validar_concepto_no_vacio`, ya existentes en
+`app/views/obligaciones.py`).
+
+**Hallazgos (auditoría de código, 2026-08-25, verificados leyendo el código y los tests reales):**
+
+1. **`app/views/obligaciones.py:2048-2127` (`_guardar_tributario`) no valida signo/rango de ningún campo
+   numérico.** A diferencia de Civil/Familia, Sancionatorio, Honorarios y Comercial (todas usan
+   `_validar_rango(...)` o `<= 0`), este método solo llama `_validar_concepto_no_vacio()` y
+   `_validar_fecha_no_posterior_a_corte()`. Sin validar: `valor` (IMPUESTO_A_CARGO, acepta negativo),
+   `base_sancion` (SANCION_EXTEMPORANEIDAD/INEXACTITUD/ERROR_ARITMETICO, acepta negativo), y los 5 campos
+   de RENTA_LIQUIDA (`ingresos_brutos`, `devoluciones`, `costos`, `deducciones`, `rentas_exentas`, ninguno
+   validado). Confirmado en `tests/views/test_obligaciones.py` (líneas 1151, 1167): solo existen tests de
+   "concepto vacío" y "fecha posterior a corte" para Tributario — cero tests que rechacen un valor
+   negativo. Escenario de fallo: un ingreso bruto o una base de sanción con signo invertido (error de
+   captura común) se guarda sin aviso, y el error solo se manifiesta como una Renta Líquida Gravable o
+   sanción tributaria absurda en el PDF final, sin ninguna pista de origen.
+2. **`fecha_fin_pactada` (contrato a término fijo/obra-labor, Sprint 92) solo se valida al liquidar, no al
+   guardar.** `app/views/obligaciones.py:1994-2011` (`_guardar_laboral`) no compara `fecha_fin_pactada`
+   contra `fecha_inicio`/`fecha_origen`; la única validación existe en
+   `app/engine/labor/dismissal_indemnity.py:129-133`, que rechaza `fecha_fin_pactada <=
+   fecha_terminacion` con un `ValueError` que solo se dispara **durante la liquidación** — mismo patrón que
+   el Sprint 24 ya había corregido para `usury_validator.py`. Confirmado en
+   `tests/views/test_obligaciones.py:935-976`: solo hay tests de guardado exitoso y visibilidad del campo.
+   Escenario de fallo: el abogado teclea mal el año de vencimiento pactado; la obligación se guarda sin
+   aviso, y el error solo aparece al liquidar la indemnización por despido injustificado (Art. 64 CST),
+   potencialmente semanas después.
+3. **`DescuentoLaboralFormDialog` (Sprint 44) omite la heurística de "posible sobrepago" que
+   `AbonoFormDialog` sí tiene**, pese a que el propio docstring de la clase (`app/views/
+   descuentos_laborales.py:72-96`) dice explícitamente que sigue "el mismo patrón de diálogo que
+   AbonoFormDialog" porque `LaboralStrategy.liquidar()` resta un descuento del neto adeudado igual que un
+   abono. `AbonoFormDialog.guardar()` (`app/views/abonos.py:108-123`) sí compara la suma de abonos contra
+   `obligacion.valor` y avisa con `QMessageBox.warning("Posible sobrepago", ...)`; `DescuentoLaboralFormDialog`
+   no tiene ninguna comparación equivalente, y no hay test que ejercite un descuento (o suma de descuentos)
+   que exceda el valor de la obligación.
+4. **Inconsistencia menor de UX:** `app/views/expedientes.py:199` usa el título
+   `"Datos incompletos"` en su `QMessageBox.warning`, mientras que todas las demás pantallas con el mismo
+   patrón (`obligaciones.py:2134`, `abonos.py:142`, `eventos_laborales.py:135`,
+   `descuentos_laborales.py:103`, `configuracion.py:443`) usan `"Datos invalidos"` para el mismo tipo de
+   error de validación.
+
+**Código nuevo a crear:**
+- Aplicar `_validar_rango`/`<= 0` a `valor`, `base_sancion` y los 5 campos de renta líquida en
+  `_guardar_tributario` — mismo patrón que las demás áreas, sin diseño nuevo.
+- Agregar en `_guardar_laboral`, antes de persistir, una validación análoga a
+  `_validar_fecha_no_posterior_a_corte` que compare `fecha_fin_pactada` contra `fecha_inicio` cuando
+  `tipo_contrato_laboral` sea FIJO u OBRA_LABOR.
+- Replicar la heurística no bloqueante de `AbonoFormDialog.guardar()` (sumar descuentos previos + nuevo
+  contra `obligacion.valor`) en `DescuentoLaboralFormDialog.guardar()`.
+- Cambiar el título en `expedientes.py:199` a `"Datos invalidos"`.
+
+**Definición de Hecho:**
+- Tests que confirman que `_guardar_tributario` rechaza `valor`/`base_sancion`/campos de renta líquida
+  negativos.
+- Test que confirma que guardar una obligación Laboral con `fecha_fin_pactada` anterior a `fecha_inicio`
+  falla al guardar, no solo al liquidar.
+- Test que confirma la advertencia de sobrepago en `DescuentoLaboralFormDialog`.
+- Suite completa en verde.
+
+---
+
+## Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices 📋 Pendiente
+
+**Prioridad sugerida:** Media-alta para el hallazgo 1 (operación destructiva sin feedback); media para el
+resto.
+
+**Depende de:** Sprints 25/26/53 (reutiliza `TareaEnHilo`, `cache_de_liquidacion`/`precargar_parametro`, y
+el patrón de migración idempotente de `migrate_add_indices_rendimiento.py`).
+
+**Hallazgos (auditoría de código, 2026-08-25):**
+
+1. **"Restablecer datos de fábrica" bloquea la UI sin threading ni feedback.**
+   `app/views/restablecer.py:98-111` (`RestablecerView._restablecer`) →
+   `app/services/restablecer_service.py:22-58` corre 100% síncrono: `shutil.copy2` del archivo completo de
+   BD y luego un borrado ORM fila-por-fila (`for expediente in session.query(Expediente).all():
+   session.delete(expediente)`, con cascada sobre obligaciones/abonos/eventos/descuentos/audit_logs). A
+   diferencia de liquidar/exportar (Sprint 26), no hay `TareaEnHilo`, `QProgressDialog` ni cursor de
+   espera. Con meses/años de historial, la app se congela sin ningún indicio visual en la operación más
+   destructiva e irreversible de todas.
+2. **"Generar cuotas" corre el generador completo en el hilo de UI, sin cache de parámetros.**
+   `app/views/expediente_detalle.py:601-646` (`_generar_cuotas`) →
+   `app/services/reajuste_anual.py:90-221` no usa `TareaEnHilo`, y el `while` que genera cuota-por-mes
+   (líneas 167-216) llama `get_smlmv_for_year`/`get_ipc_for_date` en cada transición de año (línea 183)
+   **sin** envolver el bucle en `cache_de_liquidacion()` — cada llamada abre su propia sesión SQLAlchemy
+   (mismo patrón N+1 que el Sprint 25 ya corrigió en otros loops). Una obligación alimentaria RECURRENTE de
+   varios años (~200+ cuotas) congela la UI y multiplica sesiones SQL extra por cada año cruzado.
+3. **N+1 + re-liquidación completa en cada tecla del diálogo de pago por rango.**
+   `app/views/pago_por_rango.py:77-133` (`_calcular_preview`, conectado a `textChanged`): por cada tecla,
+   recorre `self._cuotas` y por cada una abre una query nueva, reconstruye el `rate_provider` y corre
+   `UniversalLiquidationService().liquidar(...)` completo, todo sin `cache_de_liquidacion()`/
+   `precargar_parametro()`. Con un rango grande de cuotas seleccionadas (24-60+), esto produce lag de
+   tecleo perceptible y creciente.
+4. **Columnas nuevas de `audit_logs` sin índice, mismo patrón que el Sprint 25 ya corrigió para otras 4
+   columnas.** `scripts/migrate_sprint47_recalculo_historico.py:51-61` agregó
+   `obsoleto_requiere_recalculo` y `liquidacion_anterior_id` sin `index=True`; ambas se usan como filtro en
+   `app/services/recalculo_historico.py:107-126` (`identificar_liquidaciones_pre_sprint30`), diseñada para
+   poder re-ejecutarse — cada re-corrida hace un full table scan de `audit_logs`, tabla que crece una fila
+   por cada liquidación que el abogado corre.
+
+**Código nuevo a crear:**
+- Envolver `crear_backup_de_base_de_datos`/`restablecer_datos_fabrica` en `TareaEnHilo`/`QThreadPool` con
+  `QProgressDialog`, mismo patrón que el Sprint 26; evaluar `session.query(Expediente).delete
+  (synchronize_session=False)` en vez de cascada ORM fila-por-fila.
+- Mover `_generar_cuotas` a `TareaEnHilo`; envolver el `while` de `generar_cuotas_mensuales`/
+  `generar_cuotas_fechas_fijas` en `with cache_de_liquidacion(): precargar_parametro("SMLMV");
+  precargar_parametro("IPC_INDICE_ACUMULADO")`.
+- Envolver el `for cuota in self._cuotas` de `pago_por_rango.py` en `cache_de_liquidacion()` +
+  `precargar_parametro(...)`; evaluar debounce del `textChanged`.
+- Nuevo script `scripts/migrate_add_indices_recalculo_historico.py` (mismo patrón idempotente que
+  `migrate_add_indices_rendimiento.py`) con índices en `audit_logs.fecha_ejecucion` y opcionalmente
+  `audit_logs.obsoleto_requiere_recalculo`.
+
+**Definición de Hecho:**
+- Smoke test manual: restablecer datos de fábrica y generar cuotas de una obligación recurrente larga sin
+  que la ventana deje de responder.
+- Benchmark simple (estilo `scripts/benchmark_motor_rendimiento.py`) del preview de pago por rango
+  antes/después con un rango grande de cuotas.
+- Migración de índices aplicada y verificada.
+- Suite completa en verde, sin cambios de resultado numérico.
+
+---
+
+## Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente
+
+**Prioridad sugerida:** Alta para el hallazgo 1 (dato sensible de cliente sin protección); media para el
+resto.
+
+**Depende de:** Sprint 28 (CI, `SECURITY.md`, versión) y Sprint 27 (limpieza de dependencias).
+
+**Hallazgos (auditoría 2026-08-25 — dependencias limpias confirmadas: los 10 paquetes de
+`requirements.txt` tienen uso real, sin huérfanos ni faltantes; sin `eval`/`exec`/`pickle`; SQL
+parametrizado en todo el código; `bastium.db`/`backups/` correctamente en `.gitignore` y sin datos
+rastreados en git):**
+
+1. **Seguridad — `bastium.db` sin cifrado en reposo dentro de una carpeta sincronizada a la nube.**
+   Confirmado por grep en todo el repo: cero llamadas a cifrado, `chmod`/`icacls` o control de acceso sobre
+   `bastium.db`. El archivo contiene datos reales de clientes (nombres, radicados, montos) según el propio
+   aviso legal de `docs/SECURITY.md`, y vive en una carpeta que ya se sabe sincroniza automáticamente a
+   OneDrive (línea 7854 de este mismo archivo, sección "Notas de entorno"). Riesgo de Habeas Data (Ley
+   1581/2012) para un despacho jurídico: cualquier persona con acceso a la cuenta de OneDrive, a un backup
+   en `backups/`, o al equipo compartido, puede leer el SQLite en texto plano.
+2. **`CHANGELOG.md` desactualizado ~33 sprints.** `git log v0.1.0..HEAD` muestra 429 commits desde el único
+   tag existente, incluyendo sprints hasta el 104-109, pero la sección `[Unreleased]` de `CHANGELOG.md`
+   deja de narrar cronológicamente alrededor del Sprint 76, y `app/_version.py` sigue en `0.1.0`. Ya se había
+   señalado esta misma brecha antes (líneas 4718 y 5250 de este archivo) para un desfase mucho menor (hasta
+   el Sprint 60); hoy es sustancialmente mayor.
+3. **CI sin matriz de versiones ni cobertura.** `.github/workflows/ci.yml` (líneas 11, 20) corre solo en
+   `windows-latest` con Python 3.14 único; ni `pytest.ini` ni `requirements.txt` traen `pytest-cov` ni hay
+   paso de type-check (mypy/pyright). No es crítico dado que es una app de escritorio Windows-only, pero no
+   hay visibilidad de cobertura pese a la cultura fuerte de testing del proyecto.
+4. **2 ramas locales huérfanas ya fusionadas.** `git branch -a` muestra `sprint-77-alertas-en-exportaciones`
+   y `worktree-agent-af895c49fdb41c9bc` (últimos commits 2026-08-19/20); confirmado con
+   `git log main..<rama>` que ambas están vacías (ya fusionadas), mismo patrón de higiene ya resuelto antes
+   para otras 3 ramas (líneas 2691-2785 de este archivo).
+
+**Decisión de diseño a tomar con el usuario (hallazgo 1):** ¿cifrado a nivel de aplicación (ej. SQLCipher,
+requiere migrar el driver de SQLAlchemy) o cifrado a nivel de sistema de archivos (ej. BitLocker/EFS sobre
+la carpeta, no requiere tocar código)? Mientras no haya decisión, como mínimo documentar el riesgo
+explícitamente en `docs/SECURITY.md` (hoy solo cubre inyección/RCE/exposición genérica, no este escenario).
+
+**Código nuevo a crear:**
+- Según la decisión del hallazgo 1: integrar cifrado, o documentar el riesgo residual y una mitigación
+  operativa (ej. no sincronizar `bastium.db` fuera de una carpeta local cifrada por BitLocker).
+- Redactar en `CHANGELOG.md` un resumen de los Sprints 77-109 siguiendo el mismo estilo narrativo que ya
+  usa el documento para 31-76; decidir si corresponde un nuevo tag (`0.2.0`).
+- Agregar `pytest-cov` como paso de CI con un umbral mínimo razonable; evaluar fijar también Python 3.13 en
+  la matriz.
+- `git branch -d sprint-77-alertas-en-exportaciones worktree-agent-af895c49fdb41c9bc` (confirmar con el
+  usuario antes de borrar, aunque ya están vacías).
+
+**Definición de Hecho:**
+- Decisión de cifrado tomada y documentada (implementada o explícitamente diferida con mitigación).
+- `CHANGELOG.md`/`app/_version.py` reflejan el estado real hasta el sprint más reciente cerrado.
+- CI reporta cobertura en cada corrida.
+- Ramas huérfanas resueltas.
+
+---
+
+## Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común 📋 Pendiente
+
+**Prioridad sugerida:** Media para el hallazgo 2 (riesgo de regresión al agregar la próxima categoría
+laboral); baja para el resto (housekeeping).
+
+**Depende de:** Sprint 28 (centralizó por primera vez la fixture de sesión en memoria en
+`tests/conftest.py`).
+
+**Hallazgos (auditoría 2026-08-25 — `ruff check --select F401,F841` limpio en todo el árbol, sin
+imports/variables muertos; sin archivos huérfanos de 0 bytes nuevos; `Decimal`/`float` sin mezclas
+accidentales; `AreaRegistry` sigue desacoplado, 0 ramas `if area ==`/`isinstance` en
+`app/engine/liquidation/engine.py`):**
+
+1. **Duplicación de fixture de sesión en memoria reaparecida en `tests/views/`.** El Sprint 28 centralizó
+   este patrón en `tests/conftest.py` (fixture autouse), pero 5 archivos nuevos repiten el bloque completo
+   `create_engine("sqlite:///:memory:")` + `monkeypatch.setattr` dentro de helpers locales que solo
+   necesitan poblar datos: `tests/views/test_dashboard.py:23`, `test_form_utils.py:19`,
+   `test_pago_por_rango.py:24`, `test_descuentos_laborales.py:22`, `test_eventos_laborales.py:23` (más 3
+   preexistentes ya conocidos). El arreglo original solo resolvió la duplicación del *engine*, no la de los
+   *helpers de datos de prueba*, que cada archivo nuevo sigue reinventando.
+2. **`LaboralStrategy.liquidar()` es un método de ~300 líneas que absorbe cada categoría laboral nueva
+   como rama secuencial.** `app/services/area_strategy.py:1213-1514`; la clase completa ocupa las líneas
+   1142-1654 (512 de las 2180 líneas totales del archivo). No hay documentado ningún punto de extensión
+   (ni un dict de dispatch por categoría) — cada concepto laboral nuevo (horas extra, contrato realidad,
+   indemnización de despido, ya construidos como módulos aislados sin cablear) tendrá que insertarse como
+   otro `if` dentro de la misma función, aumentando el riesgo de romper una rama existente al tocar otra.
+3. **Boilerplate de diálogo duplicado literalmente en 6 archivos sin clase base compartida.** Mismo wiring
+   de `QShortcut("Ctrl+S")`, `boton_guardar.setDefault(True)` y `_guardar_y_cerrar` (con
+   `try/except ValueError: QMessageBox.warning(...)`) en `abonos.py`, `configuracion.py`, `expedientes.py`,
+   `obligaciones.py`, `descuentos_laborales.py:58-103` y `eventos_laborales.py:50-133` — contrasta con que
+   el equipo sí centraliza cuando lo nota (`hacer_redimensionable` en `form_utils.py`, Sprints 39/56).
+4. **La separación vista/servicio para validación de negocio no está documentada como convención.** No
+   existe `abono_service.py` ni equivalente — la validación de negocio vive en el `guardar()` de cada
+   `*FormDialog` (ej. `descuentos_laborales.py:72-96`), mientras que la lógica de liquidación vive
+   exclusivamente en `app/services/*`. Es consistente en la práctica pero no está declarado en ningún
+   lado, y un colaborador nuevo no tiene forma de saber dónde debe ir un campo nuevo.
+
+**Código nuevo a crear:**
+- Fixture compartida en `tests/views/conftest.py` (ej. `session_de_prueba`) que devuelva una sesión ya
+  lista, migrando los 5+3 archivos duplicados a usarla.
+- Extraer cada bloque de categoría de `LaboralStrategy.liquidar()` a un método privado dedicado (patrón
+  que la propia clase ya usa parcialmente con `_liquidar_salarios_dejados_de_percibir`) antes de agregar la
+  próxima categoría laboral.
+- `FormDialogBase(QDialog)` con `_guardar_y_cerrar` genérico que llame a un `guardar()` abstracto, y migrar
+  los 6 diálogos a heredar de ella.
+- Nota breve en la documentación de arquitectura (`docs/ARQUITECTURA_ADR.md` o similar) que declare
+  explícitamente la regla: "validación de forma → vista; validación de dominio/cálculo → services".
+
+**Alcance explícitamente excluido:**
+- No se propone consolidar los módulos huérfanos documentados (`historical_dtf.py`,
+  `condena_administrativa_dtf.py`, `horas_extra.py`, `lucro_cesante_actuarial.py`) — ya están cubiertos por
+  la política existente de "huérfanos con decisión documentada"; solo se señala que su número sigue
+  creciendo y podría ameritar una consolidación periódica futura.
+
+**Definición de Hecho:**
+- Cero duplicación del bloque de sesión en memoria fuera de `tests/conftest.py`/`tests/views/conftest.py`.
+- `LaboralStrategy.liquidar()` reducido a un método de orquestación corto que delega a métodos por
+  categoría.
+- Los 6 diálogos heredan de `FormDialogBase`.
+- Suite completa en verde tras el refactor, sin cambios de comportamiento.
+
+---
+
+## Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) 📋 Pendiente
+
+**Prioridad sugerida:** Alta para los hallazgos 1-2 (documentación que oculta bugs ya confirmados); baja-
+media para el resto.
+
+**Depende de:** Sprint 29 (metodología y hallazgos previos de documentación, ya corregidos — este sprint
+NO repite las rutas rotas de `specifications/` ni la numeración duplicada de `GUIA_USUARIO` que ese sprint
+ya cerró).
+
+**Hallazgos (auditoría 2026-08-25, comparando cada documento contra el código real):**
+
+1. **`docs/specifications/03_motor_indexacion.md:69-97` ("Limitaciones conocidas") omite el bug de
+   dominio confirmado del Sprint 104** (Suma Única + abonos parciales antes del corte: enriquecimiento sin
+   causa, diferencia de $29.084,08 verificada en un caso sintético, corrección aislada en
+   `suma_unica_con_abonos.py` sin cablear todavía — ver también Sprint 110, hallazgo 4). README y
+   GUIA_USUARIO describen "Suma Única" como funcional hoy, sin ninguna advertencia sobre este escenario
+   realista en cualquier proceso con pagos parciales.
+2. **`docs/GESTION_RIESGOS.md` (tabla, líneas 8-16) no tiene fila para el Sprint 104 ni el Sprint 108**,
+   pese a que el propio documento define la regla de mantenerse al día "cuando un sprint pasa a 🔴 o 🔵"
+   (línea 20-21) — ambos la cumplen: Sprint 104 (bug de indexación confirmado con cifras) y Sprint 108
+   (🔴 bordes de tabla en color incorrecto en **todas** las tablas de cronología de los PDF/Word que
+   genera la app hoy).
+3. **`docs/specifications/07_motor_juridico_familia.md:48-49` describe una regla de negocio ya eliminada**:
+   dice que `HonorariosStrategy` valida "30% (cuota litis sola) y 50% (total)" en cascada, cuando el Sprint
+   4 (2026-08-01) eliminó ese doble tope — el código (`area_strategy.py:1755`) y `GUIA_USUARIO.md`
+   (sección 7.6) ya dicen correctamente que el único tope es 50% acumulado.
+4. **`CHANGELOG.md`** deja de narrar cronológicamente alrededor del Sprint 76 (ver también Sprint 113,
+   hallazgo 2 de este mismo lote de auditoría — mismo hallazgo, consolidar la corrección en un solo
+   trabajo).
+5. **`docs/local/GUIA_PRESENTACION.md`** (secciones 3 y 6) no menciona la subsección "Restablecer" de
+   Configuraciones (ya documentada en README/GUIA_USUARIO), ni advierte en la sección 4/6 sobre el bug
+   visual confirmado del Sprint 108 — justo el tipo de detalle que arruinaría una demo en vivo al exportar
+   un PDF sin saberlo.
+6. **`docs/SECURITY.md:33`** — el enlace `[reporte de bug](.github/ISSUE_TEMPLATE/bug_report.md)` es
+   relativo a `docs/`, por lo que resuelve a una ruta inexistente
+   (`docs/.github/ISSUE_TEMPLATE/bug_report.md`); el archivo real está en la raíz del repo. Corregir a
+   `../.github/ISSUE_TEMPLATE/bug_report.md`.
+7. **`docs/ARQUITECTURA_ADR.md:39` (ADR-002)** dice que las migraciones automáticas reemplazan "~9"
+   scripts `migrate_*.py`; hoy existen 22. El README ya resolvió este mismo problema con redacción abierta
+   ("su número sube con cada sprint") — replicar el mismo criterio en el ADR.
+8. **`docs/REQUISITOS_NO_FUNCIONALES.md:10` y `docs/PLAN_CALIDAD_PRUEBAS.md:21`** afirman soporte
+   "Windows, macOS, Linux", contradiciendo a `docs/GUIA_USUARIO.md` (sección 2.1, "Windows — desarrollado
+   y probado en Windows"), el lanzador `.bat` (Windows-only) y el propio `PLAN_CALIDAD_PRUEBAS.md` (CI solo
+   en `windows-latest`).
+
+**Código nuevo a crear:**
+- Agregar el ítem del Sprint 104 a "Limitaciones conocidas" de `03_motor_indexacion.md`.
+- Agregar filas R9 (Sprint 108) y R10 (Sprint 104) a `docs/GESTION_RIESGOS.md`, mismo formato que R1-R8.
+- Corregir `07_motor_juridico_familia.md:48-49` para reflejar el tope único del 50%.
+- Consolidar con el Sprint 113 la actualización de `CHANGELOG.md`/`app/_version.py`.
+- Actualizar `GUIA_PRESENTACION.md` (Restablecer + advertencia del bug del Sprint 108).
+- Corregir el enlace de `SECURITY.md:33`.
+- Reescribir `ARQUITECTURA_ADR.md:39` con redacción abierta, igual que el README.
+- Alinear `REQUISITOS_NO_FUNCIONALES.md`/`PLAN_CALIDAD_PRUEBAS.md` con GUIA_USUARIO sobre plataformas
+  soportadas vs. probadas.
+
+**Definición de Hecho:**
+- Cada uno de los 8 hallazgos corregido en su documento correspondiente.
+- Ningún documento de gobierno (`GESTION_RIESGOS.md`, specs) omite un bug 🔴/⚠️ vigente que el propio
+  documento se compromete a reflejar.
+- Enlaces verificados (todas las rutas citadas resuelven a un archivo real).
 
 ---
 
