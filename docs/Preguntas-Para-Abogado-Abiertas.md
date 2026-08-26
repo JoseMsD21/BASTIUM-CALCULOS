@@ -335,6 +335,25 @@ no previsto" para el detalle completo de por qué se detuvo, y qué necesita con
 que se pueda programar (el mapeo exacto de "crédito ordinario simple" vs. "liquidación de perjuicios" a
 los datos que ya captura BASTIUM, y si aplica con o sin recálculo retroactivo de liquidaciones existentes).
 
+**Decisión del usuario (2026-08-25):** (1) el riesgo retroactivo queda descartado — se verificó el único
+expediente real en la base de datos local (Radicado 2224, 10 liquidaciones del 13-14/08/2026) y el usuario
+confirmó que fue exclusivamente para probar el software contra el Excel del despacho, nunca se entregó a un
+cliente ni se presentó ante el juzgado 521; no aplica ningún protocolo de recálculo histórico (Sprint 47).
+(2) El usuario pide volver a preguntarle al despacho señalando la contradicción exacta, en vez de elegir
+entre A y C a ciegas.
+
+**Pregunta de seguimiento:** para el interés civil ordinario del 6% (Art. 1617/2232 C.C., "obligación de
+dinero puro" — el caso de uso mayoritario hoy en Civil/Familia, Comercial y Honorarios, ya que el dominio de
+"liquidación de perjuicios" que menciona esta misma respuesta todavía no existe en BASTIUM, ver Sprint 97),
+la respuesta escrita del 22/08/2026 confirma la fórmula **lineal simple** (Opción A, `6%/365`). Pero al
+revisar `i7.INTERESES-CIVILES-6-ANUAL.xlsm` — la propia plantilla comercial del despacho para este mismo
+interés — encontramos que esa plantilla usa una fórmula distinta (Opción C, mensual nominal con prorrateo de
+30 días, verificada cifra por cifra contra su propio ejemplo: $24.500,00 en junio/30 días, $25.316,67 =
+$24.500×31/30 en julio/31 días). ¿Cuál de las dos deben usar las obligaciones de dinero puro: la que
+confirmaron por escrito (A), o la que su propia plantilla demuestra en la práctica (C)? Necesitamos que
+resuelvan esta contradicción explícitamente antes de tocar el motor central de tasas, que afecta a las 6
+áreas.
+
 ---
 
 ## Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?
@@ -378,6 +397,17 @@ Además, la propia fórmula de síntesis sugiere que el alcance real es más amp
 Única" (el código de hoy ya genera interés sobre costas incluso SIN Suma Única, porque están mezcladas con
 `principal`). Ver `Pendientes.md`, Sprint 79, sección "Bloqueo no previsto" para el detalle completo y lo
 que necesita confirmar el usuario.
+
+**Decisión del usuario (2026-08-25):** prefiere que ambos puntos se le devuelvan al despacho en vez de
+decidirlos sin ellos.
+
+**Pregunta de seguimiento:** (a) ¿la regla "las costas nunca generan interés civil" es general — aplica en
+cualquier área y con cualquier algoritmo de liquidación — o es específica del algoritmo "Suma Única" (interés
+sobre capital ya indexado)? Hoy el motor de BASTIUM genera interés sobre las costas **siempre**, con o sin
+Suma Única activa, porque comparten el mismo componente de capital — necesitamos saber si eso también hay
+que corregirlo en el caso general. (b) Cuando se hace un abono/pago parcial, ¿en qué posición de la
+prelación de pago entran las costas frente a la indexación, los intereses y el capital — se pagan de
+últimas (después de indexación → intereses → capital), de primeras, o en otra posición?
 
 ---
 
@@ -556,15 +586,25 @@ parcial. La pregunta original sigue exactamente igual de abierta:
    (edades 15-110), pero `hombres_invalidos` llegó truncada ("...25: 33.70... 90: 3.68...", con un salto sin
    explicar entre esos dos puntos) y **no incluye ninguna tabla `mujeres_invalidas`** — necesaria para
    cualquier víctima incapacitada mujer.
+4. **Doctrina de "fruto civil" (Sprint 100, ligado a esta misma decisión de arquitectura):** el "beneficio
+   dejado de percibir como fruto civil" (`X6.LIQUIDACION-BENEFICIO-DEJADO-DE-PERCIBIR-COMO-FRUTO-CIVIL.md`)
+   usa una mecánica casi idéntica a la de cuotas recurrentes + reajuste anual que BASTIUM ya tiene construida
+   para Civil/Familia (Sprint 41/75: `IBL × tasa de reemplazo` como cuota inicial, reajustada una vez al año
+   e indexada por IPC mes a mes). El usuario prefiere que el despacho confirme la doctrina exacta antes de
+   conectar ese mecanismo existente a este nuevo caso de uso, en vez de asumirlo por similitud estructural.
 
 **Pregunta:** (a) ¿nueva área de derecho o submodo de Civil/Familia? (b) ¿cuáles variantes construir
 primero? (c) ¿pueden completar la tabla `hombres_invalidos` (todas las edades, sin saltos) y aportar la
-tabla `mujeres_invalidas` completa?
+tabla `mujeres_invalidas` completa? (d) Para el "beneficio dejado de percibir como fruto civil": ¿el
+mecanismo de cuota recurrente (`IBL × tasa de reemplazo`, reajustada anualmente e indexada mes a mes por
+IPC) reproduce fielmente esta figura, o hay algo en la doctrina de "fruto civil" que la distinga de una
+cuota alimentaria/pensional a efectos de cómo se calcula o se reporta?
 
-**Qué necesito exactamente:** la decisión de arquitectura y alcance, y las dos tablas de mortalidad de
-inválidos completas.
+**Qué necesito exactamente:** la decisión de arquitectura y alcance, las dos tablas de mortalidad de
+inválidos completas, y la confirmación sobre la mecánica de "fruto civil".
 
-**Fecha:** 23/08/2026 (reformulación tras respuesta no concluyente del 22/08/2026)
+**Fecha:** 23/08/2026 (reformulación tras respuesta no concluyente del 22/08/2026); punto (d) agregado
+2026-08-25 tras revisión con el usuario.
 
 ---
 

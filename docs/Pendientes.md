@@ -6089,6 +6089,15 @@ resolverlo dentro de este mismo Sprint 76. Documentado también en `Preguntas-Pa
 sección Sprint 76, para que quede visible junto a la respuesta original. Correo enviado a
 jmsd2125@gmail.com, asunto "BASTIUM bloqueado: Sprint 76".
 
+**Decisión del usuario (2026-08-25):** se verificó el único expediente real en `bastium.db` (Radicado 2224,
+10 liquidaciones del 13-14/08/2026) — el usuario confirmó que fue solo para probar el software contra el
+Excel del despacho, nunca se entregó a un cliente ni se presentó ante el juzgado 521. **Sin riesgo
+retroactivo**, descartado el punto (b) de "qué se necesita para desbloquear". Para el punto (a), el usuario
+prefiere devolverle al despacho la contradicción encontrada (su respuesta escrita dice fórmula lineal —
+Opción A — pero su propia plantilla comercial `i7.INTERESES-CIVILES-6-ANUAL.xlsm` usa la Opción C) en vez de
+elegir a ciegas — pregunta de seguimiento agregada en `Preguntas-Para-Abogado-Abiertas.md`, Sprint 76. Sigue
+bloqueado hasta esa respuesta.
+
 ---
 
 ## Sprint 77 — Persistir `LiquidationResult.alertas` en las exportaciones PDF/Word ✅ Completado
@@ -6253,6 +6262,10 @@ generan interés" (universal, más amplio que lo que preguntaba este sprint) o s
 (b) en qué posición de la prelación de pago entra costas frente a indexación/intereses/capital. Documentado
 también en `Preguntas-Para-Abogado-Abiertas.md`, sección Sprint 79. Correo enviado a jmsd2125@gmail.com,
 asunto "BASTIUM bloqueado: Sprint 79".
+
+**Decisión del usuario (2026-08-25):** prefiere que el despacho responda ambos puntos directamente en vez de
+decidirlos sin ellos — pregunta de seguimiento agregada en `Preguntas-Para-Abogado-Abiertas.md`, Sprint 79
+(alcance universal vs. solo Suma Única; posición de las costas en la prelación de pago). Sigue bloqueado.
 
 ---
 
@@ -6606,6 +6619,11 @@ limitación conocida en el código, igual que la propia plantilla lo advierte.
 **Definición de Hecho:**
 - Test con al menos 2 combinaciones edad/sexo usando la tabla de mortalidad.
 - Suite completa en verde.
+
+**Decisión del usuario (2026-08-25):** quiere la fórmula oficial completa de la Resolución 3023 de 2017 (no
+la anualidad simplificada que la propia plantilla admite como aproximada). Pendiente: investigar y
+transcribir el texto exacto de esa resolución (es una norma pública, no depende del despacho) antes de
+poder codificarla.
 
 ---
 
@@ -7045,6 +7063,10 @@ consolidado multi-año de contrato realidad sigue sin construir. Pregunta de seg
 salud, y la discrepancia Decreto 0320/2026 vs. L8) en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 94
 (seguimiento)". Suite completa en verde (sin tocar código de producción).
 
+**Decisión del usuario (2026-08-25):** confirma que prefiere que el despacho aclare la relación entre el
+Decreto 0320/2026 y la regla de L8 antes de implementar cualquiera de las dos cifras — no se toma partido
+sin esa respuesta.
+
 ---
 
 ## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial
@@ -7263,6 +7285,11 @@ mortalidad hardcodeada (la que trajo la respuesta viene truncada — ver Sprint 
 arquitectura se reformula como seguimiento en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 97
 (seguimiento)". Suite completa en verde (1589 tests) y `ruff check .` limpio antes de mergear.
 
+**Decisión del usuario (2026-08-25):** confirma que este sprint bloquea a los Sprints 99 y 100 (ambos
+"Depende de: Sprint 97"), así que ninguno de los dos se puede programar hasta que el despacho conteste la
+decisión de arquitectura. Se agregó un punto (d) a la pregunta de seguimiento sobre la doctrina de "fruto
+civil" del Sprint 100, para no tener que volver a preguntar por separado.
+
 ---
 
 ## Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación
@@ -7328,6 +7355,10 @@ Esto es estructuralmente distinto de la etiqueta `DANO_EMERGENTE` actual (`app/c
 - Si el despacho pide UI de ledger dedicada: formulario nuevo que genera esas N obligaciones desde una sola pantalla.
 - Suite completa en verde.
 
+**Decisión del usuario (2026-08-25):** quiere la pantalla de "ledger" dedicada (opción (b) de la decisión
+de diseño), no obligaciones sueltas creadas una por una. Sigue condicionado a que se resuelva primero la
+arquitectura del Sprint 97 (¿área nueva o submodo de Civil/Familia?), de la que este sprint depende.
+
 ---
 
 ## Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación
@@ -7346,6 +7377,12 @@ Este patrón (cuota mensual + reajuste anual + indexación IPC mensual) es muy c
 - Confirmado si el mecanismo `RECURRENTE` + reajuste anual existente reproduce la estructura de X6 sin motor nuevo, con test explícito.
 - Si hace falta código nuevo: conectar `IBL × tasa de reemplazo` (ya existente para Laboral) como generador de la cuota inicial en este dominio.
 - Suite completa en verde.
+
+**Decisión del usuario (2026-08-25):** prefiere que el despacho confirme la doctrina exacta de "fruto
+civil" antes de asumir que el mecanismo `RECURRENTE` existente la reproduce fielmente — pregunta agregada
+como punto (d) del seguimiento del Sprint 97 en `Preguntas-Para-Abogado-Abiertas.md` (para no duplicar
+correos, dado que este sprint ya depende de esa misma respuesta). Sigue bloqueado por partida doble:
+arquitectura del Sprint 97 y esta confirmación de doctrina.
 
 ---
 
