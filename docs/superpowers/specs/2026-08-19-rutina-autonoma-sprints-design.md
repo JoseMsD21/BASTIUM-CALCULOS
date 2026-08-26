@@ -102,6 +102,16 @@ el throttling de notificación agregado en la sección de Notificaciones.
   eso la suite completa (`tests/views/` incluido) corre igual que en local. Cualquier corrida futura debe
   instalar esa librería ANTES de dar por buena una corrida de tests que excluya `tests/views/` "porque no
   hay Qt en la nube" — ya no es cierto.
+- **Versión de Python (encontrado 2026-08-26, cierre del Sprint 108):** el `python3` por defecto del
+  contenedor de la nube es 3.11, pero el repo usa sintaxis de generics de PEP 695 (`def funcion[T](...)`,
+  ej. `app/services/cascada_cuotas.py`) porque `pyproject.toml` fija `target-version = "py314"` para
+  `ruff`. Con Python 3.11 la recolección de tests falla con `SyntaxError: expected '('` en cualquier módulo
+  que importe (directa o transitivamente) ese archivo — antes de este hallazgo, corridas previas pudieron
+  haber dado por buena una suite parcial sin darse cuenta de que varios módulos ni siquiera se recolectaron.
+  El contenedor sí trae `python3.12` y `python3.13` instalados (`which python3.12 python3.13`); la solución
+  usada fue crear un venv con `python3.13 -m venv` e instalar `requirements.txt` ahí. Cualquier corrida
+  futura debe verificar la versión de Python activa (o crear el venv con 3.12/3.13 directamente) ANTES de
+  dar por buena una corrida de tests con errores de colección silenciados o ignorados.
 
 ## Cierre de un sprint
 

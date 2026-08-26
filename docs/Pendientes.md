@@ -7772,7 +7772,7 @@ con el checkbox distinto hoy exige volver a editar la obligación y liquidar de 
 
 ---
 
-## Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word 🔴 Bug confirmado sin corregir
+## Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word ✅ Completado
 
 **Prioridad sugerida:** Media-alta — es un bug de identidad visual confirmado leyendo el código, no una
 hipótesis, y afecta a todos los documentos judiciales que la app genera hoy.
@@ -7817,6 +7817,40 @@ si sus tablas de cronología tienen el mismo mismatch de bordes/totales antes de
 - El resto del cuerpo de la tabla se mantiene crema con texto negro (ya correcto, sin regresión).
 - Suite completa en verde, con tests que verifiquen los estilos de `TableStyle` (no solo que el PDF se genere
   sin excepción).
+
+**Cierre (rutina autónoma, 2026-08-26):**
+- `app/reports/pdf.py`: las 5 tablas (`generar_documento` legado + las 4 de `generate()`) ahora usan
+  `GRID` negro (`self.c_black`), la fila de totales/gran-total/renta-gravable/diferencia-recuperada queda
+  con `TEXTCOLOR` en `self.c_burgundy` (sumado al `Helvetica-Bold` que ya tenían), y el encabezado usa la
+  fuente `AncizarSans-ExtraBold.ttf` (registrada una sola vez al importar el módulo con
+  `pdfmetrics.registerFont`, nombre interno `FONT_HEADER = "AncizarSans-ExtraBold"`). La tabla de
+  cronología detallada no tiene fila de totales (es un libro mayor fila por fila), así que solo recibió el
+  cambio de `GRID` y de fuente de encabezado.
+- `app/reports/word.py`: **el diagnóstico previo confirmó que el mismatch NO era "el mismo"** — las tablas
+  de Word usan el estilo `"Table Grid"` de Word (bordes negros por defecto, ya correctos) pero no tenían
+  *ningún* color/relleno propio (ni fondo negro/texto crema en encabezados, ni fondo crema en el cuerpo, ni
+  borgoña en la fila de totales). Se implementó el mismo criterio de identidad visual que en `pdf.py` con
+  sombreado de celda vía XML (`_sombrear_celda`, elemento `w:shd`) y runs explícitos con color/negrita/fuente
+  (`_escribir_celda`, nombre de familia real `"Ancizar Sans ExtraBold"` leído de la metadata `name` del TTF
+  — un `.docx` no embebe la fuente como sí hace `pdfmetrics.registerFont` con el PDF, así que Word la
+  resuelve por nombre si está instalada localmente y si no cae a su sustituto por defecto sin romper el
+  documento).
+- Bug encontrado y corregido durante el TDD de `word.py`: `_escribir_celda` llamaba `celda.text = ""` antes
+  de `add_run()` para "limpiar" la celda, pero el setter `_Cell.text` de `python-docx` siempre agrega su
+  propio run vacío primero — el texto con estilo terminaba como el *segundo* run de la celda en vez del
+  primero (invisible para cualquier lector que solo mire `runs[0]`, aunque `celda.text` seguía leyendo bien
+  por concatenar todos los runs). Se eliminó esa línea: las celdas que llegan a `_escribir_celda` ya están
+  recién creadas por `add_table`/`add_row` (un párrafo vacío sin runs), así que no hacía falta.
+- 7 tests nuevos (4 en `tests/reports/test_pdf.py`, 3 en `tests/reports/test_word.py`), capturando los
+  comandos crudos de `TableStyle`/el XML de sombreado de celda — no solo que el documento se genere sin
+  excepción. Suite completa: 1604 passed (1597 previos + 7 nuevos), `ruff check .` limpio.
+- `docs/GUIA_USUARIO.md` (sección 5.8) actualizado: ya no dice que Word tiene "un estilo visual más simple"
+  que el PDF — ahora comparte el mismo criterio de identidad de marca en sus tablas.
+- Entorno de pruebas de esta corrida: el `python3` por defecto del sandbox es 3.11 y el repo usa sintaxis
+  de generics de PEP 695 (`target-version = "py314"` en `pyproject.toml`, ej.
+  `app/services/cascada_cuotas.py`), así que la suite completa solo corre con `python3.13` (o superior) —
+  se creó un venv con `python3.13 -m venv` para esta corrida. Documentado acá porque no estaba explícito en
+  el spec de la rutina autónoma junto con el hallazgo ya documentado de `libEGL.so.1`.
 
 ---
 

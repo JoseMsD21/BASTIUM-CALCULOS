@@ -1,7 +1,49 @@
 from docx import Document
 from docx.enum.section import WD_ORIENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
+
+# Sprint 108 (pedido del despacho, 2026-08-22): mismo criterio de identidad
+# visual que app/reports/pdf.py -- encabezado de columnas en extrabold crema
+# sobre fondo negro, cuerpo crema con texto negro, fila de totales en
+# borgoña negrita. "Ancizar Sans ExtraBold" es el nombre de familia real
+# dentro de app/assets/fonts/AncizarSans-ExtraBold.ttf (ver metadata `name`
+# del TTF) -- a diferencia de un PDF, un .docx no embebe la fuente, asi que
+# Word la resuelve por nombre si esta instalada y si no cae a su sustituto
+# por defecto, sin romper el documento.
+_NOMBRE_FUENTE_EXTRABOLD = "Ancizar Sans ExtraBold"
+
+
+def _sombrear_celda(celda, color_hex: str) -> None:
+    sombreado = OxmlElement("w:shd")
+    sombreado.set(qn("w:val"), "clear")
+    sombreado.set(qn("w:fill"), color_hex)
+    celda._tc.get_or_add_tcPr().append(sombreado)
+
+
+def _escribir_celda(
+    celda,
+    texto: str,
+    *,
+    color: RGBColor | None = None,
+    bold: bool = False,
+    font_name: str | None = None,
+) -> None:
+    # Nota: no usar `celda.text = ""` antes de este `add_run` -- el setter de
+    # `_Cell.text` en python-docx siempre agrega su propio run vacio primero
+    # (`tc.clear_content()` + `add_p()` + `add_r()`), lo que dejaba el texto
+    # con estilo como el *segundo* run de la celda en vez del primero. Las
+    # celdas que llegan aca ya estan recien creadas por `add_table`/`add_row`
+    # (un parrafo vacio sin runs), asi que no hace falta limpiar nada.
+    run = celda.paragraphs[0].add_run(texto)
+    if color is not None:
+        run.font.color.rgb = color
+    if bold:
+        run.bold = True
+    if font_name is not None:
+        run.font.name = font_name
 
 # Peso relativo de cada columna de la tabla de cronologia -- mismo criterio y
 # mismos pesos que _PESO_COLUMNA_CRONOLOGIA en app/reports/pdf.py (mantener
@@ -28,6 +70,9 @@ class WordReportGenerator:
         self.c_burgundy = RGBColor(0xAE, 0x1C, 0x21)
         self.c_prescrita = RGBColor(0xC0, 0x00, 0x00)
         self.c_advertencia = RGBColor(0xED, 0x6C, 0x02)
+        self.c_cream = RGBColor(0xF5, 0xF1, 0xE9)
+        self.c_black_hex = "000000"
+        self.c_cream_hex = "F5F1E9"
 
     def _anchos_columnas_cronologia(
         self, encabezados: list[str], ancho_disponible: Cm
@@ -135,12 +180,25 @@ class WordReportGenerator:
         tabla_resumen = documento.add_table(rows=1, cols=2)
         tabla_resumen.style = "Table Grid"
         celdas_encabezado = tabla_resumen.rows[0].cells
-        celdas_encabezado[0].text = "Rubro Financiero"
-        celdas_encabezado[1].text = "Monto Liquidado"
-        for etiqueta, valor in filas_resumen:
+        for celda, texto in zip(
+            celdas_encabezado, ("Rubro Financiero", "Monto Liquidado"), strict=True
+        ):
+            _escribir_celda(
+                celda, texto, color=self.c_cream, bold=True, font_name=_NOMBRE_FUENTE_EXTRABOLD
+            )
+            _sombrear_celda(celda, self.c_black_hex)
+        indice_ultima_fila = len(filas_resumen) - 1
+        for indice, (etiqueta, valor) in enumerate(filas_resumen):
             celdas_fila = tabla_resumen.add_row().cells
-            celdas_fila[0].text = etiqueta
-            celdas_fila[1].text = valor
+            es_fila_total = indice == indice_ultima_fila
+            for celda, texto in zip(celdas_fila, (etiqueta, valor), strict=True):
+                _escribir_celda(
+                    celda,
+                    texto,
+                    color=self.c_burgundy if es_fila_total else None,
+                    bold=es_fila_total,
+                )
+                _sombrear_celda(celda, self.c_cream_hex)
 
         documento.add_paragraph()
         parrafo_subtitulo = documento.add_paragraph()
@@ -171,7 +229,10 @@ class WordReportGenerator:
         tabla_cronologia = documento.add_table(rows=1, cols=len(columnas_cronologia))
         tabla_cronologia.style = "Table Grid"
         for celda, texto in zip(tabla_cronologia.rows[0].cells, columnas_cronologia, strict=True):
-            celda.text = texto
+            _escribir_celda(
+                celda, texto, color=self.c_cream, bold=True, font_name=_NOMBRE_FUENTE_EXTRABOLD
+            )
+            _sombrear_celda(celda, self.c_black_hex)
         for fila_datos in table_data:
             celdas_fila = tabla_cronologia.add_row().cells
             valores_fila = [
@@ -200,6 +261,7 @@ class WordReportGenerator:
                 if es_prescrita:
                     run.font.color.rgb = self.c_prescrita
                     run.bold = True
+                _sombrear_celda(celda, self.c_cream_hex)
 
         # Fijar ancho por columna (Sprint 50): "Table Grid" por defecto usa
         # autofit-to-contents, que Word resuelve al abrir el documento sin
@@ -232,12 +294,23 @@ class WordReportGenerator:
             tabla_renta_liquida = documento.add_table(rows=1, cols=2)
             tabla_renta_liquida.style = "Table Grid"
             celdas_encabezado_rl = tabla_renta_liquida.rows[0].cells
-            celdas_encabezado_rl[0].text = "Rubro"
-            celdas_encabezado_rl[1].text = "Monto"
-            for etiqueta, valor in filas_renta_liquida:
+            for celda, texto in zip(celdas_encabezado_rl, ("Rubro", "Monto"), strict=True):
+                _escribir_celda(
+                    celda, texto, color=self.c_cream, bold=True, font_name=_NOMBRE_FUENTE_EXTRABOLD
+                )
+                _sombrear_celda(celda, self.c_black_hex)
+            indice_ultima_fila_rl = len(filas_renta_liquida) - 1
+            for indice, (etiqueta, valor) in enumerate(filas_renta_liquida):
                 celdas_fila_rl = tabla_renta_liquida.add_row().cells
-                celdas_fila_rl[0].text = etiqueta
-                celdas_fila_rl[1].text = valor
+                es_fila_total = indice == indice_ultima_fila_rl
+                for celda, texto in zip(celdas_fila_rl, (etiqueta, valor), strict=True):
+                    _escribir_celda(
+                        celda,
+                        texto,
+                        color=self.c_burgundy if es_fila_total else None,
+                        bold=es_fila_total,
+                    )
+                    _sombrear_celda(celda, self.c_cream_hex)
 
         # Sprint 47: log de diferencias del recalculo historico post-Sprint-30
         # (memoriales de actualizacion/correccion y de correccion de error
@@ -269,12 +342,23 @@ class WordReportGenerator:
             tabla_diferencia = documento.add_table(rows=1, cols=2)
             tabla_diferencia.style = "Table Grid"
             celdas_encabezado_diferencia = tabla_diferencia.rows[0].cells
-            celdas_encabezado_diferencia[0].text = "Rubro"
-            celdas_encabezado_diferencia[1].text = "Valor"
-            for etiqueta, valor in filas_diferencia:
+            for celda, texto in zip(celdas_encabezado_diferencia, ("Rubro", "Valor"), strict=True):
+                _escribir_celda(
+                    celda, texto, color=self.c_cream, bold=True, font_name=_NOMBRE_FUENTE_EXTRABOLD
+                )
+                _sombrear_celda(celda, self.c_black_hex)
+            indice_ultima_fila_diferencia = len(filas_diferencia) - 1
+            for indice, (etiqueta, valor) in enumerate(filas_diferencia):
                 celdas_fila_diferencia = tabla_diferencia.add_row().cells
-                celdas_fila_diferencia[0].text = etiqueta
-                celdas_fila_diferencia[1].text = valor
+                es_fila_total = indice == indice_ultima_fila_diferencia
+                for celda, texto in zip(celdas_fila_diferencia, (etiqueta, valor), strict=True):
+                    _escribir_celda(
+                        celda,
+                        texto,
+                        color=self.c_burgundy if es_fila_total else None,
+                        bold=es_fila_total,
+                    )
+                    _sombrear_celda(celda, self.c_cream_hex)
 
             documento.add_paragraph(diferencia_recalculo["resumen"])
 
