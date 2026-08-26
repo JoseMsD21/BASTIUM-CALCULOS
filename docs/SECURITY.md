@@ -12,6 +12,34 @@ contra la norma vigente** y contra el criterio de un profesional del derecho. BA
 responsabilidad por ningún daño, pérdida o perjuicio derivado del uso del software o de sus
 resultados, incluyendo decisiones tomadas con base en los cálculos que produce.
 
+## Riesgo conocido: `bastium.db` sin cifrado en reposo
+
+`bastium.db` (SQLite) contiene datos reales de clientes del despacho (nombres, radicados, montos) y
+**no está cifrado en disco**. Si esa carpeta se sincroniza a un servicio en la nube (ej. OneDrive,
+Google Drive, Dropbox) o vive en un equipo compartido, cualquier persona con acceso a esa cuenta o a
+ese equipo puede abrir el archivo directamente con cualquier lector de SQLite y leer los datos en texto
+plano — incluidos los backups automáticos en `backups/` (ver Sprint 64/69), que son copias exactas del
+mismo archivo sin cifrado.
+
+Esto es un riesgo real de protección de datos personales (Ley 1581/2012, Habeas Data) para un despacho
+jurídico, no una vulnerabilidad de la aplicación en sí (no hay inyección ni fuga por un input
+malicioso) — es una decisión de arquitectura todavía sin resolver entre dos caminos, con costos y
+alcance muy distintos:
+
+1. **Cifrado a nivel de aplicación** (ej. SQLCipher): la base queda cifrada sin importar dónde viva el
+   archivo, pero exige cambiar el driver de SQLAlchemy y gestionar una clave/contraseña maestra (¿dónde
+   se guarda esa clave? ¿la pide la app al abrir? — decisiones de UX y de recuperación ante clave
+   perdida que todavía no se han tomado).
+2. **Cifrado a nivel de sistema de archivos** (ej. BitLocker/EFS de Windows sobre la carpeta donde vive
+   `bastium.db`): no requiere tocar código, pero solo protege el archivo en reposo en ESE equipo — si la
+   carpeta se sincroniza a la nube sin cifrado adicional del lado del proveedor, el riesgo original
+   persiste igual.
+
+**Mitigación mientras se decide:** no ubicar `bastium.db` (ni la carpeta `backups/`) dentro de una
+carpeta sincronizada automáticamente a un servicio en la nube sin cifrado propio del lado del cliente;
+si el equipo lo permite, activar cifrado de disco completo (BitLocker en Windows) como mínimo razonable
+mientras no exista una decisión sobre cifrado a nivel de aplicación.
+
 ## Reportar una vulnerabilidad
 
 Si encuentras una vulnerabilidad de seguridad en el código (por ejemplo: inyección SQL, ejecución de

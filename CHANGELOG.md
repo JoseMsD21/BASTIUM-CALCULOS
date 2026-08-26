@@ -80,8 +80,87 @@ Sprint 62 (2026-08-14): 37 referencias rotas al archivo `Preguntas-Para-Abogado.
 tiempo) corregidas en comentarios/docstrings de 20 archivos `.py`. Sprint 13 (2026-08-14): la sección de
 Parámetros en `docs/GUIA_USUARIO.md` gana un tono pedagógico dirigido a un perfil "Abogado Junior/Estudiante
 de Consultorio Jurídico", con ejemplos de cómo traducir un hecho del caso a una fila de la tabla.
+Sprint 77 (rutina autónoma, 2026-08-20): las alertas no bloqueantes de liquidación (`LiquidationResult.
+alertas`, Sprint 43) llegan ahora también a las exportaciones PDF/Word, no solo a pantalla — quedaba
+pendiente desde el code review del propio Sprint 43. Sprint 80 (2026-08-20/23): serie mensual real de IPC
+(2003-2026) cargada desde una fuente DANE certificada, con `CivilFamiliaStrategy` usando interpolación
+mensual en vez de anual dentro de ese rango (desbloquea el Sprint 8), y estimación por media geométrica para
+fechas posteriores al último mes certificado. Sprint 81 (2026-08-20): serie de tasas IBC/Usura
+(Superfinanciera) extendida hacia atrás hasta 1971-10-29, con la columna "Bancario Corriente" mapeada por
+continuidad conceptual con el Art. 884 C.Co. para el tramo pre-1997. Sprint 83 (2026-08-20): función aislada
+`EffectiveRateConverter.annual_to_monthly` que documenta la convención "mensual con prorrateo de 30 días" que
+usa la mayoría de plantillas del despacho (i1/i2/i7/i9/i13) — no conectada a ningún cálculo real, condicionada
+a la respuesta del despacho sobre la pregunta ampliada del Sprint 76. Sprint 78 (2026-08-23): confirmado con
+el despacho que el conteo de días de `calcular_densidad_semanas` (módulo pensional) debe ser inclusivo (+1),
+igual que el resto de reglas del Sprint 3; corregido en `app/engine/labor/ibl.py`. Sprint 90 (2026-08-23): el
+despacho rechazó el mecanismo de las plantillas P15/P16 (factor fijo 4.33) para el IBL del régimen ISS
+pre-Ley 100 — confirmó que ya está cubierto por la función existente del Sprint 70/91, cerrado sin cambios de
+código. Sprint 92 (2026-08-20): indemnización por despido injustificado (Art. 64 CST) en Laboral —
+`DismissalIndemnityCalculator` (`app/engine/labor/dismissal_indemnity.py`) cubre contrato indefinido (30+20
+días o 45+15 según la fecha de la Ley 50/1990) y término fijo/obra-labor, con el caso ≥10 SMMLV explícitamente
+no soportado. Sprint 93 (2026-08-20/23): nueva categoría `SALARIOS_DEJADOS_DE_PERCIBIR` en Laboral reconstruye
+salario y prestaciones año por año para períodos sin contrato vigente (reintegros, salarios caídos), con
+reajuste IPC o SMMLV según una regla confirmada por el despacho (SMMLV solo si el salario base coincide
+exactamente con el SMLMV del año de causación). Sprint 101 (2026-08-20): calculadora aislada de deflactación
+IPC (`IPCIndexation.deflactar`, fórmula inversa de la indexación) — sin conectar a ningún flujo real, a la
+espera del caso de uso concreto del despacho. Sprint 102 (2026-08-20): verificación confirmó que el motor de
+Suma Única con abonos secuenciales NO reproduce el patrón esperado por las plantillas del despacho (diferencia
+de $29.084,08 en el caso sintético probado) — bug de dominio documentado y diferido al Sprint 104 (parcial),
+sin cambios en `app/` en este sprint. Sprint 103 (2026-08-20): corregido un test
+(`test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos`) que colgaba la suite completa
+indefinidamente por no mockear un `QMessageBox.warning` modal, mismo patrón ya usado en el resto del proyecto.
+Sprint 108 (reportado por el despacho, cerrado 2026-08-26): 3 mismatches de identidad visual en las tablas de
+cronología del PDF/Word — bordes en negro (antes borgoña), fila de TOTALES en borgoña (antes negro), y
+encabezado con la fuente `AncizarSans-ExtraBold` en ambos formatos. Sprint 109 (2026-08-26): estándar de color
+para futuras gráficas de línea/curva (ejes y texto negro puro, curva principal borgoña con degradado, curva
+secundaria negra) documentado en `docs/DISENO_UI_UX.md` — ninguna gráfica de curva existe todavía en el
+proyecto. Sprint 111 (auditoría 2026-08-25, cerrado 2026-08-26): 3 regresiones del criterio de validación del
+Sprint 24 en formularios agregados después de su cierre — Tributario sin validar signo/rango de sus campos
+numéricos, `fecha_fin_pactada` de un contrato a término fijo solo validada al liquidar (no al guardar), y
+`DescuentoLaboralFormDialog` sin la advertencia de sobrepago que sí tiene `AbonoFormDialog`; más una
+inconsistencia de título de diálogo homologada. Sprint 112 (auditoría 2026-08-25, cerrado 2026-08-26): 4
+hallazgos de concurrencia/rendimiento — "Restablecer datos de fábrica" y "Generar cuotas" ahora corren en hilo
+de fondo con `QProgressDialog` (antes congelaban la UI sin aviso), el preview de "Pago por rango" deja de
+abrir una sesión SQL nueva por cada cuota al teclear, y 3 columnas nuevas de `audit_logs` (Sprint 47) ganan
+índice para evitar un full table scan en cada corrida del script de recálculo histórico.
 
 ### Added
+- Laboral: indemnización por despido injustificado, Art. 64 CST (Sprint 92): `DismissalIndemnityCalculator`
+  (`app/engine/labor/dismissal_indemnity.py`) calcula contrato indefinido con salario <10 SMMLV (30 días
+  primer año + 20 días/año subsiguiente si el contrato inició después del 1° de enero de 1991 — Ley 50/1990
+  — o 45+15 días si es anterior) y contrato a término fijo/obra-labor (tiempo restante del plazo pactado,
+  piso de 15 días); wireado en `LaboralStrategy` como el evento `INDEMNIZACION_DESPIDO`, independiente de
+  `SANCION_MORATORIA` (Art. 65 CST). El caso de contrato indefinido con salario ≥10 SMMLV queda
+  explícitamente sin soportar (`RegimenNoSoportadoError`, alerta no bloqueante).
+- Laboral: salarios y prestaciones dejadas de percibir, con reajuste anual (Sprint 93): nueva categoría
+  `SALARIOS_DEJADOS_DE_PERCIBIR` (coexiste con `LIQUIDACION_CONTRATO_LABORAL` sin romper el invariante "1
+  obligación = 1 contrato" del Sprint 3) reconstruye en `app/services/salarios_dejados_de_percibir.py` un
+  bloque anual de salario reajustado (IPC o SMMLV, vía `reajustar_capital_anual`, Sprint 41/75) y las 4
+  prestaciones (cesantías, intereses a las cesantías, primas, vacaciones) con los mismos divisores 360/720
+  de `LaborScheduler`, para períodos sin contrato vigente (reintegros, salarios caídos). La elección del
+  índice no es discrecional: `determinar_tipo_reajuste_salarios_dejados_de_percibir` exige SMMLV solo cuando
+  el salario base coincide exactamente con el SMLMV del año de causación, IPC en cualquier otro caso —
+  validado al guardar.
+- Serie mensual real de IPC 2003-2026 (Sprint 80): `_IPC_MENSUAL` poblada con 279 pares año/mes desde una
+  fuente DANE certificada (base diciembre-2018=100), desbloqueando el Sprint 8 — `CivilFamiliaStrategy.
+  _evento_indexacion` usa `get_ipc_interpolado_mensual_for_date` (interpolación lineal por día) dentro del
+  rango cubierto, con estimación por media geométrica para fechas posteriores al último mes certificado y
+  fallback a interpolación anual documentado para fechas anteriores a 2003.
+- Serie de tasas IBC/Usura extendida hasta 1971 (Sprint 81): ~90 tramos nuevos en `_TRAMOS_IBC_USURA` desde
+  1971-10-29 (antes empezaba en 1997-07-01), con la columna "Bancario Corriente" de la fuente pre-1997
+  mapeada como `ibc_anual` por continuidad conceptual con el Art. 884 C.Co.
+- `EffectiveRateConverter.annual_to_monthly` (Sprint 83): fórmula `[(1+EA)^(1/12)-1]×12` que replica la
+  convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de las plantillas del despacho
+  (i1/i2/i7/i9/i13) — documentada y probada, pero deliberadamente no conectada a ningún área todavía; cuál
+  de las 3 convenciones de conversión de tasa aplica en cada caso sigue condicionado a la respuesta del
+  despacho a la pregunta ampliada del Sprint 76.
+- `IPCIndexation.deflactar()` (Sprint 101): calculadora aislada de deflactación de cantidad única (`VA = VH
+  × IPC_Inicial/IPC_Final`, el inverso exacto de la indexación normal), sin el guard de "deflación = 0" de
+  `calculate()` — no conectada a ningún flujo de captura o liquidación real todavía.
+- Alertas de liquidación en las exportaciones PDF/Word (Sprint 77): `JudicialPDFGenerator.generate()` y
+  `WordReportGenerator.generate()` aceptan un parámetro `alertas: list[str] | None` y agregan una sección
+  "Advertencias" (⚠, mismo naranja que ya usa la pantalla de resultado) cuando `LiquidationResult.alertas`
+  (Sprint 43) no está vacío — antes solo se veían en pantalla, nunca en el documento exportado.
 - Wiring de 18 parámetros de prescripción/caducidad/tasa sin conectar (Sprint 61): columna nueva
   `tipo_accion_proceso` en `Obligacion` (opcional, nulo por defecto), con un combo en el formulario de
   obligación filtrado por área (`opciones_tipo_accion_proceso_por_area`, reutiliza el mapeo de área del
@@ -201,6 +280,42 @@ de Consultorio Jurídico", con ejemplos de cómo traducir un hecho del caso a un
   hijas/abonos del Sprint 41.
 
 ### Fixed
+- 4 hallazgos de concurrencia y rendimiento (Sprint 112): "Restablecer datos de fábrica" (`app/views/
+  restablecer.py`) congelaba la UI sin ningún indicio visual durante el backup y el borrado en cascada —
+  ahora corre en `QThreadPool` con `QProgressDialog`, mismo patrón del Sprint 26. "Generar cuotas"
+  (`ExpedienteDetallePage`) abría una sesión SQLAlchemy nueva por cada transición de año en una obligación
+  recurrente larga — ahora corre bajo `cache_de_liquidacion()` con `precargar_parametro`, además de moverse
+  a `TareaEnHilo`. El preview de "Pago por rango" (`pago_por_rango.py::_calcular_preview`) reconstruía el
+  `rate_provider` y reliquidaba completo por cada tecla sin cache — corregido, con un test que confirma que
+  el número de sesiones ya no crece con el tamaño del rango. Las columnas `audit_logs.fecha_ejecucion`/
+  `obsoleto_requiere_recalculo`/`liquidacion_anterior_id` (Sprint 47) ganan índice
+  (`scripts/migrate_add_indices_recalculo_historico.py`) para evitar un full table scan en cada corrida del
+  script de recálculo histórico.
+- 3 regresiones del criterio de validación del Sprint 24 en formularios agregados después de su cierre
+  (Sprint 111): `_guardar_tributario` no validaba signo/rango de `valor`, `base_sancion` ni los 5 campos de
+  renta líquida gravable (ahora exigen `>0`/`>=0` según el campo); `fecha_fin_pactada` de un contrato a
+  término fijo/obra-labor (Sprint 92) solo se validaba al liquidar, nunca al guardar (ahora se compara
+  contra `fecha_fin` al guardar); y `DescuentoLaboralFormDialog` no tenía la advertencia de "posible
+  sobrepago" que ya tiene `AbonoFormDialog` pese a seguir el mismo patrón — agregada. También homologado el
+  título `"Datos invalidos"` en `expedientes.py`, que decía `"Datos incompletos"`.
+- 3 mismatches de identidad visual en las tablas de cronología del PDF y del Word (Sprint 108, reportado por
+  el despacho): el borde/grid de las 5 tablas de `app/reports/pdf.py` estaba en borgoña (debía ser negro),
+  la fila de TOTALES en negro (debía ser borgoña de marca) y el encabezado sin la fuente
+  `AncizarSans-ExtraBold` (registrada ahora con `pdfmetrics.registerFont`). `app/reports/word.py` no tenía
+  ningún color/relleno propio en sus tablas (ni fondo negro/texto crema en encabezados, ni borgoña en
+  totales) — corregido con sombreado de celda vía XML (`_sombrear_celda`) y runs con color/negrita/fuente
+  explícitos (`_escribir_celda`). De paso se corrigió un bug de `_escribir_celda` que dejaba el texto con
+  estilo como el segundo run de la celda (invisible para cualquier lector que solo mirara `runs[0]`) por
+  llamar `celda.text = ""` antes de `add_run()`.
+- Test que colgaba la suite completa indefinidamente (Sprint 103):
+  `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` llamaba a
+  `PagoPorRangoDialog.confirmar()` sin mockear el `QMessageBox.warning` modal que se dispara con remanente
+  sin cubrir — `pytest` sin filtros nunca terminaba. Corregido agregando el mismo `monkeypatch` que ya usa
+  el resto del proyecto para ese patrón; sin cambios en `app/`.
+- El conteo de días de `calcular_densidad_semanas` (densidad pensional, IBL) no era inclusivo (Sprint 78):
+  usaba `(fin - inicio).days` en vez de `+1`, a diferencia de la regla general confirmada por el despacho
+  desde el Sprint 3. Corregido en `app/engine/labor/ibl.py`; el caso de prueba judicial ya citado (348 días)
+  sigue dando 50 semanas con el +1 (coincidencia de redondeo, no una excepción real).
 - El checkbox "Aplica indexación IPC" seguía invisible en Civil/Familia tras el fix del Sprint 67 (Sprint
   71): el checkbox en sí ya estaba bien estilado, pero el `QGroupBox` marcable que lo contiene
   (`grupo_tasas_intereses`) usa un subcontrol distinto (`QGroupBox::indicator`), no cubierto por esas

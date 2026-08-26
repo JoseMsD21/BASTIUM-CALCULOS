@@ -34,3 +34,7 @@ docs/local/
 # identificables (ej. liquidacion_cliente_ejemplo.xlsx) - repo es publico,
 # nunca subir esto
 docs/Archivos de referencia abogado/
+
+# Artefacto local de pytest-cov (Sprint 113) - CI lo genera de nuevo en cada
+# corrida, nunca debe versionarse.
+.coverage

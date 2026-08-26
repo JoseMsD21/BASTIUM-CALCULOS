@@ -8197,7 +8197,7 @@ el patrón de migración idempotente de `migrate_add_indices_rendimiento.py`).
 
 ---
 
-## Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente
+## Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) ✅ Completado
 
 **Prioridad sugerida:** Alta para el hallazgo 1 (dato sensible de cliente sin protección); media para el
 resto.
@@ -8250,6 +8250,30 @@ explícitamente en `docs/SECURITY.md` (hoy solo cubre inyección/RCE/exposición
 - `CHANGELOG.md`/`app/_version.py` reflejan el estado real hasta el sprint más reciente cerrado.
 - CI reporta cobertura en cada corrida.
 - Ramas huérfanas resueltas.
+
+**Cierre (rutina autónoma, 2026-08-26):**
+- **Hallazgo 1 (cifrado):** se tomó el camino "mínimo" que el propio sprint habilita mientras no haya
+  decisión — nueva sección en `docs/SECURITY.md` documentando el riesgo (Habeas Data, Ley 1581/2012),
+  las 2 opciones (SQLCipher vs. cifrado de disco del sistema operativo) y una mitigación operativa
+  mientras tanto (no sincronizar `bastium.db`/`backups/` a la nube sin cifrado propio). No se implementó
+  cifrado de código — sigue condicionado a que el usuario elija entre las 2 opciones, cada una con
+  trade-offs distintos de UX/recuperación de clave que no le corresponde decidir a esta rutina.
+- **Hallazgo 2 (CHANGELOG):** `CHANGELOG.md` actualizado con la narrativa + entradas Added/Fixed de todos
+  los sprints ✅ Completado del 77 al 112 (Sprints 79/82/84-89/91/94-100/104-107/110/113-115 excluidos por
+  seguir Bloqueado/Parcial/Pendiente/en curso). `app/_version.py` **no se tocó** — decidir si corresponde
+  cortar `0.2.0` (crear el tag de git) es una decisión de gestión de release que esta rutina deja para el
+  usuario; todo el contenido nuevo quedó dentro de `## [Unreleased]`, consistente con el formato ya
+  existente del archivo.
+- **Hallazgo 3 (CI):** `pytest-cov` agregado a `requirements.txt`; `.github/workflows/ci.yml` corre
+  `pytest --cov=app --cov=database --cov-report=term-missing --cov-fail-under=90` (cobertura real medida
+  en esta corrida: 94.87% — 90% deja margen razonable sin ser frágil a fluctuaciones normales). Matriz de
+  Python agregada (3.13 además del 3.14 ya usado) — "evaluar" del sprint original, se decidió agregarlo
+  porque es una verificación adicional barata sin ambigüedad de diseño.
+- **Hallazgo 4 (ramas huérfanas):** verificado con `git ls-remote --heads origin` — `sprint-77-alertas-en-
+  exportaciones` y `worktree-agent-af895c49fdb41c9bc` ya no existen (limpiadas en una corrida anterior de
+  esta misma rutina). Nada que hacer.
+- Suite completa: 1628 passed (sin tests nuevos — cambios de este sprint son documentación/CI/CHANGELOG),
+  `ruff check .` limpio, YAML del workflow validado con `pyyaml`.
 
 ---
 
