@@ -93,6 +93,9 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 96 (seguimiento) — auxilio de transporte pactado por día en trabajo doméstico](#sprint-96-seguimiento--auxilio-de-transporte-pactado-por-día-en-trabajo-doméstico)
 - [Sprint 97 (seguimiento) — decisión de arquitectura pendiente: ¿séptima área de derecho o submodo de Civil/Familia?, ¿cuáles variantes usa el despacho?, y tabla de mortalidad completa (hombres/mujeres inválidos)](#sprint-97-seguimiento--decisión-de-arquitectura-pendiente-séptima-área-de-derecho-o-submodo-de-civilfamilia-cuáles-variantes-usa-el-despacho-y-tabla-de-mortalidad-completa-hombresmujeres-inválidos)
 - [Sprint 104 (seguimiento) — cablear la liquidación tramo por tramo a AreaStrategy, y aclarar su relación con la tasa de interés de Suma Única (Sprint 76/83)](#sprint-104-seguimiento--cablear-la-liquidación-tramo-por-tramo-a-areastrategy-y-aclarar-su-relación-con-la-tasa-de-interés-de-suma-única-sprint-7683)
+- [Sprint 105 — Catálogo de tipos de proceso, subtipos de caso y obligaciones predefinidas para el intake de un expediente](#sprint-105--catálogo-de-tipos-de-proceso-subtipos-de-caso-y-obligaciones-predefinidas-para-el-intake-de-un-expediente)
+- [Sprint 106 — Widget del campo de fechas anuales fijas, y modelo de datos para el año/fecha de vigencia del acta o título](#sprint-106--widget-del-campo-de-fechas-anuales-fijas-y-modelo-de-datos-para-el-añofecha-de-vigencia-del-acta-o-título)
+- [Sprint 107 — ¿Mover el checkbox de indexación IPC/interés sobre capital indexado a después de proyectar la liquidación, o agregar un control posterior de solo presentación?](#sprint-107--mover-el-checkbox-de-indexación-ipcinterés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación-o-agregar-un-control-posterior-de-solo-presentación)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -645,6 +648,73 @@ llegó bajo la pregunta del Sprint 97 en la misma ronda (22/08/2026) — ver
 `Preguntas-Para-Abogado-Respondidas.md`, "Sprint 98", y el seguimiento ya consolidado en "Sprint 97
 (seguimiento)" arriba, que cubre exactamente lo que sigue faltando (tabla `hombres_invalidos` completa y
 `mujeres_invalidas`, ausente por completo).
+
+## Sprint 105 — Catálogo de tipos de proceso, subtipos de caso y obligaciones predefinidas para el intake de un expediente
+
+**Contexto:** el despacho pidió (2026-08-13/2026-08-22) que al crear un expediente, después de elegir el
+área del derecho, aparezca un campo de tipo de proceso (declarativo, monitorio, ejecutivo) y, según ese tipo,
+una lista de subtipos de caso (ej. Civil/Familia + Ejecutivo → "Ejecutivo de alimentos"); al elegir el
+subtipo, el sistema ya debería tener preparadas las obligaciones típicas de ese subtipo (para un ejecutivo de
+alimentos: la cuota de alimentos recurrente siempre está, opcionalmente subsidios/vestuario/50% de
+educación-salud). Hoy no existe ningún campo de tipo de proceso ni de subtipo de caso en el sistema — es
+alcance enteramente nuevo, y el catálogo exacto es un catálogo jurídico, no una decisión de UI.
+
+**Pregunta:** (a) ¿cuál es el catálogo completo de tipos de proceso por área del derecho, y de subtipos de
+caso por cada tipo de proceso? Empezando por el ejemplo dado (Civil/Familia + Ejecutivo → "Ejecutivo de
+alimentos"), ¿cuáles son los demás subtipos que el despacho maneja regularmente? (b) para cada subtipo, ¿cuál
+es la lista exacta de obligaciones predefinidas (nombre, periodicidad, si es obligatoria u opcional)? (c)
+cuando el abogado elige un subtipo, ¿las obligaciones predefinidas deben crearse automáticamente, o solo
+quedar sugeridas/marcables en una lista para que el abogado confirme cuáles aplican a ese caso?
+
+**Qué necesito exactamente:** el catálogo completo (tipo de proceso → subtipo → obligaciones predefinidas),
+empezando por Civil/Familia si es el área de mayor volumen, y la respuesta a (c).
+
+**Fecha:** 26/08/2026
+
+---
+
+## Sprint 106 — Widget del campo de fechas anuales fijas, y modelo de datos para el año/fecha de vigencia del acta o título
+
+**Contexto:** el despacho pidió (2026-08-22) un solo formato de fecha (día/mes/año) en todo el sistema, y que
+el año en que entró en vigencia el acta/título del caso se capture una sola vez en los datos del expediente
+en vez de repetirse en cada obligación. La parte mecánica (`setDisplayFormat("dd/MM/yyyy")` en todos los
+`QDateEdit`, y cambiar el placeholder `MM-DD` del campo de fechas anuales fijas a `DD-MM`) no necesita
+confirmación, pero dos piezas sí:
+
+**Pregunta:** (a) el campo de fechas anuales fijas (Sprint 73) hoy es texto libre (`QLineEdit` con formato
+`MM-DD`) — ¿debe pasar a un widget estructurado (ej. 2 `QSpinBox` día/mes) para eliminar la ambigüedad de
+raíz, o basta con cambiar el placeholder/tooltip a `DD-MM` manteniendo el texto libre? (b) ¿qué campo(s)
+exactos necesita `Expediente` para "tipo de título y su fecha/año de vigencia" (ej. Sentencia, Acta de
+Conciliación, Resolución — con año y fecha exacta), y esto depende del catálogo de tipos de proceso del
+Sprint 105 o es independiente?
+
+**Qué necesito exactamente:** confirmación de (a) y la lista de campos exactos para (b).
+
+**Fecha:** 26/08/2026
+
+---
+
+## Sprint 107 — ¿Mover el checkbox de indexación IPC/interés sobre capital indexado a después de proyectar la liquidación, o agregar un control posterior de solo presentación?
+
+**Contexto:** el despacho pidió (2026-08-10) que la casilla de indexación IPC (y la de interés sobre capital
+indexado, Suma Única) aparezca cuando la liquidación ya esté hecha (indexando por defecto), y solo después,
+sobre el resultado ya proyectado, se pueda decidir presentar también una versión sin indexar con fines
+pedagógicos ante el juez. Hoy ambos checkboxes viven en `ObligacionFormDialog` (se marcan antes de liquidar,
+quedan fijos en la base de datos) y no existe ningún control en la pantalla de resultado para alternarlos
+sobre una liquidación ya calculada.
+
+**Pregunta:** ¿la liquidación debe indexar por defecto siempre que la obligación lo permita (sin checkbox
+previo en el formulario de captura), moviendo el control por completo a la pantalla de resultado como un
+toggle que recalcula in situ (ej. "Ver sin indexación (pedagógico)")? ¿O el checkbox de captura se mantiene
+como está hoy, y se agrega un segundo control posterior, puramente de presentación, que no cambia el dato
+guardado en la obligación?
+
+**Qué necesito exactamente:** una respuesta entre las dos opciones — determina si `ObligacionFormDialog`
+pierde el checkbox actual o lo conserva.
+
+**Fecha:** 26/08/2026
+
+---
 
 ## Sprint 104 (seguimiento) — cablear la liquidación tramo por tramo a AreaStrategy, y aclarar su relación con la tasa de interés de Suma Única (Sprint 76/83)
 

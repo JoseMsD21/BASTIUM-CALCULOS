@@ -40,6 +40,28 @@ Búsqueda y filtros en listados, con un estado vacío explícito en vez de una t
 Notificaciones no bloqueantes tipo toast para confirmaciones de bajo riesgo, y jerarquía visual clara entre
 acción primaria/secundaria/destructiva en los botones.
 
+## Gráficas (Sprint 33, Sprint 109)
+
+Las gráficas del proyecto hoy son todas de barras (`app/reports/charts.py`, `app/views/dashboard.py`), con
+ejes en negro puro y la barra principal en borgoña de marca — mismo criterio que reutilizan sus propias
+constantes locales (`color_black`/`color_burgundy`/`color_cream`), independientes de
+`app/core/theme_colors.py`/`theme_colors_dark.py`: son colores de documento/exportación (una imagen
+embebida en un PDF, o una gráfica del dashboard con fondo crema fijo), no colores de la GUI que deban
+seguir el modo oscuro/claro en vivo.
+
+**Estándar de color para gráficas de línea/curva (Sprint 109, pedido del despacho 2026-08-22, preventivo —
+ninguna existe todavía en el proyecto):**
+
+| Elemento | Color |
+| --- | --- |
+| Ejes | Negro puro (`#000000`) |
+| Letras y valores | Negro puro (`#000000`) |
+| Curva principal | Borgoña de marca (`#AE1C21`, mismo `PRIMARIO` de `theme_colors.py`), con relleno degradado del mismo color hacia el eje (más intenso cerca de la curva, más sutil cerca del eje) |
+| Curva secundaria (si hay dos series convergiendo) | Negro puro (`#000000`), con su propio degradado también en negro puro — nunca en un color distinto |
+
+Cuando se construya la primera gráfica de línea/curva real, esta tabla es la referencia — no repetir la
+especificación del despacho de nuevo, citar esta sección.
+
 ## Patrones de interacción transversales
 
 - Los 7 diálogos de formulario del proyecto (Obligación, Expediente, Abono, Parámetro, Evento contractual,
