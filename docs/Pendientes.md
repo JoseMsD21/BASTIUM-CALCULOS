@@ -266,7 +266,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable ⚠️ Parcial](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--parcial) — fórmula de interés DTF implementada y probada, aislada; falta confirmar en qué área de BASTIUM vive
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
 - [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ⚠️ Parcial](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--parcial) — división lineal implementada (respuesta del despacho 2026-08-22); imputación proporcional y tope suspensivo quedan pendientes
-- [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial)
+- [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) 🔵 Bloqueado — pendiente de confirmación](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--bloqueado--pendiente-de-confirmación) — reclasificado 2026-08-25: no tenía código implementado pese a estar marcado Parcial
 - [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--bloqueado--pendiente-de-confirmación) — respuesta parcial del despacho (2026-08-22); falta la tabla actuarial completa, la serie DTF Pensional y resolver una ambigüedad que el propio despacho señaló en FAC3
 - [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--bloqueado--pendiente-de-confirmación) — misma respuesta parcial del Sprint 86, mismos datos faltantes
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
@@ -6441,7 +6441,7 @@ el estado ⚠️ Parcial en vez de ✅ Completado.
 
 ---
 
-## Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial
+## Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Alta — es la funcionalidad más solicitada de las 16 plantillas (4 de 16 la implementan: P1, P1A, P2, P7) y reutiliza en un 60% código que ya existe.
 **Depende de:** Sprint 17 (IBL/tasa de reemplazo, ya implementado) y Sprint 13 (parametros_legales versionados).
@@ -6480,6 +6480,21 @@ UI (la propia plantilla lo marca como dudoso).
 - Test de recálculo de mesadas contra SMLMV histórico con al menos 3 años distintos.
 - Test de interés de mora Art. 141 comparado contra un caso con tasa de usura conocida.
 - Suite completa en verde.
+
+**Reclasificado (2026-08-25):** este sprint estaba marcado ⚠️ Parcial pero, verificado el código y el
+historial de git, no tiene absolutamente ningún avance (no existe `retroactivo_pensional.py`, cero commits
+relacionados) — las 3 decisiones de diseño de la sección de arriba seguían todas sin tomar. Se corrige a 🔵
+Bloqueado, el estado que refleja la realidad.
+
+**Decisiones tomadas con el usuario (2026-08-25):**
+- (a) Arquitectura: módulo nuevo dedicado `app/engine/labor/retroactivo_pensional.py`, mismo patrón que
+  `dismissal_indemnity.py` (Sprint 92) y `contrato_realidad.py` (Sprint 94) — no se extiende `calcular_ibl`.
+  Sin objeción del usuario, queda decidido.
+- (b) y (c) siguen sin poder decidirse sin el despacho — el usuario pidió preguntárselo directamente en vez
+  de asumir. Pregunta de seguimiento agregada en `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 85".
+- El usuario decidió **no** construir todavía la parte no bloqueada (recálculo mesada-a-mesada +
+  indexación IPC, que no dependen de (b)/(c)) — queda documentada como la pieza aislable de este sprint,
+  igual que se hizo en los Sprints 83/84/95/96, para cuando se decida programarla.
 
 ---
 

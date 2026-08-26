@@ -86,6 +86,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 79 — ¿Las costas procesales deben generar interés civil del 6% junto con el capital (Suma Única)?](#sprint-79--las-costas-procesales-deben-generar-interés-civil-del-6-junto-con-el-capital-suma-única)
 - [Sprint 82 (seguimiento) — ¿En qué área de BASTIUM vive el calculador de condenas administrativas (DTF)?](#sprint-82-seguimiento--en-qué-área-de-bastium-vive-el-calculador-de-condenas-administrativas-dtf)
 - [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
+- [Sprint 85 — Retroactivo pensional: tasa de mora del Art. 141 Ley 100, y vigencia del incremento 14%/7%](#sprint-85--retroactivo-pensional-tasa-de-mora-del-art-141-ley-100-y-vigencia-del-incremento-147)
 - [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
 - [Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8](#sprint-94-seguimiento--aporte-a-salud-en-contrato-realidad-y-si-el-decreto-03202026-reemplaza-la-regla-de-bonificación-por-servicio-de-la-plantilla-l8)
 - [Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025](#sprint-95-seguimiento--porcentajes-de-los-4-conceptos-horas-extras-hed-hen-hefd-hefn-tras-la-ley-24662025)
@@ -460,6 +461,37 @@ mismo, y si es así, los campos exactos que hacen falta capturar para implementa
 **Respuesta del despacho:**
 
 **Fecha:**
+---
+
+## Sprint 85 — Retroactivo pensional: tasa de mora del Art. 141 Ley 100, y vigencia del incremento 14%/7%
+
+**Contexto:** el retroactivo y reliquidación pensional (mesada por mesada, con incrementos e intereses de
+mora) es la funcionalidad más solicitada de las 16 plantillas de referencia del despacho (4 de 16 la
+necesitan). Dos piezas de esta funcionalidad requieren confirmación legal antes de poder programarse — el
+recálculo mesada a mesada contra el SMLMV histórico y la indexación IPC de cada mesada (Art. 21 Ley 100) no
+dependen de ninguna de las dos preguntas de abajo y se documentan aparte como la pieza aislable de este
+sprint.
+
+**Pregunta 1 — tasa del interés de mora (Art. 141 Ley 100):** el Art. 141 de la Ley 100 de 1993 dice que, en
+caso de mora en el pago de mesadas pensionales, la entidad debe reconocer "la tasa máxima de interés
+moratorio vigente en el momento en que se efectúe el pago". BASTIUM ya calcula un tope de usura vigente por
+fecha (`calcular_tope_usura`, `app/engine/interest/usury_validator.py`, usado para el techo del Art. 867-1
+E.T., Sprint 15). ¿Es esa la misma tasa que exige el Art. 141 Ley 100, o es una tasa distinta (por ejemplo,
+el interés bancario corriente puro, sin el multiplicador de usura)?
+
+**Pregunta 2 — vigencia del incremento 14%/7%:** la plantilla `P1A.RETROACTIVO-PENSIONAL-SALARIO-MINIMO-INDEXADO-O-INCREMENTO-PENSIONAL-DEL-14-o-7.md`
+trae un incremento pensional del 14% (cónyuge) o 7% (hijo) sobre la mesada, citando las sentencias SU-140-19
+y SL-2334-19 como referencia de vigencia — pero la propia plantilla marca esa vigencia como dudosa, sin
+confirmarla. ¿Sigue vigente hoy ese incremento, o ya no aplica?
+
+**Qué necesito exactamente:** (1) confirmación de si el interés de mora del Art. 141 es la misma tasa de
+usura que ya calcula BASTIUM, o el fundamento y la tabla de la tasa correcta si es distinta; (2) un sí/no
+sobre la vigencia actual del incremento 14%/7%, con la norma/sentencia que lo respalde si sigue vigente.
+
+**Respuesta del despacho:**
+
+**Fecha:**
+
 ---
 
 ## Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta
