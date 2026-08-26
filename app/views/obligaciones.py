@@ -31,6 +31,7 @@ from app.core.constants import (
 )
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
+from app.engine.labor.salario_domestico import salario_diario_a_mensual
 from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
 from app.services.recurrencia_fechas_fijas import (
     deserializar_fechas_anuales,
@@ -521,6 +522,25 @@ class ObligacionFormDialog(FormDialogBase):
             "Resuelve el salario base desde el Salario Minimo Legal Mensual Vigente del "
             "año de inicio del contrato, en vez del valor digitado a mano."
         )
+        # salario_diario/dias_laborados_semana (Sprint 96, wiring de UI): mismo
+        # patron que es_smmlv arriba -- con el checkbox marcado, "Valor" se
+        # oculta y el salario base mensual se resuelve via
+        # salario_diario_a_mensual (app/engine/labor/salario_domestico.py).
+        self.check_salario_diario = QCheckBox(
+            "Salario pactado por dia (trabajo domestico por dias/jornada parcial)"
+        )
+        self.check_salario_diario.setToolTip(
+            "Marca si el salario se pacto por dia trabajado (comun en trabajo "
+            "domestico por dias o jornada parcial), en vez de un salario mensual "
+            "directo."
+        )
+        self.campo_salario_diario = QLineEdit()
+        self.campo_salario_diario.setToolTip("Valor pactado por cada dia trabajado.")
+        self.campo_dias_laborados_semana = QSpinBox()
+        self.campo_dias_laborados_semana.setRange(1, 7)
+        self.campo_dias_laborados_semana.setToolTip(
+            "Numero de dias laborados por semana (1 a 7)."
+        )
         self.check_pagada = QCheckBox("Prestaciones pagadas")
         self.check_pagada.setToolTip(
             "Marca si el empleador ya pago las prestaciones sociales liquidadas; "
@@ -661,6 +681,11 @@ class ObligacionFormDialog(FormDialogBase):
         self.layout_datos_basicos.addRow("Concepto", self._contenedor_campo_concepto)
         self.layout_datos_basicos.addRow("Valor", self._contenedor_campo_valor)
         self.layout_datos_basicos.addRow(self.check_es_smmlv)
+        self.layout_datos_basicos.addRow(self.check_salario_diario)
+        self.layout_datos_basicos.addRow("Salario diario", self.campo_salario_diario)
+        self.layout_datos_basicos.addRow(
+            "Dias laborados por semana", self.campo_dias_laborados_semana
+        )
         self.layout_datos_basicos.addRow("Fecha de origen (Puntual)", self.campo_fecha_origen)
         self.label_fecha_origen = self.layout_datos_basicos.labelForField(self.campo_fecha_origen)
         self.layout_datos_basicos.addRow("Fecha de inicio (Recurrente)", self.campo_fecha_inicio)
@@ -904,6 +929,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.check_pacto_expreso_indexacion.setVisible(es_comercial)
         self.check_protegida_inflacion_uvr.setVisible(es_tributario)
         self.check_es_smmlv.setVisible(es_laboral)
+        self.check_salario_diario.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
         self.check_despido_injustificado.setVisible(es_laboral)
@@ -941,6 +967,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.combo_tipo.currentIndexChanged.connect(self._actualizar_vigencia_beneficiario)
         self.combo_tipo_recurrencia.currentIndexChanged.connect(self._actualizar_campos_visibles)
         self.check_es_smmlv.stateChanged.connect(self._actualizar_campos_visibles)
+        self.check_salario_diario.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_pagada.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_incluir_seguridad_social.stateChanged.connect(self._actualizar_campos_visibles)
         self.check_despido_injustificado.stateChanged.connect(self._actualizar_campos_visibles)
@@ -1127,6 +1154,13 @@ class ObligacionFormDialog(FormDialogBase):
                 if indice_reajuste_laboral >= 0:
                     self.combo_tipo_reajuste_anual.setCurrentIndex(indice_reajuste_laboral)
                 self.check_es_smmlv.setChecked(obligacion.es_smmlv)
+                if (
+                    obligacion.salario_diario is not None
+                    and obligacion.dias_laborados_semana is not None
+                ):
+                    self.check_salario_diario.setChecked(True)
+                    self.campo_salario_diario.setText(str(obligacion.salario_diario))
+                    self.campo_dias_laborados_semana.setValue(obligacion.dias_laborados_semana)
                 self.check_pagada.setChecked(obligacion.pagada)
                 if obligacion.fecha_pago_total is not None:
                     self.campo_fecha_pago_total.setDate(_qdate(obligacion.fecha_pago_total))
@@ -1429,10 +1463,16 @@ class ObligacionFormDialog(FormDialogBase):
                     self.campo_fecha_origen: True,
                     self.campo_fecha_inicio: False,
                     self.campo_dia_pago: False,
-                    # es_smmlv (Sprint 44, punto 1): con el checkbox marcado, "Valor"
-                    # se oculta -- el salario base se resuelve automaticamente al
-                    # liquidar, digitarlo a mano no serviria de nada.
-                    self._contenedor_campo_valor: not self.check_es_smmlv.isChecked(),
+                    # es_smmlv (Sprint 44, punto 1) / salario_diario (Sprint 96): con
+                    # cualquiera de los dos checkboxes marcado, "Valor" se oculta -- el
+                    # salario base se resuelve automaticamente al liquidar, digitarlo a
+                    # mano no serviria de nada.
+                    self._contenedor_campo_valor: (
+                        not self.check_es_smmlv.isChecked()
+                        and not self.check_salario_diario.isChecked()
+                    ),
+                    self.campo_salario_diario: self.check_salario_diario.isChecked(),
+                    self.campo_dias_laborados_semana: self.check_salario_diario.isChecked(),
                     self.combo_tipo_reajuste_anual: es_salarios_dejados,
                     self.combo_tipo_recurrencia: False,
                     self.campo_fechas_anuales_fijas: False,
@@ -1946,6 +1986,8 @@ class ObligacionFormDialog(FormDialogBase):
         )
 
         es_smmlv = self.check_es_smmlv.isChecked()
+        salario_diario = None
+        dias_laborados_semana = None
         qdate_inicio = self.campo_fecha_origen.date()
         fecha_inicio = date(qdate_inicio.year(), qdate_inicio.month(), qdate_inicio.day())
 
@@ -1956,6 +1998,20 @@ class ObligacionFormDialog(FormDialogBase):
             # resolver en cada liquidacion desde parametros_legales, asi que
             # esto es solo una foto inicial, no la fuente de verdad.
             valor = get_smlmv_for_year(fecha_inicio.year)
+        elif self.check_salario_diario.isChecked():
+            # salario_diario/dias_laborados_semana (Sprint 96, wiring de UI):
+            # mismo criterio que es_smmlv arriba -- se resuelve aqui tambien
+            # como foto inicial de `valor`; LaboralStrategy.liquidar() vuelve a
+            # resolverlo desde estas 2 columnas en cada liquidacion via
+            # salario_diario_a_mensual, que ya valida los mismos 2 rangos.
+            try:
+                salario_diario = Decimal(self.campo_salario_diario.text())
+            except InvalidOperation as error:
+                raise ValueError("El salario diario debe ser un numero valido.") from error
+            if salario_diario < Decimal("0"):
+                raise ValueError("El salario diario no puede ser negativo.")
+            dias_laborados_semana = self.campo_dias_laborados_semana.value()
+            valor = salario_diario_a_mensual(salario_diario, dias_laborados_semana)
         else:
             try:
                 valor = Decimal(self.campo_valor.text())
@@ -2039,6 +2095,8 @@ class ObligacionFormDialog(FormDialogBase):
             incluir_seguridad_social=incluir_seguridad_social,
             nivel_riesgo_arl=nivel_riesgo_arl,
             es_smmlv=es_smmlv,
+            salario_diario=salario_diario,
+            dias_laborados_semana=dias_laborados_semana,
             tipo_contrato_laboral=tipo_contrato_laboral,
             despido_injustificado=despido_injustificado,
             fecha_fin_pactada=fecha_fin_pactada,

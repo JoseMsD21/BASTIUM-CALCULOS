@@ -594,11 +594,11 @@ liquida junto con las demás prestaciones?
 **Qué necesito exactamente:** confirmación de si esta funcionalidad es necesaria, y si lo es, la regla
 completa del auxilio de transporte a implementar.
 
-**Nota adicional:** la captura de `salario_diario`/`dias_laborados_semana` en el formulario Laboral
-(`app/views/obligaciones.py`) tampoco se conectó todavía — el motor y el modelo de datos ya están listos y
-probados (`app/services/area_strategy.py`, `database/models.py`), pero hoy solo se pueden poblar
-directamente en el modelo, no desde la UI. Esto no depende de ninguna respuesta adicional del despacho, es
-trabajo de UI pendiente.
+**Nota adicional (resuelta 2026-08-26):** la captura de `salario_diario`/`dias_laborados_semana` en el
+formulario Laboral (`app/views/obligaciones.py`) ya se conectó — no dependía de ninguna respuesta adicional
+del despacho, era solo trabajo de UI pendiente (ver `Pendientes.md`, Sprint 96, "Cierre"). Esta nota queda
+solo como registro histórico; la única pregunta que sigue abierta en esta sección es la del auxilio de
+transporte, arriba.
 
 **Fecha:** 23/08/2026 (seguimiento tras respuesta del 22/08/2026)
 

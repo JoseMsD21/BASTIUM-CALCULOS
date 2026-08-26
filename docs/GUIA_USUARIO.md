@@ -700,7 +700,15 @@ de forma. El primer campo, **Categoría**, elige cuál de las dos formas de liqu
 1. Dentro del Detalle de un expediente Laboral, haz clic en **"Agregar obligación"**.
 2. Con la categoría "Liquidación de contrato laboral" seleccionada, llena:
    - **Concepto**: por ejemplo, "Liquidación de contrato — Juan Pérez".
-   - **Valor**: el salario base mensual.
+   - **Valor**: el salario base mensual. Si el trabajo es doméstico por días o de jornada parcial y el
+     salario se pactó por día trabajado (no como un valor mensual fijo), marca la casilla **"Salario
+     pactado por día (trabajo doméstico por días/jornada parcial)"** en vez de llenar "Valor" directamente
+     — aparecen dos campos nuevos, **"Salario diario"** y **"Días laborados por semana"** (1 a 7), y el
+     programa calcula el salario base mensual equivalente automáticamente
+     (`salario_diario × días_laborados_semana / 7 × 30`). El resultado de las prestaciones sociales es
+     exactamente el mismo que si hubieras calculado el equivalente mensual a mano y lo hubieras digitado
+     en "Valor" — la diferencia es solo de captura de datos, para no perder el rastro de auditoría de cómo
+     se llegó a esa cifra.
    - **Fecha de inicio del contrato**: el día en que empezó el contrato.
    - **Fecha de terminación de contrato**: el día en que el contrato terminó. A partir de esta fecha se
      calculan las prestaciones (todas se vuelven exigibles ese mismo día — es una liquidación final, no
