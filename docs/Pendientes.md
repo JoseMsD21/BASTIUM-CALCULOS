@@ -7974,7 +7974,7 @@ capturar hoy mismo en producción.
 
 ---
 
-## Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) 🔴 Bug confirmado sin corregir
+## Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) ✅ Completado
 
 **Prioridad sugerida:** Alta — el Sprint 24 (2026-07-21, cerrado 2026-08-17) ya había corregido exactamente
 este tipo de falta en 5 de 6 áreas; el formulario Tributario se agregó 4 días después de ese cierre
@@ -8037,6 +8037,22 @@ este tipo de falta en 5 de 6 áreas; el formulario Tributario se agregó 4 días
   falla al guardar, no solo al liquidar.
 - Test que confirma la advertencia de sobrepago en `DescuentoLaboralFormDialog`.
 - Suite completa en verde.
+
+**Cierre (rutina autónoma, 2026-08-26):**
+- `_guardar_tributario`: `valor` (IMPUESTO_A_CARGO) y `base_sancion` (las 3 categorías de sanción) ahora
+  exigen `> 0`, mismo criterio que `_guardar_laboral`/el resto de áreas. Los 5 campos de renta líquida
+  gravable exigen `>= 0` (permiten cero — ej. sin devoluciones ese periodo — pero no negativo).
+- `_guardar_laboral`: `fecha_fin_pactada` (contrato a término fijo/obra-labor) ahora se valida contra
+  `fecha_fin` (la fecha de terminación real, no `fecha_inicio` como decía el hallazgo original) al guardar
+  — mismo criterio que `DismissalIndemnityCalculator._calcular_termino_fijo` ya exige al liquidar
+  (`fecha_fin_pactada <= fecha_terminacion`, y `fecha_terminacion` es siempre `obligacion.fecha_fin` en el
+  wiring real de `LaboralStrategy`, ver `app/services/area_strategy.py:1429`).
+- `DescuentoLaboralFormDialog.guardar()`: agrega la misma heurística no bloqueante de "posible sobrepago"
+  que ya tenía `AbonoFormDialog.guardar()` (suma de descuentos previos + nuevo contra `obligacion.valor`).
+- `expedientes.py:199`: título del `QMessageBox.warning` cambiado de `"Datos incompletos"` a
+  `"Datos invalidos"`, consistente con el resto de pantallas.
+- 13 tests nuevos (`tests/views/test_obligaciones.py` x9, `tests/views/test_descuentos_laborales.py` x3,
+  `tests/views/test_expedientes.py` x1). Suite completa: 1621 passed, `ruff check .` limpio.
 
 ---
 

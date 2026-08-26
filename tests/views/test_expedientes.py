@@ -38,6 +38,29 @@ def test_campos_no_autoexplicativos_tienen_tooltip(qtbot, monkeypatch):
         assert widget.toolTip() != "", f"{nombre_campo} deberia tener un tooltip"
 
 
+def test_guardar_y_cerrar_sin_radicado_usa_titulo_datos_invalidos(qtbot, monkeypatch):
+    # Sprint 111 (hallazgo 4): _guardar_y_cerrar usaba el titulo "Datos
+    # incompletos", inconsistente con el resto de pantallas del mismo patron
+    # (obligaciones.py, abonos.py, eventos_laborales.py,
+    # descuentos_laborales.py, configuracion.py), todas con "Datos invalidos".
+    _sesion_en_memoria(monkeypatch)
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expedientes.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("")
+
+    dialog._guardar_y_cerrar()
+
+    assert len(avisos) == 1
+    assert avisos[0][0] == "Datos invalidos"
+
+
 def test_fecha_de_corte_muestra_icono_informativo(qtbot, monkeypatch):
     """Sprint 59: 'Fecha de corte' es el campo con mayor impacto no obvio en la
     liquidacion (fija el limite por defecto de calculo de intereses) -- recibe el

@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.views.form_utils import hacer_redimensionable
 from app.views.icons import icon
-from database.models import DescuentoLaboral
+from database.models import DescuentoLaboral, Obligacion
 
 
 class DescuentoLaboralFormDialog(QDialog):
@@ -82,6 +82,25 @@ class DescuentoLaboralFormDialog(QDialog):
         fecha = date(qdate.year(), qdate.month(), qdate.day())
 
         session = session_module.get_session()
+        obligacion = session.get(Obligacion, self._obligacion_id)
+        # Sprint 111 (regresion del Sprint 44): misma heuristica no bloqueante
+        # que ya tiene AbonoFormDialog.guardar() -- LaboralStrategy.liquidar()
+        # reutiliza el mismo mecanismo de pagos/allocation para restar los
+        # descuentos del neto adeudado, asi que un descuento (o suma de
+        # descuentos) que supera el valor de la obligacion es la misma señal
+        # de un posible error de captura.
+        descuentos_previos = sum(
+            (d.monto for d in obligacion.descuentos_laborales), Decimal("0.00")
+        )
+        if descuentos_previos + monto > obligacion.valor:
+            QMessageBox.warning(
+                self,
+                "Posible sobrepago",
+                "El total de descuentos del empleador para esta obligación "
+                f"(${descuentos_previos + monto:,.2f}) supera el valor registrado "
+                f"(${obligacion.valor:,.2f}). Verifique el monto antes de continuar.",
+            )
+
         descuento = DescuentoLaboral(
             obligacion_id=self._obligacion_id,
             fecha=fecha,

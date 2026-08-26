@@ -123,6 +123,89 @@ def test_monto_negativo_lanza_error_de_validacion(qtbot, monkeypatch):
         dialog.guardar()
 
 
+def test_descuento_que_supera_el_valor_de_la_obligacion_muestra_advertencia_no_bloqueante(
+    qtbot, monkeypatch
+):
+    # Sprint 111 (regresion del Sprint 44): DescuentoLaboralFormDialog no
+    # tenia la misma heuristica no bloqueante de "posible sobrepago" que ya
+    # tiene AbonoFormDialog, pese a que LaboralStrategy.liquidar() resta un
+    # descuento del neto adeudado igual que un abono.
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)  # valor=3000000.00
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.descuentos_laborales.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    dialog = DescuentoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_monto.setText("3500000.00")
+    dialog.campo_fecha.setDate(date(2021, 1, 15))
+
+    descuento_id = dialog.guardar()
+
+    # La advertencia se muestra...
+    assert len(avisos) == 1
+    assert "sobrepago" in avisos[0][0].lower()
+    # ...pero NO bloquea el guardado.
+    session = session_module.get_session()
+    guardado = session.query(DescuentoLaboral).filter_by(obligacion_id=obligacion_id).one()
+    assert guardado.monto == Decimal("3500000.00")
+    assert guardado.id == descuento_id
+    session.close()
+
+
+def test_descuento_dentro_del_valor_de_la_obligacion_no_muestra_advertencia(qtbot, monkeypatch):
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)  # valor=3000000.00
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.descuentos_laborales.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    dialog = DescuentoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.campo_monto.setText("500000.00")
+    dialog.campo_fecha.setDate(date(2021, 1, 15))
+
+    dialog.guardar()
+
+    assert len(avisos) == 0
+
+
+def test_descuentos_acumulados_que_superan_el_valor_muestran_advertencia(qtbot, monkeypatch):
+    # El primer descuento (2000000) no supera el valor (3000000). El segundo
+    # (1500000) hace que la suma acumulada (3500000) si lo supere -- la
+    # heuristica debe sumar descuentos previos, no comparar solo el monto
+    # nuevo contra el valor.
+    obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
+
+    monkeypatch.setattr(
+        "app.views.descuentos_laborales.QMessageBox.warning", lambda *a, **k: None
+    )
+    primer_dialog = DescuentoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(primer_dialog)
+    primer_dialog.campo_monto.setText("2000000.00")
+    primer_dialog.campo_fecha.setDate(date(2021, 1, 10))
+    primer_dialog.guardar()
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.descuentos_laborales.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+    segundo_dialog = DescuentoLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(segundo_dialog)
+    segundo_dialog.campo_monto.setText("1500000.00")
+    segundo_dialog.campo_fecha.setDate(date(2021, 1, 20))
+    segundo_dialog.guardar()
+
+    assert len(avisos) == 1
+    assert "sobrepago" in avisos[0][0].lower()
+
+
 def test_boton_guardar_tiene_icono_y_clase_primaria(qtbot, monkeypatch):
     obligacion_id = _obligacion_laboral_de_prueba(monkeypatch)
 

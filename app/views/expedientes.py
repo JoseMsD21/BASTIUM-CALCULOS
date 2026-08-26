@@ -196,7 +196,7 @@ class ExpedienteFormDialog(QDialog):
             self._expediente_id_creado = self.guardar()
             self.accept()
         except ValueError as error:
-            QMessageBox.warning(self, "Datos incompletos", str(error))
+            QMessageBox.warning(self, "Datos invalidos", str(error))
 
 
 class ExpedientesListView(QWidget):
