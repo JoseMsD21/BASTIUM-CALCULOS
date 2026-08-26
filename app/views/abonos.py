@@ -3,15 +3,20 @@ from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import QDate
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QDateEdit, QDialog, QFormLayout, QLineEdit, QMessageBox, QPushButton
+from PySide6.QtWidgets import QDateEdit, QFormLayout, QLineEdit, QMessageBox, QPushButton
 
 import database.session as session_module
-from app.views.form_utils import agregar_ayuda, guardar_o_actualizar, hacer_redimensionable
+from app.views.form_utils import (
+    FormDialogBase,
+    agregar_ayuda,
+    guardar_o_actualizar,
+    hacer_redimensionable,
+)
 from app.views.icons import icon
 from database.models import Abono, Obligacion
 
 
-class AbonoFormDialog(QDialog):
+class AbonoFormDialog(FormDialogBase):
     def __init__(self, obligacion_id: int, parent=None, abono_id: int | None = None):
         super().__init__(parent)
         hacer_redimensionable(self)
@@ -133,10 +138,3 @@ class AbonoFormDialog(QDialog):
         )
         session.close()
         return abono_id
-
-    def _guardar_y_cerrar(self) -> None:
-        try:
-            self.guardar()
-            self.accept()
-        except ValueError as error:
-            QMessageBox.warning(self, "Datos invalidos", str(error))

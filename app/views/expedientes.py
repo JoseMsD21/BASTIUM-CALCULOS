@@ -5,7 +5,6 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
-    QDialog,
     QFormLayout,
     QHBoxLayout,
     QInputDialog,
@@ -22,12 +21,12 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
-from app.views.form_utils import agregar_ayuda, hacer_redimensionable
+from app.views.form_utils import FormDialogBase, agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
 from database.models import AreaDerecho, Expediente
 
 
-class ExpedienteFormDialog(QDialog):
+class ExpedienteFormDialog(FormDialogBase):
     def __init__(self, parent=None, expediente: Expediente | None = None):
         super().__init__(parent)
         hacer_redimensionable(self)
@@ -121,8 +120,6 @@ class ExpedienteFormDialog(QDialog):
         layout.addRow(self.boton_guardar)
         self.setLayout(layout)
 
-        self._expediente_id_creado = None
-
         self.campo_radicado.textChanged.connect(self._validar_radicado_en_tiempo_real)
 
         # Orden de tabulacion explicito (Sprint 37), siguiendo el orden visual de
@@ -190,13 +187,6 @@ class ExpedienteFormDialog(QDialog):
             self._marcar_campo_invalido(self.campo_radicado, "El radicado es obligatorio.")
         else:
             self._marcar_campo_valido(self.campo_radicado, tooltip_original)
-
-    def _guardar_y_cerrar(self) -> None:
-        try:
-            self._expediente_id_creado = self.guardar()
-            self.accept()
-        except ValueError as error:
-            QMessageBox.warning(self, "Datos invalidos", str(error))
 
 
 class ExpedientesListView(QWidget):

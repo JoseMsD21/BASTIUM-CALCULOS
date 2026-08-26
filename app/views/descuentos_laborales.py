@@ -6,7 +6,6 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QDateEdit,
-    QDialog,
     QFormLayout,
     QLineEdit,
     QMessageBox,
@@ -14,12 +13,12 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
-from app.views.form_utils import hacer_redimensionable
+from app.views.form_utils import FormDialogBase, hacer_redimensionable
 from app.views.icons import icon
 from database.models import DescuentoLaboral, Obligacion
 
 
-class DescuentoLaboralFormDialog(QDialog):
+class DescuentoLaboralFormDialog(FormDialogBase):
     """Descuento del empleador sobre una obligacion Laboral (Sprint 44, punto
     3) -- mismo patron de dialogo que `AbonoFormDialog` (app/views/abonos.py),
     solo que en vez de reducir la deuda como un pago del deudor, modela un
@@ -113,10 +112,3 @@ class DescuentoLaboralFormDialog(QDialog):
         descuento_id = descuento.id
         session.close()
         return descuento_id
-
-    def _guardar_y_cerrar(self) -> None:
-        try:
-            self.guardar()
-            self.accept()
-        except ValueError as error:
-            QMessageBox.warning(self, "Datos invalidos", str(error))

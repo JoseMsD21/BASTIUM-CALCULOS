@@ -16,9 +16,38 @@ vive en un `QFormLayout`.
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QLabel, QWidget
+from PySide6.QtWidgets import QDialog, QFormLayout, QHBoxLayout, QLabel, QMessageBox, QWidget
 
 from app.views.icons import icon
+
+
+class FormDialogBase(QDialog):
+    """Sprint 114 (hallazgo 3): centraliza el patron "guardar > cerrar" que
+    los 6 dialogos de formulario de esta carpeta (Abono, Parametro,
+    Expediente, Obligacion, DescuentoLaboral, EventoLaboral) repetian
+    identico: cada subclase implementa su propia `guardar()` con la logica
+    de validacion y persistencia de su dominio; `_guardar_y_cerrar`
+    (conectada al boton Guardar y a Ctrl+S en cada dialogo) la invoca, y si
+    `guardar()` levanta `ValueError` (dato invalido) lo muestra como
+    advertencia no bloqueante en vez de dejar que la excepcion se propague y
+    cierre la aplicacion.
+
+    El valor que retorna `guardar()` (tipicamente el id de la fila creada o
+    editada) queda disponible despues en `self.resultado_guardado`, para los
+    llamadores que lo necesiten.
+    """
+
+    resultado_guardado = None
+
+    def guardar(self):
+        raise NotImplementedError
+
+    def _guardar_y_cerrar(self) -> None:
+        try:
+            self.resultado_guardado = self.guardar()
+            self.accept()
+        except ValueError as error:
+            QMessageBox.warning(self, "Datos invalidos", str(error))
 
 
 def guardar_o_actualizar(session, modelo_cls, id_existente: int | None, **campos) -> int:
