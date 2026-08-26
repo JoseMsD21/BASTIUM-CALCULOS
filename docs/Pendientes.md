@@ -7620,7 +7620,7 @@ en `c_burgundy`; `app/views/expedientes.py` sigue sin `tipo_proceso`; `app/views
 `campo_fecha_inicio` y el placeholder `MM-DD`; no existe ningún `Line2D`/`fill_between`/`LineCollection` en
 `app/`).
 
-## Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 📋 Pendiente
+## Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Alta — es la puerta de entrada de cualquier expediente; hoy el abogado arma cada
 obligación desde cero aunque el subtipo de caso ya determine casi siempre el mismo conjunto de obligaciones.
@@ -7673,9 +7673,17 @@ intake. Es alcance enteramente nuevo.
   catálogo predefinido se lo impida.
 - Suite completa en verde.
 
+**Reclasificación (rutina autónoma, 2026-08-26):** estaba marcado 📋 Pendiente pero su propia sección
+"Decisión de diseño a tomar con el usuario antes de codificar" exige un catálogo jurídico (tipos de
+proceso/subtipos por área y qué obligaciones trae cada uno) que nadie ha confirmado todavía — es un bloqueo
+real disfrazado de Pendiente, mismo patrón que ya se vigila para los sprints ⚠️ Parcial. No se encontró
+ninguna pregunta formal ya hecha al despacho sobre este catálogo en `Preguntas-Para-Abogado-Abiertas.md` ni
+`-Respondidas.md`. Se reclasifica a 🔵 Bloqueado sin tocar código — la pregunta exacta ya está en la sección
+de arriba, no se duplica aquí.
+
 ---
 
-## Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 📋 Pendiente
+## Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Media-alta — es una regla transversal a todas las áreas y formularios, no aislada a
 una pantalla; cuanto más tarde se corrija, más pantallas nuevas heredarán la inconsistencia.
@@ -7724,9 +7732,15 @@ vigencia), en vez de repetirlo en cada obligación.
   obligaciones nuevas de ese expediente lo usan por defecto.
 - Suite completa en verde.
 
+**Reclasificación (rutina autónoma, 2026-08-26):** estaba marcado 📋 Pendiente pero su propia sección
+"Decisión de diseño a tomar antes de codificar" exige confirmar el widget del campo de fechas anuales fijas
+y el modelo de datos para "año/fecha de vigencia del acta o título" (depende además del catálogo del Sprint
+105, también bloqueado) — mismo bloqueo real disfrazado de Pendiente. No hay pregunta formal ya hecha al
+despacho sobre esto. Se reclasifica a 🔵 Bloqueado sin tocar código.
+
 ---
 
-## Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Pendiente
+## Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 🔵 Bloqueado — pendiente de confirmación
 
 **Prioridad sugerida:** Media — no es un bug de cálculo (Sprint 8/20/43 ya calculan correctamente cuando el
 checkbox está marcado), es un cambio de en qué momento del flujo se toma la decisión.
@@ -7769,6 +7783,13 @@ con el checkbox distinto hoy exige volver a editar la obligación y liquidar de 
 - Una liquidación ya proyectada puede mostrarse con y sin indexación IPC (y con y sin interés sobre capital
   indexado, donde aplique) sin tener que volver a capturar la obligación desde cero.
 - Suite completa en verde.
+
+**Reclasificación (rutina autónoma, 2026-08-26):** estaba marcado 📋 Pendiente pero su propia sección
+"Decisión de diseño a tomar con el usuario antes de codificar" pregunta explícitamente entre dos
+arquitecturas distintas (mover el checkbox por completo a `ResultadoLiquidacionView` con recálculo in situ,
+o agregar un segundo control puramente de presentación) sin que el despacho/usuario haya elegido una — mismo
+bloqueo real disfrazado de Pendiente. No hay pregunta formal ya hecha al despacho sobre esto. Se reclasifica
+a 🔵 Bloqueado sin tocar código.
 
 ---
 
@@ -7854,7 +7875,7 @@ si sus tablas de cronología tienen el mismo mismatch de bordes/totales antes de
 
 ---
 
-## Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) 📋 Pendiente
+## Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) ✅ Completado
 
 **Prioridad sugerida:** Baja — no hay ninguna gráfica de línea/curva en el código hoy; este sprint deja el
 estándar documentado para cuando se construya una, en vez de dejar la regla suelta en un mensaje del
@@ -7896,6 +7917,17 @@ paleta.
   vez.
 - Si se construye una gráfica de curva real en este sprint o uno posterior, cumple exactamente esta
   especificación, verificado visualmente (no solo que el código compile).
+
+**Cierre (rutina autónoma, 2026-08-26):** documentado en `docs/DISENO_UI_UX.md` (sección "Gráficas", tabla
+con los 4 colores exactos que pidió el despacho), no en `app/core/theme_colors.py` — ese módulo declara
+explícitamente (docstring de `theme_colors_dark.py`) que todos sus nombres de constante deben espejarse
+1:1 en modo oscuro con luminancia invertida, una convención que no aplica a estos colores: son de
+documento/exportación (una imagen embebida en un reporte, con fondo fijo), igual que
+`BastiumChartGenerator` ya usa sus propias constantes locales independientes del sistema de tema de la GUI.
+Meter los `GRAFICA_LINEA_*` ahí habría violado esa convención sin necesidad, dado que el propio DoD permite
+cualquiera de los dos archivos. Segunda mitad del DoD (verificación visual) queda condicionada a que se
+construya una gráfica de curva real — no aplica todavía, ninguna existe. Suite completa: 1621 passed (sin
+cambio, es documentación pura), `ruff check .` limpio.
 
 ---
 
