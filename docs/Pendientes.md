@@ -40,7 +40,12 @@ marca aparte dentro del cuerpo del sprint:
   misma prioridad que un sprint 🟡 En proceso, antes que el backlog 📋 nuevo.
 
 **Prioridad de la cola para trabajo autónomo:** 🟡 En proceso → 🟠 Reabierto → 🔴 Bug confirmado sin
-corregir → 📋 Pendiente. Los estados ⚠️ Parcial y 🔵 Bloqueado nunca se toman directamente.
+corregir → 📋 Pendiente → ⚠️ Parcial (actualizado 2026-08-26). El estado 🔵 Bloqueado nunca se toma
+directamente. ⚠️ Parcial es el único estado condicional: solo se toma si la nota "Cierre parcial" del
+propio sprint describe una tarea de ingeniería concreta sin decisión pendiente (ej. conectar una función
+ya construida y probada al pipeline real), y su pregunta de seguimiento en
+`Preguntas-Para-Abogado-Abiertas.md` (si existe) ya tiene respuesta — si esa pregunta sigue sin contestar,
+es un bloqueo disfrazado de Parcial y se trata igual que 🔵 Bloqueado.
 
 **Contexto ya construido (no repetir):**
 - `docs/superpowers/specs/2026-07-14-mvp-captura-liquidacion-civil-familia-design.md` — diseño del MVP.

@@ -35,10 +35,28 @@ siempre pegado al título del sprint, nunca como marca separada dentro del cuerp
 2. 🟠 Reabierto — una decisión ya contestada no debe esperar detrás de todo el backlog nuevo.
 3. 🔴 Bug confirmado sin corregir — máxima prioridad de dominio si aparece uno nuevo.
 4. 📋 Pendiente — por orden de número de sprint.
+5. ⚠️ Parcial (agregado 2026-08-26) — **condicional**, no incondicional como los 4 anteriores. Antes
+   de tomar un sprint Parcial, la rutina debe:
+   1. Leer su nota "Cierre parcial (...)" en el cuerpo del sprint y confirmar que describe una tarea
+      de ingeniería concreta y mecánica sin ninguna decisión pendiente (ej. "conectar la función ya
+      construida y probada X a Y", "cablear al formulario") — no una reescritura de arquitectura sin
+      acotar ni una implementación de parámetro legal sin confirmar.
+   2. Buscar si ese sprint tiene una pregunta de seguimiento en `Preguntas-Para-Abogado-Abiertas.md`
+      (patrón de título "Sprint N (seguimiento)"). Si existe y su "Respuesta del despacho" sigue en
+      blanco, el sprint NO se toca — es un bloqueo real disfrazado de Parcial, se trata exactamente
+      como 🔵 Bloqueado y se sigue con el siguiente de la cola.
+   3. Solo si pasa ambos chequeos, se retoma como cualquier otro sprint (rama propia, TDD, etc.) y si
+      queda completo pasa a ✅ Completado (ya no queda nada pendiente).
 
-⚠️ Parcial y 🔵 Bloqueado nunca se toman directamente; ⚠️ Parcial solo se retoma cuando el sprint
-al que se difirió su resto (que sí será 📋/🟠) lo trae de vuelta, y 🔵 Bloqueado solo se mueve
-cuando el usuario o el despacho contestan (pasa entonces a 🟠 Reabierto).
+🔵 Bloqueado nunca se toma directamente — solo se mueve cuando el usuario o el despacho contestan
+(pasa entonces a 🟠 Reabierto).
+
+**Por qué se agregó este nivel:** la corrida del 2026-08-23 (2.5h, cerró/avanzó 13 sprints con
+disciplina TDD perfecta y cero errores) dejó 5 sprints en ⚠️ Parcial con trabajo de ingeniería real
+sin dueño — nadie los iba a retomar nunca, porque no había ningún otro sprint numerado que los
+reclamara. Las ~10 corridas siguientes (2026-08-24 a 2026-08-26) no tuvieron nada que hacer y
+mandaron ~15 correos idénticos de "cola vacía" mientras ese trabajo quedaba huérfano — ver también
+el throttling de notificación agregado en la sección de Notificaciones.
 
 ## Disparo y cadencia
 
@@ -114,17 +132,25 @@ Si aparece una decisión crítica no anticipada (mismo patrón que ya exigieron 
 
 ## Notificaciones
 
-Vía `PushNotification` (llega al celular solo si el usuario no está activo en la terminal —
-verificado: si está presente, la herramienta se salta el envío porque sería redundante con lo que
-ya está viendo):
+**Corrección 2026-08-20:** el diseño original asumía `PushNotification` como canal principal, pero
+las rutinas de nube (CCR) no tienen garantizado el mismo acceso a esa herramienta que una sesión
+local interactiva. El canal real y verificado en producción es **Gmail** (conector MCP, único
+adjuntado a la rutina — ver Gestión de la rutina) a `jmsd2125@gmail.com`:
 
-1. **Al crear/reactivar un 🔵 Bloqueado** — sprint, tipo de decisión (usuario/despacho), pregunta
+1. **Al crear/reactivar un 🔵 Bloqueado** (o descubrir que un ⚠️ Parcial sigue bloqueado disfrazado)
+   — correo con asunto "BASTIUM bloqueado: Sprint N", tipo de decisión (usuario/despacho), pregunta
    exacta.
-2. **Al cerrar cada ventana de 5h** — resumen corto: qué se completó, qué quedó 🟡/🔵, qué sigue.
+2. **Al terminar cada corrida que sí tocó al menos un sprint** — correo "BASTIUM resumen de
+   corrida" con todos los sprints tocados, qué quedó En proceso/Parcial/Bloqueado, y qué sigue en
+   la cola.
+3. **Throttling de "cola vacía" (agregado 2026-08-26):** si una corrida no toca ningún sprint desde
+   el arranque (cola completamente agotada, incluido el nivel 5 ⚠️ Parcial), la rutina busca primero
+   en Gmail si ya mandó un correo de cola vacía ese mismo día calendario (hora Bogotá) — si ya lo
+   mandó, no reenvía nada y termina en silencio. Antes de este cambio, entre el 2026-08-24 y el
+   2026-08-26 se mandaron ~15 correos idénticos (uno por cada corrida de 5h) sin que nada cambiara.
 
-Requiere que el usuario tenga Remote Control conectado en el celular — sin eso no hay a dónde
-entregar el push aunque el resto del mecanismo funcione. Pendiente de confirmación definitiva por
-parte del usuario ("creo que lo tengo conectado").
+`PushNotification` sigue disponible y se usa como complemento cuando el modelo lo considera útil,
+pero ya no es el mecanismo del que depende la rutina — Gmail es el canal garantizado.
 
 ## Gestión de la rutina
 
