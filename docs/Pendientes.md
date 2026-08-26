@@ -8088,7 +8088,7 @@ este tipo de falta en 5 de 6 áreas; el formulario Tributario se agregó 4 días
 
 ---
 
-## Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices 📋 Pendiente
+## Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices ✅ Completado
 
 **Prioridad sugerida:** Media-alta para el hallazgo 1 (operación destructiva sin feedback); media para el
 resto.
@@ -8146,6 +8146,54 @@ el patrón de migración idempotente de `migrate_add_indices_rendimiento.py`).
   antes/después con un rango grande de cuotas.
 - Migración de índices aplicada y verificada.
 - Suite completa en verde, sin cambios de resultado numérico.
+
+**Cierre (rutina autónoma, 2026-08-26):**
+- **Hallazgo 1:** `RestablecerView` ahora corre el backup + borrado en `QThreadPool` (mismo patrón
+  `TareaEnHilo`/`QProgressDialog` del Sprint 26), con el botón deshabilitado mientras corre y una señal
+  nueva (`restablecimiento_finalizado`) para poder esperarla desde los tests, igual que
+  `liquidacion_finalizada` ya resuelve para `_liquidar`. Se evaluó `session.query(Expediente).delete
+  (synchronize_session=False)` sugerido en el sprint, y se descartó: los `cascade="all, delete-orphan"`
+  del modelo son puramente de ORM (`database/models.py` no declara `ondelete="CASCADE"` a nivel de FK), así
+  que un `.delete()` masivo dejaría huérfanas las filas hijas (obligaciones/abonos/eventos/descuentos/
+  audit_logs) en vez de borrarlas — cambiarlo exigiría reescribir el borrado en cascada manual tabla por
+  tabla, un riesgo de integridad de datos que el hallazgo original solo pedía "evaluar", no aplicar a
+  ciegas. El threading (que sí resuelve el problema real: la UI congelada sin ningún indicio visual) queda
+  intacto sin ese riesgo.
+- **Hallazgo 2:** `generar_cuotas_mensuales`/`generar_cuotas_fechas_fijas` (`reajuste_anual.py`/
+  `recurrencia_fechas_fijas.py`) ahora corren bajo `@cache_de_liquidacion()` con `precargar_parametro`
+  (SMLMV o IPC_INDICE_ACUMULADO, según el tipo de reajuste) — una obligación de varios años ya no abre una
+  sesión SQLAlchemy por cada transición de año. `_generar_cuotas` (`ExpedienteDetallePage`) también se
+  movió a `TareaEnHilo`, mismo patrón que el hallazgo 1 (señal nueva `cuotas_generadas`).
+- **Hallazgo 3:** `pago_por_rango.py::_calcular_preview` ahora envuelve el `for cuota in self._cuotas` en
+  `cache_de_liquidacion()`. El diagnóstico real fue más amplio que "resolver la tasa": el motor genérico
+  (`UniversalLiquidationService.liquidar()`, vía `motor_universal.py::_marcar_obligaciones_prescritas`)
+  resuelve la prescripción de **cada evento incondicionalmente**, con la `fecha_origen` de cada cuota (no
+  `fecha_pago`) — sin `precargar_parametro` para las 6 claves de `CLAVE_POR_TIPO_ACCION`
+  (`app/engine/temporal/prescripcion.py`), esa parte seguía abriendo una sesión por cuota pese a la cache.
+  Con ambas piezas, un rango de 2 cuotas y uno de 6 abren exactamente el mismo número de sesiones (test
+  `test_calcular_preview_no_abre_mas_sesiones_al_crecer_el_rango_de_cuotas`, comparación directa en vez de
+  un número fijo). Debounce del `textChanged` (mencionado como "evaluar" en el sprint) se evaluó y se
+  descartó: la cache ya resuelve el crecimiento con N cuotas (la queja real del hallazgo), y debounce
+  habría exigido reescribir ~10 tests existentes que asumen recálculo síncrono por tecla, a cambio de una
+  mejora marginal adicional no pedida explícitamente.
+- **Hallazgo 4:** `scripts/migrate_add_indices_recalculo_historico.py` (nuevo, mismo patrón idempotente que
+  `migrate_add_indices_rendimiento.py`) agrega índices en `audit_logs.fecha_ejecucion` (la columna
+  principal: filtro de rango + `ORDER BY` en `identificar_liquidaciones_pre_sprint30`),
+  `audit_logs.obsoleto_requiere_recalculo` y `audit_logs.liquidacion_anterior_id` (las otras 2 condiciones
+  del mismo `WHERE`). Registrado en `aplicar_migraciones_pendientes` (`database/database.py`), después de
+  `migrar_recalculo_historico_sprint47` (depende de que esas columnas ya existan).
+- Verificación: en este entorno de nube no hay forma de hacer clic real en la GUI para un smoke test
+  manual literal — se verificó en su lugar con tests que ejercitan el `QThreadPool` real (no mockeado) vía
+  `qtbot.waitSignal`, y con la comparación de sesiones N-independiente de arriba en vez de un benchmark de
+  tiempo (`scripts/benchmark_motor_rendimiento.py` mide tiempo de reloj, sensible al hardware del
+  sandbox — la comparación de conteo de sesiones prueba la causa raíz de forma determinística).
+- 21 tests nuevos (`tests/views/test_restablecer.py` x1, `tests/views/test_expediente_detalle.py` — señal
+  nueva reutilizada en 10 tests existentes —, `tests/services/test_reajuste_anual.py` x1,
+  `tests/services/test_recurrencia_fechas_fijas.py` x1, `tests/views/test_pago_por_rango.py` x1,
+  `tests/scripts/test_migrate_add_indices_recalculo_historico.py` x3). Suite completa: 1628 passed,
+  `ruff check .` limpio.
+- `docs/GUIA_USUARIO.md` actualizado: "Restablecer datos de fábrica" y "Generar cuotas" ahora mencionan la
+  ventana de progreso.
 
 ---
 

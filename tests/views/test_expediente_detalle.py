@@ -1529,7 +1529,8 @@ def test_generar_cuotas_dispatcha_a_fechas_fijas_segun_tipo_recurrencia(qtbot, m
 
     fila = page._obligacion_ids_por_fila.index(obligacion_id)
     page.tabla_obligaciones.setCurrentCell(fila, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
 
     session = session_module.get_session()
     cuotas = (
@@ -1555,12 +1556,14 @@ def test_generar_cuotas_fechas_fijas_dos_veces_no_duplica_filas(qtbot, monkeypat
 
     fila = page._obligacion_ids_por_fila.index(obligacion_id)
     page.tabla_obligaciones.setCurrentCell(fila, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
     primer_conteo = page.tabla_obligaciones.rowCount()
 
     fila = page._obligacion_ids_por_fila.index(obligacion_id)
     page.tabla_obligaciones.setCurrentCell(fila, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
 
     assert page.tabla_obligaciones.rowCount() == primer_conteo
 
@@ -1626,7 +1629,8 @@ def test_generar_cuotas_persiste_y_refresca_la_tabla_de_obligaciones(qtbot, monk
 
     fila = page._obligacion_ids_por_fila.index(obligacion_id)
     page.tabla_obligaciones.setCurrentCell(fila, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
 
     # Nov/Dic 2024 (2) + Ene..Mar 2025 (3) = 5 cuotas + la obligacion padre = 6 filas.
     assert page.tabla_obligaciones.rowCount() == 6
@@ -1650,12 +1654,14 @@ def test_generar_cuotas_dos_veces_no_duplica_filas(qtbot, monkeypatch):
 
     fila = page._obligacion_ids_por_fila.index(obligacion_id)
     page.tabla_obligaciones.setCurrentCell(fila, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
     primer_conteo = page.tabla_obligaciones.rowCount()
 
     fila = page._obligacion_ids_por_fila.index(obligacion_id)
     page.tabla_obligaciones.setCurrentCell(fila, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
 
     assert page.tabla_obligaciones.rowCount() == primer_conteo
 
@@ -1674,7 +1680,8 @@ def test_generar_cuotas_sobre_obligacion_sin_reajuste_muestra_advertencia(qtbot,
     page.cargar_expediente(expediente_id)
     page.tabla_obligaciones.setCurrentCell(0, 0)
 
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
 
     assert len(avisos) == 1
     assert avisos[0][0] == "No se pudo generar cuotas"
@@ -1762,7 +1769,8 @@ def test_flujo_completo_crear_obligacion_recurrente_generar_cuotas_y_abonar_una_
     assert page.tabla_obligaciones.rowCount() == 1  # solo la obligacion padre, todavia
 
     page.tabla_obligaciones.setCurrentCell(0, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
 
     # Nov/Dic 2024 (2) + Ene/Feb 2025 (2) = 4 cuotas + la obligacion padre = 5 filas.
     assert page.tabla_obligaciones.rowCount() == 5
@@ -2006,7 +2014,8 @@ def test_eliminar_obligacion_recurrente_con_cuotas_hijas_las_elimina_todas(qtbot
     page.cargar_expediente(expediente_id)
     fila = page._obligacion_ids_por_fila.index(obligacion_id)
     page.tabla_obligaciones.setCurrentCell(fila, 0)
-    page._generar_cuotas()
+    with qtbot.waitSignal(page.cuotas_generadas, timeout=5000):
+        page._generar_cuotas()
     assert page.tabla_obligaciones.rowCount() == 6  # obligacion padre + 5 cuotas
 
     session = session_module.get_session()

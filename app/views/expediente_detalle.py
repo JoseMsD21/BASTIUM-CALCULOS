@@ -87,8 +87,32 @@ def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
     return resultado
 
 
+def _generar_cuotas_en_hilo_de_fondo(obligacion_id: int, fecha_corte: date) -> list:
+    """Se ejecuta en el QThreadPool (Sprint 112), no en el hilo de UI -- mismo
+    patron que `_liquidar_en_hilo_de_fondo`. generar_cuotas_mensuales/
+    generar_cuotas_fechas_fijas ya abren y cierran su propia sesion
+    internamente (parametro_service.py), asi que aqui solo se resuelve que
+    generador despachar antes de entregarle el objeto detached."""
+    session = session_module.get_session()
+    obligacion = session.get(Obligacion, obligacion_id)
+    es_fechas_fijas = (
+        obligacion.tipo_recurrencia is not None
+        and obligacion.tipo_recurrencia.value == "FECHAS_ANUALES_FIJAS"
+    )
+    session.close()
+
+    if es_fechas_fijas:
+        return generar_cuotas_fechas_fijas(obligacion, fecha_corte=fecha_corte)
+    return generar_cuotas_mensuales(obligacion, fecha_corte=fecha_corte)
+
+
 class ExpedienteDetallePage(QWidget):
     liquidacion_finalizada = Signal()
+    # Sprint 112: _generar_cuotas ahora corre en el QThreadPool -- misma
+    # necesidad de una señal para que los tests (y cualquier otro código)
+    # puedan esperar a que la generación en segundo plano termine, igual que
+    # liquidacion_finalizada ya resuelve para _liquidar.
+    cuotas_generadas = Signal()
 
     def __init__(self, on_liquidado=None):
         super().__init__()
@@ -612,6 +636,8 @@ class ExpedienteDetallePage(QWidget):
         ObligacionFormDialog. tipo_recurrencia puede venir None en filas legacy
         (mismo criterio tolerante que area_strategy.py) -- se trata igual que
         MENSUAL."""
+        if not self.boton_generar_cuotas.isEnabled():
+            return  # ya hay una generacion de cuotas en curso
         fila_seleccionada = self.tabla_obligaciones.currentRow()
         if fila_seleccionada < 0:
             QMessageBox.warning(
@@ -623,27 +649,47 @@ class ExpedienteDetallePage(QWidget):
 
         obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
         session = session_module.get_session()
-        obligacion = session.get(Obligacion, obligacion_id)
         expediente = session.get(Expediente, self._expediente_id)
         fecha_corte = expediente.fecha_corte_default
         session.close()
 
-        es_fechas_fijas = (
-            obligacion.tipo_recurrencia is not None
-            and obligacion.tipo_recurrencia.value == "FECHAS_ANUALES_FIJAS"
+        self.boton_generar_cuotas.setEnabled(False)
+        self._dialogo_progreso_generar_cuotas = QProgressDialog(
+            "Generando cuotas...", None, 0, 0, self
         )
+        self._dialogo_progreso_generar_cuotas.setWindowModality(Qt.WindowModality.WindowModal)
+        self._dialogo_progreso_generar_cuotas.setCancelButton(None)
+        self._dialogo_progreso_generar_cuotas.setMinimumDuration(0)
+        self._dialogo_progreso_generar_cuotas.show()
 
-        try:
-            if es_fechas_fijas:
-                cuotas = generar_cuotas_fechas_fijas(obligacion, fecha_corte=fecha_corte)
-            else:
-                cuotas = generar_cuotas_mensuales(obligacion, fecha_corte=fecha_corte)
-        except ValueError as error:
-            QMessageBox.warning(self, "No se pudo generar cuotas", str(error))
-            return
+        self._tarea_generar_cuotas = TareaEnHilo(
+            _generar_cuotas_en_hilo_de_fondo, obligacion_id, fecha_corte
+        )
+        self._tarea_generar_cuotas.senales.completada.connect(self._on_generar_cuotas_completado)
+        self._tarea_generar_cuotas.senales.fallo.connect(self._on_generar_cuotas_fallo)
+        QThreadPool.globalInstance().start(self._tarea_generar_cuotas)
 
+    def _finalizar_generar_cuotas_en_curso(self) -> None:
+        self._dialogo_progreso_generar_cuotas.close()
+        self.boton_generar_cuotas.setEnabled(True)
+
+    def _on_generar_cuotas_completado(self, cuotas: list) -> None:
+        self._finalizar_generar_cuotas_en_curso()
         self._refrescar_obligaciones()
         mostrar_toast(self, f"{len(cuotas)} cuota(s) generada(s)/confirmada(s).")
+        self.cuotas_generadas.emit()
+
+    def _on_generar_cuotas_fallo(self, error: Exception) -> None:
+        self._finalizar_generar_cuotas_en_curso()
+        if isinstance(error, ValueError):
+            QMessageBox.warning(self, "No se pudo generar cuotas", str(error))
+            self.cuotas_generadas.emit()
+            return
+        # Mismo criterio que _on_liquidar_fallo: se emite ANTES de relanzar
+        # para que cuotas_generadas sea un invariante confiable en todo
+        # camino de salida (exito, fallo esperado o inesperado).
+        self.cuotas_generadas.emit()
+        raise error
 
     def _cuotas_hija_de_una_misma_recurrente(self, obligaciones: list) -> bool:
         """True solo si `obligaciones` no esta vacia y todas son cuotas-hija

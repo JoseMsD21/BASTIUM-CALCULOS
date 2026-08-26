@@ -122,6 +122,65 @@ def test_pago_por_rango_dialog_crea_un_abono_por_cuota_tocada(qtbot, monkeypatch
     assert total_abonos == 3
 
 
+def _contar_sesiones_de_calcular_preview(qtbot, monkeypatch, cuotas_a_pagar) -> int:
+    dialogo = PagoPorRangoDialog(cuotas=cuotas_a_pagar, area="CIVIL_FAMILIA", parent=None)
+    qtbot.addWidget(dialogo)
+    dialogo.campo_fecha.setDate(QDate(2024, 4, 1))
+
+    llamadas_get_session: list[None] = []
+    get_session_original = session_module.get_session
+
+    def get_session_contada():
+        llamadas_get_session.append(None)
+        return get_session_original()
+
+    monkeypatch.setattr(session_module, "get_session", get_session_contada)
+    # setText ya dispara _calcular_preview via textChanged.
+    dialogo.campo_monto.setText("900000")
+    assert dialogo.tabla_preview.rowCount() == len(cuotas_a_pagar)
+    return len(llamadas_get_session)
+
+
+def test_calcular_preview_no_abre_mas_sesiones_al_crecer_el_rango_de_cuotas(qtbot, monkeypatch):
+    # Sprint 112 (hallazgo 3): _calcular_preview corre en cada tecla
+    # (textChanged). Sin cache_de_liquidacion()/precargar_parametro, cada
+    # cuota del rango abria su propia sesion SQLAlchemy -- tanto para
+    # resolver la tasa (get_parametro con la MISMA fecha_pago para todas)
+    # como para el chequeo de prescripcion que UniversalLiquidationService.
+    # liquidar() hace de forma incondicional por cada evento
+    # (motor_universal.py -> filtrar_cuotas_prescritas ->
+    # calcular_prescripcion), con la fecha_origen de CADA cuota (necesita
+    # precargar_parametro, mismo patron que el Sprint 53 ya resolvio para
+    # el Dashboard). Se compara un rango de 2 cuotas contra uno de 6: el
+    # numero de sesiones NO debe crecer con el tamaño del rango.
+    _sesion_en_memoria(monkeypatch)
+    obligacion_recurrente = _obligacion_civil_familia_recurrente_helper(
+        valor=Decimal("150000.00"),
+        fecha_inicio=date(2022, 4, 1),
+        tasa_efectiva_anual=Decimal("0.00"),
+        tipo_reajuste_anual=TipoReajusteAnual.NINGUNO,
+    )
+    cuotas = generar_cuotas_mensuales(obligacion_recurrente, fecha_corte=date(2024, 4, 1))
+
+    cuotas_2 = sorted(
+        [c for c in cuotas if date(2024, 3, 1) <= c.fecha_origen <= date(2024, 4, 1)],
+        key=lambda c: c.fecha_origen,
+        reverse=True,
+    )
+    cuotas_6 = sorted(
+        [c for c in cuotas if date(2023, 11, 1) <= c.fecha_origen <= date(2024, 4, 1)],
+        key=lambda c: c.fecha_origen,
+        reverse=True,
+    )
+    assert len(cuotas_2) == 2
+    assert len(cuotas_6) == 6
+
+    sesiones_con_2 = _contar_sesiones_de_calcular_preview(qtbot, monkeypatch, cuotas_2)
+    sesiones_con_6 = _contar_sesiones_de_calcular_preview(qtbot, monkeypatch, cuotas_6)
+
+    assert sesiones_con_2 == sesiones_con_6
+
+
 def test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos(qtbot, monkeypatch):
     """Requisito de manejo de error del plan: si sobra dinero sin cubrir en
     ninguna cuota de la seleccion (monto excede la deuda total), confirmar()

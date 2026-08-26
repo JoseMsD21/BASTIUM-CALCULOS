@@ -25,6 +25,7 @@ from app.engine.indexation.historical_index import get_ipc_for_date, get_smlmv_f
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.math.rounding import Rounding
 from app.engine.time.calendar import CalendarUtils
+from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
 from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
 from database.models import Beneficiario, Obligacion, TipoObligacion, TipoReajusteAnual
 
@@ -87,6 +88,7 @@ def reajustar_capital_anual(capital: Decimal, anio: int, tipo: TipoReajusteAnual
     raise ValueError(f"tipo_reajuste_anual '{tipo}' no soporta reajuste automatico de cuotas.")
 
 
+@cache_de_liquidacion()
 def generar_cuotas_mensuales(
     obligacion_recurrente: Obligacion, fecha_corte: date
 ) -> list[Obligacion]:
@@ -133,6 +135,16 @@ def generar_cuotas_mensuales(
     fecha_fin = obligacion_recurrente.fecha_fin
     tipo_reajuste = obligacion_recurrente.tipo_reajuste_anual
     capital_inicial = obligacion_recurrente.valor
+
+    # Sprint 112 (hallazgo 2): reajustar_capital_anual llama get_smlmv_for_year/
+    # get_ipc_for_date una vez por cada transicion de año -- sin precarga, cada
+    # una abre su propia sesion SQLAlchemy (mismo patron N+1 que el Sprint 25 ya
+    # corrigio en otros loops). @cache_de_liquidacion() (arriba) habilita el
+    # espacio de precarga; solo se trae la clave que realmente se va a usar.
+    if tipo_reajuste == TipoReajusteAnual.SMMLV:
+        precargar_parametro("SMLMV")
+    elif tipo_reajuste == TipoReajusteAnual.IPC:
+        precargar_parametro("IPC_INDICE_ACUMULADO")
 
     session = session_module.get_session()
     try:

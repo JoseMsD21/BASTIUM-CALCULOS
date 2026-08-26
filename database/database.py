@@ -50,6 +50,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     alterar, asi que correrlos de mas es gratis (una consulta PRAGMA, no un
     ALTER TABLE) tanto en una bastium.db ya al dia como en una recien
     creada."""
+    from scripts.migrate_add_indices_recalculo_historico import (
+        migrar as migrar_indices_recalculo_historico,
+    )
     from scripts.migrate_add_indices_rendimiento import migrar as migrar_indices
     from scripts.migrate_anatocismo_comercial import migrar as migrar_anatocismo
     from scripts.migrate_aplica_indexacion_ipc import migrar as migrar_indexacion_ipc
@@ -164,3 +167,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # migraciones de arriba (columnas nuevas en tablas ya existentes, no
     # siembra de datos via ORM).
     migrar_recalculo_historico_sprint47(ruta)
+    # Sprint 112: indices sobre las columnas que Sprint 47 acaba de agregar
+    # arriba -- debe correr DESPUES de migrar_recalculo_historico_sprint47
+    # (CREATE INDEX sobre una columna que todavia no existe falla).
+    migrar_indices_recalculo_historico(ruta)
