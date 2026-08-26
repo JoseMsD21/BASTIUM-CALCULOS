@@ -1,8 +1,16 @@
 from docx import Document
+from docx.oxml.ns import qn
 from docx.shared import RGBColor
 
 from app.reports.header import build_encabezado
 from app.reports.word import WordReportGenerator
+
+
+def _color_de_sombreado(celda) -> str | None:
+    sombreado = celda._tc.get_or_add_tcPr().find(qn("w:shd"))
+    if sombreado is None:
+        return None
+    return sombreado.get(qn("w:fill"))
 
 
 def _table_data():
@@ -333,6 +341,84 @@ def test_generate_con_alertas_vacia_no_agrega_el_bloque(tmp_path):
     documento = Document(str(ruta))
     texto_completo = "\n".join(p.text for p in documento.paragraphs)
     assert "Advertencias" not in texto_completo
+
+
+def _renta_liquida():
+    return {
+        "ingresos_netos": "$100,000,000.00",
+        "renta_bruta": "$60,000,000.00",
+        "renta_liquida": "$40,000,000.00",
+        "hubo_perdida_liquida": "No",
+        "renta_liquida_gravable": "$35,000,000.00",
+    }
+
+
+def test_generate_encabezados_de_columna_en_negro_con_texto_crema_extrabold(tmp_path):
+    # Sprint 108 (pedido del despacho, 2026-08-22): mismo criterio de
+    # identidad visual que app/reports/pdf.py -- antes las tablas de Word no
+    # tenian ningun fondo/color en el encabezado (estilo "Table Grid" puro).
+    ruta = tmp_path / "liquidacion_encabezados.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO",
+        _summary(),
+        _table_data(),
+        renta_liquida=_renta_liquida(),
+        diferencia_recalculo=_diferencia_recalculo(),
+    )
+
+    documento = Document(str(ruta))
+    for tabla in documento.tables:
+        for celda in tabla.rows[0].cells:
+            assert _color_de_sombreado(celda) == "000000"
+            run_encabezado = celda.paragraphs[0].runs[0]
+            assert run_encabezado.font.color.rgb == RGBColor(0xF5, 0xF1, 0xE9)
+            assert run_encabezado.bold is True
+            assert run_encabezado.font.name == "Ancizar Sans ExtraBold"
+
+
+def test_generate_fila_de_totales_en_borgona_negrita(tmp_path):
+    # Sprint 108: la fila de totales/gran-total/renta-gravable debe quedar en
+    # borgoña de marca -- antes no tenia ningun color ni negrita en Word.
+    ruta = tmp_path / "liquidacion_totales.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO",
+        _summary(),
+        _table_data(),
+        renta_liquida=_renta_liquida(),
+        diferencia_recalculo=_diferencia_recalculo(),
+    )
+
+    documento = Document(str(ruta))
+    # tables[0] resumen ejecutivo, [2] renta liquida, [3] diferencia de
+    # recalculo -- las 3 tablas de 2 columnas con fila de totales/gran-total.
+    for indice_tabla in (0, 2, 3):
+        fila_total = documento.tables[indice_tabla].rows[-1]
+        for celda in fila_total.cells:
+            run = celda.paragraphs[0].runs[0]
+            assert run.font.color.rgb == RGBColor(0xAE, 0x1C, 0x21)
+            assert run.bold is True
+
+
+def test_generate_cuerpo_de_tabla_tiene_fondo_crema(tmp_path):
+    # Sprint 108: "EL RESTO DE LA TABLA DEBE SER COLOR CREMA IGUAL QUE EL
+    # FONDO DEL DOCUMENTO" -- antes el cuerpo de las tablas de Word quedaba
+    # blanco por defecto (sin sombreado propio).
+    ruta = tmp_path / "liquidacion_cuerpo_crema.docx"
+    generador = WordReportGenerator(str(ruta))
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    documento = Document(str(ruta))
+    for tabla in documento.tables:
+        for fila in list(tabla.rows)[1:]:
+            for celda in fila.cells:
+                assert _color_de_sombreado(celda) == "F5F1E9"
 
 
 def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):

@@ -608,9 +608,11 @@ botones: **"Exportar a PDF"** y **"Exportar a Word"**.
    escritura en esa carpeta), el programa muestra el mensaje "No se pudo exportar" con el motivo, en vez
    de fallar sin explicación.
 
-El documento Word tiene la misma información que el PDF, pero con un estilo visual más simple (Word no
-soporta el mismo nivel de personalización de reportlab) — útil cuando necesitas editar el texto antes de
-presentarlo.
+El documento Word tiene la misma información que el PDF y, desde el Sprint 108, el mismo criterio de
+identidad visual de marca en sus tablas: encabezado de columnas en negro con texto crema, cuerpo con fondo
+crema, bordes negros y la fila de totales (o el gran total, o la renta líquida gravable, según la tabla) en
+borgoña y negrita — útil cuando necesitas editar el texto antes de presentarlo, sin perder la apariencia
+oficial del documento.
 
 ### 5.9. Agregar una obligación sancionatoria
 

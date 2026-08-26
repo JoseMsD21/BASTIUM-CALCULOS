@@ -1,7 +1,22 @@
+import os
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+# Sprint 108: encabezados de columna en extrabold color crema sobre fondo negro
+# (pedido del despacho, 2026-08-22) -- la fuente ya existia en
+# app/assets/fonts/ desde el Sprint 31 pero nunca se habia registrado como
+# fuente de reportlab, asi que el encabezado seguia corriendo con
+# Helvetica/Helvetica-Bold. Se registra una sola vez al importar el modulo.
+FONT_HEADER = "AncizarSans-ExtraBold"
+_RUTA_FONT_HEADER = os.path.join(
+    os.path.dirname(__file__), "..", "assets", "fonts", "AncizarSans-ExtraBold.ttf"
+)
+pdfmetrics.registerFont(TTFont(FONT_HEADER, _RUTA_FONT_HEADER))
 
 # Peso relativo de cada columna de la tabla de cronologia -- "Concepto" pesa mas
 # porque es la unica columna con texto largo (ej. "Indexacion IPC -- Reparacion
@@ -114,11 +129,13 @@ class JudicialPDFGenerator:
                 [
                     ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
                     ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                    ("FONTNAME", (0, 0), (-1, 0), FONT_HEADER),
                     ("ALIGN", (0, 0), (-1, 0), "CENTER"),
                     ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
                     ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
                     ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
-                    ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                    ("GRID", (0, 0), (-1, -1), 1, self.c_black),
+                    ("TEXTCOLOR", (0, -1), (-1, -1), self.c_burgundy),
                     (
                         "FONTNAME",
                         (0, -1),
@@ -235,11 +252,13 @@ class JudicialPDFGenerator:
                 [
                     ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
                     ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                    ("FONTNAME", (0, 0), (-1, 0), FONT_HEADER),
                     ("ALIGN", (0, 0), (-1, 0), "CENTER"),
                     ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
                     ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
                     ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
-                    ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                    ("GRID", (0, 0), (-1, -1), 1, self.c_black),
+                    ("TEXTCOLOR", (0, -1), (-1, -1), self.c_burgundy),
                     ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
                 ]
             )
@@ -305,12 +324,13 @@ class JudicialPDFGenerator:
         estilo_cronologia = [
             ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
             ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+            ("FONTNAME", (0, 0), (-1, 0), FONT_HEADER),
             ("ALIGN", (0, 0), (-1, 0), "CENTER"),
             ("FONTSIZE", (0, 0), (-1, -1), 8),
             ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
             ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
             ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
-            ("GRID", (0, 0), (-1, -1), 0.5, self.c_burgundy),
+            ("GRID", (0, 0), (-1, -1), 0.5, self.c_black),
             ("LEFTPADDING", (0, 0), (-1, -1), 3),
             ("RIGHTPADDING", (0, 0), (-1, -1), 3),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -351,11 +371,13 @@ class JudicialPDFGenerator:
                     [
                         ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
                         ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                        ("FONTNAME", (0, 0), (-1, 0), FONT_HEADER),
                         ("ALIGN", (0, 0), (-1, 0), "CENTER"),
                         ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
                         ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
                         ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
-                        ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                        ("GRID", (0, 0), (-1, -1), 1, self.c_black),
+                        ("TEXTCOLOR", (0, -1), (-1, -1), self.c_burgundy),
                         ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
                     ]
                 )
@@ -399,11 +421,13 @@ class JudicialPDFGenerator:
                     [
                         ("BACKGROUND", (0, 0), (-1, 0), self.c_black),
                         ("TEXTCOLOR", (0, 0), (-1, 0), self.c_cream),
+                        ("FONTNAME", (0, 0), (-1, 0), FONT_HEADER),
                         ("ALIGN", (0, 0), (-1, 0), "CENTER"),
                         ("BACKGROUND", (0, 1), (-1, -1), self.c_cream),
                         ("TEXTCOLOR", (0, 1), (-1, -1), self.c_black),
                         ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
-                        ("GRID", (0, 0), (-1, -1), 1, self.c_burgundy),
+                        ("GRID", (0, 0), (-1, -1), 1, self.c_black),
+                        ("TEXTCOLOR", (0, -1), (-1, -1), self.c_burgundy),
                         ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
                     ]
                 )

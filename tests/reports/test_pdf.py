@@ -1,8 +1,9 @@
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus import Paragraph, Table, TableStyle
 
 from app.reports.header import build_encabezado
-from app.reports.pdf import JudicialPDFGenerator
+from app.reports.pdf import FONT_HEADER, JudicialPDFGenerator
 
 
 def _capturar_parrafos(monkeypatch):
@@ -29,6 +30,21 @@ def _capturar_tablas(monkeypatch):
         return tabla_real(datos, *args, **kwargs)
 
     monkeypatch.setattr("app.reports.pdf.Table", _tabla_capturada)
+    return llamadas
+
+
+def _capturar_estilos(monkeypatch):
+    # Mismo patron que test_generate_resalta_en_rojo_las_filas_prescritas:
+    # interceptar TableStyle para inspeccionar los comandos crudos que
+    # generate()/generar_documento() les pasa a cada tabla, en orden.
+    estilo_real = TableStyle
+    llamadas = []
+
+    def _estilo_capturado(comandos):
+        llamadas.append(comandos)
+        return estilo_real(comandos)
+
+    monkeypatch.setattr("app.reports.pdf.TableStyle", _estilo_capturado)
     return llamadas
 
 
@@ -337,6 +353,130 @@ def test_generate_con_alertas_vacia_no_agrega_el_bloque(tmp_path, monkeypatch):
 
     assert ruta.exists()
     assert not any("Advertencias" in texto for texto in parrafos)
+
+
+def test_fuente_extrabold_de_encabezado_esta_registrada():
+    # Sprint 108: la fuente de marca (Sprint 31) debe registrarse como fuente
+    # de reportlab al importar el modulo, o el encabezado sigue cayendo en
+    # Helvetica pese a que TableStyle pida FONT_HEADER.
+    assert FONT_HEADER in pdfmetrics.getRegisteredFontNames()
+
+
+def test_generate_usa_bordes_negros_y_encabezado_extrabold_en_todas_las_tablas(
+    tmp_path, monkeypatch
+):
+    # Sprint 108 (pedido del despacho, 2026-08-22): el grid de las tablas debe
+    # ser negro (antes borgoña) y el encabezado de columnas debe usar la
+    # fuente extrabold de marca (antes Helvetica por defecto).
+    llamadas_estilo = _capturar_estilos(monkeypatch)
+    ruta = tmp_path / "liquidacion_colores.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+    renta_liquida = {
+        "ingresos_netos": "$100,000,000.00",
+        "renta_bruta": "$60,000,000.00",
+        "renta_liquida": "$40,000,000.00",
+        "hubo_perdida_liquida": "No",
+        "renta_liquida_gravable": "$35,000,000.00",
+    }
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO",
+        _summary(),
+        _table_data(),
+        renta_liquida=renta_liquida,
+        diferencia_recalculo=_diferencia_recalculo(),
+    )
+
+    # resumen ejecutivo, cronologia, renta liquida, diferencia de recalculo.
+    assert len(llamadas_estilo) == 4
+    for comandos in llamadas_estilo:
+        comandos_grid = [c for c in comandos if c[0] == "GRID"]
+        assert comandos_grid, "cada tabla debe tener un comando GRID"
+        for comando in comandos_grid:
+            assert comando[-1] == generador.c_black
+            assert comando[-1] != generador.c_burgundy
+
+        comandos_fuente_encabezado = [
+            c for c in comandos if c[0] == "FONTNAME" and c[1] == (0, 0) and c[2] == (-1, 0)
+        ]
+        assert comandos_fuente_encabezado, "cada tabla debe fijar la fuente del encabezado"
+        assert comandos_fuente_encabezado[0][3] == FONT_HEADER
+
+
+def test_generate_pinta_de_borgona_la_fila_de_totales(tmp_path, monkeypatch):
+    # Sprint 108: la fila de totales/gran total debe quedar en borgoña de
+    # marca -- antes heredaba el negro del resto del cuerpo, sin ningun
+    # TEXTCOLOR propio.
+    llamadas_estilo = _capturar_estilos(monkeypatch)
+    ruta = tmp_path / "liquidacion_totales_borgona.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+    renta_liquida = {
+        "ingresos_netos": "$100,000,000.00",
+        "renta_bruta": "$60,000,000.00",
+        "renta_liquida": "$40,000,000.00",
+        "hubo_perdida_liquida": "No",
+        "renta_liquida_gravable": "$35,000,000.00",
+    }
+
+    generador.generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA TRIBUTARIO",
+        _summary(),
+        _table_data(),
+        renta_liquida=renta_liquida,
+        diferencia_recalculo=_diferencia_recalculo(),
+    )
+
+    # llamadas_estilo[0] resumen ejecutivo, [2] renta liquida, [3] diferencia
+    # de recalculo -- las 3 tablas con fila de totales/gran-total en negrita.
+    # [1] es la cronologia detallada, que no tiene fila de totales.
+    for indice in (0, 2, 3):
+        comandos = llamadas_estilo[indice]
+        assert any(
+            comando[0] == "TEXTCOLOR"
+            and comando[1] == (0, -1)
+            and comando[2] == (-1, -1)
+            and comando[3] == generador.c_burgundy
+            for comando in comandos
+        )
+
+
+def test_generar_documento_usa_bordes_negros_y_totales_en_borgona(tmp_path, monkeypatch):
+    # generar_documento() es el metodo legado (LIQUIDACIÓN PROVISIONAL DE
+    # ALIMENTOS) -- tiene su propia tabla con fila "TOTALES", separada de
+    # generate().
+    llamadas_estilo = _capturar_estilos(monkeypatch)
+    ruta = tmp_path / "provisional_alimentos.pdf"
+    generador = JudicialPDFGenerator(str(ruta))
+
+    generador.generar_documento(
+        [
+            {
+                "concepto": "Cuota alimentaria",
+                "capital": 100,
+                "dias_mora": 10,
+                "intereses": 5,
+                "total_rubro": 105,
+            }
+        ],
+        ruta_grafica="",
+    )
+
+    assert len(llamadas_estilo) == 1
+    comandos = llamadas_estilo[0]
+    comandos_grid = [c for c in comandos if c[0] == "GRID"]
+    assert comandos_grid
+    assert all(comando[-1] == generador.c_black for comando in comandos_grid)
+    assert any(
+        comando[0] == "TEXTCOLOR"
+        and comando[1] == (0, -1)
+        and comando[2] == (-1, -1)
+        and comando[3] == generador.c_burgundy
+        for comando in comandos
+    )
+    comandos_fuente_encabezado = [
+        c for c in comandos if c[0] == "FONTNAME" and c[1] == (0, 0) and c[2] == (-1, 0)
+    ]
+    assert comandos_fuente_encabezado[0][3] == FONT_HEADER
 
 
 def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):
