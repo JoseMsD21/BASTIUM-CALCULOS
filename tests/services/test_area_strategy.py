@@ -2691,6 +2691,30 @@ class TestLaboralStrategy:
         assert mora_esperada.dias_fase2 > 0
         assert resultado.final_balance().principal == monto_prestaciones + mora_esperada.total
 
+    def test_liquida_con_mora_fase2_mas_alla_de_la_tabla_de_usura_agrega_alerta_no_bloqueante(
+        self,
+    ):
+        # Sprint 110: _TRAMOS_IBC_USURA (historical_index.py) termina el
+        # 2026-07-31 -- antes de este fix, una fecha_pago_o_corte en fase 2
+        # (dia 721+) posterior a esa fecha tumbaba la liquidacion completa
+        # con un ValueError sin capturar (get_ibc_usura_for_date). Ahora se
+        # agrega una alerta no bloqueante y la liquidacion sigue: las
+        # prestaciones sociales (que no dependen de la tabla de usura) se
+        # liquidan normalmente, solo la sancion moratoria queda sin calcular.
+        obligacion = _obligacion_laboral()
+        fecha_corte = date(2026, 8, 25)
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+        )
+
+        tipos_evento = {item.balance.event_type for item in resultado.items}
+        assert "SANCION_MORATORIA" not in tipos_evento
+        assert any(
+            "Indemnización moratoria" in alerta and "no se pudo calcular" in alerta
+            for alerta in resultado.alertas
+        )
+
     def test_aplica_un_abono_reduciendo_el_saldo(self):
         obligacion = _obligacion_laboral(fecha_pago_total=date(2020, 12, 31))
         abono = Abono(
@@ -3945,6 +3969,40 @@ class TestTributarioStrategy:
         # Sprint 43: TributarioStrategy ahora SI soporta IPC -- ligada al Art.
         # 867-1 E.T. (automatica por el trigger de mora, sin checkbox propio).
         assert TributarioStrategy().soporta_indexacion_ipc is True
+
+    def test_evento_867_1_con_fecha_corte_mas_alla_de_la_tabla_de_usura_no_lanza_y_alerta(
+        self,
+    ):
+        # Sprint 110: _evento_actualizacion_867_1 depende de
+        # calcular_interes_moratorio_tributario/calcular_indexacion_867_1_topada,
+        # que a su vez dependen de _TRAMOS_IBC_USURA (termina el 2026-07-31) --
+        # antes de este fix, una fecha_corte posterior tumbaba con un
+        # ValueError sin capturar. Se prueba el metodo directamente (no
+        # TributarioStrategy().liquidar() completo) porque una obligacion
+        # IMPUESTO_A_CARGO con fecha_corte en ese rango tambien dispara HOY un
+        # ValueError independiente en _construir_rate_provider_obligacion (el
+        # interes E.T. 635 base, sin relacion con el Art. 867-1) -- un
+        # hallazgo mas amplio que el de este sprint, que sigue documentado y
+        # sin corregir en docs/Pendientes.md (Sprint 110) porque exige la
+        # misma decision de extrapolacion pendiente con el despacho. Este
+        # test verifica, en aislamiento, que la pieza que SI se corrigio en
+        # este sprint (el manejo de la excepcion del propio Art. 867-1)
+        # funciona.
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("100000000.00"),
+            fecha_origen=date(2018, 5, 10),
+        )
+        strategy = TributarioStrategy()
+        strategy._alertas_867_1_incompletas = {}
+
+        evento = strategy._evento_actualizacion_867_1(impuesto, date(2026, 8, 25))
+
+        assert evento.payload["amount"] == Decimal("0.00")
+        assert impuesto.id in strategy._alertas_867_1_incompletas
+        mensaje = strategy._alertas_867_1_incompletas[impuesto.id]
+        assert "Actualización Art. 867-1 E.T." in mensaje
+        assert "no se pudo calcular completamente" in mensaje
 
 
 def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():

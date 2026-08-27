@@ -96,6 +96,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 105 — Catálogo de tipos de proceso, subtipos de caso y obligaciones predefinidas para el intake de un expediente](#sprint-105--catálogo-de-tipos-de-proceso-subtipos-de-caso-y-obligaciones-predefinidas-para-el-intake-de-un-expediente)
 - [Sprint 106 — Widget del campo de fechas anuales fijas, y modelo de datos para el año/fecha de vigencia del acta o título](#sprint-106--widget-del-campo-de-fechas-anuales-fijas-y-modelo-de-datos-para-el-añofecha-de-vigencia-del-acta-o-título)
 - [Sprint 107 — ¿Mover el checkbox de indexación IPC/interés sobre capital indexado a después de proyectar la liquidación, o agregar un control posterior de solo presentación?](#sprint-107--mover-el-checkbox-de-indexación-ipcinterés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación-o-agregar-un-control-posterior-de-solo-presentación)
+- [Sprint 110 — ¿Extrapolar la tasa de usura del último tramo certificado, o topar el cálculo de interés al último dato disponible?](#sprint-110--extrapolar-la-tasa-de-usura-del-último-tramo-certificado-o-topar-el-cálculo-de-interés-al-último-dato-disponible)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -741,6 +742,38 @@ un caso real pendiente que dependa de esto ahora mismo?
 misma pieza, y si hay urgencia real de cablear esto a producción antes de resolver ambos puntos.
 
 **Fecha:** 23/08/2026 (seguimiento tras respuesta del 22/08/2026)
+
+---
+
+## Sprint 110 — ¿Extrapolar la tasa de usura del último tramo certificado, o topar el cálculo de interés al último dato disponible?
+
+**Contexto:** `_TRAMOS_IBC_USURA` (`app/engine/indexation/historical_index.py`) es la tabla de tasas de IBC/
+usura certificadas mes a mes por la Superfinanciera; hoy termina el 2026-07-31 porque nadie la actualiza
+mes a mes todavía. Cualquier liquidación con una fecha de corte posterior a esa fecha — que incluye "hoy"
+en cualquier liquidación normal — necesita una tasa de usura que la tabla no tiene.
+
+Auditoría de código (2026-08-25) confirmó que esto ya no es un caso borde: **cualquier indemnización
+moratoria Laboral (Art. 65 CST) cuya fase 2 cruce esa fecha, y cualquier liquidación Tributaria de un
+`IMPUESTO_A_CARGO` con mora, corridas con la fecha de hoy, lanzaban una excepción sin capturar**. El caso
+Laboral y la actualización IPC del Art. 867-1 Tributario ya quedaron con una alerta no bloqueante en vez de
+tumbar la liquidación (`docs/Pendientes.md`, Sprint 110, cierre parcial 2026-08-27) — pero el interés E.T.
+635 **base** de Tributario (`TributarioStrategy._construir_rate_provider_obligacion` →
+`construir_rate_provider_moratorio_tributario`, `app/engine/tax/moratory_interest.py`) sigue rompiéndose:
+ahí no hay un rubro aislado que se pueda omitir, es la construcción del `rate_provider` de toda la
+liquidación.
+
+**Pregunta:** cuando la fecha de corte de una liquidación es posterior al último tramo de tasa de usura
+certificado, ¿el sistema debe:
+(a) **extrapolar** la tasa del último tramo conocido hacia adelante indefinidamente (mismo criterio que ya
+se usa para el IPC desde el Sprint 8, vía `get_ipc_interpolado_for_date`/`ultimo_anio_disponible`), o
+(b) **limitarse a calcular intereses solo hasta el último dato certificado**, mostrando una advertencia
+clara de que el período posterior queda pendiente de liquidar hasta que se actualice la tabla?
+
+**Qué necesito exactamente:** una respuesta sí/no a cuál de las dos opciones (a o b) es la correcta desde
+el punto de vista jurídico — la tasa de usura es un techo legal certificado, no un índice que se pueda
+inferir como el IPC, así que no es una decisión que el código pueda tomar por su cuenta.
+
+**Fecha:** 26/08/2026
 
 ---
 

@@ -98,3 +98,18 @@ def test_indexacion_topada_no_recorta_si_el_interes_ya_liquidado_es_cero():
     )
 
     assert topada == indexacion_sin_topar
+
+
+def test_fecha_corte_posterior_al_ultimo_tramo_lanza_value_error_con_mensaje_claro():
+    # Sprint 110, hallazgo 3: _TRAMOS_IBC_USURA (historical_index.py) termina
+    # el 2026-07-31 -- antes de este fix, una fecha_corte posterior indexaba
+    # tasa_por_dia[dia] sin comprobar que la clave existiera, y reproducia
+    # exactamente KeyError: datetime.date(2026, 8, 1), sin ningun mensaje. Se
+    # convierte en un ValueError con el mismo mensaje claro que ya usa
+    # get_ibc_usura_for_date -- defensa en profundidad (no resuelve por si
+    # solo el criterio de extrapolacion, que sigue pendiente de decidir con
+    # el despacho, ver docs/Pendientes.md Sprint 110).
+    with pytest.raises(
+        ValueError, match=r"No hay tramo de IBC/Usura configurado para la fecha 2026-08-01"
+    ):
+        calcular_interes_usura_plena(Decimal("1000000"), date(2020, 1, 1), date(2026, 8, 25))
