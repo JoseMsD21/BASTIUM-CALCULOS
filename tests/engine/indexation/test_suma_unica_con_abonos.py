@@ -176,6 +176,24 @@ def test_abono_fuera_de_rango_lanza_error():
         )
 
 
+def test_abono_mayor_a_la_deuda_del_tramo_no_deja_gran_total_negativo():
+    # Sprint 110, hallazgo 4: un abono que supera la deuda (intereses +
+    # capital) de un tramo dejaba capital_base negativo, arrastrado a los
+    # tramos siguientes -- reproducido con el caso exacto del sprint (capital
+    # $1.000.000, abono de $50.000.000 el 2024-06-01, corte 2025-01-01)
+    # producia gran_total_adeudado == -54.034.338,13 antes de este fix.
+    resultado = liquidar_obligacion_con_abonos_tramo_por_tramo(
+        capital_historico_inicial=Decimal("1000000.00"),
+        fecha_origen=date(2024, 1, 1),
+        abonos=[(date(2024, 6, 1), Decimal("50000000.00"))],
+        fecha_liquidacion_final=date(2025, 1, 1),
+        tasa_interes_mensual=TASA_MENSUAL_6_EA,
+    )
+
+    assert resultado.gran_total_adeudado >= Decimal("0.00")
+    assert resultado.capital_insoluto_indexado >= Decimal("0.00")
+
+
 def test_abono_cero_o_negativo_lanza_error():
     with pytest.raises(ValueError):
         liquidar_obligacion_con_abonos_tramo_por_tramo(

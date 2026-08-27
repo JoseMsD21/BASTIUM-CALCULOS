@@ -1249,7 +1249,7 @@ class LaboralStrategy(AreaStrategy):
         # deuda; nunca puede ser posterior a fecha_corte para efectos de este
         # reporte -- si el pago real fue despues del corte elegido, la mora
         # se calcula solo hasta el corte (foto historica), no hasta el pago.
-        hay_mora = self._eventos_mora_articulo_65(
+        hay_mora, alerta_mora_no_calculada = self._eventos_mora_articulo_65(
             obligacion, fecha_corte, monto_prestaciones, eventos
         )
 
@@ -1315,6 +1315,8 @@ class LaboralStrategy(AreaStrategy):
                 "vigente sobre las prestaciones sociales de este contrato -- la indexación "
                 "IPC no se aplicó sobre el mismo rubro/periodo (la moratoria prevalece).",
             )
+        if alerta_mora_no_calculada is not None:
+            resultado = self._agregar_alerta(resultado, alerta_mora_no_calculada)
         return resultado
 
     def _resolver_valor_pactado(self, obligacion) -> None:
@@ -1481,10 +1483,14 @@ class LaboralStrategy(AreaStrategy):
 
     def _eventos_mora_articulo_65(
         self, obligacion, fecha_corte: date, monto_prestaciones: Decimal, eventos: list
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """Indemnizacion moratoria Art. 65 CST -- muta `eventos` y retorna
-        `hay_mora`, que el resto de `liquidar()` necesita para la exclusion
-        mutua con la indexacion IPC (ver docstring de la clase).
+        `(hay_mora, alerta_mora_no_calculada)`. `hay_mora` es lo que el resto
+        de `liquidar()` necesita para la exclusion mutua con la indexacion
+        IPC (ver docstring de la clase). `alerta_mora_no_calculada` no es
+        None cuando `_TRAMOS_IBC_USURA` (historical_index.py) no cubre
+        `fecha_referencia_mora` (Sprint 110) -- el llamador debe agregarlo
+        como alerta no bloqueante al `LiquidationResult` final.
         """
         if obligacion.fecha_pago_total is not None:
             fecha_referencia_mora = min(obligacion.fecha_pago_total, fecha_corte)
@@ -1492,27 +1498,45 @@ class LaboralStrategy(AreaStrategy):
             fecha_referencia_mora = fecha_corte
 
         hay_mora = False
+        alerta_mora_no_calculada = None
         if fecha_referencia_mora > obligacion.fecha_fin:
             monto_adeudado = monto_prestaciones
-            mora = MoratoryIndemnityCalculator.calcular(
-                salario_mensual=obligacion.valor,
-                monto_adeudado=monto_adeudado,
-                fecha_terminacion=obligacion.fecha_fin,
-                fecha_pago_o_corte=fecha_referencia_mora,
-            )
-            if mora.total > Decimal("0.00"):
-                hay_mora = True
-                eventos.append(
-                    Event(
-                        date=fecha_referencia_mora,
-                        payload={
-                            "amount": mora.total,
-                            "label": "Indemnizacion moratoria Art. 65 CST",
-                        },
-                        event_type="SANCION_MORATORIA",
-                    )
+            # Sprint 110: la tabla _TRAMOS_IBC_USURA no extrapola mas alla de
+            # su ultimo tramo cargado -- get_ibc_usura_for_date lanza
+            # ValueError para cualquier dia de la fase 2 (dia 721+) posterior
+            # a ese limite. Antes esto tumbaba la liquidacion completa sin
+            # capturar; se convierte en una alerta no bloqueante (mismo
+            # patron de manejo de excepciones de dominio que ya usa
+            # app/views/concurrency.py, Sprint 26) en vez de inventar un
+            # criterio de extrapolacion sin confirmar con el despacho.
+            try:
+                mora = MoratoryIndemnityCalculator.calcular(
+                    salario_mensual=obligacion.valor,
+                    monto_adeudado=monto_adeudado,
+                    fecha_terminacion=obligacion.fecha_fin,
+                    fecha_pago_o_corte=fecha_referencia_mora,
                 )
-        return hay_mora
+            except ValueError as error:
+                alerta_mora_no_calculada = (
+                    "Indemnización moratoria (Art. 65 CST) no se pudo calcular "
+                    f"completamente: {error} Actualizar la tabla de tasas de usura "
+                    "(_TRAMOS_IBC_USURA en historical_index.py) o confirmar con el "
+                    "despacho el criterio de extrapolación a aplicar."
+                )
+            else:
+                if mora.total > Decimal("0.00"):
+                    hay_mora = True
+                    eventos.append(
+                        Event(
+                            date=fecha_referencia_mora,
+                            payload={
+                                "amount": mora.total,
+                                "label": "Indemnizacion moratoria Art. 65 CST",
+                            },
+                            event_type="SANCION_MORATORIA",
+                        )
+                    )
+        return hay_mora, alerta_mora_no_calculada
 
     def _eventos_despido_injustificado(self, obligacion, eventos: list) -> None:
         """Indemnizacion por despido injustificado, Art. 64 CST (Sprint 92).
@@ -2000,6 +2024,17 @@ class TributarioStrategy(AreaStrategy):
         if not obligaciones:
             raise ValueError("Un expediente necesita al menos una obligacion para liquidar.")
 
+        # Sprint 110: _evento_actualizacion_867_1 registra aqui (por id de
+        # obligacion) los casos donde no se pudo calcular la actualizacion
+        # porque _TRAMOS_IBC_USURA no cubre fecha_corte -- se agregan como
+        # alerta no bloqueante despues de construir `resultado`, en vez de
+        # dejar que la excepcion tumbe la liquidacion completa del
+        # expediente. AreaRegistry.get_strategy crea una instancia nueva de
+        # la estrategia en cada liquidacion (app/engine/liquidation/
+        # registry.py), asi que no hay riesgo de que una liquidacion
+        # anterior contamine esta lista.
+        self._alertas_867_1_incompletas: dict[object, str] = {}
+
         obligaciones_renta_liquida = [o for o in obligaciones if o.categoria == "RENTA_LIQUIDA"]
         if len(obligaciones_renta_liquida) > 1:
             raise ValueError(
@@ -2032,9 +2067,19 @@ class TributarioStrategy(AreaStrategy):
         )
 
         for obligacion in obligaciones_deuda:
+            # Si _evento_actualizacion_867_1 ya no pudo calcular la
+            # actualizacion de esta obligacion (tabla de usura sin cubrir
+            # fecha_corte), _alerta_techo_usura_867_1 recalcularia lo mismo y
+            # lanzaria la misma excepcion -- se salta, ya quedo su propia
+            # alerta en self._alertas_867_1_incompletas.
+            if obligacion.id in self._alertas_867_1_incompletas:
+                continue
             alerta = self._alerta_techo_usura_867_1(obligacion, fecha_corte)
             if alerta is not None:
                 resultado = self._agregar_alerta(resultado, alerta)
+
+        for mensaje in self._alertas_867_1_incompletas.values():
+            resultado = self._agregar_alerta(resultado, mensaje)
 
         if obligaciones_renta_liquida:
             obligacion_renta = obligaciones_renta_liquida[0]
@@ -2151,12 +2196,31 @@ class TributarioStrategy(AreaStrategy):
         app/engine/tax/actualizacion_867_1.py."""
         if obligacion.categoria == "IMPUESTO_A_CARGO":
             capital = obligacion.valor
-            interes_ya_liquidado = calcular_interes_moratorio_tributario(
-                capital, obligacion.fecha_origen, fecha_corte
-            )
-            monto = calcular_indexacion_867_1_topada(
-                capital, obligacion.fecha_origen, fecha_corte, interes_ya_liquidado
-            )
+            # Sprint 110: calcular_interes_moratorio_tributario/
+            # calcular_indexacion_867_1_topada dependen de _TRAMOS_IBC_USURA
+            # (historical_index.py), que no extrapola mas alla de su ultimo
+            # tramo cargado -- antes esto tumbaba la liquidacion completa del
+            # expediente con un ValueError sin capturar. Se convierte en una
+            # alerta no bloqueante (mismo criterio que
+            # LaboralStrategy._eventos_mora_articulo_65) en vez de inventar
+            # un criterio de extrapolacion sin confirmar con el despacho --
+            # la actualizacion de esta obligacion queda en $0.00 hasta que se
+            # actualice la tabla o el despacho decida.
+            try:
+                interes_ya_liquidado = calcular_interes_moratorio_tributario(
+                    capital, obligacion.fecha_origen, fecha_corte
+                )
+                monto = calcular_indexacion_867_1_topada(
+                    capital, obligacion.fecha_origen, fecha_corte, interes_ya_liquidado
+                )
+            except ValueError as error:
+                self._alertas_867_1_incompletas[obligacion.id] = (
+                    "Actualización Art. 867-1 E.T. no se pudo calcular completamente "
+                    f"para '{obligacion.concepto}': {error} Actualizar la tabla de tasas "
+                    "de usura (_TRAMOS_IBC_USURA en historical_index.py) o confirmar con "
+                    "el despacho el criterio de extrapolación a aplicar."
+                )
+                monto = Decimal("0.00")
         else:
             capital = self._calcular_monto_sancion(obligacion)
             monto = calcular_indexacion_867_1(capital, obligacion.fecha_origen, fecha_corte)

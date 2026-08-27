@@ -92,6 +92,16 @@ def calcular_interes_usura_plena(
     total = Decimal("0.00")
     dia = inicio_mora
     while dia <= fecha_corte:
+        # Sprint 110: defensa en profundidad -- get_tramos_ibc_usura_between ya
+        # documenta que no extrapola mas alla de su ultimo tramo cargado, pero
+        # solo lanza ValueError cuando NINGUN tramo se solapa con [inicio, fin];
+        # si el rango pedido excede parcialmente el ultimo tramo (el caso mas
+        # comun: fecha_corte = hoy, tabla desactualizada), `tasa_por_dia` queda
+        # sin esos dias y este indexado lanzaba un KeyError crudo sin mensaje.
+        if dia not in tasa_por_dia:
+            raise ValueError(
+                f"No hay tramo de IBC/Usura configurado para la fecha {dia}."
+            )
         total += DailyInterest.calculate(capital=capital, daily_rate=tasa_por_dia[dia], days=1)
         dia += timedelta(days=1)
     return total

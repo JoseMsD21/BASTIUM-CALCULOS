@@ -117,7 +117,17 @@ def liquidar_obligacion_con_abonos_tramo_por_tramo(
         if monto_abono >= total_intereses_adeudados:
             remanente_para_capital = monto_abono - total_intereses_adeudados
             intereses_acumulados_pendientes = Decimal("0.00")
-            capital_base = capital_indexado - remanente_para_capital
+            # Sprint 110: si el remanente del abono supera la deuda de
+            # capital de este tramo, no se acota -- el sobrante se arrastraba
+            # como un "capital_base" negativo a los tramos siguientes,
+            # produciendo un gran_total_adeudado final absurdo (negativo). Se
+            # topa en cero; que hacer con el sobrante (¿reduce tramos
+            # futuros? ¿saldo a favor, Sprint 23?) sigue sin decidir con el
+            # despacho (ver docs/Preguntas-Para-Abogado-Abiertas.md, "Sprint
+            # 104 (seguimiento)") -- esta funcion sigue deliberadamente sin
+            # cablear a ningun AreaStrategy (Sprint 104), asi que este tope
+            # no afecta ninguna liquidacion real hoy.
+            capital_base = max(Decimal("0.00"), capital_indexado - remanente_para_capital)
         else:
             intereses_acumulados_pendientes = total_intereses_adeudados - monto_abono
             capital_base = capital_indexado

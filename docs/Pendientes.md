@@ -309,7 +309,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Pendiente](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--pendiente)
 - [Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word 🔴 Bug confirmado sin corregir](#sprint-108--bug-confirmado-bordes-de-tabla-en-borgoña-deben-ser-negro-y-fila-totales-en-negro-debe-ser-borgoña-en-pdfword--bug-confirmado-sin-corregir)
 - [Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) 📋 Pendiente](#sprint-109--especificación-de-color-para-gráficas-de-líneacurva-con-degradado-borgoña-estándar-a-futuro--pendiente)
-- [Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) 🔴 Bug confirmado sin corregir](#sprint-110--bug-confirmado-el-motor-de-tasas-ibcusura-no-extrapola-más-allá-de-2026-07-31-crash-en-laboral-y-tributario--bug-confirmado-sin-corregir)
+- [Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) ⚠️ Parcial](#sprint-110--bug-confirmado-el-motor-de-tasas-ibcusura-no-extrapola-más-allá-de-2026-07-31-crash-en-laboral-y-tributario--parcial)
 - [Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) 🔴 Bug confirmado sin corregir](#sprint-111--validación-de-datos-regresiones-del-sprint-24-en-formularios-nuevos-tributario-contrato-a-término-fijo-descuentos-laborales--bug-confirmado-sin-corregir)
 - [Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices 📋 Pendiente](#sprint-112--concurrencia-y-rendimiento-operaciones-nuevas-sin-threading-n1-reintroducido-y-migraciones-sin-recalcular-índices--pendiente)
 - [Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente](#sprint-113--seguridad-versionado-y-housekeeping-organizacional-auditoría-2026-08-25--pendiente)
@@ -7951,7 +7951,7 @@ cambio, es documentación pura), `ruff check .` limpio.
 
 ---
 
-## Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) 🔴 Bug confirmado sin corregir
+## Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) ⚠️ Parcial
 
 **Prioridad sugerida:** Máxima — no es un caso borde raro: cualquier liquidación Laboral (indemnización
 moratoria Art. 65 CST) o Tributaria (actualización usura plena Art. 867-1 E.T.) con mora superior a 2-3
@@ -8023,6 +8023,37 @@ capturar hoy mismo en producción.
 - Test de `suma_unica_con_abonos.py` con un abono mayor a la deuda del tramo que confirme
   `gran_total_adeudado >= 0`.
 - Suite completa en verde.
+
+**Cierre parcial (2026-08-27):** mitigación de los 3 crashes ya reproducidos revisada y fusionada a
+`main` (venía lista en la rama `sprint-110-crash-ibc-usura-extrapolacion`, pusheada pero desactualizada
+tras 6 sprints más en `main` — se reaplicó a mano sobre la estructura actual de `area_strategy.py`,
+Sprint 114 la había refactorizado mientras tanto):
+- `LaboralStrategy._eventos_mora_articulo_65` — `MoratoryIndemnityCalculator.calcular` capturado con
+  `try/except ValueError`; si falla, la liquidación sigue (prestaciones sociales completas) y se agrega
+  una alerta no bloqueante en vez de tumbar el expediente completo.
+- `TributarioStrategy._evento_actualizacion_867_1` — mismo patrón: la actualización de esa obligación
+  queda en $0,00 con alerta, en vez de propagar el error.
+- `app/engine/tax/actualizacion_867_1.py` — `KeyError` crudo reemplazado por un `ValueError` con mensaje
+  claro (defensa en profundidad).
+- `suma_unica_con_abonos.py` — `capital_base` topado en 0 (hallazgo 4, sin impacto real hoy porque la
+  función sigue sin cablear, Sprint 104).
+- 4 tests nuevos, suite completa 1638 passed, `ruff` limpio.
+
+**Sigue sin corregir (por eso queda ⚠️ Parcial, no ✅ Completado):**
+1. **Criterio de extrapolación** — sigue sin decidir con el despacho (pregunta ya registrada en
+   `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 110"); mientras tanto, las obligaciones afectadas
+   liquidan con esa parte en $0,00 y una alerta, no con el valor jurídicamente correcto.
+2. **Hallazgo nuevo, más amplio, encontrado al escribir los tests de este cierre parcial:**
+   `TributarioStrategy._construir_rate_provider_obligacion` (línea ~2278) llama
+   `construir_rate_provider_moratorio_tributario`, que también depende de `get_tramos_ibc_usura_between`
+   sin extrapolar — **cualquier obligación `IMPUESTO_A_CARGO` con `fecha_corte` posterior a 2026-07-31
+   sigue lanzando `ValueError` sin capturar**, sin relación con el Art. 867-1 (es el interés base del
+   E.T. art. 635). No se corrigió en este cierre porque exige la misma decisión de extrapolación del
+   punto 1, y el patrón de "alerta no bloqueante" no aplica igual de simple aquí — sin una tasa por día,
+   `LiquidationCore` no tiene con qué construir el rate provider en absoluto. `TributarioStrategy().liquidar()`
+   con una obligación `IMPUESTO_A_CARGO` y `fecha_corte` tardía **sigue rompiéndose hoy**; el test de este
+   sprint prueba `_evento_actualizacion_867_1` en aislamiento por esto mismo (ver el test para el
+   detalle).
 
 ---
 
