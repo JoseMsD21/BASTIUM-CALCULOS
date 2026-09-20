@@ -315,6 +315,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente](#sprint-113--seguridad-versionado-y-housekeeping-organizacional-auditoría-2026-08-25--pendiente)
 - [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común ✅ Completado](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--pendiente)
 - [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) ✅ Completado](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--pendiente)
+- [Sprint 116 — Bug de test: `test_ventana_restaura_tamano_guardado_entre_sesiones` rompe CI en main desde hace un mes ✅ Completado](#sprint-116--bug-de-test-test_ventana_restaura_tamano_guardado_entre_sesiones-rompe-ci-en-main-desde-hace-un-mes--completado)
 
 ---
 
@@ -8498,6 +8499,69 @@ ya cerró).
 
 ---
 
+## Sprint 116 — Bug de test: `test_ventana_restaura_tamano_guardado_entre_sesiones` rompe CI en main desde hace un mes ✅ Completado
+
+**Prioridad sugerida:** Alta — no es un bug de dominio jurídico, pero invalida la señal de CI (GitHub
+Actions) de todo el repositorio: nadie puede confiar en que "CI en verde" signifique algo si CI lleva
+roto desde hace semanas.
+
+**Depende de:** Nada — bug aislado en un solo test de infraestructura, sin relación con ningún cálculo
+jurídico.
+
+**Hallazgo (rutina autónoma, 2026-09-20):** al llegarle el turno a la cola con los 7 sprints ⚠️ Parcial
+existentes (70/91, 82, 84, 95, 104, 110) todos bloqueados por preguntas de seguimiento sin responder —
+mismo diagnóstico ya alcanzado por la corrida anterior de hoy mismo (12:23 hora Bogotá, ver
+`Preguntas-Para-Abogado-Abiertas.md`) —, se revisó el correo de notificación de GitHub Actions
+"[JoseMsD21/BASTIUM-CALCULOS] Run failed: CI - main (6a89be1)" (2026-09-20T17:27 UTC), algo que ninguna
+corrida anterior de esta rutina había hecho: todas verifican `pytest` localmente antes de mergear, pero
+ninguna había consultado el resultado real del workflow de GitHub Actions después del push.
+
+Revisando el historial de `mcp__github__actions_list` sobre la rama `main`: **los últimos ~60 runs
+consecutivos de CI (desde el run #12/#13, 2026-08-20, hasta hoy) fallaron sin excepción**, incluidos
+merges de sprints marcados "Suite completa en verde" — porque esa verificación local corría en Linux
+con `QT_QPA_PLATFORM=offscreen`, mientras que CI corre en `windows-latest` (`.github/workflows/ci.yml`),
+y el fallo (confirmado con `mcp__github__get_job_logs`) es siempre el mismo test:
+`tests/views/test_main_window.py::test_ventana_restaura_tamano_guardado_entre_sesiones — assert 798 == 780`.
+
+**Causa raíz real (reproducida en este sandbox instalando `libegl1`/`libgl1`/`libxkbcommon0`/
+`libxcb-cursor0` y corriendo con Python 3.13 — el mismo fallo exacto, 798 vs. 780, ocurre también en
+Linux, así que NO es una diferencia de plataforma Windows/Linux):**
+1. `MainWindow.minimumSizeHint()` hoy es 878×431 (creció respecto a los ~768×433 que asumía el
+   comentario del test cuando se escribió) — el `resize(780, 650)` de la primera ventana queda
+   inmediatamente recortado por Qt a 878×650, no a 780×650 como el test asumía.
+2. El test leía `segunda.size()` justo después de construir la segunda ventana, sin `show()` ni
+   `waitExposed()` — `restoreGeometry()` corre dentro de `MainWindow.__init__`, antes de que la ventana
+   esté mostrada y su layout completamente resuelto, y en ese punto intermedio devuelve un ancho
+   transitorio (798) que no es el que realmente queda restaurado una vez mostrada la ventana (878,
+   confirmado con un script de diagnóstico que llama `show()` + `processEvents()` y mide de nuevo).
+
+Aumentar el tamaño de la pantalla virtual offscreen (`QT_QPA_PLATFORM=offscreen:size=1600x1200`) NO
+corrigió el síntoma por sí solo — se probó y descartó como hipótesis antes de encontrar la causa real
+arriba.
+
+**Corrección (mecánica, sin tocar ningún cálculo jurídico):** `tests/views/test_main_window.py`,
+`test_ventana_restaura_tamano_guardado_entre_sesiones` — el tamaño esperado ya no es una constante
+hardcodeada (780×650): se captura `primera.size()` **después** del `resize()` real (el tamaño ya
+recortado por Qt, sea cual sea el `minimumSizeHint` vigente), y la segunda ventana se muestra
+(`show()` + `waitExposed()`) antes de leer su tamaño, para no comparar contra un valor intermedio
+pre-layout. Esto hace el test robusto ante futuros cambios de `minimumSizeHint()` (más ancho de
+contenido en el sidebar/breadcrumb, etc.) sin necesidad de volver a tocarlo.
+
+**Definición de Hecho:**
+- El test reproduce en verde tanto en Linux (este sandbox, confirmado) como se espera en
+  `windows-latest` (mecanismo de la corrección no depende de la plataforma — ver causa raíz).
+- Suite completa en verde.
+- `ruff check .` limpio.
+
+**Cierre (2026-09-20, rutina autónoma):** corregido como se describe arriba. Suite completa: 1638 passed
+(antes: 1637 passed + 1 failed, mismo total — confirma que este era el único test roto). `ruff check .`
+limpio. Verificado después de mergear a `main` que el run de CI subsiguiente (push del merge) pasa en
+ambos jobs de la matriz (`test (3.13)`, `test (3.14)`) — ver nota de seguimiento en
+`docs/Pendientes.md`, sección "Notas de entorno", sobre el hallazgo transversal (nadie revisaba CI
+real de GitHub Actions tras el push).
+
+---
+
 ## Notas de entorno (sin sprint asignado)
 
 - ~~Validar/enable Windows "Long Paths" en la máquina de desarrollo~~ — **resuelto** (2026-07-15): se
@@ -8519,3 +8583,17 @@ ya cerró).
 - El `.venv` local también tiene `markitdown[all]` y `pywin32` instalados desde 2026-08-19 (usados para
   convertir a Markdown las plantillas de referencia del despacho, ver Sprints 80-102) — tampoco están en
   `requirements.txt` porque no son dependencias de la app, solo herramienta puntual de conversión.
+- **CI real de GitHub Actions vs. `pytest` local (encontrado 2026-09-20, Sprint 116):** todas las corridas
+  de esta rutina (y del propio usuario) validan el cierre de un sprint corriendo `pytest` localmente en
+  Linux (`QT_QPA_PLATFORM=offscreen`), pero ninguna corrida anterior había revisado el resultado real del
+  workflow `CI` en GitHub Actions (`windows-latest`) después del push a `main` — el correo de notificación
+  de GitHub llega, pero nadie lo abría. Consecuencia real: **~60 runs consecutivos de CI en `main`
+  fallaron sin excepción entre el 2026-08-20 y el 2026-09-20** (un mes completo) por un solo test roto
+  (`test_ventana_restaura_tamano_guardado_entre_sesiones`, corregido en el Sprint 116), sin que ninguna
+  corrida se diera cuenta porque el fallo no aparecía en la suite local ejecutada antes de cada merge (la
+  causa real no era una diferencia de plataforma Windows/Linux, sino que el test leía un tamaño de ventana
+  antes de que Qt terminara de aplicar el layout — ver Sprint 116 para el detalle). **Recomendación para
+  corridas futuras:** después de mergear y pushear a `main`, revisar el correo de GitHub Actions (o
+  `mcp__github__actions_list`/`get_job_logs`) para confirmar que el run de CI del propio merge también
+  pasa, no solo la suite local — el estándar de calidad "suite completa en verde" que exige cada cierre de
+  sprint debe incluir esta verificación, no solo la corrida local.
