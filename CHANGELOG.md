@@ -131,7 +131,10 @@ SQLite en memoria de `tests/views/` centralizada en `tests/views/conftest.py` (8
 duplicarla), `LaboralStrategy.liquidar()` reducido de ~300 a ~107 líneas extrayendo cada categoría a un
 método privado, `FormDialogBase` nueva para los 6 diálogos de formulario que repetían el mismo patrón
 "guardar y cerrar", y la convención "validación de forma → vista; validación de dominio/cálculo → services"
-documentada como ADR-006. Ningún cambio de comportamiento en ninguno de los dos sprints.
+documentada como ADR-006. Ningún cambio de comportamiento en ninguno de los dos sprints. Sprint 116
+(rutina autónoma, 2026-09-20): corregido un test roto que llevaba **~60 runs consecutivos de CI en
+`main` fallando sin excepción desde el 2026-08-20** (un mes completo, nunca notado porque la suite
+local en Linux, usada para validar cada cierre de sprint, no reproducía el fallo).
 
 ### Added
 - Laboral: captura de salario pactado por día en el formulario, para trabajo doméstico por días/jornada
@@ -323,6 +326,13 @@ documentada como ADR-006. Ningún cambio de comportamiento en ninguno de los dos
   explícitos (`_escribir_celda`). De paso se corrigió un bug de `_escribir_celda` que dejaba el texto con
   estilo como el segundo run de la celda (invisible para cualquier lector que solo mirara `runs[0]`) por
   llamar `celda.text = ""` antes de `add_run()`.
+- CI en `main` rota durante ~60 runs consecutivos (2026-08-20 a 2026-09-20) por un único test roto
+  (Sprint 116): `test_ventana_restaura_tamano_guardado_entre_sesiones` asumía un ancho de ventana
+  restaurado hardcodeado (780px) que el `minimumSizeHint()` actual de `MainWindow` (878px, creció con el
+  contenido del sidebar/breadcrumb) ya no permite, y leía el tamaño de la segunda ventana antes de que
+  Qt terminara de resolver su layout (`restoreGeometry()` corre en `__init__`, antes de `show()`).
+  Corregido capturando el tamaño esperado después del `resize()` real (no una constante) y mostrando la
+  segunda ventana antes de comparar tamaños — robusto ante futuros cambios de `minimumSizeHint()`.
 - Test que colgaba la suite completa indefinidamente (Sprint 103):
   `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` llamaba a
   `PagoPorRangoDialog.confirmar()` sin mockear el `QMessageBox.warning` modal que se dispara con remanente

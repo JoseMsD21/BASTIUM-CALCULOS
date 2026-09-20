@@ -458,25 +458,30 @@ def test_ventana_usa_tamano_por_defecto_sin_geometria_guardada(qtbot):
 
 
 def test_ventana_restaura_tamano_guardado_entre_sesiones(qtbot):
-    # Tamaño deliberadamente distinto del default (1000x700) pero que sigue dentro de
-    # los limites de la pantalla offscreen 800x800 que usa la suite
-    # (QT_QPA_PLATFORM=offscreen) y por encima del minimumSizeHint del contenido de
-    # MainWindow (~768x433): restoreGeometry() recorta el tamaño restaurado tanto al
-    # espacio disponible en pantalla como al minimo del layout, asi que un tamaño fuera
-    # de ese rango daria un falso negativo aqui.
+    # No se asume un ancho fijo de resize (ej. 780): el minimumSizeHint de MainWindow
+    # crece con el contenido (878 de ancho a fecha de este test, frente a ~768 cuando
+    # se escribio originalmente) y Qt recorta cualquier resize() por debajo de ese
+    # minimo -- de ahi que el tamaño esperado se capture DESPUES del resize real,
+    # nunca como constante hardcodeada. Tampoco se lee segunda.size() apenas
+    # construida: restoreGeometry() corre en __init__ antes de que la ventana este
+    # mostrada, y sin un ciclo de layout completo (show + waitExposed) puede reportar
+    # un tamaño intermedio que no es el que realmente quedo restaurado.
     primera = MainWindow()
     qtbot.addWidget(primera)
     primera.show()
     qtbot.waitExposed(primera)
     primera.resize(780, 650)
     qtbot.wait(50)
+    tamano_guardado = primera.size()
     primera.close()  # dispara closeEvent -> guarda geometria en QSettings
 
     segunda = MainWindow()
     qtbot.addWidget(segunda)
+    segunda.show()
+    qtbot.waitExposed(segunda)
 
-    assert segunda.size().width() == 780
-    assert segunda.size().height() == 650
+    assert segunda.size().width() == tamano_guardado.width()
+    assert segunda.size().height() == tamano_guardado.height()
 
 
 def test_main_window_reemplaza_el_toolbar_por_un_sidebar(qtbot):
