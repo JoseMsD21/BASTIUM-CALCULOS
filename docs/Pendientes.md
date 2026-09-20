@@ -6664,6 +6664,35 @@ la anualidad simplificada que la propia plantilla admite como aproximada). Pendi
 transcribir el texto exacto de esa resolución (es una norma pública, no depende del despacho) antes de
 poder codificarla.
 
+**Bloqueo no previsto (2026-09-20, rutina autónoma):** se investigó la Resolución 3023 de 2017 (vía
+búsqueda web pública; el acceso directo a `funcionpublica.gov.co`, `alcaldiabogota.gov.co` y `vlex.com.co`
+está bloqueado por el proxy de red del sandbox — bloqueo de infraestructura, reportado aparte en el correo
+resumen de esta corrida, no como bloqueo de este sprint). Varias fuentes independientes (extracto de una
+"memoria justificativa" oficial de una resolución posterior que la cita, y una ficha de Redjurista que
+transcribe su encabezado oficial) coinciden en que la norma que modifica/desarrolla junto con la
+Resolución 3099 de 2015 del Ministerio de Hacienda **no regula una "mesada mensual de pensión RAIS" genérica
+en la modalidad de Renta Vitalicia** (que es lo que pide `P11.MONTO-MENSUAL-DE-PENSION-REGIMEN-AHORRO-INDIVIDUAL.md`
+y la Definición de Hecho original de este sprint: `MMP = VP × i × (1+i)^n / ((1+i)^n - 1)` con interés técnico
+y tabla de mortalidad). Regula, en cambio, dos cosas distintas: (a) el **Saldo de Pensión Mínima (SPM)** —
+una comprobación de si el afiliado tiene capital suficiente para acceder a la Garantía de Pensión Mínima del
+Art. 35 Ley 100/1993, con variables propias (factor de gastos 5%, factor de seguridad μ=0,6%, Δ=incremento
+esperado del SMLMV, número de beneficiarios) — y (b) los **parámetros técnicos del Retiro Programado**, una
+modalidad de pago administrada por el propio fondo con recálculo periódico del saldo restante, estructuralmente
+distinta de la Renta Vitalicia (un producto de seguro con tasa técnica fija y tabla de mortalidad, pagado por
+una aseguradora). No se pudo confirmar con certeza absoluta el número/año exacto de la resolución modificatoria
+por el bloqueo de acceso directo a las fuentes oficiales, pero la coincidencia entre múltiples fuentes
+independientes sobre el contenido (SPM + Retiro Programado, no Renta Vitalicia) es sólida.
+
+**Por qué esto bloquea codificar:** implementar "la fórmula de la Resolución 3023/2017" tal como la pidió el
+usuario, sin aclarar cuál modalidad necesita realmente el despacho, arriesgaría construir un cálculo
+jurídicamente distinto al que el título del sprint promete ("Monto mensual de pensión... RAIS") — SPM es una
+prueba de elegibilidad, no una mesada; Retiro Programado es una modalidad de pago distinta a la Renta Vitalicia
+que ya modelaba (de forma admitidamente aproximada) la plantilla P11 original. No es una corrección mecánica:
+es una decisión de alcance que solo el usuario/despacho puede tomar con el dato real de qué modalidad(es)
+usa el despacho en sus casos RAIS.
+
+**Pregunta para el usuario/despacho:** ver `Preguntas-Para-Abogado-Abiertas.md`, "Sprint 89 (seguimiento)".
+
 ---
 
 ## Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado

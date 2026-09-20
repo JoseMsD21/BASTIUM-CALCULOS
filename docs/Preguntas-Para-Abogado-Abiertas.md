@@ -88,6 +88,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa](#sprint-84-seguimiento--imputación-proporcional-art-804-et-y-tope-suspensivo-por-demanda-contenciosa)
 - [Sprint 85 — Retroactivo pensional: tasa de mora del Art. 141 Ley 100, y vigencia del incremento 14%/7%](#sprint-85--retroactivo-pensional-tasa-de-mora-del-art-141-ley-100-y-vigencia-del-incremento-147)
 - [Sprint 86/87 (seguimiento) — Tabla actuarial completa (FAC1/FAC2), serie DTF Pensional, y cuál fórmula de FAC3 es la correcta](#sprint-8687-seguimiento--tabla-actuarial-completa-fac1fac2-serie-dtf-pensional-y-cuál-fórmula-de-fac3-es-la-correcta)
+- [Sprint 89 (seguimiento) — ¿Renta Vitalicia (mesada mensual RAIS) o Retiro Programado/SPM? La Resolución 3023/2017 no parece cubrir lo que pedía el sprint original](#sprint-89-seguimiento--renta-vitalicia-mesada-mensual-rais-o-retiro-programadospm-la-resolución-30232017-no-parece-cubrir-lo-que-pedía-el-sprint-original)
 - [Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8](#sprint-94-seguimiento--aporte-a-salud-en-contrato-realidad-y-si-el-decreto-03202026-reemplaza-la-regla-de-bonificación-por-servicio-de-la-plantilla-l8)
 - [Sprint 95 (seguimiento) — porcentajes de los 4 conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN) tras la Ley 2466/2025](#sprint-95-seguimiento--porcentajes-de-los-4-conceptos-horas-extras-hed-hen-hefd-hefn-tras-la-ley-24662025)
 - [Sprint 96 (seguimiento) — auxilio de transporte pactado por día en trabajo doméstico](#sprint-96-seguimiento--auxilio-de-transporte-pactado-por-día-en-trabajo-doméstico)
@@ -742,6 +743,45 @@ un caso real pendiente que dependa de esto ahora mismo?
 misma pieza, y si hay urgencia real de cablear esto a producción antes de resolver ambos puntos.
 
 **Fecha:** 23/08/2026 (seguimiento tras respuesta del 22/08/2026)
+
+---
+
+## Sprint 89 (seguimiento) — ¿Renta Vitalicia (mesada mensual RAIS) o Retiro Programado/SPM? La Resolución 3023/2017 no parece cubrir lo que pedía el sprint original
+
+**Contexto:** el 2026-08-25 se decidió pedir "la fórmula oficial completa de la Resolución 3023 de 2017"
+en vez de la anualidad simplificada de la plantilla `P11.MONTO-MENSUAL-DE-PENSION-REGIMEN-AHORRO-INDIVIDUAL.md`
+(`MMP = VP × i × (1+i)^n / ((1+i)^n - 1)`, Renta Vitalicia con tasa técnica del 4% EA y tabla de mortalidad
+de rentistas). Al investigar esa resolución (búsqueda web pública; el acceso directo a los sitios oficiales
+`funcionpublica.gov.co`, `alcaldiabogota.gov.co` y a `vlex.com.co` está bloqueado por el proxy de red del
+entorno donde corre esta rutina — no se pudo leer el texto completo palabra por palabra), varias fuentes
+independientes coinciden en que la norma que la acompaña/modifica (Resolución 3099 de 2015 del Ministerio de
+Hacienda, sobre RAIS) regula dos cosas que **no son** una mesada mensual de Renta Vitalicia:
+
+1. El **Saldo de Pensión Mínima (SPM)** — una prueba de si el afiliado tiene capital suficiente para acceder
+   a la Garantía de Pensión Mínima (Art. 35 Ley 100/1993), con variables propias (factor de gastos 5%, factor
+   de seguridad μ=0,6%, Δ=incremento esperado del SMLMV, número de beneficiarios a considerar).
+2. Los **parámetros técnicos del Retiro Programado** — una modalidad de pago administrada por el propio fondo
+   de pensiones, con recálculo periódico del saldo restante, distinta de la Renta Vitalicia (un producto de
+   seguro con tasa técnica fija y tabla de mortalidad, pagado por una aseguradora).
+
+Es decir: parece que la resolución que se pidió replicar responde una pregunta distinta a la que el sprint
+original planteaba ("¿cuánto le queda mensualmente a alguien con Renta Vitalicia?"). Construir el código de
+SPM/Retiro Programado y llamarlo "monto mensual de pensión RAIS" arriesgaría entregar un cálculo
+jurídicamente distinto al que promete el título del sprint.
+
+**Pregunta:** (a) ¿el despacho necesita liquidar RAIS bajo la modalidad **Renta Vitalicia** (la anualidad de
+P11, o su versión más precisa), bajo **Retiro Programado** (los parámetros técnicos de la Resolución
+3099/2015 y su modificatoria), o ambas? (b) Si es Retiro Programado y/o el SPM/Garantía de Pensión Mínima,
+¿puede el despacho aportar el texto completo de la resolución (PDF o copia), dado que el entorno de esta
+rutina no tiene acceso directo a los sitios oficiales colombianos para verificarlo por su cuenta?
+
+**Qué necesito exactamente:** confirmación de cuál modalidad de RAIS (Renta Vitalicia / Retiro Programado /
+ambas) debe implementar este sprint, y si aplica, el texto de la norma correspondiente.
+
+**Respuesta del despacho:**
+
+
+**Fecha:** 20/09/2026
 
 ---
 
