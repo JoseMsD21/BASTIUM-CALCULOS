@@ -16,6 +16,8 @@ Describe cómo verificaste el cambio (comandos de `pytest` corridos, pasos manua
 
 ## Checklist
 
+- [ ] Mi rama sale de un `main` actualizado y este PR tiene un solo propósito.
+- [ ] No incluí datos reales de clientes, `bastium.db`, respaldos ni secretos.
 - [ ] `python -m pytest` pasa localmente.
 - [ ] `python -m ruff check .` no agrega errores nuevos en los archivos que toqué.
 - [ ] Si el cambio afecta un cálculo legal, cité la norma/artículo relevante en la descripción o en

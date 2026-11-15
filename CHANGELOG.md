@@ -137,6 +137,11 @@ documentada como ADR-006. Ningún cambio de comportamiento en ninguno de los dos
 local en Linux, usada para validar cada cierre de sprint, no reproducía el fallo).
 
 ### Added
+- Flujo de trabajo en equipo con revisión obligatoria: `main` queda protegida con un ruleset de GitHub
+  (Pull Request con 1 aprobación del Code Owner, CI `test (3.13)`/`test (3.14)` en verde, sin force-push
+  ni borrado). `CONTRIBUTING.md` gana la sección "Flujo de trabajo del equipo (paso a paso)", el
+  `README.md` un resumen, y se agrega `.github/CODEOWNERS` para pedir al responsable como revisor de
+  todo PR. Ningún cambio de comportamiento de la aplicación.
 - Laboral: captura de salario pactado por día en el formulario, para trabajo doméstico por días/jornada
   parcial (Sprint 96): la casilla "Salario pactado por día" en `ObligacionFormDialog` (categoría Laboral)
   oculta "Valor" y muestra "Salario diario"/"Días laborados por semana" (1-7); el salario base mensual se

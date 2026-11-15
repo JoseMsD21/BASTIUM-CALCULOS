@@ -54,6 +54,90 @@ python -m ruff check .
 python -m ruff format .
 ```
 
+## Flujo de trabajo del equipo (paso a paso)
+
+`main` está protegida: **nadie sube cambios directamente a `main`**. Todo cambio entra mediante un
+Pull Request (PR) que el responsable del proyecto (@JoseMsD21) revisa y aprueba antes de integrarse.
+La CI (ruff + pytest con cobertura mínima de 90%) también debe estar en verde.
+
+### Una sola vez (configuración inicial)
+
+1. Acepta la invitación al repositorio que llega a tu correo de GitHub.
+2. Clona el repositorio y levanta el entorno (sección "Levantar el entorno" arriba).
+3. Configura tu identidad en git (los commits quedan firmados con estos datos):
+
+   ```bash
+   git config user.name "Tu Nombre"
+   git config user.email "tu-correo-de-github@ejemplo.com"
+   ```
+
+### Cada vez que vayas a hacer un cambio
+
+1. **Parte siempre de `main` actualizada:**
+
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+2. **Crea una rama nueva** con un nombre que diga qué haces (`tipo/descripcion-corta`):
+
+   ```bash
+   git checkout -b fix/redondeo-intereses-laboral
+   ```
+
+3. **Haz tus cambios y pruébalos localmente** antes de commitear:
+
+   ```bash
+   python -m ruff check .
+   python -m pytest
+   ```
+
+4. **Commitea** siguiendo la [convención de commits](#convención-de-commits):
+
+   ```bash
+   git add archivo1.py tests/test_archivo1.py
+   git commit -m "fix: corregir redondeo de intereses moratorios en liquidacion laboral"
+   ```
+
+   Agrega los archivos por nombre (no uses `git add .` a ciegas): así evitas subir por error
+   `bastium.db`, respaldos o archivos locales.
+
+5. **Sube tu rama** (nunca `main`):
+
+   ```bash
+   git push -u origin fix/redondeo-intereses-laboral
+   ```
+
+6. **Abre el Pull Request** en GitHub: entra al repositorio, pulsa "Compare & pull request" y llena
+   la plantilla (qué cambia, por qué, cómo lo probaste y el checklist). Si tu cambio toca un cálculo
+   legal, cita la norma o el artículo.
+
+7. **Espera la revisión.** El responsable puede pedir cambios: hazlos en la misma rama, repite los
+   pasos 3-5 (el PR se actualiza solo) y avísale. Cuando lo apruebe y la CI esté en verde, él
+   integra el PR.
+
+8. **Limpia tu entorno** después de que se integre:
+
+   ```bash
+   git checkout main
+   git pull origin main
+   git branch -d fix/redondeo-intereses-laboral
+   ```
+
+### Reglas importantes
+
+- **Un PR = un cambio con un solo propósito.** PRs pequeños se revisan más rápido.
+- **No subas datos reales de clientes ni expedientes.** Este repositorio es público. Tampoco subas
+  `bastium.db` (ni ningún `*.db`), `backups/`, PDFs/Excel generados con datos reales ni la carpeta
+  `.venv` (ya están en `.gitignore`; si git te los ofrece, detente y consulta).
+- **No subas secretos** (contraseñas, tokens, claves).
+- **No reescribas el historial** de una rama ya publicada (`push --force`) sin acordarlo antes.
+- Si tu rama quedó atrás de `main` y GitHub avisa de conflictos, trae los cambios con
+  `git fetch origin` y `git merge origin/main` en tu rama, resuelve los conflictos, vuelve a correr
+  los tests y haz `git push`. Si no sabes resolverlos, pide ayuda antes de forzar nada.
+- Si la CI falla, abre el detalle del check fallido en el PR, corrige en tu rama y vuelve a subir.
+
 ## Convención de commits
 
 Los commits siguen un prefijo según el tipo de cambio, seguido de un resumen corto en español que
