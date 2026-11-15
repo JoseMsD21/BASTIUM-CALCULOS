@@ -16,7 +16,7 @@ otro lugar.
 | Planificación | [Pendientes.md](Pendientes.md) | Plan de proyecto / backlog / cronograma: todo el trabajo organizado en sprints autocontenidos, con su propio estado |
 | Planificación | [Gestión de riesgos](GESTION_RIESGOS.md) | Riesgos vigentes agrupados por tipo, con mitigación y estado |
 | Implementación | [Plan de calidad y pruebas (QA)](PLAN_CALIDAD_PRUEBAS.md) | Estrategia de pruebas, entornos, trazabilidad requisito→sprint→test, criterios de aceptación |
-| Implementación | [CONTRIBUTING.md](../CONTRIBUTING.md) | Documentación técnica de desarrollo: entorno, comandos de prueba/lint, convención de commits, cómo proponer un sprint |
+| Implementación | [CONTRIBUTING.md](../CONTRIBUTING.md) | Documentación técnica de desarrollo: entorno, comandos de prueba/lint, flujo de trabajo en equipo con ramas y Pull Requests (paso a paso), convención de commits, cómo proponer un sprint |
 | Implementación | `docs/superpowers/plans/` y `docs/superpowers/specs/` | Histórico de ejecución: plan TDD tarea por tarea y diseño de cada sprint (no se edita, es un log) |
 | Entrega | [README.md](../README.md) | Instalación, actualización, estructura del proyecto, estado actual funcional |
 | Entrega | [Guía de Usuario](GUIA_USUARIO.md) | Manual paso a paso para cualquier persona, incluye FAQ y solución de problemas |

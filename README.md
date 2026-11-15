@@ -261,6 +261,25 @@ automáticamente al guardar si abres la carpeta del proyecto (ver `.vscode/setti
 instalada la extensión `charliermarsh.ruff`. El pipeline de CI corre `ruff check .` antes de la suite de
 pruebas y falla si hay alguna violación.
 
+## Trabajar en equipo (contribuir al código)
+
+`main` está protegida: **nadie sube cambios directamente a ella**. Cada cambio se hace en una rama
+propia, se sube y se abre un Pull Request que el responsable del proyecto revisa y aprueba. La CI
+(ruff + pytest con cobertura mínima de 90%) debe estar en verde antes de integrarlo. El resumen:
+
+```
+git checkout main && git pull origin main      # parte de main actualizada
+git checkout -b tipo/descripcion-corta         # rama nueva por cada cambio
+# ... edita, y antes de commitear: python -m ruff check .  y  python -m pytest
+git add archivo1 archivo2                      # por nombre, nunca a ciegas
+git commit -m "fix: resumen corto del por qué"
+git push -u origin tipo/descripcion-corta      # sube TU rama, nunca main
+# abre el Pull Request en GitHub y espera la revisión
+```
+
+La guía completa, con la configuración inicial, las reglas (no subir datos reales de clientes ni
+`bastium.db`) y qué hacer ante conflictos o una CI en rojo, está en [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Mantenimiento de esta documentación
 
 Cada vez que se completa un sprint de `docs/Pendientes.md` y un módulo pasa de "🚧 en desarrollo" a
