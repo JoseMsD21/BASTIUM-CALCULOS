@@ -134,7 +134,10 @@ método privado, `FormDialogBase` nueva para los 6 diálogos de formulario que r
 documentada como ADR-006. Ningún cambio de comportamiento en ninguno de los dos sprints. Sprint 116
 (rutina autónoma, 2026-09-20): corregido un test roto que llevaba **~60 runs consecutivos de CI en
 `main` fallando sin excepción desde el 2026-08-20** (un mes completo, nunca notado porque la suite
-local en Linux, usada para validar cada cierre de sprint, no reproducía el fallo).
+local en Linux, usada para validar cada cierre de sprint, no reproducía el fallo). Sprint 117
+(2026-11-14, reportado por el usuario): `Iniciar BASTIUM.bat` fallaba con `No module named 'PySide6'` en un
+`.venv` que existía pero estaba vacío; el lanzador ahora crea el entorno e instala las dependencias solo,
+y al arreglarlo apareció un segundo bug oculto (migración del Sprint 96 nunca conectada al arranque).
 
 ### Added
 - Flujo de trabajo en equipo con revisión obligatoria: `main` queda protegida con un ruleset de GitHub
@@ -331,6 +334,21 @@ local en Linux, usada para validar cada cierre de sprint, no reproducía el fall
   explícitos (`_escribir_celda`). De paso se corrigió un bug de `_escribir_celda` que dejaba el texto con
   estilo como el segundo run de la celda (invisible para cualquier lector que solo mirara `runs[0]`) por
   llamar `celda.text = ""` antes de `add_run()`.
+- `Iniciar BASTIUM.bat` cerraba con `ModuleNotFoundError: No module named 'PySide6'` (Sprint 117,
+  reportado por el usuario): solo validaba que existiera `.venv\Scripts\python.exe`, no que tuviera las
+  dependencias instaladas, y un `.venv` vacío (solo `pip`) pasaba la validación. El lanzador ahora (1) crea
+  el `.venv` si falta (`py -3`, con `python` como alternativa), (2) comprueba que se puedan importar las
+  dependencias críticas (PySide6, sqlalchemy, docx, reportlab, rich, matplotlib, holidays) y, si no, corre
+  `pip install -r requirements.txt`, y (3) muestra mensajes claros si la creación o la instalación fallan
+  (incluida la sugerencia de usar Python 3.12/3.13 si PySide6 no tiene versión para la de la máquina).
+  También se entrecomilló `cd /d "%~dp0"`: la ruta del proyecto tiene un espacio (`BASTIUM CALCULOS`).
+- `aplicar_migraciones_pendientes()` nunca ejecutaba `scripts/migrate_salario_domestico_sprint96.py`
+  (Sprint 117): el modelo `Obligacion` ya mapeaba `salario_diario`/`dias_laborados_semana` desde el
+  Sprint 96, pero una `bastium.db` anterior fallaba al abrir con
+  `sqlite3.OperationalError: no such column: obligaciones.salario_diario` (el Dashboard, que carga todas las
+  obligaciones al iniciar, fue el primero en tocarla). Quedó oculto hasta ahora porque nadie había abierto
+  la app con una BD vieja desde el Sprint 96. La migración se conecta al arranque y se agrega una prueba de
+  regresión en `tests/database/test_migrations.py`.
 - CI en `main` rota durante ~60 runs consecutivos (2026-08-20 a 2026-09-20) por un único test roto
   (Sprint 116): `test_ventana_restaura_tamano_guardado_entre_sesiones` asumía un ancho de ventana
   restaurado hardcodeado (780px) que el `minimumSizeHint()` actual de `MainWindow` (878px, creció con el

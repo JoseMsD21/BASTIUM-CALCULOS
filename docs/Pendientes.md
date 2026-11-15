@@ -316,6 +316,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común ✅ Completado](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--pendiente)
 - [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) ✅ Completado](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--pendiente)
 - [Sprint 116 — Bug de test: `test_ventana_restaura_tamano_guardado_entre_sesiones` rompe CI en main desde hace un mes ✅ Completado](#sprint-116--bug-de-test-test_ventana_restaura_tamano_guardado_entre_sesiones-rompe-ci-en-main-desde-hace-un-mes--completado)
+- [Sprint 117 — Bug: `Iniciar BASTIUM.bat` no instalaba dependencias y la migración del Sprint 96 nunca se ejecutaba al arrancar ✅ Completado](#sprint-117--bug-iniciar-bastiumbat-no-instalaba-dependencias-y-la-migración-del-sprint-96-nunca-se-ejecutaba-al-arrancar--completado)
 
 ---
 
@@ -8588,6 +8589,63 @@ limpio. Verificado después de mergear a `main` que el run de CI subsiguiente (p
 ambos jobs de la matriz (`test (3.13)`, `test (3.14)`) — ver nota de seguimiento en
 `docs/Pendientes.md`, sección "Notas de entorno", sobre el hallazgo transversal (nadie revisaba CI
 real de GitHub Actions tras el push).
+
+---
+
+## Sprint 117 — Bug: `Iniciar BASTIUM.bat` no instalaba dependencias y la migración del Sprint 96 nunca se ejecutaba al arrancar ✅ Completado
+
+**Prioridad sugerida:** Alta — la app no abría en absoluto para quien clonara/reinstalara el proyecto, y la
+segunda falla (BD desactualizada) habría aparecido de inmediato después.
+
+**Depende de:** Sprint 65 (lanzador `.bat`), Sprint 51 (migración automática al arrancar) y Sprint 96
+(salario doméstico por día).
+
+**Hallazgo (reportado por el usuario, 2026-11-14):** al hacer doble clic en `Iniciar BASTIUM.bat` la consola
+mostraba `ModuleNotFoundError: No module named 'PySide6'` (línea 3 de `main.py`) seguido del mensaje
+genérico "BASTIUM se cerró con un error inesperado".
+
+**Causa raíz 1 — lanzador:** el `.bat` solo comprobaba `if not exist ".venv\Scripts\python.exe"`. El `.venv`
+existía pero estaba **vacío** (solo `pip`, sin ninguna dependencia de `requirements.txt`), así que pasaba
+la validación y `main.py` fallaba en el primer `import`. Además, `cd /d %~dp0` sin comillas es frágil con
+rutas con espacios (`BASTIUM CALCULOS`).
+
+**Causa raíz 2 — migración (oculta por la 1):** una vez instaladas las dependencias, `main.py` falló con
+`sqlite3.OperationalError: no such column: obligaciones.salario_diario`.
+`scripts/migrate_salario_domestico_sprint96.py` existe y es idempotente, pero
+`database/database.py::aplicar_migraciones_pendientes()` nunca la importaba ni la llamaba (las demás
+migraciones de sprints posteriores y anteriores sí). Cualquier `bastium.db` anterior al Sprint 96 rompía el
+arranque (el Dashboard fue el primero en tocarla, al cargar todas las obligaciones).
+
+**Hallazgo de entorno (no es un bug del repo):** con Python 3.14 la instalación de `PySide6` se colgó
+(`pip` sin progreso durante más de 10 minutos); recreando el `.venv` con Python 3.13 (`py -3.13 -m venv
+.venv`) instaló sin problema. Con conexión lenta, instalar `PySide6` por separado (`pip install --default-timeout 60
+--retries 10 PySide6`) evita que un solo timeout aborte toda la instalación.
+
+**Corrección:**
+- `Iniciar BASTIUM.bat`: crea el `.venv` si no existe; prueba `import PySide6, sqlalchemy, docx, reportlab,
+  rich, matplotlib, holidays` y, si falla, corre `pip install -r requirements.txt`; mensajes claros si
+  falla la creación o la instalación; `cd /d "%~dp0"` entrecomillado.
+- `database/database.py`: importa y llama `migrar_salario_domestico_sprint96` justo después de
+  `migrar_dismissal_indemnity_sprint92` (columnas independientes, sin dependencia de orden).
+- `tests/database/test_migrations.py`: `test_aplicar_migraciones_pendientes_agrega_columnas_sprint96`
+  (regresión: BD sin las 2 columnas → tras migrar existen).
+- Documentación: `CHANGELOG.md`, `README.md` (Instalación rápida), `docs/GUIA_USUARIO.md` (secciones 2.1,
+  2.3/2.4, 3 y solución de problemas) y `CONTRIBUTING.md` (versión de Python).
+- Operación local: se respaldó `bastium.db` a `backups/bastium.db.bak-20261114-pre-sprint96-fix` antes de
+  migrar (el `ALTER TABLE ... ADD COLUMN` es aditivo y no toca datos existentes).
+
+**Definición de Hecho:**
+- Doble clic en `Iniciar BASTIUM.bat` con un `.venv` vacío o inexistente instala lo necesario y abre la app.
+- Una `bastium.db` anterior al Sprint 96 abre sin error y gana `salario_diario`/`dias_laborados_semana`.
+- Pruebas de migraciones/base de datos en verde; `ruff check .` limpio.
+
+**Lección:** al agregar un `scripts/migrate_*.py` hay que registrarlo también en
+`aplicar_migraciones_pendientes()`; un script que existe pero no se llama no protege a nadie. Pendiente
+sugerido (no incluido aquí): una prueba que compare los `scripts/migrate_*.py` presentes contra los
+importados en esa función, para que este olvido falle en CI.
+
+**Cierre (2026-11-14):** corregido como se describe arriba; verificado arrancando `main.py` con
+`QT_QPA_PLATFORM=offscreen` (sin errores) y confirmado por el usuario ejecutando la app con normalidad.
 
 ---
 

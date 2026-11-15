@@ -9,7 +9,8 @@ nuevo.
 
 ## Levantar el entorno
 
-Requiere Python 3.14 (la versión usada por el entorno de desarrollo del proyecto).
+Requiere Python 3.13 o 3.14 (la CI corre en ambas). Si `pip install` de `PySide6` se queda sin avanzar
+con 3.14, crea el `.venv` con 3.13 (`py -3.13 -m venv .venv`).
 
 ```bash
 # 1. Clona el repositorio y entra a la carpeta

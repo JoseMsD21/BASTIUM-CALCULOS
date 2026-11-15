@@ -176,8 +176,13 @@ Para el paso a paso completo (incluyendo un problema conocido de Windows con rut
 resolverlo), ver la [Guía de Usuario](docs/GUIA_USUARIO.md#2-instalación-paso-a-paso).
 
 Una vez instalado, la forma más simple de abrir el programa es haciendo **doble clic en
-`Iniciar BASTIUM.bat`** (en la raíz del repo) — no requiere abrir ninguna terminal. El comando
-`python main.py` de arriba sigue funcionando igual si prefieres la terminal.
+`Iniciar BASTIUM.bat`** (en la raíz del repo) — no requiere abrir ninguna terminal. Desde el Sprint 117
+el lanzador crea el `.venv` e instala `requirements.txt` solo si faltan (la primera vez puede tardar
+varios minutos), así que en Windows no hace falta correr `pip install` a mano. El comando `python main.py`
+de arriba sigue funcionando igual si prefieres la terminal.
+
+Si la instalación de `PySide6` se queda sin avanzar con Python 3.14, recrea el `.venv` con Python 3.13
+(`py -3.13 -m venv .venv`) — verificado el 2026-11-14.
 
 **Requisito de Python: 3.12 o más nuevo** (probado en 3.14) — el código usa sintaxis de función genérica
 (PEP 695) que no existe en 3.11 ni versiones anteriores; con una versión más vieja, `pip install`

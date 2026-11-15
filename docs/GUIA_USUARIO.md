@@ -87,7 +87,9 @@ injustificado) — más detalle en la
 - **Python 3.12 o más nuevo** (recomendado 3.14, la versión con la que se prueba el proyecto). Esto
   **no es solo una recomendación**: el código usa sintaxis de Python que no existe en 3.11 ni
   anteriores (genéricos de función, PEP 695) — con una versión más vieja, el programa ni siquiera
-  llega a abrir, falla al instalar con un error de sintaxis. Si no sabes qué versión tienes, abre una
+  llega a abrir, falla al instalar con un error de sintaxis. **Nota (Sprint 117):** si tu Python es
+  3.14 y la instalación de `PySide6` se queda sin avanzar, usa Python **3.13**, que es la que se
+  verificó sin problemas. Si no sabes qué versión tienes, abre una
   terminal (`PowerShell`) y escribe:
   ```
   python --version
@@ -108,7 +110,8 @@ Terminal" o "Abrir ventana de PowerShell aquí").
 
 Un "entorno virtual" es una carpeta especial (`.venv`) donde se instalan todos los programas auxiliares
 que BASTIUM necesita, sin mezclarlos con el resto de tu computador. Si la carpeta `.venv` ya existe
-dentro del proyecto, sáltate este paso.
+dentro del proyecto, sáltate este paso. (Si abres el programa con `Iniciar BASTIUM.bat`, este paso y el
+siguiente los hace el lanzador por ti; esta sección es para hacerlo a mano desde la terminal.)
 
 ```
 python -m venv .venv
@@ -196,10 +199,11 @@ la primera vez que instalas BASTIUM en ese computador.
 ## 3. Cómo iniciar el programa
 
 La forma más simple es haciendo **doble clic en `Iniciar BASTIUM.bat`**, en la carpeta raíz del
-proyecto — no necesitas abrir ninguna terminal. Si el programa no puede abrir (por ejemplo, porque
-todavía no instalaste las dependencias del [paso 2](#2-instalación-paso-a-paso)), la ventana no se
-cierra sola: se queda abierta mostrando el mensaje de error para que lo puedas leer y, si hace falta,
-compartirlo con la persona encargada de soporte.
+proyecto — no necesitas abrir ninguna terminal. Desde el Sprint 117 el lanzador se encarga solo de lo que
+falte: si no existe el entorno virtual `.venv` lo crea, y si le faltan dependencias las instala (la
+primera vez puede tardar varios minutos y necesita internet; no cierres la ventana negra). Si algo falla,
+la ventana no se cierra sola: se queda abierta mostrando el mensaje de error para que lo puedas leer y,
+si hace falta, compartirlo con la persona encargada de soporte.
 
 Si prefieres usar la terminal (por ejemplo, para ver los mensajes mientras trabajas en el código),
 con la terminal abierta en la carpeta del proyecto escribe:
@@ -1531,6 +1535,22 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
 
 **"Al instalar me sale un error de rutas largas / Long Path."**
 Ver [sección 2.5](#25-problema-conocido-rutas-largas-en-windows).
+
+**"Al hacer doble clic en `Iniciar BASTIUM.bat` sale `No module named 'PySide6'` (o de otra pieza)."**
+Significa que el entorno virtual `.venv` existe pero le faltan las dependencias. Desde el Sprint 117 el
+lanzador lo detecta y las instala solo la próxima vez que lo abras (la primera vez puede tardar varios
+minutos y necesita internet — deja la ventana negra abierta). Si prefieres hacerlo a mano, con la terminal
+en la carpeta del proyecto: `.venv\Scripts\python.exe -m pip install -r requirements.txt`. Si la
+instalación se queda "pegada" sin avanzar durante más de 10 minutos, lo más probable es que tu Python sea
+demasiado nuevo para `PySide6` (pasó con 3.14): borra la carpeta `.venv` y vuelve a crearla con Python
+3.13 (`py -3.13 -m venv .venv`), luego repite el comando anterior.
+
+**"Al abrir el programa sale `no such column: ...` (por ejemplo `obligaciones.salario_diario`)."**
+Tu `bastium.db` es de una versión anterior y le falta una columna. No hace falta borrarla: el programa
+agrega las columnas faltantes solo al abrir (ver [sección 2.7](#27-actualizar-a-una-versión-nueva-si-ya-tenías-bastium-instalado)).
+Si ves este error con la versión más reciente del código, avisa a soporte con el mensaje completo — es
+una migración que falta registrar (ocurrió con la del Sprint 96, corregida en el Sprint 117). Antes de
+tocar nada, guarda una copia de `bastium.db`.
 
 **"No sé si el programa quedó bien instalado."**
 Corre `.venv\Scripts\python.exe -m pytest -q` (ver [sección 2.6](#26-verificar-que-todo-quedó-instalado-correctamente-opcional-recomendado)).
