@@ -349,6 +349,34 @@ def test_aplicar_migraciones_pendientes_agrega_columnas_sprint92(tmp_path):
     assert "fecha_fin_pactada" in columnas
 
 
+def test_aplicar_migraciones_pendientes_agrega_columnas_sprint96(tmp_path):
+    """Sprint 117 (regresion): `scripts/migrate_salario_domestico_sprint96.py`
+    existia pero `aplicar_migraciones_pendientes()` nunca lo llamaba -- una
+    bastium.db anterior al Sprint 96 fallaba al abrir la app con
+    `no such column: obligaciones.salario_diario` (el Dashboard fue el primero
+    en tocarla). Debe agregar salario_diario y dias_laborados_semana."""
+    from database.database import aplicar_migraciones_pendientes
+
+    db_path = tmp_path / "sin_sprint96.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN salario_diario")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN dias_laborados_semana")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "salario_diario" in columnas
+    assert "dias_laborados_semana" in columnas
+
+
 def test_migracion_dismissal_indemnity_sprint92_es_idempotente(tmp_path):
     from scripts.migrate_dismissal_indemnity_sprint92 import migrar
 

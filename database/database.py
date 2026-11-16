@@ -78,6 +78,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_parametros_area_unidad import migrar as migrar_parametros_area_unidad
     from scripts.migrate_parametros_legales import migrar as migrar_parametros_legales
     from scripts.migrate_reajuste_anual_familia import migrar as migrar_reajuste_anual_familia
+    from scripts.migrate_salario_domestico_sprint96 import (
+        migrar as migrar_salario_domestico_sprint96,
+    )
     from scripts.migrate_seguridad_social_laboral import migrar as migrar_seguridad_social
     from scripts.migrate_sprint47_recalculo_historico import (
         migrar as migrar_recalculo_historico_sprint47,
@@ -109,6 +112,11 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # fecha_fin_pactada a obligaciones -- columnas nuevas independientes, sin
     # dependencia de orden con las migraciones de arriba.
     migrar_dismissal_indemnity_sprint92(ruta)
+    # Sprint 96: agrega salario_diario/dias_laborados_semana a obligaciones --
+    # columnas nuevas independientes. Faltaba esta llamada: el modelo ya las
+    # mapeaba y una bastium.db anterior fallaba al arrancar con
+    # "no such column: obligaciones.salario_diario".
+    migrar_salario_domestico_sprint96(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     # Se llama ANTES de migrar_parametros_legales/migrar_ipc_variacion_anual
