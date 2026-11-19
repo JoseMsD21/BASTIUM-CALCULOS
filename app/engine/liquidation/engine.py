@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from app.engine.financial.rate import Rate
 from app.engine.interest.daily_interest import DailyInterest
@@ -13,8 +13,11 @@ from app.engine.liquidation.models import (
     PendingDebt,
     RunningBalance,
 )
+from app.engine.liquidation.politica import PoliticaCausacion
 from app.engine.liquidation.result import LiquidationResult
+from app.engine.math.rounding import Rounding
 from app.engine.temporal.schedulers.base import Event
+from config.decimal_config import CONTEXTO_FORENSE
 
 # Singleton de modulo (Sprint 48, B008): evita instanciar Rate(Decimal("0.0")) en cada
 # definicion de LiquidationCore.__init__ -- Rate es inmutable, asi que reusar la misma
@@ -39,7 +42,9 @@ class LiquidationCore:
         estrategia_imputacion: Callable[
             [Decimal, PendingDebt, date], tuple[PaymentAllocation, PendingDebt, Decimal]
         ] = AllocationEngine.allocate,
+        politica_causacion: PoliticaCausacion = PoliticaCausacion.LEGADA_DIARIA_REDONDEADA,
     ):
+        self._politica_causacion = politica_causacion
         self._current_debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
         self._history: list[LiquidationItem] = []
         self._default_rate = default_daily_rate
@@ -165,13 +170,24 @@ class LiquidationCore:
         current_day = self._last_event_date + timedelta(days=1)
         total_interest_accumulated = Decimal("0.00")
 
-        while current_day <= target_date:
-            daily_rate = self._get_rate_for_date(current_day)
-            daily_interest = DailyInterest.calculate(
-                capital=capital_base, daily_rate=daily_rate, days=1
-            )
-            total_interest_accumulated += daily_interest
-            current_day += timedelta(days=1)
+        if self._politica_causacion is PoliticaCausacion.EXACTA_POR_PERIODO:
+            # Un solo redondeo por tramo, con la tasa de precision completa (ver
+            # PoliticaCausacion). El contexto forense hace el resultado independiente
+            # del hilo y de la precision global del proceso.
+            with localcontext(CONTEXTO_FORENSE):
+                acumulado = Decimal("0")
+                while current_day <= target_date:
+                    acumulado += capital_base * self._get_rate_for_date(current_day).value
+                    current_day += timedelta(days=1)
+                total_interest_accumulated = Rounding.money(acumulado)
+        else:
+            while current_day <= target_date:
+                daily_rate = self._get_rate_for_date(current_day)
+                daily_interest = DailyInterest.calculate(
+                    capital=capital_base, daily_rate=daily_rate, days=1
+                )
+                total_interest_accumulated += daily_interest
+                current_day += timedelta(days=1)
 
         if total_interest_accumulated > Decimal("0.00"):
             self._current_debt = BalanceEngine.add_interest(
