@@ -1143,3 +1143,52 @@ def get_uvt_for_year(anio: int) -> Decimal:
             f"No hay UVT configurada para el año {anio}. "
             f"Datos disponibles: {min(_UVT_POR_ANIO)}-{max(_UVT_POR_ANIO)}."
         ) from error
+
+
+# ---------------------------------------------------------------------------
+# Auxilio de transporte mensual (Ley 15 de 1959 / Ley 1 de 1963), 2010-2026.
+# Sprint 96 (seguimiento): el PDF de requisitos lo nombra como indicador
+# (secciones "Ministerio del Trabajo -- SMLMV y Auxilio de Transporte, Anual
+# (Diciembre)" y "C. Derecho Laboral") pero NO trae la tabla de valores. Serie
+# transcrita de los decretos anuales del Gobierno Nacional que fijan el
+# auxilio junto con el SMLMV (p.ej. 2026: 1.750.905 + 249.095 = 2.000.000).
+# PENDIENTE de verificacion del despacho -- editable desde la GUI
+# (Configuracion > Parametros legales, clave AUXILIO_TRANSPORTE). Años
+# anteriores a 2010 no se sembraron a proposito: se agregan desde la GUI si
+# hacen falta (LaboralStrategy emite una alerta no bloqueante si falta).
+# ---------------------------------------------------------------------------
+
+_AUXILIO_TRANSPORTE_POR_ANIO: dict[int, Decimal] = {
+    2010: Decimal("61500.00"),
+    2011: Decimal("63600.00"),
+    2012: Decimal("67800.00"),
+    2013: Decimal("70500.00"),
+    2014: Decimal("72000.00"),
+    2015: Decimal("74000.00"),
+    2016: Decimal("77700.00"),
+    2017: Decimal("83140.00"),
+    2018: Decimal("88211.00"),
+    2019: Decimal("97032.00"),
+    2020: Decimal("102854.00"),
+    2021: Decimal("106454.00"),
+    2022: Decimal("117172.00"),
+    2023: Decimal("140606.00"),
+    2024: Decimal("162000.00"),
+    2025: Decimal("200000.00"),
+    2026: Decimal("249095.00"),
+}
+
+
+def get_auxilio_transporte_for_year(anio: int) -> Decimal:
+    """Retorna el auxilio de transporte mensual vigente para el año dado,
+    consultando la tabla parametros_legales (clave AUXILIO_TRANSPORTE,
+    editable desde la GUI). _AUXILIO_TRANSPORTE_POR_ANIO es la referencia
+    congelada de origen (ver scripts/migrate_parametros_legales.py)."""
+    try:
+        return get_parametro("AUXILIO_TRANSPORTE", date(anio, 1, 1))
+    except ParametroNoDisponibleError as error:
+        raise ValueError(
+            f"No hay auxilio de transporte configurado para el año {anio}. "
+            f"Datos sembrados: {min(_AUXILIO_TRANSPORTE_POR_ANIO)}-"
+            f"{max(_AUXILIO_TRANSPORTE_POR_ANIO)}."
+        ) from error

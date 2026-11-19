@@ -180,6 +180,14 @@ CATALOGO_PARAMETROS: dict[str, InfoParametro] = {
         "DIAN, resolucion anual (Ley 1111 de 2006)",
         ModoResolucion.ANUAL_EXACTO,
     ),
+    # Sprint 96 (seguimiento): auxilio de transporte mensual, solo lo consume
+    # LaboralStrategy para trabajo domestico por dias (salario_diario).
+    "AUXILIO_TRANSPORTE": InfoParametro(
+        "Auxilio de transporte mensual",
+        "Indicadores historicos",
+        "Ley 15/1959 y Ley 1/1963; decreto anual del Gobierno Nacional",
+        ModoResolucion.ANUAL_EXACTO,
+    ),
     "EXTEMPORANEIDAD_PCT_MENSUAL": InfoParametro(
         "Sanción por extemporaneidad, porcentaje mensual del impuesto a cargo",
         "Topes legales",

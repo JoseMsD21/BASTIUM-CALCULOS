@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 
 from app.engine.labor.salario_domestico import (
+    auxilio_transporte_domestico,
     calcular_ibc_seguridad_social_domestico,
     salario_diario_a_mensual,
 )
@@ -77,4 +78,90 @@ class TestCalcularIbcSeguridadSocialDomestico:
         with pytest.raises(ValueError):
             calcular_ibc_seguridad_social_domestico(
                 salario_proporcional=Decimal("1000000.00"), smmlv_mensual=Decimal("0")
+            )
+
+
+class TestAuxilioTransporteDomestico:
+    """Sprint 96 (seguimiento), respuesta del despacho (23/08/2026): el auxilio
+    de transporte se liquida "estricta y proporcionalmente a los dias
+    efectivamente laborados en el mes (Auxilio_Mensual / 30) * Dias_Trabajados",
+    solo para salarios de hasta 2 SMMLV. Dias trabajados en el mes = la misma
+    conversion de la plantilla L2A: dias_laborados_semana / 7 x 30."""
+
+    def test_tres_dias_por_semana_auxilio_2025(self):
+        # Dias del mes = 3 / 7 x 30 = 12,857142...
+        # (200.000 / 30) x 12,857142... = 200.000 x 3 / 7 = 85.714,2857... -> 85.714,29
+        resultado = auxilio_transporte_domestico(
+            auxilio_mensual=Decimal("200000"),
+            dias_laborados_semana=3,
+            salario_mensual_equivalente=Decimal("642857.14"),
+            smmlv_mensual=Decimal("1423500"),
+        )
+        assert resultado == Decimal("85714.29")
+
+    def test_tres_dias_por_semana_auxilio_2020(self):
+        # 102.854 x 3 / 7 = 44.080,2857... -> 44.080,29
+        resultado = auxilio_transporte_domestico(
+            auxilio_mensual=Decimal("102854"),
+            dias_laborados_semana=3,
+            salario_mensual_equivalente=Decimal("642857.14"),
+            smmlv_mensual=Decimal("877803"),
+        )
+        assert resultado == Decimal("44080.29")
+
+    def test_siete_dias_por_semana_es_el_auxilio_mensual_completo(self):
+        # 30 dias en el mes -> (200.000 / 30) x 30 = 200.000
+        resultado = auxilio_transporte_domestico(
+            auxilio_mensual=Decimal("200000"),
+            dias_laborados_semana=7,
+            salario_mensual_equivalente=Decimal("1500000.00"),
+            smmlv_mensual=Decimal("1423500"),
+        )
+        assert resultado == Decimal("200000.00")
+
+    def test_salario_igual_a_2_smmlv_si_causa_auxilio(self):
+        # "hasta 2 SMMLV" incluye el limite: 2 x 1.423.500 = 2.847.000.
+        # 200.000 x 5 / 7 = 142.857,1428... -> 142.857,14
+        resultado = auxilio_transporte_domestico(
+            auxilio_mensual=Decimal("200000"),
+            dias_laborados_semana=5,
+            salario_mensual_equivalente=Decimal("2847000.00"),
+            smmlv_mensual=Decimal("1423500"),
+        )
+        assert resultado == Decimal("142857.14")
+
+    def test_salario_mayor_a_2_smmlv_no_causa_auxilio(self):
+        resultado = auxilio_transporte_domestico(
+            auxilio_mensual=Decimal("200000"),
+            dias_laborados_semana=5,
+            salario_mensual_equivalente=Decimal("2847000.01"),
+            smmlv_mensual=Decimal("1423500"),
+        )
+        assert resultado == Decimal("0.00")
+
+    def test_dias_fuera_de_rango_lanza_error(self):
+        with pytest.raises(ValueError):
+            auxilio_transporte_domestico(
+                auxilio_mensual=Decimal("200000"),
+                dias_laborados_semana=0,
+                salario_mensual_equivalente=Decimal("600000"),
+                smmlv_mensual=Decimal("1423500"),
+            )
+
+    def test_auxilio_negativo_lanza_error(self):
+        with pytest.raises(ValueError):
+            auxilio_transporte_domestico(
+                auxilio_mensual=Decimal("-1"),
+                dias_laborados_semana=3,
+                salario_mensual_equivalente=Decimal("600000"),
+                smmlv_mensual=Decimal("1423500"),
+            )
+
+    def test_smmlv_cero_lanza_error(self):
+        with pytest.raises(ValueError):
+            auxilio_transporte_domestico(
+                auxilio_mensual=Decimal("200000"),
+                dias_laborados_semana=3,
+                salario_mensual_equivalente=Decimal("600000"),
+                smmlv_mensual=Decimal("0"),
             )
