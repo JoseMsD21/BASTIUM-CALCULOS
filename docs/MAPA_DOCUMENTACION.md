@@ -14,6 +14,8 @@ otro lugar.
 | Diseño | [Registro de Decisiones de Arquitectura (ADR)](ARQUITECTURA_ADR.md) | Por qué se tomó cada decisión de arquitectura relevante |
 | Diseño | [Diseño UI/UX](DISENO_UI_UX.md) | Sistema de diseño visual, navegación, patrones de interacción, con enlaces a los specs de diseño puntuales |
 | Planificación | [Pendientes.md](Pendientes.md) | Plan de proyecto / backlog / cronograma: todo el trabajo organizado en sprints autocontenidos, con su propio estado |
+| Planificación | [Tablero Kanban](https://github.com/users/JoseMsD21/projects/1) | Vista viva del trabajo en curso (GitHub Projects): una tarjeta por issue/PR, con columna Bloqueado para lo que espera al despacho |
+| Planificación | [Plan de integración de noviembre](PLAN_INTEGRACION_NOVIEMBRE.md) | Qué traía el paquete de cambios de noviembre, qué se integró y por qué, estimaciones, reglas Kanban y uso de Drive |
 | Planificación | [Gestión de riesgos](GESTION_RIESGOS.md) | Riesgos vigentes agrupados por tipo, con mitigación y estado |
 | Implementación | [Plan de calidad y pruebas (QA)](PLAN_CALIDAD_PRUEBAS.md) | Estrategia de pruebas, entornos, trazabilidad requisito→sprint→test, criterios de aceptación |
 | Implementación | [CONTRIBUTING.md](../CONTRIBUTING.md) | Documentación técnica de desarrollo: entorno, comandos de prueba/lint, flujo de trabajo en equipo con ramas y Pull Requests (paso a paso), convención de commits, cómo proponer un sprint |

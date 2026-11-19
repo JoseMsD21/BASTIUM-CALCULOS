@@ -285,6 +285,12 @@ git push -u origin tipo/descripcion-corta      # sube TU rama, nunca main
 La guía completa, con la configuración inicial, las reglas (no subir datos reales de clientes ni
 `bastium.db`) y qué hacer ante conflictos o una CI en rojo, está en [CONTRIBUTING.md](CONTRIBUTING.md).
 
+El equipo organiza el trabajo con **Kanban** en el tablero
+[BASTIUM - Kanban](https://github.com/users/JoseMsD21/projects/1) (GitHub Projects): cada tarjeta es un issue,
+una rama y un PR. Las tarjetas en "Bloqueado" esperan respuesta del despacho
+([preguntas abiertas](docs/Preguntas-Para-Abogado-Abiertas.md)). El plan vigente, incluida la integración del
+paquete de cambios de noviembre, está en [docs/PLAN_INTEGRACION_NOVIEMBRE.md](docs/PLAN_INTEGRACION_NOVIEMBRE.md).
+
 ## Mantenimiento de esta documentación
 
 Cada vez que se completa un sprint de `docs/Pendientes.md` y un módulo pasa de "🚧 en desarrollo" a

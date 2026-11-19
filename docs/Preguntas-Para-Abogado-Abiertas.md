@@ -98,6 +98,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 106 — Widget del campo de fechas anuales fijas, y modelo de datos para el año/fecha de vigencia del acta o título](#sprint-106--widget-del-campo-de-fechas-anuales-fijas-y-modelo-de-datos-para-el-añofecha-de-vigencia-del-acta-o-título)
 - [Sprint 107 — ¿Mover el checkbox de indexación IPC/interés sobre capital indexado a después de proyectar la liquidación, o agregar un control posterior de solo presentación?](#sprint-107--mover-el-checkbox-de-indexación-ipcinterés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación-o-agregar-un-control-posterior-de-solo-presentación)
 - [Sprint 110 — ¿Extrapolar la tasa de usura del último tramo certificado, o topar el cálculo de interés al último dato disponible?](#sprint-110--extrapolar-la-tasa-de-usura-del-último-tramo-certificado-o-topar-el-cálculo-de-interés-al-último-dato-disponible)
+- [Sprint 118 — Paquete de noviembre: seis reglas que cambiarían resultados (vacancia, festivo nuevo, redondeo, pagos anticipados, notificación y vacancia por despacho)](#sprint-118--paquete-de-noviembre-seis-reglas-que-cambiarían-resultados-vacancia-festivo-nuevo-redondeo-pagos-anticipados-notificación-y-vacancia-por-despacho)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -1115,6 +1116,75 @@ inferir como el IPC, así que no es una decisión que el código pueda tomar por
 **Respuesta del despacho:** NUNCA extrapolar. Opción (b). El sistema debe calcular intereses moratorios con precisión quirúrgica únicamente hasta el último día calendario con tasa de usura oficialmente certificada por la Superfinanciera. Para el período posterior, el sistema debe dejar el rubro como "Pendiente de Certificación Oficial" y emitir una alerta explícita en la interfaz y el reporte PDF, advirtiendo que el cálculo se suspende hasta la actualización de la tabla, en cumplimiento del principio de legalidad y certeza tributaria (Art. 338 C.P.).
 
 **Fecha:** 26/08/2026
+
+---
+
+## Sprint 118 — Paquete de noviembre: seis reglas que cambiarían resultados (vacancia, festivo nuevo, redondeo, pagos anticipados, notificación y vacancia por despacho)
+
+**Contexto (explicado desde cero):** el equipo recibió un paquete de cambios al motor de cálculo ("BASTIUM
+VERSION NOVIEMBRE", auditoría del 12/11/2026). Se integraron solo las mejoras que **no cambian ninguna cifra**
+(ver `Pendientes.md`, Sprint 118). Las seis reglas de abajo **sí cambiarían plazos o montos**, así que no se
+aplican hasta que el despacho las confirme. Cada pregunta explica por qué se hace.
+
+**Pregunta 1 — Último día de la vacancia judicial de fin de año (repregunta del Sprint 6).**
+El 27/07/2026 el despacho respondió por escrito: *"Excluir del 20 de diciembre al **11** de enero de cada año
+(inclusive). El 12 de enero es hábil"*, y así funciona hoy el software. El paquete de noviembre sostiene que la
+norma (Ley 31 de 1971, art. 1) fija la vacancia del 20 de diciembre al **10** de enero, inclusive.
+*Por qué se vuelve a preguntar:* las dos fuentes se contradicen, y la diferencia mueve vencimientos reales. Por
+ejemplo, un término de 5 días hábiles contado desde el 05/01/2028 vence hoy el **18/01/2028**; con la regla del
+10 de enero vencería el **17/01/2028**. Pasa en los años en que el 11 de enero cae entre semana y no es festivo
+(2024, 2028, …).
+¿Cuál es el último día de vacancia: el 10 o el 11 de enero?
+
+**Pregunta 2 — Festivo nuevo: Día de Nuestra Señora del Rosario de Chiquinquirá.**
+La librería de festivos que usa el software (versión 0.108) incluye desde 2026 este festivo, trasladado al
+lunes: 13/07/2026, 12/07/2027. El calendario propio que traía el paquete **no lo tiene**.
+*Por qué se pregunta:* si es un festivo oficial vigente, el software ya lo aplica bien y el calendario del
+paquete está desactualizado; si no lo es, hoy el software estaría corriendo plazos un día de más. Por ejemplo,
+3 días hábiles desde el 09/07/2026 vencen hoy el **15/07/2026**; sin ese festivo vencerían el **14/07/2026**.
+¿Es un festivo nacional oficial desde 2026? Si es posible, indiquen la norma.
+
+**Pregunta 3 — Redondeo del interés: ¿por día o una sola vez?**
+Hoy el software calcula el interés de cada día y lo redondea a centavos antes de sumarlo. El paquete propone
+sumar sin redondear y redondear una sola vez por tramo, que es lo que da una calculadora o un Excel. Ejemplo del
+paquete ($10.000.000 al 6 % anual, abono de $300.000 el 01/06/2024, corte 01/01/2025): intereses causados
+**$599.879,94** hoy frente a **$599.880,11** redondeando una vez, que es el valor verificado a mano.
+*Por qué se pregunta:* la diferencia es de centavos o pocos pesos, pero hace que la liquidación no se pueda
+reproducir exactamente a mano por el juez o la contraparte. Cambiarlo altera todas las liquidaciones.
+¿El despacho liquida (a) redondeando solo el total del período, o (b) redondeando cada día? Si no hay
+criterio, ¿se adopta (a)?
+
+**Pregunta 4 — Pagos anticipados.**
+Un abono hecho **antes** del primer vencimiento, cuando todavía no hay nada exigible: ¿se imputa a las cuotas
+que vencen después (reduce el capital futuro) o queda como saldo a favor del deudor hasta que exista una
+obligación exigible? El paquete lo trata como saldo a favor con una alerta.
+*Por qué se pregunta:* ninguna respuesta anterior lo cubre, y cada opción da un saldo distinto.
+
+**Pregunta 5 — Notificación por mensaje de datos.**
+El software asume que la notificación digital se entiende surtida **2 días hábiles después del envío** (regla
+tomada del documento de requisitos, pág. 4), sin citar artículo.
+*Por qué se pregunta:* el paquete la marca como supuesto no confirmado. ¿Cuál es la norma exacta (¿art. 8 de la
+Ley 2213 de 2022?) y el cómputo: los dos días, ¿empiezan al día hábil siguiente al envío? Un ejemplo con fechas
+ayudaría.
+
+**Pregunta 6 — ¿La vacancia aplica igual en todos los despachos?**
+Hoy la vacancia (fin de año y Semana Santa) se aplica a todos los términos por igual. El paquete señala que no
+aplica igual a tutela, hábeas corpus, algunos despachos penales ni a términos administrativos.
+*Por qué se pregunta:* si el bufete lleva procesos donde los términos corren en vacancia, el software los
+estaría alargando.
+¿Con qué tipos de proceso o despacho trabaja el bufete en los que la vacancia **no** suspende los términos?
+
+**Relacionado (no se repite aquí):** la convención de tasa del art. 1617 C.C. (lineal 6 %/365 frente a la
+plantilla mensual) sigue abierta en la sección Sprint 76 de este archivo. El paquete también la necesita.
+
+**Qué necesito exactamente:** una respuesta corta por pregunta: (1) "10" u "11"; (2) sí/no y la norma; (3) "a"
+o "b"; (4) "imputar" o "saldo a favor"; (5) el artículo y un ejemplo con fechas; (6) la lista de tipos de
+proceso o despacho en los que la vacancia no suspende términos, o "ninguno".
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
 
 ---
 

@@ -126,6 +126,22 @@ La CI (ruff + pytest con cobertura mínima de 90%) también debe estar en verde.
    git branch -d fix/redondeo-intereses-laboral
    ```
 
+### Tablero Kanban
+
+El trabajo se organiza en el tablero [BASTIUM - Kanban](https://github.com/users/JoseMsD21/projects/1)
+(GitHub Projects). Columnas: Backlog → Listo → En progreso → En revisión → Hecho, más Bloqueado para lo que
+espera algo externo (normalmente el despacho).
+
+- **Una tarjeta = un issue = una rama = un PR.** En la descripción del PR escribe `Closes #N` con el número
+  del issue, para que la tarjeta se cierre sola al integrarse.
+- **Límites WIP:** Listo 5, En progreso 1–2 por persona, En revisión 3. Si "En revisión" está llena, revisa
+  un PR ajeno antes de empezar algo nuevo.
+- Mueve tu tarjeta a "En progreso" al crear la rama y a "En revisión" al abrir el PR.
+- Una tarjeta bloqueada dice qué espera y de quién; si es una pregunta al despacho, enlaza su sección en
+  `docs/Preguntas-Para-Abogado-Abiertas.md`.
+
+Detalle y ritmo de reuniones en [docs/PLAN_INTEGRACION_NOVIEMBRE.md](docs/PLAN_INTEGRACION_NOVIEMBRE.md#5-forma-de-trabajo-kanban).
+
 ### Reglas importantes
 
 - **Un PR = un cambio con un solo propósito.** PRs pequeños se revisan más rápido.
