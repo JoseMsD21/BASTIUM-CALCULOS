@@ -133,3 +133,28 @@ exclusión mutua entre indexación IPC y mora) no tienen sentido como validació
 la UI de liquidación sin el contexto de "qué campo del formulario lo causó" (el formulario ya se cerró);
 a cambio, la regla de negocio se aplica una sola vez, de forma consistente, sin importar la vía de entrada
 de los datos.
+
+---
+
+### ADR-007: Política decimal en todos los hilos y política de causación explícita
+
+**Contexto:** El módulo `decimal` de Python guarda su contexto por hilo. `config/decimal_config.py` solo fijaba
+`ROUND_HALF_UP` en el hilo que lo importaba; cualquier hilo nuevo (`QThread`, pools) usaba `ROUND_HALF_EVEN` en
+operaciones sin redondeo explícito. Además, el motor redondea el interés de cada día a centavos antes de
+sumarlo, lo que impide reproducir la liquidación exactamente a mano (auditoría del paquete de noviembre,
+Sprint 118).
+
+**Decisión:** (1) La política (precisión 28, `ROUND_HALF_UP`) se aplica también a `decimal.DefaultContext`,
+plantilla de todo hilo nuevo, y existe un `CONTEXTO_FORENSE` (precisión 50) para usar con `localcontext()`.
+(2) La forma de causar el interés es un parámetro explícito (`PoliticaCausacion`) del motor. El predeterminado
+es `LEGADA_DIARIA_REDONDEADA` (comportamiento histórico); `EXACTA_POR_PERIODO` existe pero no se activa en
+ninguna pantalla hasta que el despacho confirme el criterio de redondeo
+(`Preguntas-Para-Abogado-Abiertas.md`, Sprint 118, pregunta 3).
+
+**Alternativas consideradas:** Cambiar directamente a la causación exacta — descartada: altera todas las
+liquidaciones sin confirmación jurídica. Dejar la política global sin tocar — descartada: el resultado de una
+misma operación dependía del hilo en que corriera.
+
+**Consecuencias:** Ninguna cifra cambia hoy. El cambio futuro de política es un solo parámetro, visible en el
+código y en las pruebas (`tests/liquidation/test_politica_causacion.py`), en vez de una reescritura del motor.
+

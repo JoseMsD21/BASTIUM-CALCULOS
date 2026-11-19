@@ -138,8 +138,22 @@ local en Linux, usada para validar cada cierre de sprint, no reproducía el fall
 (2026-11-14, reportado por el usuario): `Iniciar BASTIUM.bat` fallaba con `No module named 'PySide6'` en un
 `.venv` que existía pero estaba vacío; el lanzador ahora crea el entorno e instala las dependencias solo,
 y al arreglarlo apareció un segundo bug oculto (migración del Sprint 96 nunca conectada al arranque).
+Sprint 118 (2026-11-19): integración selectiva del paquete de cambios "BASTIUM VERSION NOVIEMBRE". Entran
+solo las mejoras que no cambian ninguna cifra (precisión decimal en todos los hilos, `Decimal` en vez de
+`float`, política de causación explícita con la legada como predeterminada); lo que cambiaría plazos o montos
+(calendario propio, redondeo exacto por defecto, pagos anticipados, notificación) queda como 6 preguntas al
+despacho. Tablero Kanban del equipo en GitHub Projects y plan en `docs/PLAN_INTEGRACION_NOVIEMBRE.md`.
 
 ### Added
+- Política de causación explícita en el motor (Sprint 118): `PoliticaCausacion` (`app/engine/liquidation/politica.py`)
+  con `LEGADA_DIARIA_REDONDEADA` (predeterminada, comportamiento actual bit a bit) y `EXACTA_POR_PERIODO`
+  (un solo redondeo por tramo, disponible pero sin activar hasta que el despacho responda). Nuevo
+  `CONTEXTO_FORENSE` (precisión 50) en `config/decimal_config.py` para uso explícito.
+- Pruebas de arquitectura y guardia (Sprint 118): prohibición de `float` en `app/engine` (AST), contexto decimal
+  por hilo, y `tests/database/test_migraciones_registradas.py`, que falla si un `scripts/migrate_*.py` no se
+  registra en `aplicar_migraciones_pendientes()` (la causa del bug del Sprint 117).
+- Tablero Kanban del equipo en GitHub Projects y `docs/PLAN_INTEGRACION_NOVIEMBRE.md` (Sprint 118): qué traía el
+  paquete de noviembre, qué se integró y qué no, estimaciones, reglas Kanban y uso de la carpeta de Drive.
 - Flujo de trabajo en equipo con revisión obligatoria: `main` queda protegida con un ruleset de GitHub
   (Pull Request con 1 aprobación del Code Owner, CI `test (3.13)`/`test (3.14)` en verde, sin force-push
   ni borrado). `CONTRIBUTING.md` gana la sección "Flujo de trabajo del equipo (paso a paso)", el
@@ -307,6 +321,13 @@ y al arreglarlo apareció un segundo bug oculto (migración del Sprint 96 nunca 
   hijas/abonos del Sprint 41.
 
 ### Fixed
+- La política decimal (precisión 28, `ROUND_HALF_UP`) solo se aplicaba al hilo principal (Sprint 118): los hilos
+  nuevos (`QThread`, pools) heredaban `decimal.DefaultContext` y redondeaban con `ROUND_HALF_EVEN` en cualquier
+  operación sin redondeo explícito. Ahora también se fija la plantilla de hilos nuevos.
+- `float` en rutas de dinero (Sprint 118): los totales del PDF se sumaban como `float` y el ledger de
+  `TimelineEngine` guardaba `float`; ahora `Decimal`.
+- Índice de `docs/Pendientes.md` con 25 enlaces rotos o estados desactualizados (Sprint 118), regenerado desde los
+  encabezados reales.
 - 4 hallazgos de concurrencia y rendimiento (Sprint 112): "Restablecer datos de fábrica" (`app/views/
   restablecer.py`) congelaba la UI sin ningún indicio visual durante el backup y el borrado en cascada —
   ahora corre en `QThreadPool` con `QProgressDialog`, mismo patrón del Sprint 26. "Generar cuotas"

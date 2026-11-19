@@ -223,7 +223,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 21 — Múltiples tasas de interés simultáneas por expediente ✅ Completado](#sprint-21--múltiples-tasas-de-interés-simultáneas-por-expediente--completado)
 - [Sprint 22 — Limpieza técnica acumulada ✅ Completado](#sprint-22--limpieza-técnica-acumulada--completado)
 - [Sprint 23 — Bugs críticos de integridad financiera y auditoría ✅ Completado](#sprint-23--bugs-críticos-de-integridad-financiera-y-auditoría--completado)
-- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados--pendiente)
+- [Sprint 24 — Validación de datos: formularios de obligaciones y parámetros legales versionados ✅ Completado](#sprint-24--validación-de-datos-formularios-de-obligaciones-y-parámetros-legales-versionados--completado)
 - [Sprint 25 — Rendimiento del motor de tasas, índices e historial ✅ Completado](#sprint-25--rendimiento-del-motor-de-tasas-índices-e-historial--completado)
 - [Sprint 26 — Responsividad de la interfaz: liquidar/exportar sin congelar la UI ✅ Completado](#sprint-26--responsividad-de-la-interfaz-liquidarexportar-sin-congelar-la-ui--completado)
 - [Sprint 27 — Limpieza de dependencias no usadas y código muerto adicional ✅ Completado](#sprint-27--limpieza-de-dependencias-no-usadas-y-código-muerto-adicional--completado)
@@ -258,11 +258,11 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 56 — Diálogos redimensionables/maximizables (los 7 QDialog del proyecto) ✅ Completado](#sprint-56--diálogos-redimensionablesmaximizables-los-7-qdialog-del-proyecto--completado)
 - [Sprint 57 — Parámetros: columnas Área y Unidad por fila ✅ Completado](#sprint-57--parámetros-columnas-área-y-unidad-por-fila--completado)
 - [Sprint 58 — Parámetros: presentación inteligente (vigencia, IPC crudo vs. calculado, historial) ✅ Completado](#sprint-58--parámetros-presentación-inteligente-vigencia-ipc-crudo-vs-calculado-historial--completado)
-- [Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales ✅ Completado](#sprint-59--tooltips-de-ayuda-en-los-4-formularios-principales--completado)
+- [Sprint 59 — Tooltips ⓘ de ayuda en los 4 formularios principales ✅ Completado](#sprint-59--tooltips--de-ayuda-en-los-4-formularios-principales--completado)
 - [Sprint 60 — Editar/eliminar Obligaciones y Abonos ✅ Completado](#sprint-60--editareliminar-obligaciones-y-abonos--completado)
 - [Sprint 61 — Conectar los parámetros de prescripción/caducidad sin wiring a pantallas reales ✅ Completado](#sprint-61--conectar-los-parámetros-de-prescripcióncaducidad-sin-wiring-a-pantallas-reales--completado)
-- [Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ ✅ Completado](#sprint-62--corregir-referencias-rotas-tras-mover-pendientespreguntas-para-abogadosecuritypdf-a-docs--pendiente)
-- [Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 ✅ Completado](#sprint-63--documentar-en-readmeguia_usuario-las-funciones-de-los-sprints-52-60--pendiente)
+- [Sprint 62 — Corregir referencias rotas tras mover Pendientes/Preguntas-Para-Abogado/SECURITY/PDF a docs/ ✅ Completado](#sprint-62--corregir-referencias-rotas-tras-mover-pendientespreguntas-para-abogadosecuritypdf-a-docs--completado)
+- [Sprint 63 — Documentar en README/GUIA_USUARIO las funciones de los Sprints 52-60 ✅ Completado](#sprint-63--documentar-en-readmeguia_usuario-las-funciones-de-los-sprints-52-60--completado)
 - [Sprint 64 — Reorganizar los backups de bastium.db en una carpeta backups/ ✅ Completado](#sprint-64--reorganizar-los-backups-de-bastiumdb-en-una-carpeta-backups--completado)
 - [Sprint 65 — Lanzador de doble clic "Iniciar BASTIUM.bat" ✅ Completado](#sprint-65--lanzador-de-doble-clic-iniciar-bastiumbat--completado)
 - [Sprint 66 — Reorganizar "Parametros" en "Configuraciones" con submenú Parámetros/Apariencia ✅ Completado](#sprint-66--reorganizar-parametros-en-configuraciones-con-submenú-parámetrosapariencia--completado)
@@ -282,41 +282,42 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 80 — Cargar la serie mensual real de IPC (2003-2026) y avanzar el desbloqueo del Sprint 8 ✅ Completado](#sprint-80--cargar-la-serie-mensual-real-de-ipc-2003-2026-y-avanzar-el-desbloqueo-del-sprint-8--completado)
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable ⚠️ Parcial](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--parcial) — fórmula de interés DTF implementada y probada, aislada; falta confirmar en qué área de BASTIUM vive
-- [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
+- [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado (parte de implementación; decisión de comportamiento sigue condicionada a la respuesta del despacho)](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
 - [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ⚠️ Parcial](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--parcial) — división lineal implementada (respuesta del despacho 2026-08-22); imputación proporcional y tope suspensivo quedan pendientes
 - [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) 🔵 Bloqueado — pendiente de confirmación](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--bloqueado--pendiente-de-confirmación) — reclasificado 2026-08-25: no tenía código implementado pese a estar marcado Parcial
 - [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 🔵 Bloqueado — pendiente de confirmación](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--bloqueado--pendiente-de-confirmación) — respuesta parcial del despacho (2026-08-22); falta la tabla actuarial completa, la serie DTF Pensional y resolver una ambigüedad que el propio despacho señaló en FAC3
 - [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 🔵 Bloqueado — pendiente de confirmación](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--bloqueado--pendiente-de-confirmación) — misma respuesta parcial del Sprint 86, mismos datos faltantes
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 🔵 Bloqueado — pendiente de confirmación](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--bloqueado--pendiente-de-confirmación)
-- [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--reabierto)
+- [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--completado)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--parcial) — invalidez grado 2 y régimen 1994-2003 implementados; grado 1 bloqueado por discrepancia de tope (60% vs. 75%)
-- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--reabierto)
-- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--reabierto)
-- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--reabierto)
-- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--reabierto)
-- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ✅ Completado](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--reabierto)
-- [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--reabierto)
-- [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--reabierto)
+- [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado)
+- [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--completado)
+- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 🔵 Bloqueado — pendiente de confirmación](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--bloqueado--pendiente-de-confirmación)
+- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--parcial)
+- [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ✅ Completado](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--completado)
+- [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 🔵 Bloqueado — pendiente de confirmación](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--bloqueado--pendiente-de-confirmación)
+- [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — pendiente de confirmación](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--pendiente-de-confirmación)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
 - [Sprint 100 — Beneficio dejado de percibir como fruto civil 🔵 Bloqueado — pendiente de confirmación](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--bloqueado--pendiente-de-confirmación)
-- [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
+- [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado (calculadora aislada; caso de uso real e integración condicionados a confirmación del despacho)](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--completado-bug-de-dominio-confirmado-corrección-diferida-al-sprint-104)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
-- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) ⚠️ Parcial](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--reabierto)
-- [Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 📋 Pendiente](#sprint-105--intake-de-caso-área-del-derecho--tipo-de-proceso--subtipo-con-checklist-de-obligaciones-predefinidas--pendiente)
-- [Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 📋 Pendiente](#sprint-106--formato-de-fecha-único-díamesaño-y-año-del-actatítulo-capturado-una-sola-vez-por-caso--pendiente)
-- [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Pendiente](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--pendiente)
-- [Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word 🔴 Bug confirmado sin corregir](#sprint-108--bug-confirmado-bordes-de-tabla-en-borgoña-deben-ser-negro-y-fila-totales-en-negro-debe-ser-borgoña-en-pdfword--bug-confirmado-sin-corregir)
-- [Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) 📋 Pendiente](#sprint-109--especificación-de-color-para-gráficas-de-líneacurva-con-degradado-borgoña-estándar-a-futuro--pendiente)
+- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) ⚠️ Parcial](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--parcial)
+- [Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 🔵 Bloqueado — pendiente de confirmación](#sprint-105--intake-de-caso-área-del-derecho--tipo-de-proceso--subtipo-con-checklist-de-obligaciones-predefinidas--bloqueado--pendiente-de-confirmación)
+- [Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 🔵 Bloqueado — pendiente de confirmación](#sprint-106--formato-de-fecha-único-díamesaño-y-año-del-actatítulo-capturado-una-sola-vez-por-caso--bloqueado--pendiente-de-confirmación)
+- [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 🔵 Bloqueado — pendiente de confirmación](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--bloqueado--pendiente-de-confirmación)
+- [Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word ✅ Completado](#sprint-108--bug-confirmado-bordes-de-tabla-en-borgoña-deben-ser-negro-y-fila-totales-en-negro-debe-ser-borgoña-en-pdfword--completado)
+- [Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) ✅ Completado](#sprint-109--especificación-de-color-para-gráficas-de-líneacurva-con-degradado-borgoña-estándar-a-futuro--completado)
 - [Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) ⚠️ Parcial](#sprint-110--bug-confirmado-el-motor-de-tasas-ibcusura-no-extrapola-más-allá-de-2026-07-31-crash-en-laboral-y-tributario--parcial)
-- [Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) 🔴 Bug confirmado sin corregir](#sprint-111--validación-de-datos-regresiones-del-sprint-24-en-formularios-nuevos-tributario-contrato-a-término-fijo-descuentos-laborales--bug-confirmado-sin-corregir)
-- [Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices 📋 Pendiente](#sprint-112--concurrencia-y-rendimiento-operaciones-nuevas-sin-threading-n1-reintroducido-y-migraciones-sin-recalcular-índices--pendiente)
-- [Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) 📋 Pendiente](#sprint-113--seguridad-versionado-y-housekeeping-organizacional-auditoría-2026-08-25--pendiente)
-- [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común ✅ Completado](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--pendiente)
-- [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) ✅ Completado](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--pendiente)
+- [Sprint 111 — Validación de datos: regresiones del Sprint 24 en formularios nuevos (Tributario, contrato a término fijo, descuentos laborales) ✅ Completado](#sprint-111--validación-de-datos-regresiones-del-sprint-24-en-formularios-nuevos-tributario-contrato-a-término-fijo-descuentos-laborales--completado)
+- [Sprint 112 — Concurrencia y rendimiento: operaciones nuevas sin threading, N+1 reintroducido y migraciones sin recalcular índices ✅ Completado](#sprint-112--concurrencia-y-rendimiento-operaciones-nuevas-sin-threading-n1-reintroducido-y-migraciones-sin-recalcular-índices--completado)
+- [Sprint 113 — Seguridad, versionado y housekeeping organizacional (auditoría 2026-08-25) ✅ Completado](#sprint-113--seguridad-versionado-y-housekeeping-organizacional-auditoría-2026-08-25--completado)
+- [Sprint 114 — Mantenibilidad: duplicación de fixtures de test, `LaboralStrategy` monolítico y boilerplate de diálogos sin base común ✅ Completado](#sprint-114--mantenibilidad-duplicación-de-fixtures-de-test-laboralstrategy-monolítico-y-boilerplate-de-diálogos-sin-base-común--completado)
+- [Sprint 115 — Documentación desactualizada tras los Sprints 76-109 (specs, matriz de riesgos, CHANGELOG y enlaces rotos) ✅ Completado](#sprint-115--documentación-desactualizada-tras-los-sprints-76-109-specs-matriz-de-riesgos-changelog-y-enlaces-rotos--completado)
 - [Sprint 116 — Bug de test: `test_ventana_restaura_tamano_guardado_entre_sesiones` rompe CI en main desde hace un mes ✅ Completado](#sprint-116--bug-de-test-test_ventana_restaura_tamano_guardado_entre_sesiones-rompe-ci-en-main-desde-hace-un-mes--completado)
 - [Sprint 117 — Bug: `Iniciar BASTIUM.bat` no instalaba dependencias y la migración del Sprint 96 nunca se ejecutaba al arrancar ✅ Completado](#sprint-117--bug-iniciar-bastiumbat-no-instalaba-dependencias-y-la-migración-del-sprint-96-nunca-se-ejecutaba-al-arrancar--completado)
+- [Sprint 118 — Integración selectiva del paquete "BASTIUM VERSION NOVIEMBRE": mejoras sin cambio de resultados, el resto a preguntas ⚠️ Parcial](#sprint-118--integración-selectiva-del-paquete-bastium-version-noviembre-mejoras-sin-cambio-de-resultados-el-resto-a-preguntas--parcial)
 
 ---
 
@@ -8646,6 +8647,73 @@ importados en esa función, para que este olvido falle en CI.
 
 **Cierre (2026-11-14):** corregido como se describe arriba; verificado arrancando `main.py` con
 `QT_QPA_PLATFORM=offscreen` (sin errores) y confirmado por el usuario ejecutando la app con normalidad.
+
+## Sprint 118 — Integración selectiva del paquete "BASTIUM VERSION NOVIEMBRE": mejoras sin cambio de resultados, el resto a preguntas ⚠️ Parcial
+
+**Prioridad sugerida:** Media-alta. Las mejoras de precisión cierran riesgos reales de redondeo; lo que cambia
+cifras queda en espera del despacho a propósito.
+
+**Depende de:** Sprint 117 (base de `main`), Sprints 6 y 76 (respuestas del despacho que el paquete contradice o
+de las que depende).
+
+**Origen (2026-11-16/19):** el equipo compartió `BASTIUM VERSION NOVIEMBRE.zip` (65 archivos, fechado 12/11/2026):
+una auditoría del motor de cálculo (`AUDITORIA_MOTOR_CALCULO.md`), una capa API nueva (`bastium_api`, FastAPI +
+Docker) y correcciones al motor. **No es una aplicación completa**: no trae UI, base de datos ni el resto de
+`app/`; es un conjunto de cambios para superponer sobre este repositorio. Comparación completa y plan en
+[`PLAN_INTEGRACION_NOVIEMBRE.md`](PLAN_INTEGRACION_NOVIEMBRE.md).
+
+**Criterio de integración (decisión del usuario, 2026-11-19):** solo entran las **mejoras** que no cambian
+ninguna cifra calculada hoy. Todo lo que reemplaza un comportamiento existente se convierte en pregunta abierta
+para el despacho (`Preguntas-Para-Abogado-Abiertas.md`, Sprint 118), con el porqué.
+
+**Fase 0 — diagnóstico (2026-11-19):** suite completa del repositorio con el paquete superpuesto en una copia
+aislada: **1912 aprobadas, 3 fallidas**:
+1. `test_coincide_con_la_libreria_holidays_1984_2100` — el calendario propio del paquete **no tiene el festivo
+   "Día de Nuestra Señora del Rosario de Chiquinquirá"** que la librería `holidays` 0.108 incluye desde 2026
+   (2026-07-13, 2027-07-12, trasladado al lunes). Con ese calendario, todo término que cruce esa fecha vencería
+   un día antes. Es la mejor evidencia de por qué el calendario no se integra sin validación.
+2. `test_escrituras_concurrentes_del_mismo_contenido` (API, almacén documental) — falla en Windows.
+3. `test_plantilla_existe_y_es_reproducible` (API, `.docx` byte a byte) — el `.docx` generado aquí difiere del
+   incluido en el paquete (probable diferencia de versión de librerías).
+Los fallos 2 y 3 son de la capa API, que no se integra en este sprint.
+
+**Integrado (PR #18 y PR #27):**
+- `config/decimal_config.py`: la política decimal (precisión 28, `ROUND_HALF_UP`) se aplica también a
+  `decimal.DefaultContext`, plantilla de todo hilo nuevo. Antes un `QThread` o un pool de hilos redondeaba con
+  `ROUND_HALF_EVEN` en cualquier operación que no indicara el redondeo explícito. Nuevo `CONTEXTO_FORENSE`
+  (precisión 50) solo para uso explícito con `localcontext()`.
+- `app/reports/pdf.py`: totales del PDF sumados en `Decimal` (antes `float`).
+- `app/engine/temporal/timeline.py`: redondeo `ROUND_HALF_UP` explícito y ledger en `Decimal` (antes `float`).
+- `app/engine/liquidation/politica.py` + `engine.py` + `app/services/motor_universal.py`: parámetro
+  `politica_causacion`. Predeterminado `LEGADA_DIARIA_REDONDEADA` (comportamiento actual, bit a bit);
+  `EXACTA_POR_PERIODO` queda disponible pero **no se usa** en ninguna pantalla.
+- `tests/conftest.py`: PySide6/SQLAlchemy opcionales para probar el motor sin UI.
+- Pruebas nuevas: política de causación, contexto decimal por hilo, prohibición de `float` en `app/engine`
+  (AST), y guardia de migraciones registradas al arrancar (lección del Sprint 117).
+
+**No integrado — cambia resultados (va a preguntas del despacho, Sprint 118 en Preguntas Abiertas):**
+- Calendario procesal propio (`calendario_procesal.py`): vacancia del 20-dic al **10**-ene, contra la respuesta
+  escrita del despacho (Sprint 6: hasta el **11**-ene); además le falta el festivo de Chiquinquirá (ver fase 0).
+- Causación exacta como política predeterminada (diferencia medida: $0,17 en el ejemplo del paquete; $1,60 en
+  10.000.000 a 366 días).
+- `FamilyLawCalculator` con tasa lineal 6 %/365 y `ROUND_HALF_UP` (depende del Sprint 76; código sin consumidores).
+- Pagos anticipados y notificación por mensaje de datos (reglas que el paquete asume sin confirmar).
+
+**No integrado — decisión del equipo (no jurídica):** capa API `bastium_api` + Docker + CI `ci-core` + radicado de
+23 dígitos (`app/domain/radicado.py`). Es aditiva y no cambia cifras, pero es un componente nuevo con 2 pruebas
+fallando en Windows. Tarjeta #7 del tablero Kanban.
+
+**Deuda técnica señalada por la auditoría del paquete (sin sprint asignado todavía):** las columnas `Numeric` de
+SQLAlchemy sobre SQLite se guardan como `REAL` (coma flotante): un `Decimal` pasa por `float` al persistirse.
+Requiere un `TypeDecorator` (texto o centavos enteros) con migración idempotente. Propuesto como sprint futuro.
+
+**Definición de Hecho:**
+- Suite completa en verde con las mejoras (1654 → 1656 con la guardia de migraciones); `ruff check .` limpio.
+- Ninguna cifra calculada cambia (el predeterminado sigue siendo la política legada).
+- Cada cambio que altera resultados tiene su pregunta abierta con el porqué.
+
+**Estado (2026-11-19):** ⚠️ Parcial — mejoras integradas; el resto espera respuestas del despacho (calendario,
+redondeo, pagos anticipados, notificación) o decisión del equipo (API).
 
 ---
 
