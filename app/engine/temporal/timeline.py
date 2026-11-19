@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 
 class TimelineEngine:
@@ -70,13 +70,13 @@ class TimelineEngine:
 
         daily = self.balance * self.interest_rate
 
-        self.interest += daily.quantize(Decimal("0.01"))
+        self.interest += daily.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     def _snapshot(self, current_date):
 
         self.ledger.append({
             "date": current_date,
-            "balance": float(self.balance),
-            "interest": float(self.interest),
-            "total": float(self.balance + self.interest)
+            "balance": self.balance,
+            "interest": self.interest,
+            "total": self.balance + self.interest
         })

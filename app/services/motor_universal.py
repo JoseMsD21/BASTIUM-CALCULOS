@@ -10,6 +10,7 @@ from app.engine.interest.provider import RateProvider
 from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.engine import LiquidationCore
 from app.engine.liquidation.models import PaymentAllocation, PendingDebt
+from app.engine.liquidation.politica import PoliticaCausacion
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.temporal.prescripcion import TipoAccion, filtrar_cuotas_prescritas
 from app.engine.temporal.schedulers.base import Event
@@ -39,6 +40,7 @@ class UniversalLiquidationService:
         estrategia_imputacion: Callable[
             [Decimal, PendingDebt, date], tuple[PaymentAllocation, PendingDebt, Decimal]
         ] = AllocationEngine.allocate,
+        politica_causacion: PoliticaCausacion = PoliticaCausacion.LEGADA_DIARIA_REDONDEADA,
     ) -> LiquidationResult:
 
         # 1. Configurar la política de mora
@@ -70,6 +72,7 @@ class UniversalLiquidationService:
             rate_provider=rate_provider,
             usar_suma_unica=usar_suma_unica,
             estrategia_imputacion=estrategia_imputacion,
+            politica_causacion=politica_causacion,
         )
 
         # 5. Ejecución del procesamiento temporal implacable

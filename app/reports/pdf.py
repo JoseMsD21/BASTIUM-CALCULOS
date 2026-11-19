@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, letter
@@ -95,8 +96,8 @@ class JudicialPDFGenerator:
         # Preparar datos para la tabla
         datos_tabla = [["CONCEPTO", "CAPITAL EXIGIBLE", "DÍAS MORA", "INTERESES", "TOTAL"]]
 
-        total_capital = 0
-        total_intereses = 0
+        total_capital = Decimal("0.00")
+        total_intereses = Decimal("0.00")
 
         for rubro in datos_rubros:
             datos_tabla.append(
@@ -108,8 +109,8 @@ class JudicialPDFGenerator:
                     f"${rubro['total_rubro']:,.2f}",
                 ]
             )
-            total_capital += float(rubro["capital"])
-            total_intereses += float(rubro["intereses"])
+            total_capital += Decimal(str(rubro["capital"]))
+            total_intereses += Decimal(str(rubro["intereses"]))
 
         # Fila de totales
         datos_tabla.append(

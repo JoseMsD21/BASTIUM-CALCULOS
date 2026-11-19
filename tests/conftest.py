@@ -1,11 +1,22 @@
 import pytest
-from PySide6.QtCore import QSettings
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-import database.database as database_module
-import database.session as session_module
-from database.models import Base
+# Capas opcionales: el motor puro (app/engine, app/domain, bastium_api) se prueba tambien en
+# entornos headless sin Qt ni SQLAlchemy. Con las dependencias presentes (CI completo y
+# desarrollo local) el comportamiento de los fixtures es identico al original.
+try:
+    from PySide6.QtCore import QSettings
+except ImportError:  # pragma: no cover - solo en entornos sin Qt
+    QSettings = None
+
+try:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import database.database as database_module
+    import database.session as session_module
+    from database.models import Base
+except ImportError:  # pragma: no cover - solo en entornos sin SQLAlchemy
+    create_engine = None
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +34,8 @@ def _qsettings_aislado(tmp_path):
     hace falta parchear QCoreApplication.organizationName()/applicationName() por
     separado. `tmp_path` es unico por test, asi que tampoco hay fuga entre tests.
     """
+    if QSettings is None:
+        return
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path))
 
 
@@ -46,6 +59,8 @@ def _db_en_memoria_por_defecto(monkeypatch):
     database.database.engine -- innecesario para las vistas, que solo pasan
     por session_module) para que aplique a todo el arbol de tests.
     """
+    if create_engine is None:
+        return
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     monkeypatch.setattr(database_module, "engine", engine)
