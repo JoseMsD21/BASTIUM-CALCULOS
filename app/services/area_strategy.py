@@ -294,12 +294,27 @@ class AreaStrategy(ABC):
 
     @staticmethod
     def _rate_provider_tasa_plana(
-        fecha_inicio: date, fecha_corte: date, tasa_efectiva_anual: Decimal, source: str = "N/A"
+        fecha_inicio: date,
+        fecha_corte: date,
+        tasa_efectiva_anual: Decimal,
+        source: str = "N/A",
+        lineal_simple: bool = False,
     ) -> MemoryRateProvider:
         """Un solo tramo de tasa diaria plana desde `fecha_inicio` hasta `fecha_corte` --
         patron compartido por Sancionatorio, Honorarios y Civil/Familia (Sprint 22,
-        deduplicacion de `_construir_rate_provider_obligacion`)."""
-        tasa_diaria = EffectiveRateConverter.annual_to_daily(tasa_efectiva_anual)
+        deduplicacion de `_construir_rate_provider_obligacion`).
+
+        `lineal_simple` (Sprint 76): False (default) convierte la tasa como efectiva
+        anual compuesta (`EffectiveRateConverter.annual_to_daily`); True usa la
+        formula lineal simple `tasa_anual / 365` (`annual_simple_to_daily`) que el
+        despacho exige (16/11/2026) para el interes civil del Art. 1617/2232 C.C. y
+        las tasas pactadas sin capitalizacion en obligaciones de dinero puro. Cada
+        llamador decide explicitamente -- ver el mapeo en el docstring de
+        `EffectiveRateConverter`."""
+        if lineal_simple:
+            tasa_diaria = EffectiveRateConverter.annual_simple_to_daily(tasa_efectiva_anual)
+        else:
+            tasa_diaria = EffectiveRateConverter.annual_to_daily(tasa_efectiva_anual)
         provider = MemoryRateProvider()
         provider.add_rate_period(
             start=fecha_inicio - timedelta(days=1),
@@ -337,13 +352,15 @@ class AreaStrategy(ABC):
     @staticmethod
     def _tasa_civil_anual_pct(fecha: date) -> Decimal:
         """Tasa de interes civil legal anual (Art. 1617 C.C.), en forma porcentual
-        (ej. Decimal("6.00")) lista para `EffectiveRateConverter.annual_to_daily`/
-        `_rate_provider_tasa_plana`. Consulta la clave versionada CIVIL_ANNUAL_RATE
-        via `get_parametro` (fuente unica, `app/engine/interest/legal_rates.py`) en
-        vez de hardcodear un 6% nuevo -- esa clave guarda la tasa en forma fraccion
-        (0.06), de ahi el x100. Sprint 43: reutilizada por HonorariosStrategy (segundo
-        termino de su formula) y por ComercialStrategy en el modo (b) de la regla XOR
-        (capital indexado + interes civil puro, solo con pacto expreso)."""
+        (ej. Decimal("6.00")) lista para `_rate_provider_tasa_plana(...,
+        lineal_simple=True)` (Sprint 76: el 6 % civil se convierte con la formula
+        lineal simple `tasa / 365`, `EffectiveRateConverter.annual_simple_to_daily`).
+        Consulta la clave versionada CIVIL_ANNUAL_RATE via `get_parametro` (fuente
+        unica, `app/engine/interest/legal_rates.py`) en vez de hardcodear un 6% nuevo
+        -- esa clave guarda la tasa en forma fraccion (0.06), de ahi el x100.
+        Sprint 43: reutilizada por HonorariosStrategy (segundo termino de su formula)
+        y por ComercialStrategy en el modo (b) de la regla XOR (capital indexado +
+        interes civil puro, solo con pacto expreso)."""
         return get_parametro("CIVIL_ANNUAL_RATE", fecha) * Decimal("100")
 
     @staticmethod
@@ -359,7 +376,9 @@ class CivilFamiliaStrategy(AreaStrategy):
     """
     Unica area operable en el MVP original; ahora tambien soporta indexacion IPC
     opcional por obligacion (Sprint 8). Interes fijo por obligacion (tasa
-    efectiva anual pactada/legal, Art. 1617 C.C.), convertido a tasa diaria.
+    efectiva anual pactada/legal, Art. 1617 C.C.), convertido a tasa diaria con la
+    formula lineal simple `tasa / 365` desde el Sprint 76 (credito ordinario simple,
+    sin anatocismo -- ver `EffectiveRateConverter.annual_simple_to_daily`).
     Indexacion (Art. corrección monetaria, PDF pag. 20-22): solo se activa por
     obligacion via `aplica_indexacion_ipc` -- es un juicio legal del abogado, no
     una regla automatica por categoria. La regla "no doble indexacion" del PDF
@@ -630,11 +649,16 @@ class CivilFamiliaStrategy(AreaStrategy):
         if not tasa:
             tasa = self._tasa_civil_anual_pct(fecha_corte)
             source = "Tasa legal civil por defecto (CIVIL_ANNUAL_RATE, Art. 1617 C.C.)"
+        # Sprint 76: credito ordinario simple (Art. 1617/2232 C.C.) -- tanto la tasa
+        # pactada sin capitalizacion como el fallback legal del 6 % se convierten
+        # con la formula lineal simple (tasa / 365), respuesta del despacho del
+        # 16/11/2026. Civil/Familia no modela anatocismo pactado.
         return self._rate_provider_tasa_plana(
             fecha_inicio,
             fecha_corte,
             tasa,
             source=source,
+            lineal_simple=True,
         )
 
 
@@ -1095,6 +1119,9 @@ class ComercialStrategy(AreaStrategy):
                 fecha_corte,
                 self._tasa_civil_anual_pct(obligacion.fecha_origen),
                 source="Interés civil puro (Art. 1617 C.C.) — pacto expreso de indexación IPC",
+                # Sprint 76: interes civil del 6 % -> lineal simple (tasa / 365).
+                # Las tasas del Art. 884 (abajo) siguen como efectivas anuales.
+                lineal_simple=True,
             )
 
         tasa_remuneratoria_anual = obligacion.tasa_efectiva_anual
@@ -1960,9 +1987,16 @@ class HonorariosStrategy(AreaStrategy):
                 fecha_corte,
                 self._tasa_civil_anual_pct(obligacion.fecha_origen),
                 source="Interés civil puro (Art. 1617 C.C.) — capital ya indexado por IPC",
+                lineal_simple=True,
             )
+        # Sprint 76: honorarios son una obligacion de dinero puro; la tasa pactada
+        # (sin capitalizacion -- esta clase no modela anatocismo) se convierte con
+        # la formula lineal simple (tasa / 365), igual que el interes civil.
         return self._rate_provider_tasa_plana(
-            obligacion.fecha_origen, fecha_corte, obligacion.tasa_efectiva_anual
+            obligacion.fecha_origen,
+            fecha_corte,
+            obligacion.tasa_efectiva_anual,
+            lineal_simple=True,
         )
 
 
