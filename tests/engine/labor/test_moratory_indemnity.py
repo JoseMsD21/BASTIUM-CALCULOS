@@ -124,3 +124,43 @@ def test_fase2_cruza_tramos_de_usura_distintos():
     )
     assert resultado.monto_fase2 == esperado_dia1 + esperado_dia2
     assert resultado.total == resultado.monto_fase1 + resultado.monto_fase2
+
+
+def test_fase2_posterior_al_ultimo_tramo_certificado_causa_solo_hasta_ese_dia():
+    # Sprint 110 (respuesta del despacho, 26/08/2026: NUNCA extrapolar). La
+    # tabla de usura termina el 2026-07-31. Terminacion 2024-08-08 -> el dia
+    # 721 de retardo es el 2026-07-30 (2024-08-08 + 721 dias); corte
+    # 2026-08-25 -> 747 dias de retardo, 27 en fase 2: el 30 y 31 de julio
+    # tienen tasa certificada (usura 28.79% EA), los 25 restantes (1 al 25 de
+    # agosto) quedan pendientes de certificacion, sin interes.
+    # Fase 1: 2.000.000 / 30 x 720 = 48.000.000,00.
+    # Fase 2: (1.2879)^(1/365) - 1 = 0.000693426569 -> x 5.000.000 =
+    # 3.467,132845 -> 3.467,13 por dia, x 2 dias = 6.934,26.
+    resultado = MoratoryIndemnityCalculator.calcular(
+        salario_mensual=Decimal("2000000.00"),
+        monto_adeudado=Decimal("5000000.00"),
+        fecha_terminacion=date(2024, 8, 8),
+        fecha_pago_o_corte=date(2026, 8, 25),
+    )
+
+    assert resultado.dias_retardo == 747
+    assert resultado.monto_fase1 == Decimal("48000000.00")
+    assert resultado.dias_fase2 == 27
+    assert resultado.dias_fase2_pendientes_certificacion == 25
+    assert resultado.ultima_fecha_usura_certificada == date(2026, 7, 31)
+    assert resultado.monto_fase2 == Decimal("6934.26")
+    assert resultado.total == Decimal("48006934.26")
+
+
+def test_fase2_totalmente_certificada_no_reporta_dias_pendientes():
+    resultado = MoratoryIndemnityCalculator.calcular(
+        salario_mensual=Decimal("2000000.00"),
+        monto_adeudado=Decimal("5000000.00"),
+        fecha_terminacion=date(2024, 8, 8),
+        fecha_pago_o_corte=date(2026, 7, 31),
+    )
+
+    assert resultado.dias_fase2 == 2
+    assert resultado.dias_fase2_pendientes_certificacion == 0
+    assert resultado.ultima_fecha_usura_certificada is None
+    assert resultado.monto_fase2 == Decimal("6934.26")

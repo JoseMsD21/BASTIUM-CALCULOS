@@ -57,6 +57,32 @@ interpolacion anual solo para fechas anteriores a 2003-01 (ver "Estado" y "Limit
   (`_liquidar_por_obligacion`), asi que el criterio puede variar libremente entre obligaciones del mismo
   expediente sin ambiguedad.
 
+- **Límite de certificación de la usura (Sprint 110, respuesta del despacho 26/08/2026: "NUNCA
+  extrapolar. Opción (b)").** A diferencia del IPC, la tasa de usura es un techo legal certificado por la
+  Superfinanciera: `get_ibc_usura_for_date`/`get_tramos_ibc_usura_between` siguen sin extrapolar más allá
+  del último tramo cargado en `parametros_legales` (`USURA_CONSUMO_ORDINARIO`). Lo nuevo:
+  `get_ultima_fecha_certificada_ibc_usura()` (el `vigente_hasta` más tardío de esa clave — un mes agregado
+  desde la GUI de parámetros corre el límite sin tocar código) y `mensaje_pendiente_certificacion_usura`
+  (texto único de la alerta "Pendiente de Certificación Oficial"). Cada motor que usa la usura causa el
+  interés solo hasta ese último día y deja el resto en $0 con alerta no bloqueante
+  (`LiquidationResult.alertas`, visible en la pantalla de resultados y en el PDF/Word):
+  - Tributario, interés E.T. art. 635 (`construir_rate_provider_moratorio_tributario`,
+    `app/engine/tax/moratory_interest.py`): los días posteriores quedan a 0% con la fuente
+    `FUENTE_PENDIENTE_CERTIFICACION_USURA`; `TributarioStrategy._alerta_pendiente_certificacion_usura`
+    emite la alerta por obligación (impuesto, o sanción con mora ≤ 3 años; una sanción con mora > 3 años
+    no causa interés de usura y no genera alerta).
+  - Tributario, actualización Art. 867-1 del rubro Impuesto: interés, indexación IPC y techo de usura
+    plena (`calcular_interes_usura_plena`) se calculan los tres sobre el mismo período, hasta el último
+    día certificado (`fecha_fin_mora_certificada`) — sin techo certificado no se puede verificar que la
+    tasa combinada no supere la usura. Las sanciones (solo IPC) no cambian.
+  - Laboral, Art. 65 CST (`MoratoryIndemnityCalculator`): fase 1 completa; fase 2 solo hasta el último
+    día certificado (`dias_fase2_pendientes_certificacion`, `ultima_fecha_usura_certificada` en el
+    resultado). Antes (cierre parcial 2026-08-27) se omitía el rubro completo.
+  Un vacío interno de la tabla (un mes intermedio sin cargar) sigue lanzando `ValueError`, que las
+  estrategias convierten en la alerta de "configuración incompleta" de siempre.
+  `app/engine/interest/condena_administrativa_dtf.py` (tramo B, 1,5 × IBC) todavía no aplica este corte:
+  la función no está cableada a ninguna estrategia.
+
 ## Estado
 Conectado a `CivilFamiliaStrategy` (Sprint 8). Opt-in por obligacion via el campo
 `aplica_indexacion_ipc`, expuesto como checkbox en `ObligacionFormDialog` solo para el area Civil/

@@ -8,6 +8,7 @@ import database.session as session_module
 from app.engine.indexation.historical_index import _TRAMOS_IBC_USURA
 from app.engine.tax.moratory_interest import (
     FUENTE_MORATORIO_TRIBUTARIO,
+    FUENTE_PENDIENTE_CERTIFICACION_USURA,
     calcular_interes_moratorio_tributario,
     construir_rate_provider_moratorio_tributario,
 )
@@ -111,11 +112,39 @@ def test_anio_bisiesto_divide_entre_366_no_365():
     assert provider.get_rate(date(2024, 1, 15)).decimal() == esperado
 
 
-def test_rango_fuera_de_datos_disponibles_propaga_value_error():
-    with pytest.raises(ValueError):
-        construir_rate_provider_moratorio_tributario(
-            fecha_exigibilidad=date(2026, 8, 1), fecha_corte=date(2026, 8, 5)
-        )
+def test_rango_posterior_al_ultimo_tramo_certificado_queda_en_cero_pendiente_de_certificacion():
+    # Sprint 110 (respuesta del despacho, 26/08/2026): NUNCA extrapolar. La
+    # tabla termina el 2026-07-31; toda la mora de este rango es posterior,
+    # asi que cada dia queda a 0% marcado "Pendiente de Certificación
+    # Oficial", sin lanzar excepcion.
+    provider = construir_rate_provider_moratorio_tributario(
+        fecha_exigibilidad=date(2026, 8, 1), fecha_corte=date(2026, 8, 5)
+    )
+    for dia in (date(2026, 8, 2), date(2026, 8, 5)):
+        assert provider.get_rate(dia).decimal() == Decimal("0")
+        assert provider.get_rate_source(dia) == FUENTE_PENDIENTE_CERTIFICACION_USURA
+    assert "Pendiente de Certificación Oficial" in FUENTE_PENDIENTE_CERTIFICACION_USURA
+
+
+def test_mora_que_excede_el_ultimo_tramo_causa_interes_solo_hasta_el_ultimo_dia_certificado():
+    # Sprint 110: exigibilidad 2026-06-30 -> mora desde 2026-07-01. Julio
+    # (31 dias, usura 28.79% -> E.T. 635 26.79%, lineal /365) esta
+    # certificado: 1.000.000 x 0.2679 / 365 = 733.972603 -> 733.97 por dia,
+    # x 31 = 22.753,07. Del 2026-08-01 al 2026-09-15 no hay tasa certificada:
+    # $0 (suspendido), no se extrapola la de julio.
+    total = calcular_interes_moratorio_tributario(
+        capital=Decimal("1000000.00"),
+        fecha_exigibilidad=date(2026, 6, 30),
+        fecha_corte=date(2026, 9, 15),
+    )
+    assert total == Decimal("22753.07")
+
+    provider = construir_rate_provider_moratorio_tributario(
+        fecha_exigibilidad=date(2026, 6, 30), fecha_corte=date(2026, 9, 15)
+    )
+    assert provider.get_rate_source(date(2026, 7, 31)) == FUENTE_MORATORIO_TRIBUTARIO
+    assert provider.get_rate_source(date(2026, 8, 1)) == FUENTE_PENDIENTE_CERTIFICACION_USURA
+    assert provider.get_rate(date(2026, 9, 15)).decimal() == Decimal("0")
 
 
 def test_capital_cero_o_negativo_retorna_cero_sin_consultar_tramos():

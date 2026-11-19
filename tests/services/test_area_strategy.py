@@ -2691,28 +2691,43 @@ class TestLaboralStrategy:
         assert mora_esperada.dias_fase2 > 0
         assert resultado.final_balance().principal == monto_prestaciones + mora_esperada.total
 
-    def test_liquida_con_mora_fase2_mas_alla_de_la_tabla_de_usura_agrega_alerta_no_bloqueante(
+    def test_mora_fase2_mas_alla_de_la_tabla_de_usura_causa_hasta_el_ultimo_dia_certificado(
         self,
     ):
-        # Sprint 110: _TRAMOS_IBC_USURA (historical_index.py) termina el
-        # 2026-07-31 -- antes de este fix, una fecha_pago_o_corte en fase 2
-        # (dia 721+) posterior a esa fecha tumbaba la liquidacion completa
-        # con un ValueError sin capturar (get_ibc_usura_for_date). Ahora se
-        # agrega una alerta no bloqueante y la liquidacion sigue: las
-        # prestaciones sociales (que no dependen de la tabla de usura) se
-        # liquidan normalmente, solo la sancion moratoria queda sin calcular.
-        obligacion = _obligacion_laboral()
-        fecha_corte = date(2026, 8, 25)
-
+        # Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar.
+        # Opcion (b)"): _TRAMOS_IBC_USURA termina el 2026-07-31. Con corte
+        # 2026-08-25 la indemnizacion moratoria Art. 65 CST SI se liquida (fase
+        # 1 completa + fase 2 solo hasta el 2026-07-31) -- en el cierre parcial
+        # se omitia el rubro entero. El interes posterior queda "Pendiente de
+        # Certificación Oficial" con alerta no bloqueante.
         resultado = LaboralStrategy().liquidar(
-            obligaciones=[obligacion], abonos=[], fecha_corte=fecha_corte
+            obligaciones=[_obligacion_laboral()], abonos=[], fecha_corte=date(2026, 8, 25)
+        )
+        resultado_al_ultimo_dia_certificado = LaboralStrategy().liquidar(
+            obligaciones=[_obligacion_laboral()], abonos=[], fecha_corte=date(2026, 7, 31)
         )
 
         tipos_evento = {item.balance.event_type for item in resultado.items}
-        assert "SANCION_MORATORIA" not in tipos_evento
-        assert any(
-            "Indemnización moratoria" in alerta and "no se pudo calcular" in alerta
+        assert "SANCION_MORATORIA" in tipos_evento
+        # Fase 1 ya esta completa (720 dias) en ambas fechas y del 1 al 25 de
+        # agosto no corre interes (sin tasa certificada): el saldo es identico
+        # al de una liquidacion cortada el 2026-07-31.
+        assert (
+            resultado.final_balance().principal
+            == resultado_al_ultimo_dia_certificado.final_balance().principal
+        )
+        alertas_pendientes = [
+            alerta
             for alerta in resultado.alertas
+            if "Pendiente de Certificación Oficial" in alerta
+        ]
+        assert len(alertas_pendientes) == 1
+        assert "31/07/2026" in alertas_pendientes[0]
+        assert "Art. 65 CST" in alertas_pendientes[0]
+        assert not any("no se pudo calcular" in alerta for alerta in resultado.alertas)
+        assert not any(
+            "Pendiente de Certificación Oficial" in alerta
+            for alerta in resultado_al_ultimo_dia_certificado.alertas
         )
 
     def test_aplica_un_abono_reduciendo_el_saldo(self):
@@ -3970,39 +3985,124 @@ class TestTributarioStrategy:
         # 867-1 E.T. (automatica por el trigger de mora, sin checkbox propio).
         assert TributarioStrategy().soporta_indexacion_ipc is True
 
-    def test_evento_867_1_con_fecha_corte_mas_alla_de_la_tabla_de_usura_no_lanza_y_alerta(
+    def test_impuesto_con_corte_posterior_a_la_tabla_de_usura_causa_hasta_el_ultimo_dia(
         self,
     ):
-        # Sprint 110: _evento_actualizacion_867_1 depende de
-        # calcular_interes_moratorio_tributario/calcular_indexacion_867_1_topada,
-        # que a su vez dependen de _TRAMOS_IBC_USURA (termina el 2026-07-31) --
-        # antes de este fix, una fecha_corte posterior tumbaba con un
-        # ValueError sin capturar. Se prueba el metodo directamente (no
-        # TributarioStrategy().liquidar() completo) porque una obligacion
-        # IMPUESTO_A_CARGO con fecha_corte en ese rango tambien dispara HOY un
-        # ValueError independiente en _construir_rate_provider_obligacion (el
-        # interes E.T. 635 base, sin relacion con el Art. 867-1) -- un
-        # hallazgo mas amplio que el de este sprint, que sigue documentado y
-        # sin corregir en docs/Pendientes.md (Sprint 110) porque exige la
-        # misma decision de extrapolacion pendiente con el despacho. Este
-        # test verifica, en aislamiento, que la pieza que SI se corrigio en
-        # este sprint (el manejo de la excepcion del propio Art. 867-1)
-        # funciona.
+        # Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar"):
+        # antes, cualquier IMPUESTO_A_CARGO con fecha_corte > 2026-07-31
+        # lanzaba ValueError en _construir_rate_provider_obligacion. Ahora el
+        # interes E.T. 635 corre solo hasta el 2026-07-31: julio completo
+        # (31 dias) a 26.79% lineal /365 = 733.97 por dia -> 22.753,07; del 1
+        # de agosto al 15 de septiembre, $0 y alerta "Pendiente de
+        # Certificación Oficial".
         impuesto = _obligacion_tributaria(
             categoria="IMPUESTO_A_CARGO",
-            valor=Decimal("100000000.00"),
+            valor=Decimal("1000000.00"),
+            fecha_origen=date(2026, 6, 30),
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[impuesto], abonos=[], fecha_corte=date(2026, 9, 15)
+        )
+
+        assert resultado.final_balance().principal == Decimal("1000000.00")
+        assert resultado.final_balance().interest == Decimal("22753.07")
+        alertas_pendientes = [
+            alerta
+            for alerta in resultado.alertas
+            if "Pendiente de Certificación Oficial" in alerta
+        ]
+        assert len(alertas_pendientes) == 1
+        assert "31/07/2026" in alertas_pendientes[0]
+        assert "Impuesto de renta 2024" in alertas_pendientes[0]
+        assert "E.T." in alertas_pendientes[0]
+
+    def test_impuesto_con_corte_dentro_de_la_tabla_no_agrega_alerta_de_certificacion(self):
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("1000000.00"),
+            fecha_origen=date(2026, 6, 30),
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[impuesto], abonos=[], fecha_corte=date(2026, 7, 31)
+        )
+
+        assert resultado.final_balance().interest == Decimal("22753.07")
+        assert not any(
+            "Pendiente de Certificación Oficial" in alerta for alerta in resultado.alertas
+        )
+
+    def test_impuesto_con_mora_mayor_a_3_anios_y_corte_posterior_a_la_tabla_no_lanza(self):
+        # Sprint 110: mismo escenario que reproducia el hallazgo 3 (mora > 3
+        # años, Art. 867-1) mas el hallazgo nuevo del cierre parcial (interes
+        # base E.T. 635). Ni el interes ni la actualizacion 867-1 del rubro
+        # Impuesto (topada por la usura plena) pueden calcularse mas alla del
+        # ultimo dia certificado: ambos quedan iguales a los de un corte el
+        # 2026-07-31, sin omitir el rubro (en el cierre parcial quedaba en $0,00).
+        def _impuesto():
+            return _obligacion_tributaria(
+                categoria="IMPUESTO_A_CARGO",
+                valor=Decimal("100000000.00"),
+                fecha_origen=date(2018, 5, 10),
+            )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[_impuesto()], abonos=[], fecha_corte=date(2026, 8, 25)
+        )
+        resultado_al_ultimo_dia_certificado = TributarioStrategy().liquidar(
+            obligaciones=[_impuesto()], abonos=[], fecha_corte=date(2026, 7, 31)
+        )
+
+        assert resultado.final_balance().interest == (
+            resultado_al_ultimo_dia_certificado.final_balance().interest
+        )
+        assert resultado.final_balance().indexation == (
+            resultado_al_ultimo_dia_certificado.final_balance().indexation
+        )
+        assert resultado.final_balance().indexation > Decimal("0.00")
+        assert not any("no se pudo calcular" in alerta for alerta in resultado.alertas)
+        alertas_pendientes = [
+            alerta
+            for alerta in resultado.alertas
+            if "Pendiente de Certificación Oficial" in alerta
+        ]
+        assert len(alertas_pendientes) == 1
+        assert "Art. 867-1" in alertas_pendientes[0]
+
+    def test_sancion_con_mora_corta_y_corte_posterior_a_la_tabla_alerta_pendiente(self):
+        # Sancion con mora <= 3 años: sigue causando interes E.T. 635, asi que
+        # tambien queda suspendido despues del 2026-07-31.
+        sancion = _obligacion_tributaria(
+            categoria="SANCION_ERROR_ARITMETICO",
+            base_sancion_tributaria=Decimal("10000000.00"),
+            fecha_origen=date(2026, 6, 30),
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[sancion], abonos=[], fecha_corte=date(2026, 9, 15)
+        )
+
+        assert any(
+            "Pendiente de Certificación Oficial" in alerta for alerta in resultado.alertas
+        )
+
+    def test_sancion_con_mora_mayor_a_3_anios_no_alerta_certificacion_de_usura(self):
+        # Sancion con mora > 3 años: sin interes moratorio (solo IPC, Art.
+        # 867-1), no depende de la tabla de usura -- no hay nada suspendido.
+        sancion = _obligacion_tributaria(
+            categoria="SANCION_ERROR_ARITMETICO",
+            base_sancion_tributaria=Decimal("10000000.00"),
             fecha_origen=date(2018, 5, 10),
         )
-        strategy = TributarioStrategy()
-        strategy._alertas_867_1_incompletas = {}
 
-        evento = strategy._evento_actualizacion_867_1(impuesto, date(2026, 8, 25))
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[sancion], abonos=[], fecha_corte=date(2026, 9, 15)
+        )
 
-        assert evento.payload["amount"] == Decimal("0.00")
-        assert impuesto.id in strategy._alertas_867_1_incompletas
-        mensaje = strategy._alertas_867_1_incompletas[impuesto.id]
-        assert "Actualización Art. 867-1 E.T." in mensaje
-        assert "no se pudo calcular completamente" in mensaje
+        assert not any(
+            "Pendiente de Certificación Oficial" in alerta for alerta in resultado.alertas
+        )
 
 
 def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
