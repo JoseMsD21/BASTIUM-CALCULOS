@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from enum import StrEnum
 
 from app.engine.math.rounding import Rounding
 
@@ -9,12 +10,51 @@ PORCENTAJE_RECARGO_NOCTURNO = Decimal("35")
 LIMITE_HORAS_EXTRA_DIARIAS_LEY_2466 = Decimal("2")
 LIMITE_HORAS_EXTRA_SEMANALES_LEY_2466 = Decimal("12")
 
+# Fechas de inicio de los tramos de transicion de la Ley 2466 de 2025 para el
+# recargo dominical/festivo (respuesta del despacho, Sprint 95, 22/08/2026).
+FECHA_INICIO_TRAMO_1_LEY_2466 = date(2025, 7, 1)
+FECHA_INICIO_TRAMO_2_LEY_2466 = date(2026, 7, 1)
+FECHA_INICIO_TRAMO_3_LEY_2466 = date(2027, 7, 1)
+
 _TRAMOS_RECARGO_DOMINICAL_FESTIVO = (
-    (date(2025, 7, 1), Decimal("75")),
-    (date(2026, 7, 1), Decimal("80")),
-    (date(2027, 7, 1), Decimal("90")),
+    (FECHA_INICIO_TRAMO_1_LEY_2466, Decimal("75")),
+    (FECHA_INICIO_TRAMO_2_LEY_2466, Decimal("80")),
+    (FECHA_INICIO_TRAMO_3_LEY_2466, Decimal("90")),
 )
 _PORCENTAJE_RECARGO_DOMINICAL_FESTIVO_FINAL = Decimal("100")
+
+
+class ConceptoHoraExtra(StrEnum):
+    """Los 4 conceptos "Horas Extras..." de la plantilla del despacho
+    `L3.HORASEXTRASYRECARGOS.md`."""
+
+    HED = "HED"  # Hora extra diurna (ordinaria)
+    HEN = "HEN"  # Hora extra nocturna (ordinaria)
+    HEFD = "HEFD"  # Hora extra festiva/dominical diurna
+    HEFN = "HEFN"  # Hora extra festiva/dominical nocturna
+
+
+# Factores (valor hora x factor) confirmados por el despacho (Sprint 95,
+# seguimiento): HED 1.25 y HEN 1.75 sin vigencia por fecha.
+_FACTORES_HORA_EXTRA_ORDINARIA = {
+    ConceptoHoraExtra.HED: Decimal("1.25"),
+    ConceptoHoraExtra.HEN: Decimal("1.75"),
+}
+
+# HEFD/HEFN incorporan la tabla progresiva del recargo dominical/festivo:
+# (fecha de inicio del tramo, factor HEFD, factor HEFN), en orden ascendente.
+_TRAMOS_FACTOR_HORA_EXTRA_FESTIVA = (
+    (FECHA_INICIO_TRAMO_1_LEY_2466, Decimal("2.05"), Decimal("2.55")),  # festivo 80%
+    (FECHA_INICIO_TRAMO_2_LEY_2466, Decimal("2.15"), Decimal("2.65")),  # festivo 90%
+    (FECHA_INICIO_TRAMO_3_LEY_2466, Decimal("2.25"), Decimal("2.75")),  # festivo 100%
+)
+
+
+class HoraExtraFestivaSinFactorConfirmadoError(ValueError):
+    """HEFD/HEFN causadas antes del 01/07/2025: la respuesta del despacho
+    (Sprint 95, seguimiento) solo fija sus factores desde el Tramo 1 de la Ley
+    2466/2025. Para esas horas se conserva el comportamiento previo: el
+    llamador debe pasar el porcentaje explicitamente a `calcular_hora_extra`."""
 
 
 class LimiteHorasExtraLey2466Error(ValueError):
@@ -82,16 +122,11 @@ def calcular_hora_extra(numero_horas, valor_hora_ordinaria, porcentaje) -> Decim
     Aplica a los 4 conceptos "Horas Extras..." de la plantilla del despacho
     `L3.HORASEXTRASYRECARGOS.md` (diurnas/nocturnas, ordinarias/festivas).
 
-    Deliberadamente NO trae hardcodeados los porcentajes legales de los 4
-    conceptos "Horas Extras..." (HED, HEN, HEFD, HEFN): la respuesta del
-    despacho (Sprint 95, 22/08/2026) confirmo la vigencia del recargo
-    nocturno y del recargo dominical/festivo (ver `hora_inicio_jornada_nocturna`/
-    `porcentaje_recargo_dominical_festivo`), pero no restablecio los
-    porcentajes especificos de estos 4 conceptos combinados (extra + festivo)
-    -- sigue pendiente en docs/Preguntas-Para-Abogado-Abiertas.md, "Sprint 95
-    (seguimiento)". Esta funcion solo formaliza, con tests, la formula
-    aritmetica -- no esta cableada a ningun formulario, `parametro_service`
-    ni `LaboralStrategy`.
+    Recibe el porcentaje explicito. Para resolver el factor legal vigente
+    segun la fecha de causacion (HED/HEN y HEFD/HEFN por tramo de la Ley
+    2466/2025) usar `liquidar_hora_extra` / `factor_hora_extra`. Esta funcion
+    sigue siendo la via para HEFD/HEFN causadas antes del 01/07/2025, cuyo
+    factor no fijo el despacho.
     """
     numero_horas = Decimal(str(numero_horas))
     valor_hora_ordinaria = Decimal(str(valor_hora_ordinaria))
@@ -123,3 +158,57 @@ def calcular_recargo(numero_horas, valor_hora_ordinaria, porcentaje) -> Decimal:
     _validar_comunes(numero_horas, valor_hora_ordinaria, porcentaje)
 
     return Rounding.money(numero_horas * valor_hora_ordinaria * porcentaje / Decimal("100"))
+
+
+def factor_hora_extra(concepto, fecha_causacion: date) -> Decimal:
+    """Factor (valor hora x factor) del concepto de hora extra vigente en
+    `fecha_causacion`, segun la respuesta del despacho (Sprint 95,
+    seguimiento): las horas extra festivas SI incorporan la tabla progresiva
+    del recargo dominical/festivo de la Ley 2466/2025.
+
+    - HED: 1.25 (25%) y HEN: 1.75 (75%), en cualquier fecha.
+    - HEFD / HEFN:
+      Tramo 1 (01/07/2025 - 30/06/2026, festivo 80%): 2.05 / 2.55.
+      Tramo 2 (01/07/2026 - 30/06/2027, festivo 90%): 2.15 / 2.65.
+      Tramo 3 (desde 01/07/2027, festivo 100%): 2.25 / 2.75.
+
+    HEFD/HEFN causadas antes del 01/07/2025 lanzan
+    `HoraExtraFestivaSinFactorConfirmadoError` (la respuesta no fija ese
+    tramo; ver docstring de la excepcion). Acepta el concepto como
+    `ConceptoHoraExtra` o como su codigo en texto ("HEFD").
+    """
+    try:
+        concepto = ConceptoHoraExtra(concepto)
+    except ValueError as exc:
+        raise ValueError(f"Concepto de hora extra desconocido: {concepto!r}.") from exc
+
+    if concepto in _FACTORES_HORA_EXTRA_ORDINARIA:
+        return _FACTORES_HORA_EXTRA_ORDINARIA[concepto]
+
+    factor = None
+    for fecha_inicio, factor_hefd, factor_hefn in _TRAMOS_FACTOR_HORA_EXTRA_FESTIVA:
+        if fecha_causacion >= fecha_inicio:
+            factor = factor_hefd if concepto is ConceptoHoraExtra.HEFD else factor_hefn
+    if factor is None:
+        raise HoraExtraFestivaSinFactorConfirmadoError(
+            f"No hay factor confirmado para {concepto.value} causada el "
+            f"{fecha_causacion:%d/%m/%Y} (antes del "
+            f"{FECHA_INICIO_TRAMO_1_LEY_2466:%d/%m/%Y}). Indique el porcentaje "
+            "explicitamente con calcular_hora_extra."
+        )
+    return factor
+
+
+def liquidar_hora_extra(
+    concepto, numero_horas, valor_hora_ordinaria, fecha_causacion: date
+) -> Decimal:
+    """Liquida horas extra con el factor legal vigente en `fecha_causacion`:
+    `horas x valor_hora x factor_hora_extra(concepto, fecha_causacion)`,
+    redondeado a centavos. Ver `factor_hora_extra` para la tabla de factores
+    y el tratamiento de HEFD/HEFN anteriores al 01/07/2025."""
+    numero_horas = Decimal(str(numero_horas))
+    valor_hora_ordinaria = Decimal(str(valor_hora_ordinaria))
+    factor = factor_hora_extra(concepto, fecha_causacion)
+    _validar_comunes(numero_horas, valor_hora_ordinaria, factor)
+
+    return Rounding.money(numero_horas * valor_hora_ordinaria * factor)
