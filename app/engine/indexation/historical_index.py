@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from sqlalchemy import func
+
 import database.session as session_module
 from app.core.exceptions import IPCMensualNoDisponibleError, ParametroNoDisponibleError
 from app.engine.time.calendar import CalendarUtils
@@ -1096,6 +1098,62 @@ def get_tramos_ibc_usura_between(inicio: date, fin: date) -> list[TramoIBCUsura]
 
 
 # ---------------------------------------------------------------------------
+# Sprint 110 -- limite de certificacion de la usura (respuesta del despacho,
+# docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 110, 26/08/2026): "NUNCA
+# extrapolar. Opcion (b). El sistema debe calcular intereses moratorios con
+# precision quirurgica unicamente hasta el ultimo dia calendario con tasa de
+# usura oficialmente certificada por la Superfinanciera. Para el periodo
+# posterior, el sistema debe dejar el rubro como 'Pendiente de Certificacion
+# Oficial' y emitir una alerta explicita en la interfaz y el reporte PDF [...]
+# (Art. 338 C.P.)." A diferencia del IPC (get_ipc_interpolado_for_date, que
+# si tiene un fallback decidido en el Sprint 8), la usura es un techo legal
+# certificado: get_ibc_usura_for_date/get_tramos_ibc_usura_between siguen sin
+# extrapolar, y cada motor que la necesita corta el calculo en
+# get_ultima_fecha_certificada_ibc_usura() y deja el resto a $0 con la alerta
+# de mensaje_pendiente_certificacion_usura().
+# ---------------------------------------------------------------------------
+
+PENDIENTE_CERTIFICACION_OFICIAL = "Pendiente de Certificación Oficial"
+
+
+def get_ultima_fecha_certificada_ibc_usura() -> date | None:
+    """Ultimo dia calendario con tasa de usura certificada cargada en
+    parametros_legales (el `vigente_hasta` mas tardio de la clave
+    USURA_CONSUMO_ORDINARIO -- la misma fuente que get_tramos_ibc_usura_between,
+    asi que un mes nuevo agregado desde la GUI, app/views/configuracion.py,
+    corre este limite sin tocar codigo). None si no hay ningun tramo cargado
+    (configuracion incompleta, no "pendiente de certificacion": los motores
+    dejan que get_ibc_usura_for_date lance su ValueError de siempre)."""
+    session = session_module.get_session()
+    try:
+        ultima = (
+            session.query(func.max(ParametroLegal.vigente_hasta))
+            .filter(
+                ParametroLegal.clave == "USURA_CONSUMO_ORDINARIO",
+                ParametroLegal.vigente_hasta.is_not(None),
+            )
+            .scalar()
+        )
+    finally:
+        session.close()
+    return ultima
+
+
+def mensaje_pendiente_certificacion_usura(rubro: str, ultima_fecha_certificada: date) -> str:
+    """Texto unico de la alerta no bloqueante del Sprint 110 (pantalla de
+    resultados y PDF/Word, via LiquidationResult.alertas). `rubro` describe que
+    interes quedo suspendido (ej. "Indemnización moratoria (Art. 65 CST)")."""
+    fecha = ultima_fecha_certificada.strftime("%d/%m/%Y")
+    return (
+        f"{PENDIENTE_CERTIFICACION_OFICIAL} — {rubro}: el interés posterior al {fecha} "
+        "queda suspendido hasta que se actualice la tabla de tasas de usura certificadas "
+        f"por la Superfinanciera (último tramo cargado: {fecha}). El valor liquidado solo "
+        "incluye lo causado hasta esa fecha; no se extrapola ninguna tasa (principio de "
+        "legalidad y certeza tributaria, Art. 338 C.P.)."
+    )
+
+
+# ---------------------------------------------------------------------------
 # UVT (Unidad de Valor Tributario), 2006-2026.
 # El PDF de requisitos NO trae una tabla completa para esta serie (a diferencia
 # de SMLMV/IPC/IBC-Usura) -- solo describe el mecanismo (paginas 8, 21, 38, 53)
@@ -1142,4 +1200,53 @@ def get_uvt_for_year(anio: int) -> Decimal:
         raise ValueError(
             f"No hay UVT configurada para el año {anio}. "
             f"Datos disponibles: {min(_UVT_POR_ANIO)}-{max(_UVT_POR_ANIO)}."
+        ) from error
+
+
+# ---------------------------------------------------------------------------
+# Auxilio de transporte mensual (Ley 15 de 1959 / Ley 1 de 1963), 2010-2026.
+# Sprint 96 (seguimiento): el PDF de requisitos lo nombra como indicador
+# (secciones "Ministerio del Trabajo -- SMLMV y Auxilio de Transporte, Anual
+# (Diciembre)" y "C. Derecho Laboral") pero NO trae la tabla de valores. Serie
+# transcrita de los decretos anuales del Gobierno Nacional que fijan el
+# auxilio junto con el SMLMV (p.ej. 2026: 1.750.905 + 249.095 = 2.000.000).
+# PENDIENTE de verificacion del despacho -- editable desde la GUI
+# (Configuracion > Parametros legales, clave AUXILIO_TRANSPORTE). Años
+# anteriores a 2010 no se sembraron a proposito: se agregan desde la GUI si
+# hacen falta (LaboralStrategy emite una alerta no bloqueante si falta).
+# ---------------------------------------------------------------------------
+
+_AUXILIO_TRANSPORTE_POR_ANIO: dict[int, Decimal] = {
+    2010: Decimal("61500.00"),
+    2011: Decimal("63600.00"),
+    2012: Decimal("67800.00"),
+    2013: Decimal("70500.00"),
+    2014: Decimal("72000.00"),
+    2015: Decimal("74000.00"),
+    2016: Decimal("77700.00"),
+    2017: Decimal("83140.00"),
+    2018: Decimal("88211.00"),
+    2019: Decimal("97032.00"),
+    2020: Decimal("102854.00"),
+    2021: Decimal("106454.00"),
+    2022: Decimal("117172.00"),
+    2023: Decimal("140606.00"),
+    2024: Decimal("162000.00"),
+    2025: Decimal("200000.00"),
+    2026: Decimal("249095.00"),
+}
+
+
+def get_auxilio_transporte_for_year(anio: int) -> Decimal:
+    """Retorna el auxilio de transporte mensual vigente para el año dado,
+    consultando la tabla parametros_legales (clave AUXILIO_TRANSPORTE,
+    editable desde la GUI). _AUXILIO_TRANSPORTE_POR_ANIO es la referencia
+    congelada de origen (ver scripts/migrate_parametros_legales.py)."""
+    try:
+        return get_parametro("AUXILIO_TRANSPORTE", date(anio, 1, 1))
+    except ParametroNoDisponibleError as error:
+        raise ValueError(
+            f"No hay auxilio de transporte configurado para el año {anio}. "
+            f"Datos sembrados: {min(_AUXILIO_TRANSPORTE_POR_ANIO)}-"
+            f"{max(_AUXILIO_TRANSPORTE_POR_ANIO)}."
         ) from error

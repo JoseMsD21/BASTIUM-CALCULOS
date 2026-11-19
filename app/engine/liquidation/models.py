@@ -26,20 +26,33 @@ class PaymentAllocation:
     to_interest: Decimal
     to_indexation: Decimal
     to_principal: Decimal
+    # Sprint 79: parte del pago imputada a costas procesales (siempre primero,
+    # ver AllocationEngine). Default 0.00 para no romper constructores previos.
+    to_costas: Decimal = Decimal("0.00")
 
 @dataclass(frozen=True)
 class PendingDebt:
     """
     Representa el estado actual de la deuda en un instante T.
     No es un movimiento, es una fotografía del saldo insoluto.
+
+    `costas` (Sprint 79): costas procesales aprobadas (expensas + agencias en
+    derecho), separadas de `principal` porque NUNCA generan interes -- respuesta
+    del despacho (16/11/2026): "las costas procesales NO generan intereses ... la
+    regla es general: aplica en cualquier area del derecho y algoritmo. Las costas
+    se suman 'en seco' al final: Gran_Total = Capital_Indexado + Intereses_Mora +
+    Costas_Aprobadas". Por eso entran en `total()` pero nunca en la base de interes
+    (`LiquidationCore._capital_base_actual`). Default 0.00: los constructores
+    posicionales de 3 componentes previos a este sprint siguen siendo validos.
     """
     principal: Decimal
     interest: Decimal
     indexation: Decimal
+    costas: Decimal = Decimal("0.00")
 
     def total(self) -> Decimal:
-        """Retorna la suma total adeudada en este instante."""
-        return self.principal + self.interest + self.indexation
+        """Retorna la suma total adeudada en este instante (costas en seco incluidas)."""
+        return self.principal + self.interest + self.indexation + self.costas
 
 @dataclass(frozen=True)
 class RunningBalance:

@@ -40,7 +40,11 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from app.engine.financial.rate import Rate
-from app.engine.indexation.historical_index import get_tramos_ibc_usura_between
+from app.engine.indexation.historical_index import (
+    PENDIENTE_CERTIFICACION_OFICIAL,
+    get_tramos_ibc_usura_between,
+    get_ultima_fecha_certificada_ibc_usura,
+)
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.provider import MemoryRateProvider
 from app.services.parametro_service import get_parametro
@@ -50,6 +54,38 @@ PUNTOS_DESCUENTO_ET_635 = Decimal("2")
 FUENTE_MORATORIO_TRIBUTARIO = (
     "Interes moratorio tributario (E.T. art. 635): usura vigente - 2 puntos"
 )
+
+FUENTE_PENDIENTE_CERTIFICACION_USURA = (
+    f"{PENDIENTE_CERTIFICACION_OFICIAL}: sin tasa de usura certificada por la "
+    "Superfinanciera para este dia -- interes suspendido (Art. 338 C.P.)"
+)
+
+
+def fecha_fin_mora_certificada(fecha_corte: date) -> date:
+    """Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar"):
+    ultimo dia hasta el que puede causarse interes que dependa de la tasa de
+    usura -- `fecha_corte`, o el ultimo dia certificado si la tabla
+    (parametros_legales, USURA_CONSUMO_ORDINARIO) no llega hasta el corte. Si
+    no hay ningun tramo cargado retorna `fecha_corte` sin tocar (los motores
+    lanzan el ValueError de configuracion incompleta de siempre)."""
+    ultima = get_ultima_fecha_certificada_ibc_usura()
+    if ultima is None or fecha_corte <= ultima:
+        return fecha_corte
+    return ultima
+
+
+def mora_pendiente_de_certificacion(fecha_exigibilidad: date, fecha_corte: date) -> date | None:
+    """Sprint 110: si parte de la mora [fecha_exigibilidad + 1 dia, fecha_corte]
+    cae despues del ultimo dia con tasa de usura certificada, retorna ese
+    ultimo dia certificado (para la alerta "Pendiente de Certificación
+    Oficial"); None si toda la mora esta cubierta o si no hay mora."""
+    inicio_mora = fecha_exigibilidad + timedelta(days=1)
+    if fecha_corte < inicio_mora:
+        return None
+    fin_certificado = fecha_fin_mora_certificada(fecha_corte)
+    if fin_certificado >= fecha_corte:
+        return None
+    return fin_certificado
 
 
 def tasa_diaria_lineal_tributaria(tasa_anual_pct: Decimal, anio: int) -> Rate:
@@ -69,17 +105,36 @@ def construir_rate_provider_moratorio_tributario(
     con el rango de mora [fecha_exigibilidad + 1 dia, fecha_corte] (la mora
     empieza el dia siguiente a la exigibilidad, mismo criterio que
     R-CIV-003). Si fecha_corte no supera ese inicio de mora, no hay mora:
-    retorna un provider vacio."""
+    retorna un provider vacio.
+
+    Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar. Opcion
+    (b)"): los tramos solo cubren hasta el ultimo dia con tasa de usura
+    certificada (`fecha_fin_mora_certificada`). Los dias posteriores, hasta
+    fecha_corte, quedan a 0% con la fuente FUENTE_PENDIENTE_CERTIFICACION_USURA
+    -- el interes de ese periodo queda suspendido, no se infiere. La alerta
+    no bloqueante la agrega el llamador (TributarioStrategy) con
+    `mora_pendiente_de_certificacion`."""
     provider = MemoryRateProvider()
 
     inicio_mora = fecha_exigibilidad + timedelta(days=1)
     if fecha_corte < inicio_mora:
         return provider
 
-    tramos = get_tramos_ibc_usura_between(inicio_mora, fecha_corte)
+    fin_certificado = fecha_fin_mora_certificada(fecha_corte)
+    if fin_certificado < fecha_corte:
+        provider.add_rate_period(
+            start=max(inicio_mora, fin_certificado + timedelta(days=1)),
+            end=fecha_corte,
+            rate=Rate(Decimal("0")),
+            source=FUENTE_PENDIENTE_CERTIFICACION_USURA,
+        )
+        if fin_certificado < inicio_mora:
+            return provider
+
+    tramos = get_tramos_ibc_usura_between(inicio_mora, fin_certificado)
     for tramo in tramos:
         inicio_segmento = max(tramo.inicio, inicio_mora)
-        fin_segmento = min(tramo.fin, fecha_corte)
+        fin_segmento = min(tramo.fin, fin_certificado)
         puntos_descuento = get_parametro("ET635_PUNTOS_DESCUENTO", inicio_segmento)
         tasa_anual_tributaria = tramo.usura_anual - puntos_descuento
         tasa_diaria = tasa_diaria_lineal_tributaria(tasa_anual_tributaria, inicio_segmento.year)
@@ -98,7 +153,9 @@ def calcular_interes_moratorio_tributario(
     """Suma el interes moratorio tributario dia a dia (mismo patron que
     LiquidationCore._accrue_time_passage en app/engine/liquidation/engine.py)
     desde el dia siguiente a fecha_exigibilidad hasta fecha_corte. Capital
-    fijo, sin abonos ni imputacion de pagos -- eso es Sprint 11b."""
+    fijo, sin abonos ni imputacion de pagos -- eso es Sprint 11b. Sprint 110:
+    los dias posteriores al ultimo tramo de usura certificado no causan
+    interes (ver construir_rate_provider_moratorio_tributario)."""
     if capital <= Decimal("0.00"):
         return Decimal("0.00")
 

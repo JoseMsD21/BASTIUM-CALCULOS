@@ -435,8 +435,9 @@ def test_aplicar_migraciones_pendientes_siembra_parametros_legales(tmp_path):
     with _sesion_para(db_path) as session:
         claves = {fila.clave for fila in session.query(ParametroLegal).all()}
     # 39 claves de migrar_parametros_legales + IPC_VARIACION_ANUAL (Sprint 58,
-    # sembrada por separado via migrar_ipc_variacion_anual).
-    assert len(claves) == 40
+    # sembrada por separado via migrar_ipc_variacion_anual) + AUXILIO_TRANSPORTE
+    # (Sprint 96, seguimiento, sembrada por migrar_parametros_legales).
+    assert len(claves) == 41
 
 
 def test_aplicar_migraciones_pendientes_es_idempotente(tmp_path):
@@ -482,8 +483,9 @@ def test_aplicar_migraciones_pendientes_siembra_parametros_legales_en_db_path(tm
         "SELECT COUNT(DISTINCT clave) FROM parametros_legales"
     ).fetchone()
     con.close()
-    # 39 claves de migrar_parametros_legales + IPC_VARIACION_ANUAL (Sprint 58).
-    assert total_claves == 40
+    # 39 claves de migrar_parametros_legales + IPC_VARIACION_ANUAL (Sprint 58)
+    # + AUXILIO_TRANSPORTE (Sprint 96, seguimiento).
+    assert total_claves == 41
 
 
 def test_aplicar_migraciones_pendientes_agrega_los_indices_de_rendimiento(tmp_path):
@@ -618,7 +620,10 @@ def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tm
     asi que migrar_ibc_usura_1971_1997 los encuentra ya sembrados y no agrega
     nada mas; los 100 vienen de la siembra "desde cero" de esas dos claves con
     50 filas nuevas cada una, no de esa migracion nueva. Ver
-    scripts/migrate_ibc_usura_1971_1997.py)."""
+    scripts/migrate_ibc_usura_1971_1997.py).
+
+    859 = 842 + 17 (Sprint 96, seguimiento: AUXILIO_TRANSPORTE, una fila por
+    año 2010-2026, ver _AUXILIO_TRANSPORTE_POR_ANIO en historical_index.py)."""
     from database.database import aplicar_migraciones_pendientes
 
     db_path = tmp_path / "nueva_area_unidad.db"
@@ -636,7 +641,7 @@ def test_aplicar_migraciones_pendientes_completa_area_unidad_de_las_683_filas(tm
     ).fetchone()[0]
     con.close()
 
-    assert total_filas == 842
+    assert total_filas == 859
     assert total_sin_migrar == 0
 
 

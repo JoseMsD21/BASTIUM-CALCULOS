@@ -4,13 +4,29 @@ from decimal import Decimal
 from app.engine.liquidation.models import PaymentAllocation, PendingDebt
 
 
+def _imputar(remainder: Decimal, saldo: Decimal) -> tuple[Decimal, Decimal, Decimal]:
+    """Aplica `remainder` a un rubro con saldo `saldo`.
+    Retorna (lo imputado al rubro, nuevo saldo del rubro, remanente del pago)."""
+    if remainder >= saldo:
+        return saldo, Decimal("0.00"), remainder - saldo
+    return remainder, saldo - remainder, Decimal("0.00")
+
+
 class AllocationEngine:
     """
     Motor de imputación de pagos basado en la prelación legal estricta:
+    0. Costas procesales aprobadas (Sprint 79)
     1. Gastos/Indexación
     2. Intereses
     3. Capital
     Retorna la asignación del pago, el nuevo estado de la deuda y el remanente (si aplica).
+
+    Sprint 79: el despacho (16/11/2026) fijó que las costas procesales aprobadas y
+    gastos de cobro se pagan PRIMERO (Arts. 1629, 1653, 2495 C.C. y 446 CGP), en
+    cualquier área y algoritmo -- incluida la cascada capital-primero del Sprint 75.
+    La misma respuesta ubica los intereses ANTES de la indexación; eso contradice el
+    orden vigente (indexación -> intereses -> capital) y queda deliberadamente sin
+    cambiar en este sprint hasta que el despacho lo confirme por separado.
     """
 
     @staticmethod
@@ -19,35 +35,14 @@ class AllocationEngine:
     ) -> tuple[PaymentAllocation, PendingDebt, Decimal]:
         remainder = payment_amount
 
+        # 0. Imputación a Costas procesales (Sprint 79)
+        to_costas, new_costas, remainder = _imputar(remainder, current_debt.costas)
         # 1. Imputación a Indexación
-        if remainder >= current_debt.indexation:
-            to_indexation = current_debt.indexation
-            remainder -= to_indexation
-            new_indexation = Decimal("0.00")
-        else:
-            to_indexation = remainder
-            new_indexation = current_debt.indexation - remainder
-            remainder = Decimal("0.00")
-
+        to_indexation, new_indexation, remainder = _imputar(remainder, current_debt.indexation)
         # 2. Imputación a Intereses
-        if remainder >= current_debt.interest:
-            to_interest = current_debt.interest
-            remainder -= to_interest
-            new_interest = Decimal("0.00")
-        else:
-            to_interest = remainder
-            new_interest = current_debt.interest - remainder
-            remainder = Decimal("0.00")
-
+        to_interest, new_interest, remainder = _imputar(remainder, current_debt.interest)
         # 3. Imputación a Capital
-        if remainder >= current_debt.principal:
-            to_principal = current_debt.principal
-            remainder -= to_principal
-            new_principal = Decimal("0.00")
-        else:
-            to_principal = remainder
-            new_principal = current_debt.principal - remainder
-            remainder = Decimal("0.00")
+        to_principal, new_principal, remainder = _imputar(remainder, current_debt.principal)
 
         allocation = PaymentAllocation(
             payment_date=payment_date,
@@ -55,10 +50,14 @@ class AllocationEngine:
             to_interest=to_interest,
             to_indexation=to_indexation,
             to_principal=to_principal,
+            to_costas=to_costas,
         )
 
         new_debt = PendingDebt(
-            principal=new_principal, interest=new_interest, indexation=new_indexation
+            principal=new_principal,
+            interest=new_interest,
+            indexation=new_indexation,
+            costas=new_costas,
         )
 
         return allocation, new_debt, remainder
@@ -73,35 +72,16 @@ class AllocationEngine:
         se les aplica el pago, pero tampoco se les suma nada nuevo aqui -- eso lo
         decide quien acumula interes despues, no este metodo). Ver
         docs/superpowers/specs/2026-08-14-sprint75-cuotas-recurrentes-cascada-design.md,
-        decisiones 2 y 5."""
+        decisiones 2 y 5.
+
+        Sprint 79: aun en esta cascada, las costas procesales se pagan antes que
+        cualquier otro rubro (regla general del despacho, ver docstring de la clase)."""
         remainder = payment_amount
 
-        if remainder >= current_debt.principal:
-            to_principal = current_debt.principal
-            remainder -= to_principal
-            new_principal = Decimal("0.00")
-        else:
-            to_principal = remainder
-            new_principal = current_debt.principal - remainder
-            remainder = Decimal("0.00")
-
-        if remainder >= current_debt.interest:
-            to_interest = current_debt.interest
-            remainder -= to_interest
-            new_interest = Decimal("0.00")
-        else:
-            to_interest = remainder
-            new_interest = current_debt.interest - remainder
-            remainder = Decimal("0.00")
-
-        if remainder >= current_debt.indexation:
-            to_indexation = current_debt.indexation
-            remainder -= to_indexation
-            new_indexation = Decimal("0.00")
-        else:
-            to_indexation = remainder
-            new_indexation = current_debt.indexation - remainder
-            remainder = Decimal("0.00")
+        to_costas, new_costas, remainder = _imputar(remainder, current_debt.costas)
+        to_principal, new_principal, remainder = _imputar(remainder, current_debt.principal)
+        to_interest, new_interest, remainder = _imputar(remainder, current_debt.interest)
+        to_indexation, new_indexation, remainder = _imputar(remainder, current_debt.indexation)
 
         allocation = PaymentAllocation(
             payment_date=payment_date,
@@ -109,10 +89,14 @@ class AllocationEngine:
             to_interest=to_interest,
             to_indexation=to_indexation,
             to_principal=to_principal,
+            to_costas=to_costas,
         )
 
         new_debt = PendingDebt(
-            principal=new_principal, interest=new_interest, indexation=new_indexation
+            principal=new_principal,
+            interest=new_interest,
+            indexation=new_indexation,
+            costas=new_costas,
         )
 
         return allocation, new_debt, remainder

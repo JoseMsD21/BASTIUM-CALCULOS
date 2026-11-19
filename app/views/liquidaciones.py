@@ -121,6 +121,10 @@ class ResultadoLiquidacionView(QWidget):
         self.etiqueta_interes_total = QLabel("Interes acumulado: 0.00")
         self.etiqueta_pagos_total = QLabel("Pagos aplicados: 0.00")
         self.etiqueta_saldo_final = QLabel("Saldo final: 0.00")
+        # Sprint 79: costas procesales como rubro propio -- no generan interes y se
+        # suman en seco al saldo final. Oculta cuando la liquidacion no tiene costas.
+        self.etiqueta_costas = QLabel("Costas procesales (no generan interés): 0.00")
+        self.etiqueta_costas.setVisible(False)
         # Sprint 46: el saldo a favor de un sobrepago (Sprint 23, ya calculado
         # correctamente por LiquidationCore) se vuelve visible aqui -- oculto por
         # completo (nada, ni una fila vacia) cuando no hay sobrepago.
@@ -174,6 +178,7 @@ class ResultadoLiquidacionView(QWidget):
         layout.addWidget(self.etiqueta_alertas)
         layout.addWidget(self.etiqueta_interes_total)
         layout.addWidget(self.etiqueta_pagos_total)
+        layout.addWidget(self.etiqueta_costas)
         layout.addWidget(self.etiqueta_saldo_final)
         layout.addWidget(self.etiqueta_saldo_a_favor)
         layout.addWidget(self.grupo_renta_liquida)
@@ -223,6 +228,13 @@ class ResultadoLiquidacionView(QWidget):
         )
         self.etiqueta_pagos_total.setText(f"Pagos aplicados: {resultado.total_payments_applied()}")
         self.etiqueta_saldo_final.setText(f"Saldo final: {resultado.final_balance().total()}")
+
+        costas = resultado.final_balance().costas
+        if costas > 0:
+            self.etiqueta_costas.setText(f"Costas procesales (no generan interés): {costas}")
+            self.etiqueta_costas.setVisible(True)
+        else:
+            self.etiqueta_costas.setVisible(False)
 
         total_saldo_a_favor = resultado.total_saldo_a_favor()
         if total_saldo_a_favor > 0:

@@ -47,7 +47,8 @@ def _interes_aislado_dia_a_dia(capital: Decimal, fecha_origen: date, fecha_fin: 
     tests/family/test_interes_autonomo_por_cuota.py (Task 3): interes diario
     redondeado a centavos dia por dia, sumado desde el dia siguiente a
     fecha_origen hasta fecha_fin inclusive."""
-    daily_rate = EffectiveRateConverter.annual_to_daily(_TASA_EFECTIVA_ANUAL)
+    # Sprint 76: interes civil 6 % -> formula lineal simple (tasa / 365).
+    daily_rate = EffectiveRateConverter.annual_simple_to_daily(_TASA_EFECTIVA_ANUAL)
     total = Decimal("0.00")
     dia = fecha_origen + timedelta(days=1)
     while dia <= fecha_fin:
@@ -227,4 +228,7 @@ def test_caso_sintetico_capital_correcto_por_anio_y_mora_independiente_con_abono
     # Cifra concreta (verificada a mano, ver el comentario del modulo): sirve
     # de ancla adicional si algun cambio futuro en el motor altera el redondeo
     # dia a dia sin que ninguna de las asercions de arriba lo capture.
-    assert resultado.final_balance().interest == Decimal("14999.13")
+    # Sprint 76 (formula lineal simple 0,06/365 = 0,000164383562; antes 14.999,13
+    # con la efectiva compuesta): nov 82,19 x 71 + 81,37 x 21 = 7.544,26;
+    # dic 82,19 x 62 = 5.095,78; ene 90,41 x 31 = 2.802,71; feb 0 -> 15.442,75.
+    assert resultado.final_balance().interest == Decimal("15442.75")
