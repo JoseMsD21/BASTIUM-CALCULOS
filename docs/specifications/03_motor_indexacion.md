@@ -34,7 +34,14 @@ interpolacion anual solo para fechas anteriores a 2003-01 (ver "Estado" y "Limit
   último índice real. La UVT, por su parte, ya está cargada
   (`_UVT_POR_ANIO`, tabla histórica 2006-2026) y en producción desde los Sprints 5 y 14, conectada a
   `SancionatorioStrategy` (conversión SMLMV→UVT) y al piso legal de 10 UVT de `TributarioStrategy` — ver
-  `docs/specifications/` de esas áreas.
+  `docs/specifications/` de esas áreas. Desde el Sprint 96 (seguimiento) también expone
+  `get_auxilio_transporte_for_year` (clave `AUXILIO_TRANSPORTE` de `parametros_legales`, sembrada desde
+  `_AUXILIO_TRANSPORTE_POR_ANIO`, 2010-2026, editable desde la GUI; valores tomados de los decretos
+  anuales, pendientes de verificación del despacho). Solo la consume `LaboralStrategy` para trabajo
+  doméstico por días (`salario_diario`): auxilio = (auxilio mensual del año de `fecha_fin` / 30) × días
+  laborados en el mes (`dias_laborados_semana / 7 × 30`), solo si el salario mensual equivalente ≤ 2
+  SMMLV, sumado a la base de cesantías y prima (no de vacaciones) en `LaborScheduler`. Si falta el año,
+  alerta no bloqueante y se liquida sin auxilio.
 - `app/services/area_strategy.py`, `CivilFamiliaStrategy._evento_indexacion` (Sprint 8; implementación
   propia desde el Sprint 80): genera un evento `INDEXATION` por cada evento de capital cuando
   `Obligacion.aplica_indexacion_ipc` es `True` -- uno para obligaciones PUNTUAL, uno por cuota para

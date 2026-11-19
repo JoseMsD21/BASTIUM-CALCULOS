@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 import database.session as session_module
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.engine.indexation.historical_index import (
+    _AUXILIO_TRANSPORTE_POR_ANIO,
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
@@ -111,6 +112,21 @@ def _parametros_legales_en_memoria(monkeypatch):
         session.add(
             ParametroLegal(
                 clave="SMLMV",
+                valor=valor,
+                vigente_desde=_date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
+    # AUXILIO_TRANSPORTE (Sprint 96, seguimiento): LaboralStrategy lo lee para
+    # trabajo domestico por dias (salario_diario). Mismo criterio que SMLMV/UVT:
+    # desde el diccionario congelado que consume migrate_parametros_legales.py.
+    for anio, valor in _AUXILIO_TRANSPORTE_POR_ANIO.items():
+        session.add(
+            ParametroLegal(
+                clave="AUXILIO_TRANSPORTE",
                 valor=valor,
                 vigente_desde=_date(anio, 1, 1),
                 vigente_hasta=None,
@@ -992,7 +1008,10 @@ def test_civil_familia_genera_evento_de_costas_si_esta_configurado():
     )
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "COSTAS_PROCESALES" in tipos_evento
-    assert resultado.final_balance().principal == _Decimal(
+    # Sprint 79: costas fuera de principal (nunca generan interes).
+    assert resultado.final_balance().principal == _Decimal("123500000.00")
+    assert resultado.final_balance().costas == _Decimal("8645000.00")
+    assert resultado.final_balance().total() == _Decimal(
         "132145000.00"
     )  # 123.500.000 + 8.645.000
 
@@ -1160,7 +1179,8 @@ def test_capital_concepts_incluye_los_codigos_sancionatorio_y_honorarios():
     core = LiquidationCore()
     assert "MULTA_SANCIONATORIA" in core._capital_concepts
     assert "HONORARIOS_PROFESIONALES" in core._capital_concepts
-    assert "COSTAS_PROCESALES" in core._capital_concepts
+    # Sprint 79: COSTAS_PROCESALES salio de _capital_concepts (componente propio).
+    assert "COSTAS_PROCESALES" not in core._capital_concepts
 
 
 def test_capital_concepts_incluye_vacaciones():
@@ -2048,7 +2068,10 @@ def test_comercial_genera_evento_de_costas_si_esta_configurado():
     resultado = ComercialStrategy().liquidar([obligacion], [], fecha_corte=obligacion.fecha_origen)
     tipos_evento = {item.balance.event_type for item in resultado.items}
     assert "COSTAS_PROCESALES" in tipos_evento
-    assert resultado.final_balance().principal == Decimal(
+    # Sprint 79: costas fuera de principal (nunca generan interes).
+    assert resultado.final_balance().principal == Decimal("123500000.00")
+    assert resultado.final_balance().costas == Decimal("8645000.00")
+    assert resultado.final_balance().total() == Decimal(
         "132145000.00"
     )  # 123.500.000 + 8.645.000
 
@@ -2072,7 +2095,10 @@ def test_comercial_usd_calcula_costas_sobre_el_valor_convertido_a_pesos_no_sobre
     # calculo usara el valor crudo en USD (30.875) como pretensiones, el
     # resultado seria completamente distinto (y probablemente lanzaria
     # TarifaNoDisponibleError o un monto absurdo).
-    assert resultado.final_balance().principal == Decimal("132145000.00")
+    # Sprint 79: costas en su propio componente, no en principal.
+    assert resultado.final_balance().principal == Decimal("123500000.00")
+    assert resultado.final_balance().costas == Decimal("8645000.00")
+    assert resultado.final_balance().total() == Decimal("132145000.00")
 
 
 def test_civil_familia_soporta_indexacion_ipc_es_true():
@@ -2226,7 +2252,10 @@ class TestSancionatorioStrategy:
         )
         tipos_evento = {item.balance.event_type for item in resultado.items}
         assert "COSTAS_PROCESALES" in tipos_evento
-        assert resultado.final_balance().principal == _Decimal(
+        # Sprint 79: costas fuera de principal (nunca generan interes).
+        assert resultado.final_balance().principal == _Decimal("828116000.00")
+        assert resultado.final_balance().costas == _Decimal("16562320.00")
+        assert resultado.final_balance().total() == _Decimal(
             "844678320.00"
         )  # 828.116.000 + 16.562.320
 
@@ -2489,7 +2518,10 @@ class TestHonorariosStrategy:
             obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 1)
         )
 
-        assert resultado.final_balance().principal == Decimal("2500000.00")
+        # Sprint 79: costas (500000) en su propio componente, no en principal.
+        assert resultado.final_balance().principal == Decimal("2000000.00")
+        assert resultado.final_balance().costas == Decimal("500000.00")
+        assert resultado.final_balance().total() == Decimal("2500000.00")
 
     def test_sin_costas_pct_manual_no_genera_evento_de_costas(self):
         obligacion = _obligacion_honorarios(cuota_litis_pactada_pct=Decimal("10.00"))
@@ -3201,8 +3233,8 @@ class TestLaboralStrategy:
         # _obligacion_laboral no acepta 'valor' como parametro (usa 'salario'), y
         # LaboralStrategy genera varios eventos ademas de costas (cesantias,
         # prima, vacaciones) -- final_balance().principal mezclaria todo. Se aisla
-        # el monto de costas comparando el capital_base acumulado justo antes y
-        # justo despues del item de costas, en vez de sumar todo el saldo.
+        # el monto de costas comparando el saldo de costas justo antes y justo
+        # despues del item de costas (antes del Sprint 79 se usaba capital_base).
         # Nota: COSTAS_PROCESALES se fecha en obligacion.fecha_origen (=
         # fecha_inicio), anterior a fecha_fin (fecha de cesantias/prima/
         # vacaciones) -- por eso siempre ordena de primero (indice 0) y la
@@ -3224,12 +3256,20 @@ class TestLaboralStrategy:
         tipos_evento = [item.balance.event_type for item in resultado.items]
         assert "COSTAS_PROCESALES" in tipos_evento
         indice_costas = tipos_evento.index("COSTAS_PROCESALES")
-        capital_previo = (
+        # Sprint 79: las costas ya no entran en capital_base (no generan interes),
+        # viven en balance.debt.costas -- se aisla el monto con el mismo delta
+        # (fila de costas menos la anterior) sobre ese componente.
+        costas_previas = (
+            resultado.items[indice_costas - 1].balance.debt.costas
+            if indice_costas > 0
+            else Decimal("0.00")
+        )
+        monto_costas = resultado.items[indice_costas].balance.debt.costas - costas_previas
+        assert resultado.items[indice_costas].capital_base == (
             resultado.items[indice_costas - 1].capital_base
             if indice_costas > 0
             else Decimal("0.00")
         )
-        monto_costas = resultado.items[indice_costas].capital_base - capital_previo
 
         # La base de costas es monto_prestaciones (cesantias + intereses +
         # prima + vacaciones para todo el contrato), NO obligacion.valor (que
@@ -3635,11 +3675,15 @@ class TestLaboralStrategy:
         smlmv_2020 = Decimal("877803.00")
         assert salario_proporcional < smlmv_2020  # confirma que el piso SI aplica aqui
 
-        # Prestaciones sobre el salario proporcional REAL (sin piso).
+        # Prestaciones sobre el salario proporcional REAL (sin piso). Sprint 96
+        # (seguimiento): 642.857,14 <= 2 SMMLV 2020 (1.755.606), asi que
+        # cesantias/prima incluyen ademas el auxilio de transporte proporcional:
+        # 102.854 x 3 / 7 = 44.080,29.
         eventos_prestaciones = LaborScheduler(
             salario_base=salario_proporcional,
             dias_trabajados=360,
             fecha_liquidacion=obligacion.fecha_fin,
+            auxilio_transporte=Decimal("44080.29"),
         ).generate()
         monto_prestaciones = sum(
             (e.payload["amount"] for e in eventos_prestaciones), Decimal("0.00")
@@ -3659,6 +3703,98 @@ class TestLaboralStrategy:
         )
 
         assert resultado.final_balance().principal == monto_prestaciones + monto_cotizaciones
+
+
+    def test_salario_diario_hasta_2_smmlv_suma_auxilio_transporte_a_cesantias_y_prima(self):
+        # Sprint 96 (seguimiento), respuesta del despacho (23/08/2026):
+        # auxilio = (Auxilio_Mensual / 30) x Dias_Trabajados_en_el_mes, solo si
+        # el salario es de hasta 2 SMMLV, y forma parte de la base de
+        # cesantias y prima de servicios.
+        # Calculo a mano (contrato 2020, 360 dias comerciales):
+        #   salario  = 50.000 x 3 / 7 x 30          = 642.857,14 (<= 2 x 877.803)
+        #   dias mes = 3 / 7 x 30                   = 12,857142...
+        #   auxilio  = 102.854 / 30 x 12,857142...  =  44.080,29
+        #   base cesantias/prima = 642.857,14 + 44.080,29 = 686.937,43
+        #   cesantias  = 686.937,43
+        #   intereses  = 686.937,43 x 0,12          =  82.432,49
+        #   prima x 2  = 686.937,43 / 2 = 343.468,715 -> 343.468,72 c/u
+        #   vacaciones = 642.857,14 / 2 (sin auxilio) = 321.428,57
+        #   total = 686.937,43 + 82.432,49 + 686.937,44 + 321.428,57 = 1.777.735,93
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("50000.00")
+        obligacion.dias_laborados_semana = 3
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert obligacion.valor == Decimal("642857.14")
+        assert resultado.final_balance().principal == Decimal("1777735.93")
+        assert resultado.alertas == []
+        conceptos = [item.concept for item in resultado.items]
+        assert any("auxilio de transporte $44,080.29" in c for c in conceptos)
+
+    def test_salario_diario_por_encima_de_2_smmlv_no_suma_auxilio_transporte(self):
+        # 100.000 x 7 / 7 x 30 = 3.000.000 > 2 x 877.803 = 1.755.606 (2020):
+        # sin auxilio, mismo total que un salario mensual de 3.000.000
+        # (3.000.000 x 2,62 = 7.860.000,00).
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("100000.00")
+        obligacion.dias_laborados_semana = 7
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert resultado.final_balance().principal == Decimal("7860000.00")
+        assert not any("auxilio" in item.concept for item in resultado.items)
+
+    def test_salario_mensual_sin_salario_diario_no_suma_auxilio_transporte(self):
+        # La respuesta del despacho se limito al trabajo domestico por dias:
+        # un contrato con salario mensual directo (salario_diario None) se
+        # liquida exactamente igual que antes, aunque gane menos de 2 SMMLV.
+        # 1.000.000 x 2,62 = 2.620.000,00.
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1000000.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert resultado.final_balance().principal == Decimal("2620000.00")
+
+    def test_salario_diario_sin_auxilio_configurado_para_el_anio_alerta_y_no_lo_suma(self):
+        # AUXILIO_TRANSPORTE se siembra 2010-2026: para un contrato que termina
+        # en 2005 no hay valor -> alerta NO bloqueante y prestaciones sin auxilio.
+        #   salario = 20.000 x 3 / 7 x 30 = 257.142,86 (<= 2 x 381.500)
+        #   cesantias 257.142,86 + intereses 30.857,14 + prima 2 x 128.571,43
+        #   + vacaciones 128.571,43 = 673.714,29
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2005, 1, 1),
+            fecha_fin=date(2005, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("20000.00")
+        obligacion.dias_laborados_semana = 3
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert resultado.final_balance().principal == Decimal("673714.29")
+        assert len(resultado.alertas) == 1
+        assert "auxilio de transporte" in resultado.alertas[0].lower()
 
 
 def _obligacion_tributaria(
@@ -4566,3 +4702,54 @@ def test_tributario_marca_obligacion_prescrita_sin_cambiar_el_total():
     assert marcado.final_balance() == referencia.final_balance()
 
 
+
+
+# --- Sprint 79: las costas nunca generan interes (regla general del despacho) ---
+
+
+def test_sprint79_civil_costas_no_cambian_el_interes_y_suman_en_seco():
+    # Misma obligacion Civil con y sin costas, liquidada 6 meses despues del
+    # origen: el interes debe ser IDENTICO (las costas no generan interes) y el
+    # total debe diferir exactamente en el monto de costas (8.645.000,00, mismo
+    # caso de referencia de test_civil_familia_genera_evento_de_costas...).
+    def _obligacion(con_costas):
+        obligacion = _obligacion_puntual(valor=_Decimal("123500000.00"))
+        obligacion.fecha_origen = _date(2024, 6, 1)
+        if con_costas:
+            obligacion.costas_tipo_proceso = "declarativo_general"
+            obligacion.costas_instancia = "primera"
+        return obligacion
+
+    fecha_corte = _date(2024, 12, 1)
+    sin = CivilFamiliaStrategy().liquidar([_obligacion(False)], [], fecha_corte=fecha_corte)
+    con = CivilFamiliaStrategy().liquidar([_obligacion(True)], [], fecha_corte=fecha_corte)
+
+    assert sin.final_balance().interest > _Decimal("0.00")
+    assert con.final_balance().interest == sin.final_balance().interest
+    assert con.final_balance().costas == _Decimal("8645000.00")
+    assert con.final_balance().total() - sin.final_balance().total() == _Decimal("8645000.00")
+
+
+@pytest.mark.parametrize("suma_unica", [False, True])
+def test_sprint79_honorarios_costas_no_generan_interes_con_o_sin_suma_unica(suma_unica):
+    # Honorarios = 1M + 10M*10% = 2M; costas = 10M*5% = 500.000,00.
+    def _obligacion(costas_pct):
+        obligacion = _obligacion_honorarios(
+            cuota_litis_pactada_pct=Decimal("10.00"),
+            costas_pct_manual=costas_pct,
+            tasa_efectiva_anual=Decimal("12.00"),
+            fecha_origen=date(2025, 1, 1),
+        )
+        obligacion.aplica_indexacion_ipc = suma_unica
+        return obligacion
+
+    fecha_corte = date(2025, 7, 1)
+    sin = HonorariosStrategy().liquidar([_obligacion(None)], [], fecha_corte=fecha_corte)
+    con = HonorariosStrategy().liquidar(
+        [_obligacion(Decimal("5.00"))], [], fecha_corte=fecha_corte
+    )
+
+    assert sin.final_balance().interest > Decimal("0.00")
+    assert con.final_balance().interest == sin.final_balance().interest
+    assert con.final_balance().costas == Decimal("500000.00")
+    assert con.final_balance().total() - sin.final_balance().total() == Decimal("500000.00")

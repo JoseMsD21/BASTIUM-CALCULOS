@@ -8,6 +8,7 @@ from app.engine.indexation.historical_index import (
     _IPC_MENSUAL,
     _IPC_VARIACION_ANUAL,
     _TRAMOS_IBC_USURA,
+    get_auxilio_transporte_for_year,
     get_ibc_usura_for_date,
     get_ipc_for_date,
     get_ipc_interpolado_for_date,
@@ -429,3 +430,23 @@ def test_tramos_fuera_de_rango_disponible_lanza_value_error():
     # "fuera de rango" de verdad.
     with pytest.raises(ValueError):
         get_tramos_ibc_usura_between(date(1960, 1, 1), date(1960, 1, 5))
+
+
+def test_auxilio_transporte_2026_valor_conocido():
+    # Sprint 96 (seguimiento): SMMLV 2026 1.750.905 + auxilio 249.095 = 2.000.000.
+    assert get_auxilio_transporte_for_year(2026) == Decimal("249095.00")
+
+
+def test_auxilio_transporte_2010_primer_anio_disponible():
+    assert get_auxilio_transporte_for_year(2010) == Decimal("61500.00")
+
+
+def test_auxilio_transporte_2020_valor_conocido_interior_del_rango():
+    assert get_auxilio_transporte_for_year(2020) == Decimal("102854.00")
+
+
+def test_auxilio_transporte_fuera_de_rango_lanza_value_error():
+    with pytest.raises(ValueError):
+        get_auxilio_transporte_for_year(2027)
+    with pytest.raises(ValueError):
+        get_auxilio_transporte_for_year(2009)

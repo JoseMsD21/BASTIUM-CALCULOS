@@ -494,3 +494,32 @@ def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):
 
     assert ruta.exists()
     assert ruta.stat().st_size > 0
+
+
+def test_generate_muestra_costas_como_rubro_propio_antes_del_gran_total(tmp_path, monkeypatch):
+    # Sprint 79: las costas procesales son un rubro propio (no generan interes),
+    # sumado en seco al gran total -- se muestran justo antes de "GRAN TOTAL".
+    llamadas = _capturar_tablas(monkeypatch)
+    ruta = tmp_path / "liquidacion_costas.pdf"
+    summary = _summary()
+    summary["saldo_final_costas"] = "$200,000.00"
+
+    JudicialPDFGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", summary, _table_data()
+    )
+
+    etiquetas = [fila[0] for fila in llamadas[0]]
+    indice = etiquetas.index("Costas Procesales (no generan interés)")
+    assert llamadas[0][indice][1] == "$200,000.00"
+    assert etiquetas[indice + 1] == "GRAN TOTAL ADEUDADO"
+
+
+def test_generate_no_muestra_costas_sin_costas(tmp_path, monkeypatch):
+    llamadas = _capturar_tablas(monkeypatch)
+    ruta = tmp_path / "liquidacion_sin_costas.pdf"
+
+    JudicialPDFGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    assert not any(fila[0].startswith("Costas Procesales") for fila in llamadas[0])

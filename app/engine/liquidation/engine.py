@@ -79,7 +79,9 @@ class LiquidationCore:
             "CAPITAL_FACTURA",
             "MULTA_SANCIONATORIA",
             "HONORARIOS_PROFESIONALES",
-            "COSTAS_PROCESALES",
+            # COSTAS_PROCESALES ya NO es capital (Sprint 79): va a su propio
+            # componente PendingDebt.costas, que nunca genera interes -- ver
+            # la rama dedicada en _process_event.
             "VACACIONES",
             "IMPUESTO_A_CARGO",
             # SALARIO_DEJADO_DE_PERCIBIR (Sprint 93): el salario mismo (no solo
@@ -140,7 +142,8 @@ class LiquidationCore:
 
     def _capital_base_actual(self) -> Decimal:
         """Capital que efectivamente alimenta el interes diario en este instante --
-        principal solo, o principal + indexacion bajo Suma Unica. Se usa tanto para
+        principal solo, o principal + indexacion bajo Suma Unica (nunca las costas
+        procesales, que viven aparte en PendingDebt.costas -- Sprint 79). Se usa tanto para
         acumular interes (_accrue_time_passage) como para el LiquidationItem.capital_base
         que ve el juez al auditar la liquidacion (ver docstring de LiquidationItem): sin
         esto, el rubro auditado no coincidiria con la base que realmente generó el
@@ -211,6 +214,14 @@ class LiquidationCore:
             amount = Decimal(str(event.payload.get("amount", "0.00")))
             self._current_debt = BalanceEngine.add_principal(self._current_debt, amount)
 
+        elif event.event_type == "COSTAS_PROCESALES":
+            # Sprint 79 -- respuesta del despacho (16/11/2026): "las costas procesales
+            # NO generan intereses ... la regla es general: aplica en cualquier area del
+            # derecho y algoritmo" (con o sin Suma Unica). Se acumulan en un componente
+            # aparte que _capital_base_actual() nunca suma, y entran "en seco" al total.
+            amount = Decimal(str(event.payload.get("amount", "0.00")))
+            self._current_debt = BalanceEngine.add_costas(self._current_debt, amount)
+
         elif event.event_type == "INTEREST":
             amount = Decimal(str(event.payload.get("amount", "0.00")))
             interest_amount += amount
@@ -237,7 +248,8 @@ class LiquidationCore:
             raise ValueError(
                 f"Tipo de evento no reconocido: '{event.event_type}'. "
                 "Debe ser uno de los conceptos de capital registrados en "
-                "_capital_concepts, o bien 'INTEREST', 'INDEXATION' o 'PAYMENT'."
+                "_capital_concepts, o bien 'COSTAS_PROCESALES', 'INTEREST', "
+                "'INDEXATION' o 'PAYMENT'."
             )
 
         rb = RunningBalance(date=event.date, debt=self._current_debt, event_type=event.event_type)

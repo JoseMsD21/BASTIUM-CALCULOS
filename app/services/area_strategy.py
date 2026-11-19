@@ -16,6 +16,7 @@ from app.engine.currency.converter import convertir_a_pesos
 from app.engine.currency.trm_provider import ManualTRMProvider, SFCTRMProvider, TRMProvider
 from app.engine.financial.rate import Rate
 from app.engine.indexation.historical_index import (
+    get_auxilio_transporte_for_year,
     get_ipc_interpolado_for_date,
     get_ipc_interpolado_mensual_for_date,
     get_smlmv_for_year,
@@ -30,6 +31,7 @@ from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.salario_domestico import (
+    auxilio_transporte_domestico,
     calcular_ibc_seguridad_social_domestico,
     salario_diario_a_mensual,
 )
@@ -224,6 +226,7 @@ def _fusionar_resultados(
             indexation=sum(
                 (estado.indexation for estado in ultimo_estado.values()), Decimal("0.00")
             ),
+            costas=sum((estado.costas for estado in ultimo_estado.values()), Decimal("0.00")),
         )
         items_fusionados.append(
             replace(
@@ -247,6 +250,7 @@ def _fusionar_resultados(
             principal=sum((r.final_balance().principal for r in resultados), Decimal("0.00")),
             interest=sum((r.final_balance().interest for r in resultados), Decimal("0.00")),
             indexation=sum((r.final_balance().indexation for r in resultados), Decimal("0.00")),
+            costas=sum((r.final_balance().costas for r in resultados), Decimal("0.00")),
         )
         # Cada obligacion aislada ya causo su propio interes de cierre (el que corre
         # entre su ultimo evento y fecha_corte, ver LiquidationCore.process()) en su
@@ -843,6 +847,7 @@ class ComercialStrategy(AreaStrategy):
                 principal=saldo.principal,
                 interest=saldo.interest - ajuste["sancion"],
                 indexation=saldo.indexation,
+                costas=saldo.costas,
             )
             items.append(
                 LiquidationItem(
@@ -1243,7 +1248,10 @@ class LaboralStrategy(AreaStrategy):
         # sociales, no se extendio a cotizaciones de seguridad social en
         # este sprint).
         dias_trabajados = (obligacion.fecha_fin - obligacion.fecha_inicio).days
-        eventos, monto_prestaciones = self._eventos_prestaciones_sociales(obligacion)
+        auxilio_transporte, alerta_auxilio = self._auxilio_transporte_domestico(obligacion)
+        eventos, monto_prestaciones = self._eventos_prestaciones_sociales(
+            obligacion, auxilio_transporte
+        )
 
         if obligacion.incluir_seguridad_social:
             self._eventos_seguridad_social(obligacion, dias_trabajados, eventos)
@@ -1320,6 +1328,8 @@ class LaboralStrategy(AreaStrategy):
             )
         if alerta_mora_no_calculada is not None:
             resultado = self._agregar_alerta(resultado, alerta_mora_no_calculada)
+        if alerta_auxilio is not None:
+            resultado = self._agregar_alerta(resultado, alerta_auxilio)
         return resultado
 
     def _resolver_valor_pactado(self, obligacion) -> None:
@@ -1347,10 +1357,51 @@ class LaboralStrategy(AreaStrategy):
                 obligacion.salario_diario, obligacion.dias_laborados_semana
             )
 
-    def _eventos_prestaciones_sociales(self, obligacion) -> tuple[list, Decimal]:
+    def _auxilio_transporte_domestico(self, obligacion) -> tuple[Decimal, str | None]:
+        """Auxilio de transporte mensual proporcional de un contrato de
+        trabajo domestico por dias (Sprint 96, seguimiento) -- retorna
+        `(auxilio, alerta)`. Respuesta del despacho (23/08/2026): "Aplica para
+        salarios de hasta 2 SMMLV. Para trabajo domestico por dias o jornadas
+        fraccionadas, se liquida estricta y proporcionalmente a los dias
+        efectivamente laborados en el mes (Auxilio_Mensual / 30) *
+        Dias_Trabajados. Ademas, este auxilio forma parte obligatoria de la
+        base de liquidacion para cesantias y prima de servicios."
+
+        - Solo cuando `salario_diario`/`dias_laborados_semana` estan poblados
+          (la respuesta se limito al trabajo domestico por dias); el resto de
+          contratos Laborales no cambia (auxilio 0).
+        - Auxilio mensual y SMMLV del tope: los del año de `fecha_fin` (mismo
+          criterio que el piso de IBC de seguridad social de este contrato).
+        - Tope: `obligacion.valor` ya resuelto por `_resolver_valor_pactado`
+          (salario mensual equivalente via `salario_diario_a_mensual`).
+        - Sin AUXILIO_TRANSPORTE configurado para ese año: auxilio 0 y alerta
+          NO bloqueante (no se inventa un valor ni se tumba la liquidacion).
+        """
+        if obligacion.salario_diario is None or obligacion.dias_laborados_semana is None:
+            return Decimal("0.00"), None
+        anio = obligacion.fecha_fin.year
+        try:
+            auxilio_mensual = get_auxilio_transporte_for_year(anio)
+        except ValueError as error:
+            return Decimal("0.00"), (
+                f"Auxilio de transporte no incluido en la base de cesantías y prima: {error} "
+                "Agréguelo en Configuración > Parámetros legales (AUXILIO_TRANSPORTE)."
+            )
+        auxilio = auxilio_transporte_domestico(
+            auxilio_mensual=auxilio_mensual,
+            dias_laborados_semana=obligacion.dias_laborados_semana,
+            salario_mensual_equivalente=obligacion.valor,
+            smmlv_mensual=get_smlmv_for_year(anio),
+        )
+        return auxilio, None
+
+    def _eventos_prestaciones_sociales(
+        self, obligacion, auxilio_transporte: Decimal = Decimal("0.00")
+    ) -> tuple[list, Decimal]:
         """Genera los eventos de capital de las 4 prestaciones estatutarias
         (cesantias/intereses/prima/vacaciones) via LaborScheduler mas costas
-        procesales, si aplican.
+        procesales, si aplican. `auxilio_transporte` (Sprint 96, seguimiento)
+        entra solo en la base de cesantias y prima -- ver LaborScheduler.
 
         dias_trabajados_prestaciones (Sprint 30, corregido 2026-08-03):
         conteo inclusivo (+1) sobre base comercial de 360 dias (12 meses de
@@ -1366,6 +1417,7 @@ class LaboralStrategy(AreaStrategy):
             salario_base=obligacion.valor,
             dias_trabajados=dias_trabajados_prestaciones,
             fecha_liquidacion=obligacion.fecha_fin,
+            auxilio_transporte=auxilio_transporte,
         ).generate()
 
         monto_prestaciones = sum((e.payload["amount"] for e in eventos), Decimal("0.00"))

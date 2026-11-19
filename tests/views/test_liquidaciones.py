@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -527,3 +528,40 @@ def test_botones_exportar_tienen_icono_y_clase_primaria(qtbot):
     assert view.boton_exportar_pdf.property("class") == "primary"
     assert not view.boton_exportar_word.icon().isNull()
     assert view.boton_exportar_word.property("class") == "primary"
+
+
+def _resultado_con_costas() -> LiquidationResult:
+    # Sprint 79: costas como componente propio (no generan interes).
+    resultado = _resultado_de_prueba()
+    item = resultado.items[0]
+    debt = PendingDebt(
+        principal=Decimal("427900.00"),
+        interest=Decimal("1200.50"),
+        indexation=Decimal("300.00"),
+        costas=Decimal("5000.00"),
+    )
+    balance = RunningBalance(date=item.date, debt=debt, event_type="LIQUIDATION_CUTOFF")
+    return LiquidationResult(items=[replace(item, balance=balance)])
+
+
+def test_muestra_costas_como_rubro_propio_cuando_existen(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_con_costas(), expediente_id=1)
+
+    assert view.etiqueta_costas.isVisible()
+    assert "5000.00" in view.etiqueta_costas.text()
+    # 427900.00 + 1200.50 + 300.00 + 5000.00 (costas en seco) = 434400.50
+    assert "434400.50" in view.etiqueta_saldo_final.text()
+
+
+def test_oculta_costas_cuando_no_hay(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.etiqueta_costas.isVisible()

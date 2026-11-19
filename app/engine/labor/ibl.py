@@ -91,13 +91,11 @@ def calcular_tasa_reemplazo(
 
 # Regimenes pensionales historicos anteriores a la Ley 797/2003 (Sprint 70/91,
 # respuesta del despacho 2026-08-22): calcular_tasa_reemplazo (arriba) SOLO
-# cubre la formula vigente desde 2004 en adelante. Estas funciones son
-# aisladas -- ninguna esta conectada todavia a un router por fecha de
-# causacion: las fechas exactas de vigencia de cada regimen (cuando empieza y
-# termina cada uno) siguen sin confirmar, y enrutar mal una liquidacion real a
-# un regimen equivocado seria un error de dominio grave. Ver Pendientes.md,
-# Sprint 70, seccion "Definicion de Hecho" (pendiente el criterio de
-# seleccion por fecha).
+# cubre la formula vigente desde 2004 en adelante. Desde la respuesta del
+# despacho del 16/11/2026 (fechas exactas de vigencia de cada regimen), el
+# router por fecha de causacion vive en app/engine/labor/vigencia_pensional.py
+# (regimen_por_fecha / calcular_tasa_reemplazo_por_fecha), que despacha a
+# estas funciones.
 def calcular_tasa_reemplazo_regimen_1985_1989() -> Decimal:
     """Regimen de Ley 33 de 1985 y Ley 71 de 1988: tasa de reemplazo fija del
     75%, sin variables dinamicas (respuesta del despacho, Sprint 70,
@@ -153,12 +151,8 @@ def calcular_tasa_reemplazo_invalidez_grado_2(semanas_cotizadas: int) -> Decimal
     exige minimo 800 semanas cotizadas. Base 54% desde 800 semanas, +2% por
     cada bloque de 50 semanas adicionales, tope 75% (respuesta del despacho,
     Sprint 70, 22/08/2026 -- coincide con la plantilla P9 del despacho ya
-    citada en el Sprint 91, filas 81-91).
-
-    NO existe una funcion equivalente para invalidez grado 1 todavia: el tope
-    que trajo esta misma respuesta del despacho (60%) no coincide con el que
-    ya habia confirmado la plantilla P9 (75%, Sprint 91) -- discrepancia sin
-    resolver, ver Preguntas-Para-Abogado-Abiertas.md."""
+    citada en el Sprint 91, filas 81-91). El despacho reconfirmo el 16/11/2026
+    que el tope de 75% es el del Grado 2 (no el del Grado 1)."""
     if semanas_cotizadas < 800:
         raise ValueError(
             "La pension de invalidez grado 2 exige minimo 800 semanas cotizadas."
@@ -166,6 +160,36 @@ def calcular_tasa_reemplazo_invalidez_grado_2(semanas_cotizadas: int) -> Decimal
     bloques = (semanas_cotizadas - 800) // 50
     tasa = Decimal("54.00") + Decimal(bloques) * Decimal("2.00")
     return Rounding.money(min(tasa, Decimal("75.00")))
+
+
+def calcular_tasa_reemplazo_invalidez_grado_1(semanas_cotizadas: int) -> Decimal:
+    """Pension de invalidez, grado 1: base 45% del IBL por 500 semanas
+    cotizadas, +1,5% por cada bloque completo de 50 semanas adicionales, tope
+    60% (alcanzado a las 1.000 semanas). Respuesta del despacho, Sprint 70/91
+    (seguimiento), 16/11/2026: "El tope correcto es el 60% del IBL [...] El
+    75% corresponde a la Invalidez Grado 2" -- resuelve la discrepancia con la
+    plantilla P9 (que mostraba 75% para este grado).
+
+    Por debajo de 500 semanas la formula confirmada no define tasa: se lanza
+    ValueError (mismo criterio que el minimo de 800 del Grado 2) en vez de
+    extrapolar."""
+    if semanas_cotizadas < 500:
+        raise ValueError(
+            "La formula de pension de invalidez grado 1 parte de 500 semanas cotizadas."
+        )
+    bloques = (semanas_cotizadas - 500) // 50
+    tasa = Decimal("45.00") + Decimal(bloques) * Decimal("1.50")
+    return Rounding.money(min(tasa, Decimal("60.00")))
+
+
+def calcular_tasa_reemplazo_invalidez(grado: int, semanas_cotizadas: int) -> Decimal:
+    """Despacha la tasa de reemplazo de invalidez segun el grado (1 o 2).
+    Cualquier otro grado lanza ValueError: el despacho solo confirmo esos dos."""
+    if grado == 1:
+        return calcular_tasa_reemplazo_invalidez_grado_1(semanas_cotizadas)
+    if grado == 2:
+        return calcular_tasa_reemplazo_invalidez_grado_2(semanas_cotizadas)
+    raise ValueError(f"Grado de invalidez no soportado: {grado} (solo 1 o 2).")
 
 
 def calcular_densidad_semanas(periodos_cotizados: list[tuple[date, date]]) -> int:

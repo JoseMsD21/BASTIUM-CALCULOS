@@ -7,7 +7,7 @@ import database.session as session_module
 from database.models import ParametroLegal
 
 
-def test_migrar_siembra_las_39_claves_del_catalogo():
+def test_migrar_siembra_las_40_claves_del_catalogo():
     from scripts.migrate_parametros_legales import migrar
 
     migrar()
@@ -37,6 +37,7 @@ def test_migrar_siembra_las_39_claves_del_catalogo():
         "IBC_CONSUMO_ORDINARIO",
         "USURA_CONSUMO_ORDINARIO",
         "UVT",
+        "AUXILIO_TRANSPORTE",
         "EXTEMPORANEIDAD_PCT_MENSUAL",
         "INEXACTITUD_PCT",
         "INEXACTITUD_AGRAVADA_PCT",
@@ -85,6 +86,48 @@ def test_migrar_uvt_2026_coincide_con_el_valor_conocido():
     assert fila.valor == Decimal("52374.00")
 
 
+def test_migrar_auxilio_transporte_2025_coincide_con_el_valor_conocido():
+    from scripts.migrate_parametros_legales import migrar
+
+    migrar()
+    session = session_module.get_session()
+    fila = (
+        session.query(ParametroLegal)
+        .filter(
+            ParametroLegal.clave == "AUXILIO_TRANSPORTE",
+            ParametroLegal.vigente_desde == date(2025, 1, 1),
+        )
+        .one()
+    )
+    session.close()
+    assert fila.valor == Decimal("200000.00")
+
+
+def test_migrar_siembra_auxilio_transporte_en_una_base_ya_sembrada_sin_esa_clave():
+    # Una bastium.db sembrada antes de este sprint ya tiene las demas claves:
+    # la siembra es idempotente POR CLAVE, asi que AUXILIO_TRANSPORTE se agrega
+    # en el siguiente arranque sin duplicar nada.
+    from scripts.migrate_parametros_legales import migrar
+
+    migrar()
+    session = session_module.get_session()
+    session.query(ParametroLegal).filter(ParametroLegal.clave == "AUXILIO_TRANSPORTE").delete()
+    session.commit()
+    total_sin_auxilio = session.query(ParametroLegal).count()
+    session.close()
+
+    assert migrar() == 1
+
+    session = session_module.get_session()
+    filas_auxilio = (
+        session.query(ParametroLegal).filter(ParametroLegal.clave == "AUXILIO_TRANSPORTE").count()
+    )
+    total = session.query(ParametroLegal).count()
+    session.close()
+    assert filas_auxilio == 17  # 2010-2026
+    assert total == total_sin_auxilio + 17
+
+
 def test_migrar_ibc_usura_primer_tramo_1997_coincide_con_inicio_y_fin():
     from scripts.migrate_parametros_legales import migrar
 
@@ -120,7 +163,7 @@ def test_migrar_es_idempotente():
 
     primera = migrar()
     segunda = migrar()
-    assert primera == 39
+    assert primera == 40  # 39 + AUXILIO_TRANSPORTE (Sprint 96, seguimiento)
     assert segunda == 0
 
 
