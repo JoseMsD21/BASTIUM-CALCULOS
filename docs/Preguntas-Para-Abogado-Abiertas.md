@@ -127,9 +127,10 @@ de archivo (Excel/CSV) que ya aportaron para 2003-2026?
 2002. Si la fuente exacta que menciona el despacho no está en un archivo descargable, sirve la referencia
 (nombre de la publicación DANE, o el enlace) para extraerla directamente.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** Sólo se cuenta con el histórico del IPC desde 2003.
 
-**Fecha:**
+**Fecha:** 16/11/2026
+
 ---
 
 ## Sprint 18 (seguimiento 3) — Discrepancia numérica entre la tabla granular verificada (PSAA16-10554) y las "tarifas duras" que aportó el despacho
@@ -166,9 +167,10 @@ antes de tocar el motor de cálculo)?
 artículo/página exacto del Acuerdo (o la fuente que corresponda) de donde salen esos rangos, para
 verificarlos igual que se hizo con la tabla que ya está implementada.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** No, la tabla de "tarifas duras" NO debe reemplazar la tabla granular oficial. La tabla granular del Acuerdo PCSJA20-11556 (que actualizó al PSAA16-10554) es el motor maestro obligatorio (Art. 366, num. 4, CGP). El rango sugerido (ej. 3% a 7.5%) corresponde exclusivamente al Artículo 2, numeral 1 para "Procesos Declarativos Verbales en Primera Instancia con pretensiones pecuniarias de Mayor Cuantía". El software debe usar la tabla granular como base y, si se permite un override manual, emitir una alerta de validación si se sale de los rangos del Acuerdo.
 
-**Fecha:**
+**Fecha:** 16/11/2026
+
 ---
 
 ## Sprint 70/91 (seguimiento) — Fechas exactas de vigencia por régimen, invalidez Grado 1, y "régimen de transición"
@@ -200,9 +202,17 @@ resuelve con la tabla de "Régimen 1985-1989"/"ISS Pre-Ley 100" ya dada?
 **Qué necesito exactamente:** una tabla de régimen → fecha desde → fecha hasta (o "vigente"), la
 confirmación del tope de invalidez Grado 1, y la aclaración sobre el régimen de transición.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** Fechas exactas:
+Ley 33 de 1985: 13 de febrero de 1985.
+Ley 71 de 1988: 28 de enero de 1989.
+Acuerdo 049 de 1990 (Dec. 758/1990): 18 de abril de 1990.
+Ley 100 de 1993: 1° de abril de 1994 (sector privado/nacional), hasta el 30 de junio de 1995 (orden territorial).
+Ley 797 de 2003: 29 de enero de 2003.
+Invalidez Grado 1: El tope correcto es el 60% del IBL (45% base por 500 semanas + 1.5% por cada 50 semanas adicionales, alcanzando el tope a las 1.000 semanas). El 75% corresponde a la Invalidez Grado 2.
+Régimen de transición (Art. 36 Ley 100/1993): NO es un régimen aparte. Es un mecanismo de remisión normativa que solo preserva tres elementos del régimen anterior: Edad, Tiempo/Semanas y Monto (Tasa de Reemplazo). Todas las demás condiciones (reglas de IBL, prescripción, intereses, topes) se rigen por las normas generales de la Ley 100 de 1993 y el Acto Legislativo 01 de 2005.
 
-**Fecha:**
+**Fecha:** 16/11/2026
+
 ---
 
 ## Sprint 76 — Fórmula de tasa del Art. 1617/2232 C.C.: ¿lineal diaria, efectiva compuesta diaria, o mensual con prorrateo de 30 días?
@@ -302,7 +312,9 @@ implementa hoy la Opción B. Cambiarla afecta a las 6 áreas del derecho (todas 
 no solo Civil/Familia.
 
 **Respuesta del despacho:**
-En obligaciones de dinero puro y litigios comerciales simples, el cobro del 6% se hace con la fórmula lineal de interés simple sin anatocismo. Aunque en la tasación de perjuicios y daño emergente/lucro cesante, las Altas Cortes exigen la tasa técnica mensual equivalente derivada de la E.A.
+En obligaciones de dinero puro y litigios comerciales simples, el cobro del 6% se hace con la fórmula lineal de interés simple sin anatocismo. Aunque en la tasación de perjuicios y daño emergente/lucro cesante, las Altas Cortes exigen la tasa técnica mensual equivalente derivada de la E.A. Depende de la naturaleza de la obligación, resolviendo la contradicción así:
+Obligación Civil de Crédito Ordinario (Simple): Debe usarse la Opción A (Fórmula Lineal Simple: 0.06 / 365). Usar fórmulas compuestas (Opción C) en deuda civil pura viola la prohibición de anatocismo de los Arts. 1617 y 2235 del C.C.
+Liquidación de Perjuicios (Daño emergente/Lucro cesante en sentencias declarativas): Debe usarse la tasa pura actuarial mensual (0.0048676), conforme a la doctrina de la Sala de Casación Civil de la CSJ para fórmulas de descuento a valor presente. Podría estudiarse si se deja lineal simple para ejecución de títulos civiles y una tasa pura actuarial mensual (0.0048676) para cuantificación de perjuicios.
 
 Qué podría hacerse?
 El sistema puede tener un conmutador (flag en UI):
@@ -377,10 +389,11 @@ algoritmo, o las costas deberían sumarse al final del cálculo sin generar inte
 bajo Suma Única.
 
 **Respuesta del despacho:**
-Las costas procesales como expensas y agencias en derecho son una sanción de moralización, no son un capital de crédito.
+Las costas procesales como expensas y agencias en derecho son una sanción de moralización, no son un capital de crédito. Es decir, las costas procesales NO generan intereses.
 
 Qué se debe hacer:
-Las costas procesales NO deben incluirse en la base que genera el interés civil del 6% bajo el algoritmo de Suma Única. Se suman al final, en seco: Gran_Total = Capital_Indexado + Intereses_Mora_Calculados + Costas_Aprobadas.
+Un SÍ a que la regla es general: aplica en cualquier área del derecho y algoritmo. Las costas se suman "en seco" al final: Gran_Total = Capital_Indexado + Intereses_Mora + Costas_Aprobadas.
+Prelación de pagos (imputación): 1°) Costas procesales aprobadas y gastos de cobro; 2°) Intereses moratorios causados; 3°) Indexación/Reajuste de capital; 4°) Capital principal (Arts. 1629, 1653, 2495 C.C. y 446 CGP). Las costas procesales NO deben incluirse en la base que genera el interés civil del 6% bajo el algoritmo de Suma Única. Se suman al final, en seco: Gran_Total = Capital_Indexado + Intereses_Mora_Calculados + Costas_Aprobadas.
 
 En síntesis:
 # 1. HONORARIOS (Interés civil sobre capital indexado)
@@ -435,9 +448,10 @@ en qué área de BASTIUM debería aparecer el formulario/cálculo (o si se neces
 **Qué necesito exactamente:** un sí/no sobre si es relevante para el despacho, y la asignación de área para
 poder conectar la fórmula (ya lista) a una pantalla y a una liquidación real.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** Sí, a futuro mediano se espera tener este tipo de casos, por ello la maxima prioridad es desarrollar primero los cálculos en derecho de familia, civil y laboral, este tipo de casos de derecho administrativo pueden venir paulatinamente a la firma. Sí, es relevante para litigio contra entidades públicas. Debe residir en un módulo independiente y aislado (ej. una 7ª área o submódulo específico de "Condenas Estado CPACA"). No puede mezclarse con el motor civil/comercial/tributario porque posee un régimen dual único (10 meses a tasa DTF, luego 1.5x IBC) y una causal de cese de intereses a los 3 meses por inactividad del acreedor (Art. 192.4 CPACA), lo que rompería la lógica de los otros motores.
 
-**Fecha:**
+**Fecha:** 16/11/2026
+
 ---
 
 ## Sprint 84 (seguimiento) — Imputación proporcional (Art. 804 E.T.) y tope suspensivo por demanda contenciosa
@@ -464,9 +478,10 @@ admisión de demanda, fecha de sentencia, u otros)?
 **Qué necesito exactamente:** confirmación de si estas reglas son prioritarias para el despacho ahora
 mismo, y si es así, los campos exactos que hacen falta capturar para implementarlas correctamente.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** Ambas reglas aplican de forma general a toda obligación tributaria. La imputación proporcional es imperativa (no se imputa primero a intereses como en lo civil). Campos nuevos obligatorios en el formulario: fecha_admision_demanda, fecha_tope_24m (calculado: admisión + 24 meses), fecha_notificacion_sentencia y fecha_reanudacion_interes (calculado: notificación + 11 días).
 
-**Fecha:**
+**Fecha:** 16/11/2026
+
 ---
 
 ## Sprint 85 — Retroactivo pensional: tasa de mora del Art. 141 Ley 100, y vigencia del incremento 14%/7%
@@ -494,9 +509,10 @@ confirmarla. ¿Sigue vigente hoy ese incremento, o ya no aplica?
 usura que ya calcula BASTIUM, o el fundamento y la tabla de la tasa correcta si es distinta; (2) un sí/no
 sobre la vigencia actual del incremento 14%/7%, con la norma/sentencia que lo respalde si sigue vigente.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** 1. Tasa de mora: Es la tasa máxima de interés moratorio vigente (tasa de usura) certificada por la Superfinanciera. Excepción: Si la entidad prueba buena fe estricta o cambio jurisprudencial, solo aplica la indexación por IPC, sin intereses de usura.
+2. Incremento 14%/7%: NO sigue vigente. La Corte Constitucional (SU-140 de 2019) determinó que no aplican para pensiones causadas con posterioridad a la Ley 100 de 1993 o al Acto Legislativo 01 de 2005.
 
-**Fecha:**
+**Fecha:** 16/11/2026
 
 ---
 
@@ -521,9 +537,170 @@ Nacional? Alternativamente, ¿pueden aportar los archivos Excel originales de P1
 
 **Qué necesito exactamente:** los 4 datos/tablas de arriba, o el archivo Excel original.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** Al tratarse de datos de entidades oficiales, dificilmente creo que pueden generarse por fórmula dinámica. Podríamos importarlas como tablas de datos parametrizadas (.csv / DB Table) con interpolación lineal. Sólo se tienen los siguientes datos:
 
-**Fecha:**
+1. TABLA 2: FACTORES ACTUARIALES FAC1 Y FAC2 POR EDAD Y SEXO (Fuente: Decreto 1296 de 2022, Artículo 1, Tabla 2 - Resolución 1555 de 2010 SFC)
+
+| Edad | FAC1_Hombres | FAC1_Mujeres | FAC2_Hombres | FAC2_Mujeres |
+|---|---|---|---|---|
+| 55 | 258.712212 | 243.005182 | 0.369543 | 0.311687 |
+| 56 | 255.775386 | 239.546338 | 0.381199 | 0.322235 |
+| 57 | 252.738260 | 235.977078 | 0.393132 | 0.333081 |
+| 58 | 249.598775 | 232.296362 | 0.405334 | 0.344225 |
+| 59 | 246.355000 | 228.506137 | 0.417797 | 0.355667 |
+| 60 | 243.005182 | 224.606020 | 0.430511 | 0.367403 |
+| 61 | 239.546338 | 220.596052 | 0.443465 | 0.379431 |
+| 62 | 235.977078 | 216.476560 | 0.456646 | 0.391747 |
+| 63 | 232.296362 | 212.248425 | 0.470038 | 0.404345 |
+| 64 | 228.506137 | 207.912956 | 0.483532 | 0.417217 |
+| 65 | 224.606020 | 203.471943 | 0.497111 | 0.430356 |
+| 66 | 220.596052 | 198.927674 | 0.510762 | 0.443751 |
+| 67 | 216.476560 | 194.283137 | 0.524466 | 0.457390 |
+| 68 | 212.248425 | 189.541818 | 0.538207 | 0.471261 |
+| 69 | 207.912956 | 184.707913 | 0.551966 | 0.485348 |
+| 70 | 203.471943 | 179.786208 | 0.565725 | 0.499635 |
+| 71 | 198.927674 | 174.782204 | 0.579465 | 0.514104 |
+| 72 | 194.283137 | 169.702078 | 0.593165 | 0.528734 |
+| 73 | 189.541818 | 164.552725 | 0.606808 | 0.543503 |
+| 74 | 184.707913 | 159.341662 | 0.620372 | 0.558388 |
+| 75 | 179.786208 | 154.077066 | 0.633837 | 0.573365 |
+| 76 | 174.782204 | 148.767735 | 0.647184 | 0.588406 |
+| 77 | 169.702078 | 143.423124 | 0.660392 | 0.603484 |
+| 78 | 164.552725 | 138.053206 | 0.673442 | 0.618571 |
+| 79 | 159.341662 | 132.668444 | 0.686313 | 0.633634 |
+| 80 | 154.077066 | 127.279561 | 0.698988 | 0.648645 |
+| 81 | 148.767735 | 121.897577 | 0.711448 | 0.663572 |
+| 82 | 143.423124 | 116.533716 | 0.723675 | 0.678385 |
+| 83 | 138.053206 | 111.199165 | 0.735655 | 0.693051 |
+| 84 | 132.668444 | 105.904739 | 0.747370 | 0.707542 |
+| 85 | 127.279561 | 100.661169 | 0.758807 | 0.721827 |
+| 86 | 121.897577 | 95.478330 | 0.769955 | 0.735880 |
+| 87 | 116.533716 | 90.365266 | 0.780801 | 0.749677 |
+| 88 | 111.199165 | 85.329825 | 0.791336 | 0.763196 |
+| 89 | 105.904739 | 80.378652 | 0.801555 | 0.776422 |
+| 90 | 100.661169 | 75.516659 | 0.811453 | 0.789343 |
+
+2. FORMULACIÓN DE LA SERIE Y ACTUALIZACIÓN CON DTF PENSIONAL (Fuente: Decreto 1296 de 2022, Artículo 1)
+
+Para actualizar la Reserva Actuarial ($VR$) a la fecha de cálculo con el DTF Pensional, se utiliza una Tasa Real de Rendimiento (TIRR) del 3% ($1.03$).
+
+La fórmula de cálculo del DTF Pensional por período anual es:
+
+```
+DTF_Pensional_i = 1.03 * (1 + (INF_i / 100))
+```
+
+Donde:
+- INF_i: Variación anual del Índice de Precios al Consumidor (IPC) certificado por el DANE para el año calendario inmediatamente anterior.
+- Prorrateo: Se prorratea según la cantidad de días efectivamente transcurridos dentro de cada período.
+
+3. FÓRMULA EXACTA DEL FACTOR ACTUARIAL 3 (FAC3) (Fuente: Decreto 1296 de 2022, Artículo 1)
+
+Ambas variantes propuestas en la normativa son correctas y complementarias, dependiendo de si el trabajador registra cotizaciones o tiempos reconocidos previos al período omitido objeto del cálculo actuarial:
+
+Variante 1: Estándar (Sin tiempos cotizados previos al período omitido). Se utiliza cuando $t$ corresponde únicamente al tiempo a convalidar del período omitido actual:
+
+```
+FAC3 = ( (1.03^t) - 1 ) / ( (1.03^(t + n)) - 1 )
+```
+
+Variante 2: Con tiempo acumulado previo ($t_1$). Se utiliza cuando existe sumatoria de tiempos cotizados u omitidos previos ($t_1 = t + \text{tiempos previos}$):
+
+```
+FAC3 = [ ((1.03^t1) - 1) / t1 ] / [ ((1.03^(t1 + n)) - 1) / (t1 + n) ]
+```
+
+Donde:
+- t: Tiempo de convalidación a la fecha de corte (en años y fracción, redondeado a 6 decimales).
+- n: Tiempo faltante desde la fecha de corte ($FC$) hasta la edad de referencia ($FR$).
+- t1: Sumatoria del tiempo omitido actual más los tiempos cotizados u omitidos previos de los que exista un pago.
+
+4. TABLA 1: SALARIOS MEDIOS NACIONALES (SMN) (Fuente: Decreto 1296 de 2022, Artículo 1, Tabla 1 - Decreto 2779 de 1994 / Res. 1588 de 1994 DANE)
+
+Expresada en términos de índice con base 1.000000 a los 12 años:
+
+| Edad | Salario_Medio | Edad | Salario_Medio |
+|---|---|---|---|
+| 12 | 1.000000 | 42 | 3.020004 |
+| 13 | 1.006649 | 43 | 3.041946 |
+| 14 | 1.135599 | 44 | 3.058210 |
+| 15 | 1.206678 | 45 | 3.068682 |
+| 16 | 1.279752 | 46 | 3.073323 |
+| 17 | 1.354687 | 47 | 3.072096 |
+| 18 | 1.431251 | 48 | 3.065019 |
+| 19 | 1.509273 | 49 | 3.052111 |
+| 20 | 1.588504 | 50 | 3.033468 |
+| 21 | 1.668693 | 51 | 3.009187 |
+| 22 | 1.749612 | 52 | 2.979401 |
+| 23 | 1.830933 | 53 | 2.944284 |
+| 24 | 1.912388 | 54 | 2.904026 |
+| 25 | 1.993652 | 55 | 2.858858 |
+| 26 | 2.074416 | 56 | 2.809030 |
+| 27 | 2.154318 | 57 | 2.754790 |
+| 28 | 2.233031 | 58 | 2.696446 |
+| 29 | 2.310209 | 59 | 2.634304 |
+| 30 | 2.385489 | 60 | 2.568691 |
+| 31 | 2.458524 | 61 | 2.499933 |
+| 32 | 2.528971 | 62 | 2.428355 |
+| 33 | 2.596463 | 63 | 2.354341 |
+| 34 | 2.660676 | 64 | 2.278237 |
+| 35 | 2.721264 | 65 | 2.200368 |
+| 36 | 2.777921 | 66 | 2.121119 |
+| 37 | 2.830357 | 67 | 2.040814 |
+| 38 | 2.878287 | 68 | 1.959800 |
+| 39 | 2.941441 | 69 | 1.878421 |
+| 40 | 2.959570 | 70 | 1.796985 |
+| 41 | 2.992482 | 71+ | 1.715798 |
+
+Regla de Interpolación para Edades No Enteras:
+
+```
+v0 = (d1 * v2 + d2 * v1) / (d1 + d2)
+```
+
+- v0: Salario Medio Nacional interpolado a la fecha intermedia.
+- v1: SMN a la edad en años cumplidos.
+- v2: SMN a la edad posterior.
+- d1: Días transcurridos desde el último cumpleaños.
+- d2: Días faltantes para el siguiente cumpleaños.
+
+5. REGISTRO DIRECTO DE LOS APARTADOS P10/P12/P13/P14 (Fuente: Decreto 1296 de 2022, Art. 1, incisos de cálculo actuarial)
+
+Los parámetros correspondientes a las secciones técnicas sin convertir expresan:
+
+Fórmula del Valor de la Reserva Actuarial (VRA):
+
+```
+VRA = [ (FAC1 * PR) + (FAC2 * AR) ] * FAC3
+```
+
+Comisión de Administración (CA) y Valor Final de la Reserva (VR):
+
+```
+CA = 0.005 * VRA   (0.5% del valor de la reserva)
+VR = VRA / (1 - CA) = VRA / 0.995
+```
+
+Salario de Referencia (SR):
+
+```
+SR = SB * ( SMN_FR / SMN_FC )
+```
+
+- SB: Salario Base de Liquidación actualizado a la fecha de corte.
+- SMN_FR: Salario Medio Nacional a la edad de referencia.
+- SMN_FC: Salario Medio Nacional a la edad a la fecha de corte.
+
+Auxilio Funerario de Referencia (AR):
+
+```
+Si PR < 5 SMLV   => AR = 5 SMLV
+Si 5 SMLV <= PR <= 10 SMLV => AR = PR
+Si PR > 10 SMLV  => AR = 10 SMLV
+```
+
+**Fecha:** 16/11/2026
+
 ---
 
 ## Sprint 94 (seguimiento) — aporte a salud en contrato realidad, y si el Decreto 0320/2026 reemplaza la regla de bonificación por servicio de la plantilla L8
@@ -552,6 +729,9 @@ realidad del sector privado (L7) o es exclusiva de "servidores territoriales"?
 **Qué necesito exactamente:** el porcentaje de aporte a salud reclamable, y una confirmación explícita de
 si el Decreto 0320/2026 sustituye la regla de bonificación de L8 o es un concepto aparte.
 
+**Respuesta del despacho:** 1. Salud en contrato realidad: El empleador sancionado debe cubrir el 100% del cálculo actuarial o de la cotización omisa. No puede descontar retroactivamente la porción del 4% a cargo del trabajador, pues sería beneficiarse de su propia culpa.
+2. Decreto 0320/2026: Es una bonificación exclusiva para servidores públicos y empleados territoriales. NO reemplaza ni aplica a las relaciones de trabajo del sector privado (plantilla L8), donde rigen las reglas del CST y la prohibición de bonificaciones pensionales extralegales posteriores a julio de 2010.
+
 **Fecha:** 23/08/2026 (reformulación tras respuesta no concluyente del 22/08/2026)
 
 ---
@@ -575,6 +755,12 @@ festivas (HEFD/HEFN) incorporan la misma tabla progresiva del recargo dominical/
 o tienen su propio porcentaje fijo?
 
 **Qué necesito exactamente:** el porcentaje (o tabla de vigencia) de cada uno de los 4 conceptos.
+
+**Respuesta del despacho:** Las horas extra festivas SÍ incorporan la tabla progresiva del recargo dominical/festivo. HED: 25% (Factor 1.25).
+HEN: 75% (Factor 1.75).
+HEFD y HEFN (Tramo 1: Jul 2025 - Jun 2026, recargo festivo 80%): HEFD = 105% (Factor 2.05); HEFN = 155% (Factor 2.55).
+HEFD y HEFN (Tramo 2: Jul 2026 - Jun 2027, recargo festivo 90%): HEFD = 115% (Factor 2.15); HEFN = 165% (Factor 2.65).
+HEFD y HEFN (Tramo 3: Jul 2027 en adelante, recargo festivo 100%): HEFD = 125% (Factor 2.25); HEFN = 175% (Factor 2.75).
 
 **Fecha:** 23/08/2026 (reformulación tras respuesta parcial del 22/08/2026)
 
@@ -602,6 +788,8 @@ formulario Laboral (`app/views/obligaciones.py`) ya se conectó — no dependía
 del despacho, era solo trabajo de UI pendiente (ver `Pendientes.md`, Sprint 96, "Cierre"). Esta nota queda
 solo como registro histórico; la única pregunta que sigue abierta en esta sección es la del auxilio de
 transporte, arriba.
+
+**Respuesta del despacho:** Sí, es un concepto que debe liquidarse. Aplica para salarios de hasta 2 SMMLV. Para trabajo doméstico por días o jornadas fraccionadas, se liquida estricta y proporcionalmente a los días efectivamente laborados en el mes (Auxilio_Mensual / 30) * Días_Trabajados. Además, este auxilio forma parte obligatoria de la base de liquidación para cesantías y prima de servicios.
 
 **Fecha:** 23/08/2026 (seguimiento tras respuesta del 22/08/2026)
 
@@ -641,6 +829,10 @@ cuota alimentaria/pensional a efectos de cómo se calcula o se reporta?
 **Qué necesito exactamente:** la decisión de arquitectura y alcance, las dos tablas de mortalidad de
 inválidos completas, y la confirmación sobre la mecánica de "fruto civil".
 
+**Respuesta del despacho:** 1. Arquitectura: El módulo de "Fruto Civil" debe residir en el área Civil (acciones reivindicatorias, resolución de contratos), no como submodo de familia.
+2. Fruto Civil: NO debe usar el mecanismo de cuota recurrente pensional (IBL × tasa de reemplazo). Eso es un error de derecho sustancial. El fruto civil se calcula sobre el rendimiento financiero u operativo real del activo (ej. canon de arrendamiento de mercado), indexado mes a mes por IPC, deduciendo solo gastos ordinarios de conservación (Art. 964 C.C.).
+3. Tablas de mortalidad: Las tablas completas de hombres y mujeres inválidos son dependencias de datos externos (SFC) que deben importarse como tablas parametrizadas, no generarse por fórmula.
+
 **Fecha:** 23/08/2026 (reformulación tras respuesta no concluyente del 22/08/2026); punto (d) agregado
 2026-08-25 tras revisión con el usuario.
 
@@ -672,6 +864,49 @@ quedar sugeridas/marcables en una lista para que el abogado confirme cuáles apl
 **Qué necesito exactamente:** el catálogo completo (tipo de proceso → subtipo → obligaciones predefinidas),
 empezando por Civil/Familia si es el área de mayor volumen, y la respuesta a (c).
 
+**Respuesta del despacho:** Se plantea la siguiente estructura general de procesos por area jurídica, aunque puede nutrirse más adelante:
+
+**1. Rama Civil y Comercial**
+
+- [PUERTA LÓGICA] ¿La obligación dineraria es expresa, clara, exigible y no está siendo objetada por el deudor/aseguradora?
+  - SÍ: Proceso Ejecutivo. Descripción: Trámite de cobro forzado. Requiere presentación del título y, en materia de seguros, acreditar la reclamación formal y el vencimiento de un mes sin objeción de la compañía.
+  - NO: Proceso Declarativo (Verbal o Verbal Sumario). Descripción: Resuelve controversias sustanciales o negociales donde el derecho está en debate (ej. objeción de pólizas, responsabilidad civil). Exige como requisito ineludible de procedibilidad la audiencia de conciliación extrajudicial.
+- [PUERTA LÓGICA] ¿Se busca finiquitar la comunidad sobre un derecho real?
+  - Proceso Divisorio. Descripción: Liquidación material o venta del bien común al 100% del avalúo; está expresamente excluido de requerir conciliación previa.
+- [PUERTA LÓGICA] ¿El deudor es persona natural (no comerciante) en cesación de pagos?
+  - Trámite de Insolvencia. Descripción: Procedimiento de negociación de deudas con salvaguardas legales que prohíben condonar impuestos e imponen una prelación estricta de pagos (1ra clase: alimentos, créditos laborales, fisco).
+
+**2. Rama de Familia**
+
+- [PUERTA LÓGICA] ¿Se busca el pago de obligaciones de sustento incumplidas?
+  - Ejecutivo de Alimentos. Descripción: Ejecución que incluye la liquidación pormenorizada de capital vencido e intereses moratorios (0,5% mensual), permitiendo el embargo y la retención anticipada de depósitos judiciales.
+- [PUERTA LÓGICA] ¿Una persona mayor de edad con discapacidad requiere formalizar asistencia jurídica?
+  - Proceso de Adjudicación Judicial de Apoyos. Descripción: Proceso de jurisdicción voluntaria o verbal sumario utilizado cuando los apoyos no han sido formalizados de mutuo acuerdo ante notario o centro de conciliación.
+
+**3. Rama Laboral y de Seguridad Social**
+
+- [PUERTA LÓGICA] ¿Existe litigio sobre expectativas de derechos (ej. transición pensional, afiliaciones omitidas)?
+  - Proceso Ordinario Laboral. Descripción: Proceso que dirime controversias sustantivas (como el régimen de transición o cálculos actuariales), donde la conciliación extrajudicial es apenas potestativa y no un requisito de procedibilidad.
+
+**4. Rama Penal**
+
+- [PUERTA LÓGICA] ¿En qué etapa se encuentra la acción penal?
+  - Fase Previa: Audiencias Preliminares. Descripción: Trámites ante el juez de control de garantías para dictar medidas de aseguramiento, imputaciones o legalidad probatoria. Puede fenecer mediante archivo (orden del fiscal) o preclusión (decisión del juez).
+  - Fase Resolutiva: Juicio Oral / Preacuerdos. Descripción: Práctica de pruebas con inmediación, o bien, negociación de culpabilidad que requiere la verificación judicial para evitar vicios del consentimiento.
+  - Fase Post-Condena: Incidente de Reparación Integral. Descripción: Trámite de naturaleza estrictamente civil extracontractual incrustado en el proceso penal. Requiere demanda en regla, formulación de pretensiones jurídicas directas e indirectas, y no admite variaciones oficiosas por el juez.
+
+**5. Rama Contencioso Administrativa**
+
+- [PUERTA LÓGICA] ¿Se persigue una pretensión patrimonial o resarcimiento contra el Estado?
+  - Medios de Control Ordinarios. Descripción: Demandas (ej. reparación directa, nulidad y restablecimiento) que exigen la notificación personal y obligatoria a la entidad demandada, al Ministerio Público y a la Agencia Nacional de Defensa Jurídica del Estado.
+- [PUERTA LÓGICA] ¿Se busca el pago de una decisión ya en firme?
+  - Trámite de Pago Oficioso. Descripción: Procedimiento de cobro derivado de sentencias, laudos o conciliaciones ejecutoriadas.
+
+**6. Rama Disciplinaria y Sancionatoria**
+
+- [PUERTA LÓGICA] ¿Se imputan faltas o incumplimientos a un contratista estatal?
+  - Procedimiento Sancionatorio Contractual (Ley 1474). Descripción: Trámite que garantiza el derecho de uso de la palabra, la motivación de la decisión, y la posibilidad de finalizar por cesación del incumplimiento.
+
 **Fecha:** 26/08/2026
 
 ---
@@ -692,6 +927,9 @@ Conciliación, Resolución — con año y fecha exacta), y esto depende del cat�
 Sprint 105 o es independiente?
 
 **Qué necesito exactamente:** confirmación de (a) y la lista de campos exactos para (b).
+
+**Respuesta del despacho:** En lugar de solo texto debería ser un widget estructurado (Día/Mes). Un campo de texto libre es inviable por la gestión de años bisiestos, el cómputo de días hábiles/festivos (Art. 118 CGP) y la necesidad de indexación en base de datos.
+Campos exactos para el título: tipo_titulo (Enum: Sentencia, Acta, Laudo, etc.), numero_identificador_titulo, fecha_expedicion_otorgamiento, fecha_exigibilidad, es_primera_copia_ejecutiva (Boolean), fecha_ejecutoria, termino_prescripcion_anos y fecha_limite_prescripcion (calculado).
 
 **Fecha:** 26/08/2026
 
@@ -714,6 +952,8 @@ guardado en la obligación?
 
 **Qué necesito exactamente:** una respuesta entre las dos opciones — determina si `ObligacionFormDialog`
 pierde el checkbox actual o lo conserva.
+
+**Respuesta del despacho:** Implementación Híbrida. Mantener el checkbox en el formulario de captura (ObligacionFormDialog) para fijar la intención jurídica sustancial en la base de datos, Y ADEMÁS agregar un Toggle In-Situ de presentación en la pantalla de resultados ("Ver con/sin indexación"). Esto permite recalcular la vista en tiempo real para análisis de sensibilidad o debate pedagógico ante el juez, sin alterar el dato guardado de la obligación.
 
 **Fecha:** 26/08/2026
 
@@ -742,6 +982,8 @@ un caso real pendiente que dependa de esto ahora mismo?
 
 **Qué necesito exactamente:** confirmación de si la tasa de este algoritmo y la del Sprint 76/83 son la
 misma pieza, y si hay urgencia real de cablear esto a producción antes de resolver ambos puntos.
+
+**Respuesta del despacho:** Sí, la tasa_interes_mensual_pura del algoritmo tramo a tramo es exactamente la misma pieza (0.0048676) que debe usarse para la "Liquidación de Perjuicios / Valor" confirmada en el Sprint 76/83. Se puede usar lineal simple para ejecución de títulos civiles, y la tasa pura mensual (0.0048676) para cuantificación de perjuicios y algoritmos de suma única con abonos.
 
 **Fecha:** 23/08/2026 (seguimiento tras respuesta del 22/08/2026)
 
@@ -779,8 +1021,65 @@ rutina no tiene acceso directo a los sitios oficiales colombianos para verificar
 **Qué necesito exactamente:** confirmación de cuál modalidad de RAIS (Renta Vitalicia / Retiro Programado /
 ambas) debe implementar este sprint, y si aplica, el texto de la norma correspondiente.
 
-**Respuesta del despacho:**
+**Respuesta del despacho:** La Resolución 3023/2017 y 3099/2015 regulan el Saldo de Pensión Mínima (SPM) y parámetros de Retiro Programado, NO la mesada mensual de Renta Vitalicia. Bajo ninguna circunstancia la fórmula del Saldo de Pensión Mínima (SPM) ni los parámetros del Retiro Programado de la Resolución 3099 de 2015 (y su modificatoria la Resolución 3023 de 2017) equivalen o representan el cálculo de una mesada pensional bajo la modalidad de Renta Vitalicia Inmediata.
 
+Denominar el resultado del cálculo de retiro programado o la prueba de suficiencia del saldo de pensión mínima (SPM) como "Monto Mensual de Renta Vitalicia RAIS" sería un vicio de tipicidad pensional y una incorrección actuarial grave. En el ordenamiento jurídico colombiano, la Renta Vitalicia y el Retiro Programado son productos jurídicos y financieros sustancialmente distintos, administrados por entidades diferentes y sujetos a regímenes de riesgo y recálculo contrapuestos. Se pueden implementar mejor estos modulos:
+
+Módulo 1: Renta Vitalicia Inmediata (Anualidad P11 / Cálculo de Aseguradora): Este módulo calcula la mesada fija e irrevocable que otorgaría una compañía de seguros a partir del capital total aportado, utilizando la fórmula actuarial de prima única (factor de capital necesario $\text{FAC1}$ / tablas de mortalidad de la Superintendencia Financiera).
+
+Módulo 2: Retiro Programado y Test de Suficiencia de Saldo (Res. 3099/2015 y Res. 3023/2017): Este módulo liquida la mesada variable para el primer año de Retiro Programado y efectúa la prueba del Saldo de Pensión Mínima (SPM) para verificar si el afiliado califica para la Garantía Estatal de Pensión Mínima del artículo 65 de la Ley 100 de 1993.
+
+**1. Fórmulas de Evaluación del Saldo de Pensión Mínima (SPM)**
+
+El documento establece matemáticamente cómo calcular si el saldo de la cuenta individual es suficiente para cubrir una pensión mínima vitalicia. La fórmula principal para el Saldo de Pensión Mínima ($SPM$) según el mes de cálculo ($s$) es:
+
+$$SPM(s) = \frac{VA[SMM, \Omega(x,y,...), r, f, \Delta, \mu, TM^{\Omega}, s] + AF(SMM, x, r, f, \Delta, TM^x, s)}{(1 - g)}$$
+
+Donde:
+- $s$: Mes de cálculo (0 = enero, 1 = febrero, ..., 11 = diciembre).
+- $VA$: Valor presente actuarial de la renta vitalicia para el causante y beneficiarios.
+- $AF$: Valor presente actuarial del auxilio funerario.
+- $g$: Factor de gastos, fijado en 5% ($0.05$).
+- $SMM$: Salario Mínimo Mensual vigente.
+
+Despliegue del Valor Presente Actuarial ($VA$) y Auxilio Funerario ($AF$). Para enero ($s=0$):
+
+$VA = SMM \left[ \sum_{k=1}^{w(\Omega)} \sum_{t=1}^{12} \frac{M_t \cdot (1+f)^{k-1}(1+\Delta)^{k-1}}{(1+i)^{k-1+t/12}} {}_{k-1+t/12}p_{\Omega} \right] (1+\mu)$
+
+$AF = 5 \cdot SMM \sum_{k=1}^{w-x} \frac{(1+f)^{k-1}(1+\Delta)^{k-1}}{(1+i)^{k-1/2}} {}_{k-1\vert{}q_x}$
+
+Tasa de descuento compuesta: $1+i = (1+f) \cdot (1+r)$
+
+Para los demás meses ($s = 1, 2, ..., 11$):
+
+$VA = SMM \left[ \sum_{k=1}^{w(\Omega)} \sum_{t=1}^{12} \frac{M_t(1+f)^{k-1}(1+\Delta)^{k-1}}{(1+i)^{k-1+t/12}} {}_{k-1+t/12}p_{\Omega} - \sum_{t=1}^{s} \frac{M_t}{(1+i)^{t/12}} {}_{t/12}p_{\Omega} \right] \frac{(1+i)^{s/12}}{{}_{s/12}p_{\Omega}} (1+\mu)$
+
+$AF = (1 - \frac{s}{12}) \cdot AF[..., 0] + \frac{s}{12} \cdot AF[SMM(1+\Delta), x+1, ..., 0]$
+
+Variables Paramétricas para el Motor de Cálculo:
+- $M_t$ (Mesadas): 2 en junio (14 mesadas), 2 en diciembre (13 y 14 mesadas), 1 en los demás meses.
+- $r$ (Tasa de interés real): Fijada inicialmente en 3.81% efectivo anual, pero actualizada semestralmente por el Ministerio de Hacienda.
+- $f$ (Inflación): Promedio móvil ponderado de la inflación de los últimos 3 años: $f = \frac{3 \cdot f_{A-1} + 2 \cdot f_{A-2} + f_{A-3}}{6}$.
+- $\Delta$: Incremento real esperado del salario mínimo.
+- $\mu$ (Factor de seguridad): Estimado en 0.6%, revisado semestralmente.
+- Mortalidad ($p$ y $q$): Basada en las Tablas de Mortalidad ($TM$) de la Superintendencia Financiera, considerando causante ($x$) y hasta 2 beneficiarios ($y, z$).
+
+**2. Retiro Programado**
+
+Nota Crítica para el Desarrollador: La Resolución 3023 de 2017 no provee una ecuación universal para liquidar la mesada en la modalidad de Retiro Programado.
+
+En su lugar, establece la siguiente regla de negocio algorítmica:
+- Si el capital en la cuenta individual es mayor o igual al $SPM$ calculado, la Administradora de Fondos de Pensiones (AFP) debe verificar si alcanza para un Retiro Programado.
+- Para hacer este cálculo, la AFP debe emplear su propia fórmula de cálculo según su nota técnica particular, la cual debe estar depositada y no objetada ante la Superintendencia Financiera.
+
+Impacto en Bastium: No se puede programar una única "fórmula de retiro programado de la Ley" basada en este documento, porque el cálculo dependerá de la estructura financiera y las bases técnicas específicas de la AFP correspondiente.
+
+**3. Renta Vitalicia Inmediata (Seguro de Anualidad)**
+
+La resolución define la Renta Vitalicia como una de las modalidades de pensión que el afiliado puede elegir. Su comportamiento dentro del flujo de la resolución es el siguiente:
+- El cálculo del SPM se usa como referente consultando los precios de las pólizas de Renta Vitalicia vigentes en el mercado.
+- Si el capital del afiliado es insuficiente para acceder a un Retiro Programado (según los cálculos de la AFP), la AFP está obligada a iniciar un proceso de cotización en el mercado asegurador para modalidades como la Renta Vitalicia.
+- Si ninguna Compañía Aseguradora de Vida presenta una oferta (es decir, el saldo es muy bajo para comprar la renta vitalicia), la AFP guarda el soporte de las cotizaciones fallidas e inicia el estudio para acceder a la Garantía de Pensión Mínima (si cumple edad y 1.150 semanas).
 
 **Fecha:** 20/09/2026
 
@@ -813,6 +1112,8 @@ clara de que el período posterior queda pendiente de liquidar hasta que se actu
 **Qué necesito exactamente:** una respuesta sí/no a cuál de las dos opciones (a o b) es la correcta desde
 el punto de vista jurídico — la tasa de usura es un techo legal certificado, no un índice que se pueda
 inferir como el IPC, así que no es una decisión que el código pueda tomar por su cuenta.
+
+**Respuesta del despacho:** NUNCA extrapolar. Opción (b). El sistema debe calcular intereses moratorios con precisión quirúrgica únicamente hasta el último día calendario con tasa de usura oficialmente certificada por la Superfinanciera. Para el período posterior, el sistema debe dejar el rubro como "Pendiente de Certificación Oficial" y emitir una alerta explícita en la interfaz y el reporte PDF, advirtiendo que el cálculo se suspende hasta la actualización de la tabla, en cumplimiento del principio de legalidad y certeza tributaria (Art. 338 C.P.).
 
 **Fecha:** 26/08/2026
 
