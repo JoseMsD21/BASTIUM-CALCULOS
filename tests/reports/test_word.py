@@ -437,3 +437,31 @@ def test_generate_incluye_cuerpo_legal_cuando_se_provee(tmp_path):
     documento = Document(str(ruta))
     texto_completo = "\n".join(p.text for p in documento.paragraphs)
     assert "Solicito la corrección del error aritmético, Art. 151 CPACA." in texto_completo
+
+
+def test_generate_muestra_costas_como_rubro_propio_antes_del_gran_total(tmp_path):
+    # Sprint 79: mismo criterio que el PDF.
+    ruta = tmp_path / "liquidacion_costas.docx"
+    summary = _summary()
+    summary["saldo_final_costas"] = "$200,000.00"
+
+    WordReportGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", summary, _table_data()
+    )
+
+    filas = [(f.cells[0].text, f.cells[1].text) for f in Document(str(ruta)).tables[0].rows]
+    etiquetas = [fila[0] for fila in filas]
+    indice = etiquetas.index("Costas Procesales (no generan interés)")
+    assert filas[indice][1] == "$200,000.00"
+    assert etiquetas[indice + 1] == "GRAN TOTAL ADEUDADO"
+
+
+def test_generate_no_muestra_costas_sin_costas(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_costas.docx"
+
+    WordReportGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    etiquetas = [f.cells[0].text for f in Document(str(ruta)).tables[0].rows]
+    assert not any(e.startswith("Costas Procesales") for e in etiquetas)

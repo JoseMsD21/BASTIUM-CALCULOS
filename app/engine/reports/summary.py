@@ -29,6 +29,12 @@ class ReportSummaryBuilder:
         # aqui solo cuando existe -- omitido por completo del diccionario cuando es
         # cero (no como string "$0.00") para que cada consumidor sepa mostrar la
         # linea con un simple `if "saldo_a_favor" in summary:`.
+        # Sprint 79: las costas procesales son un rubro propio que nunca genera
+        # interes (ya no van dentro de "saldo_final_capital"). Mismo patron
+        # opcional que saldo_a_favor: solo presente cuando hay costas.
+        if final_debt.costas > Decimal("0.00"):
+            summary["saldo_final_costas"] = self._format(final_debt.costas)
+
         total_saldo_a_favor = result.total_saldo_a_favor()
         if total_saldo_a_favor > Decimal("0.00"):
             summary["saldo_a_favor"] = self._format(total_saldo_a_favor)

@@ -221,6 +221,7 @@ def _fusionar_resultados(
             indexation=sum(
                 (estado.indexation for estado in ultimo_estado.values()), Decimal("0.00")
             ),
+            costas=sum((estado.costas for estado in ultimo_estado.values()), Decimal("0.00")),
         )
         items_fusionados.append(
             replace(
@@ -244,6 +245,7 @@ def _fusionar_resultados(
             principal=sum((r.final_balance().principal for r in resultados), Decimal("0.00")),
             interest=sum((r.final_balance().interest for r in resultados), Decimal("0.00")),
             indexation=sum((r.final_balance().indexation for r in resultados), Decimal("0.00")),
+            costas=sum((r.final_balance().costas for r in resultados), Decimal("0.00")),
         )
         # Cada obligacion aislada ya causo su propio interes de cierre (el que corre
         # entre su ultimo evento y fecha_corte, ver LiquidationCore.process()) en su
@@ -840,6 +842,7 @@ class ComercialStrategy(AreaStrategy):
                 principal=saldo.principal,
                 interest=saldo.interest - ajuste["sancion"],
                 indexation=saldo.indexation,
+                costas=saldo.costas,
             )
             items.append(
                 LiquidationItem(
