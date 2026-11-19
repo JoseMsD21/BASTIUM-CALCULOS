@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from sqlalchemy import func
+
 import database.session as session_module
 from app.core.exceptions import IPCMensualNoDisponibleError, ParametroNoDisponibleError
 from app.engine.time.calendar import CalendarUtils
@@ -1093,6 +1095,62 @@ def get_tramos_ibc_usura_between(inicio: date, fin: date) -> list[TramoIBCUsura]
             TramoIBCUsura(fila.vigente_desde, fila.vigente_hasta, ibc_anual, usura_anual)
         )
     return tramos
+
+
+# ---------------------------------------------------------------------------
+# Sprint 110 -- limite de certificacion de la usura (respuesta del despacho,
+# docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 110, 26/08/2026): "NUNCA
+# extrapolar. Opcion (b). El sistema debe calcular intereses moratorios con
+# precision quirurgica unicamente hasta el ultimo dia calendario con tasa de
+# usura oficialmente certificada por la Superfinanciera. Para el periodo
+# posterior, el sistema debe dejar el rubro como 'Pendiente de Certificacion
+# Oficial' y emitir una alerta explicita en la interfaz y el reporte PDF [...]
+# (Art. 338 C.P.)." A diferencia del IPC (get_ipc_interpolado_for_date, que
+# si tiene un fallback decidido en el Sprint 8), la usura es un techo legal
+# certificado: get_ibc_usura_for_date/get_tramos_ibc_usura_between siguen sin
+# extrapolar, y cada motor que la necesita corta el calculo en
+# get_ultima_fecha_certificada_ibc_usura() y deja el resto a $0 con la alerta
+# de mensaje_pendiente_certificacion_usura().
+# ---------------------------------------------------------------------------
+
+PENDIENTE_CERTIFICACION_OFICIAL = "Pendiente de Certificación Oficial"
+
+
+def get_ultima_fecha_certificada_ibc_usura() -> date | None:
+    """Ultimo dia calendario con tasa de usura certificada cargada en
+    parametros_legales (el `vigente_hasta` mas tardio de la clave
+    USURA_CONSUMO_ORDINARIO -- la misma fuente que get_tramos_ibc_usura_between,
+    asi que un mes nuevo agregado desde la GUI, app/views/configuracion.py,
+    corre este limite sin tocar codigo). None si no hay ningun tramo cargado
+    (configuracion incompleta, no "pendiente de certificacion": los motores
+    dejan que get_ibc_usura_for_date lance su ValueError de siempre)."""
+    session = session_module.get_session()
+    try:
+        ultima = (
+            session.query(func.max(ParametroLegal.vigente_hasta))
+            .filter(
+                ParametroLegal.clave == "USURA_CONSUMO_ORDINARIO",
+                ParametroLegal.vigente_hasta.is_not(None),
+            )
+            .scalar()
+        )
+    finally:
+        session.close()
+    return ultima
+
+
+def mensaje_pendiente_certificacion_usura(rubro: str, ultima_fecha_certificada: date) -> str:
+    """Texto unico de la alerta no bloqueante del Sprint 110 (pantalla de
+    resultados y PDF/Word, via LiquidationResult.alertas). `rubro` describe que
+    interes quedo suspendido (ej. "Indemnización moratoria (Art. 65 CST)")."""
+    fecha = ultima_fecha_certificada.strftime("%d/%m/%Y")
+    return (
+        f"{PENDIENTE_CERTIFICACION_OFICIAL} — {rubro}: el interés posterior al {fecha} "
+        "queda suspendido hasta que se actualice la tabla de tasas de usura certificadas "
+        f"por la Superfinanciera (último tramo cargado: {fecha}). El valor liquidado solo "
+        "incluye lo causado hasta esa fecha; no se extrapola ninguna tasa (principio de "
+        "legalidad y certeza tributaria, Art. 338 C.P.)."
+    )
 
 
 # ---------------------------------------------------------------------------

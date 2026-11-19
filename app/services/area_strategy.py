@@ -20,6 +20,7 @@ from app.engine.indexation.historical_index import (
     get_ipc_interpolado_for_date,
     get_ipc_interpolado_mensual_for_date,
     get_smlmv_for_year,
+    mensaje_pendiente_certificacion_usura,
 )
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
@@ -46,6 +47,8 @@ from app.engine.tax.actualizacion_867_1 import (
 from app.engine.tax.moratory_interest import (
     calcular_interes_moratorio_tributario,
     construir_rate_provider_moratorio_tributario,
+    fecha_fin_mora_certificada,
+    mora_pendiente_de_certificacion,
 )
 from app.engine.tax.renta_liquida import depurar_renta_liquida_gravable
 from app.engine.tax.sanciones import (
@@ -1540,9 +1543,18 @@ class LaboralStrategy(AreaStrategy):
         `(hay_mora, alerta_mora_no_calculada)`. `hay_mora` es lo que el resto
         de `liquidar()` necesita para la exclusion mutua con la indexacion
         IPC (ver docstring de la clase). `alerta_mora_no_calculada` no es
-        None cuando `_TRAMOS_IBC_USURA` (historical_index.py) no cubre
-        `fecha_referencia_mora` (Sprint 110) -- el llamador debe agregarlo
-        como alerta no bloqueante al `LiquidationResult` final.
+        None cuando la tabla de usura (parametros_legales) no cubre toda la
+        fase 2 hasta `fecha_referencia_mora` (Sprint 110) -- el llamador debe
+        agregarlo como alerta no bloqueante al `LiquidationResult` final.
+
+        Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar.
+        Opcion (b)"): la indemnizacion SI se liquida -- fase 1 completa y fase
+        2 solo hasta el ultimo dia con tasa de usura certificada
+        (MoratoryIndemnityCalculator ya corta ahi); el interes posterior queda
+        "Pendiente de Certificación Oficial" con alerta. Solo si la tabla
+        tiene un vacio interno (un mes intermedio sin cargar, no un simple
+        retraso en la certificacion) el calculador sigue lanzando ValueError,
+        y entonces se omite el rubro con la alerta de configuracion incompleta.
         """
         if obligacion.fecha_pago_total is not None:
             fecha_referencia_mora = min(obligacion.fecha_pago_total, fecha_corte)
@@ -1553,14 +1565,10 @@ class LaboralStrategy(AreaStrategy):
         alerta_mora_no_calculada = None
         if fecha_referencia_mora > obligacion.fecha_fin:
             monto_adeudado = monto_prestaciones
-            # Sprint 110: la tabla _TRAMOS_IBC_USURA no extrapola mas alla de
-            # su ultimo tramo cargado -- get_ibc_usura_for_date lanza
-            # ValueError para cualquier dia de la fase 2 (dia 721+) posterior
-            # a ese limite. Antes esto tumbaba la liquidacion completa sin
-            # capturar; se convierte en una alerta no bloqueante (mismo
-            # patron de manejo de excepciones de dominio que ya usa
-            # app/views/concurrency.py, Sprint 26) en vez de inventar un
-            # criterio de extrapolacion sin confirmar con el despacho.
+            # Sprint 110: defensa en profundidad -- con el corte en el ultimo
+            # dia certificado (ver docstring) esto solo lanza si la tabla de
+            # usura tiene un vacio interno; nunca debe tumbar la liquidacion
+            # completa (mismo patron de app/views/concurrency.py, Sprint 26).
             try:
                 mora = MoratoryIndemnityCalculator.calcular(
                     salario_mensual=obligacion.valor,
@@ -1571,11 +1579,18 @@ class LaboralStrategy(AreaStrategy):
             except ValueError as error:
                 alerta_mora_no_calculada = (
                     "Indemnización moratoria (Art. 65 CST) no se pudo calcular "
-                    f"completamente: {error} Actualizar la tabla de tasas de usura "
-                    "(_TRAMOS_IBC_USURA en historical_index.py) o confirmar con el "
-                    "despacho el criterio de extrapolación a aplicar."
+                    f"completamente: {error} Completar la tabla de tasas de usura "
+                    "certificadas (Configuración → parámetros legales, "
+                    "USURA_CONSUMO_ORDINARIO/IBC_CONSUMO_ORDINARIO)."
                 )
             else:
+                if mora.ultima_fecha_usura_certificada is not None:
+                    alerta_mora_no_calculada = mensaje_pendiente_certificacion_usura(
+                        "Indemnización moratoria (Art. 65 CST), fase 2 (intereses a la "
+                        f"tasa de usura, {mora.dias_fase2_pendientes_certificacion} días "
+                        "sin tasa certificada)",
+                        mora.ultima_fecha_usura_certificada,
+                    )
                 if mora.total > Decimal("0.00"):
                     hay_mora = True
                     eventos.append(
@@ -2133,6 +2148,11 @@ class TributarioStrategy(AreaStrategy):
         for mensaje in self._alertas_867_1_incompletas.values():
             resultado = self._agregar_alerta(resultado, mensaje)
 
+        for obligacion in obligaciones_deuda:
+            alerta = self._alerta_pendiente_certificacion_usura(obligacion, fecha_corte)
+            if alerta is not None:
+                resultado = self._agregar_alerta(resultado, alerta)
+
         if obligaciones_renta_liquida:
             obligacion_renta = obligaciones_renta_liquida[0]
             renta_liquida = depurar_renta_liquida_gravable(
@@ -2145,6 +2165,27 @@ class TributarioStrategy(AreaStrategy):
             resultado = replace(resultado, renta_liquida=renta_liquida)
 
         return resultado
+
+    def _alerta_pendiente_certificacion_usura(self, obligacion, fecha_corte: date) -> str | None:
+        """Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar.
+        Opcion (b)"): si esta obligacion causa interes E.T. 635 (impuesto, o
+        sancion con mora <= 3 años) y parte de su mora cae despues del ultimo
+        dia con tasa de usura certificada, ese interes quedo suspendido desde
+        ese dia (construir_rate_provider_moratorio_tributario lo deja a 0%) --
+        retorna la alerta "Pendiente de Certificación Oficial". None si toda la
+        mora esta certificada o si la obligacion no causa interes de usura
+        (sancion con mora > 3 años: solo IPC, Art. 867-1)."""
+        aplica_867_1 = aplica_actualizacion_867_1(obligacion.fecha_origen, fecha_corte)
+        es_impuesto = obligacion.categoria == "IMPUESTO_A_CARGO"
+        if not es_impuesto and aplica_867_1:
+            return None
+        ultima_certificada = mora_pendiente_de_certificacion(obligacion.fecha_origen, fecha_corte)
+        if ultima_certificada is None:
+            return None
+        rubro = f"interés moratorio E.T. art. 635 de '{obligacion.concepto}'"
+        if es_impuesto and aplica_867_1:
+            rubro += " y su actualización Art. 867-1 E.T. (topada por la tasa de usura plena)"
+        return mensaje_pendiente_certificacion_usura(rubro, ultima_certificada)
 
     def _alerta_techo_usura_867_1(self, obligacion, fecha_corte: date) -> str | None:
         """Detecta si el techo de usura (Art. 867-1 E.T., `calcular_indexacion_867_1_topada`)
@@ -2160,12 +2201,17 @@ class TributarioStrategy(AreaStrategy):
             return None
 
         capital = obligacion.valor
+        # Sprint 110: mismo periodo que _evento_actualizacion_867_1 (hasta el
+        # ultimo dia con tasa de usura certificada).
+        fecha_calculo = fecha_fin_mora_certificada(fecha_corte)
         interes_ya_liquidado = calcular_interes_moratorio_tributario(
-            capital, obligacion.fecha_origen, fecha_corte
+            capital, obligacion.fecha_origen, fecha_calculo
         )
-        indexacion_bruta = calcular_indexacion_867_1(capital, obligacion.fecha_origen, fecha_corte)
+        indexacion_bruta = calcular_indexacion_867_1(
+            capital, obligacion.fecha_origen, fecha_calculo
+        )
         indexacion_topada = calcular_indexacion_867_1_topada(
-            capital, obligacion.fecha_origen, fecha_corte, interes_ya_liquidado
+            capital, obligacion.fecha_origen, fecha_calculo, interes_ya_liquidado
         )
         if indexacion_topada >= indexacion_bruta:
             return None
@@ -2248,29 +2294,32 @@ class TributarioStrategy(AreaStrategy):
         app/engine/tax/actualizacion_867_1.py."""
         if obligacion.categoria == "IMPUESTO_A_CARGO":
             capital = obligacion.valor
-            # Sprint 110: calcular_interes_moratorio_tributario/
-            # calcular_indexacion_867_1_topada dependen de _TRAMOS_IBC_USURA
-            # (historical_index.py), que no extrapola mas alla de su ultimo
-            # tramo cargado -- antes esto tumbaba la liquidacion completa del
-            # expediente con un ValueError sin capturar. Se convierte en una
-            # alerta no bloqueante (mismo criterio que
-            # LaboralStrategy._eventos_mora_articulo_65) en vez de inventar
-            # un criterio de extrapolacion sin confirmar con el despacho --
-            # la actualizacion de esta obligacion queda en $0.00 hasta que se
-            # actualice la tabla o el despacho decida.
+            # Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA
+            # extrapolar. Opcion (b)"): la actualizacion del rubro Impuesto
+            # esta topada por el interes a la tasa de usura PLENA, que solo
+            # existe hasta el ultimo dia certificado -- se calcula completa
+            # (interes, IPC y techo) sobre ese mismo periodo, y lo posterior
+            # queda "Pendiente de Certificación Oficial" (alerta en
+            # _alerta_pendiente_certificacion_usura). Interpretacion: sin
+            # techo certificado no hay forma de verificar que la tasa
+            # combinada no supere la usura, asi que la indexacion de ese
+            # tramo tambien se suspende (ver docs/specifications).
+            fecha_calculo = fecha_fin_mora_certificada(fecha_corte)
+            # Defensa en profundidad: solo lanza si la tabla de usura tiene un
+            # vacio interno; nunca debe tumbar el expediente completo.
             try:
                 interes_ya_liquidado = calcular_interes_moratorio_tributario(
-                    capital, obligacion.fecha_origen, fecha_corte
+                    capital, obligacion.fecha_origen, fecha_calculo
                 )
                 monto = calcular_indexacion_867_1_topada(
-                    capital, obligacion.fecha_origen, fecha_corte, interes_ya_liquidado
+                    capital, obligacion.fecha_origen, fecha_calculo, interes_ya_liquidado
                 )
             except ValueError as error:
                 self._alertas_867_1_incompletas[obligacion.id] = (
                     "Actualización Art. 867-1 E.T. no se pudo calcular completamente "
-                    f"para '{obligacion.concepto}': {error} Actualizar la tabla de tasas "
-                    "de usura (_TRAMOS_IBC_USURA en historical_index.py) o confirmar con "
-                    "el despacho el criterio de extrapolación a aplicar."
+                    f"para '{obligacion.concepto}': {error} Completar la tabla de tasas "
+                    "de usura certificadas (Configuración → parámetros legales, "
+                    "USURA_CONSUMO_ORDINARIO/IBC_CONSUMO_ORDINARIO)."
                 )
                 monto = Decimal("0.00")
         else:
