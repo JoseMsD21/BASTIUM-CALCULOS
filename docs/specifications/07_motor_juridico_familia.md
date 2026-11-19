@@ -71,9 +71,19 @@ desde `ExpedienteFormDialog` (`app/views/expedientes.py`).
   operables listadas arriba. Desde el Sprint 70/91 (2026-08-23), el mismo modulo tambien trae
   `calcular_tasa_reemplazo_regimen_1985_1989`, `calcular_tasa_reemplazo_iss_pre_ley_100`,
   `calcular_tasa_reemplazo_ley_100_original` y `calcular_tasa_reemplazo_invalidez_grado_2` — formulas de
-  regimenes pensionales historicos confirmadas por el despacho, igual de aisladas, sin router por fecha de
-  causacion (las fechas exactas de vigencia de cada regimen siguen sin confirmar) ni wiring a ninguna
-  estrategia. La pension de invalidez grado 1 sigue sin funcion propia: su tope trae una discrepancia entre
-  dos fuentes del despacho (60% vs. 75%) sin resolver — ver `docs/Pendientes.md`, Sprint 70/91.
+  regimenes pensionales historicos confirmadas por el despacho. Desde el seguimiento del Sprint 70/91
+  (respuesta del despacho 16/11/2026):
+  - `app/engine/labor/vigencia_pensional.py` es el motor de vigencia por fecha de causacion:
+    `regimen_por_fecha(fecha)` devuelve la norma vigente segun las fechas exactas del despacho (Ley 33/1985:
+    13/02/1985; Ley 71/1988: 28/01/1989; Acuerdo 049/1990: 18/04/1990; Ley 100/1993: 01/04/1994, fecha
+    nacional; Ley 797/2003: 29/01/2003; cada una rige hasta el dia anterior a la siguiente) y
+    `calcular_tasa_reemplazo_por_fecha(fecha, semanas, ibl, smlmv)` despacha a la formula correspondiente.
+    Fechas anteriores al 13/02/1985 lanzan `ValueError`. La fecha territorial de la Ley 100 (hasta el
+    30/06/1995) no se usa: no hay dato del caso que distinga orden nacional/territorial.
+  - `calcular_tasa_reemplazo_invalidez_grado_1`: 45% por 500 semanas + 1,5% por cada 50 semanas adicionales,
+    tope 60% (a las 1.000 semanas); `calcular_tasa_reemplazo_invalidez(grado, semanas)` despacha grado 1/2.
+  - Regimen de transicion (Art. 36 Ley 100/1993): no es un regimen aparte; solo preserva edad, semanas y tasa
+    de reemplazo del regimen anterior (lo demas: Ley 100 y A.L. 01/2005). No modelado todavia en el router.
+  Todo sigue sin wiring a ninguna estrategia ni pantalla.
 - Costas judiciales con tabla real de rangos (hoy se ingresan como porcentaje manual en Honorarios) — ver
   `docs/Pendientes.md`, Sprint 18.

@@ -213,11 +213,9 @@ def test_tasa_reemplazo_smlmv_cero_lanza_error():
 # aisladas, sin conectar a ningun flujo de liquidacion todavia -- el router
 # por fecha de causacion (que regimen aplica a cada fecha) queda pendiente de
 # que el despacho confirme las fechas exactas de vigencia de cada regimen
-# (ver Pendientes.md, Sprint 70). La pension de invalidez Grado 1 tambien
-# queda fuera de esta implementacion: el tope que trajo el despacho (60%) no
-# coincide con el que ya habia confirmado una fuente anterior (75%, plantilla
-# P9 del despacho, Sprint 91) -- discrepancia sin resolver, ver pregunta de
-# seguimiento en Preguntas-Para-Abogado-Abiertas.md.
+# (ver Pendientes.md, Sprint 70). El router por fecha y la invalidez Grado 1
+# llegaron con la respuesta del 16/11/2026: ver mas abajo y
+# tests/engine/labor/test_vigencia_pensional.py.
 
 
 def test_tasa_reemplazo_regimen_1985_1989_es_fija_75_por_ciento():
@@ -321,6 +319,67 @@ def test_tasa_reemplazo_invalidez_grado_2_menos_de_800_semanas_lanza_error():
 
     with pytest.raises(ValueError):
         calcular_tasa_reemplazo_invalidez_grado_2(799)
+
+
+# Sprint 70/91 (seguimiento, respuesta del despacho 16/11/2026): invalidez
+# Grado 1 = 45% del IBL por 500 semanas + 1,5% por cada 50 semanas
+# adicionales, tope 60% (alcanzado a las 1.000 semanas). El 75% de la
+# plantilla P9 corresponde al Grado 2, no al Grado 1.
+
+
+def test_tasa_reemplazo_invalidez_grado_1_base_45_en_500_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_1
+
+    assert calcular_tasa_reemplazo_invalidez_grado_1(500) == Decimal("45.00")
+    # 549 semanas: todavia 0 bloques completos de 50 -> sigue en 45%.
+    assert calcular_tasa_reemplazo_invalidez_grado_1(549) == Decimal("45.00")
+    # 550 semanas: 1 bloque -> 46,5%.
+    assert calcular_tasa_reemplazo_invalidez_grado_1(550) == Decimal("46.50")
+
+
+def test_tasa_reemplazo_invalidez_grado_1_700_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_1
+
+    # 700 - 500 = 200 -> 4 bloques x 1,5% = 6% -> 51%.
+    assert calcular_tasa_reemplazo_invalidez_grado_1(700) == Decimal("51.00")
+
+
+def test_tasa_reemplazo_invalidez_grado_1_alcanza_tope_60_en_1000_semanas():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_1
+
+    # 999: 9 bloques -> 45 + 13,5 = 58,5%. 1000: 10 bloques -> 45 + 15 = 60%.
+    assert calcular_tasa_reemplazo_invalidez_grado_1(999) == Decimal("58.50")
+    assert calcular_tasa_reemplazo_invalidez_grado_1(1000) == Decimal("60.00")
+
+
+def test_tasa_reemplazo_invalidez_grado_1_no_sube_del_tope_60():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_1
+
+    # 1300: 16 bloques -> 45 + 24 = 69% -> topado a 60% (NO 75%, que es Grado 2).
+    assert calcular_tasa_reemplazo_invalidez_grado_1(1300) == Decimal("60.00")
+    assert calcular_tasa_reemplazo_invalidez_grado_1(1500) == Decimal("60.00")
+
+
+def test_tasa_reemplazo_invalidez_grado_1_menos_de_500_semanas_lanza_error():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez_grado_1
+
+    with pytest.raises(ValueError):
+        calcular_tasa_reemplazo_invalidez_grado_1(499)
+
+
+def test_tasa_reemplazo_invalidez_despacha_por_grado():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez
+
+    # Mismas semanas, distinto grado -> distinta formula y distinto tope.
+    assert calcular_tasa_reemplazo_invalidez(grado=1, semanas_cotizadas=1300) == Decimal("60.00")
+    assert calcular_tasa_reemplazo_invalidez(grado=2, semanas_cotizadas=1300) == Decimal("74.00")
+
+
+def test_tasa_reemplazo_invalidez_grado_desconocido_lanza_error():
+    from app.engine.labor.ibl import calcular_tasa_reemplazo_invalidez
+
+    with pytest.raises(ValueError):
+        calcular_tasa_reemplazo_invalidez(grado=3, semanas_cotizadas=1000)
 
 
 def test_densidad_semanas_calendario_real_vs_ano_comercial_360():
