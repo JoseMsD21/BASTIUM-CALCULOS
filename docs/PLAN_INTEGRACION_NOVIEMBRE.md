@@ -111,3 +111,24 @@ Nombres sugeridos para las actas: `AAAA-MM-DD - Acta - <tema>` y `AAAA-MM-DD - A
 1. Enviar al despacho las 6 preguntas del Sprint 118 y los seguimientos pendientes de los Sprints 76 y 79.
 2. Decidir en equipo si se integra la capa API (fase 3).
 3. Programar como sprint propio la corrección de `Numeric` sobre SQLite.
+
+## 8. Herramienta evaluada: NotebookLM como gestor de conocimiento (2026-11-19)
+
+Propuesta del equipo: usar Google NotebookLM con `notebooklm-py` para que Claude Code consulte la base de
+conocimiento del proyecto.
+
+| Aspecto | Resultado |
+|---|---|
+| Qué es `notebooklm-py` | Librería **no oficial** (github.com/teng-lin/notebooklm-py, MIT, un solo mantenedor). Usa endpoints internos de la web de NotebookLM con las **cookies de la cuenta**; trae servidor MCP y skill para Claude Code. Su propio README la recomienda solo para prototipos. |
+| API oficial | Solo en NotebookLM Enterprise (Google Cloud), en *preview*; permite gestionar cuadernos y fuentes, pero no documenta un endpoint para hacer preguntas. |
+| Costo (3–5 personas) | Gratis con Gmail; ~US$5/persona/mes con Google AI Plus; ~US$14/persona/mes con Workspace Business Standard (cifra de terceros); Enterprise ~US$9/licencia con mínimo de 15 (sin precio oficial confirmado). |
+| Límites | Gratis: 100 cuadernos y 50 fuentes por cuaderno; Plus: 200/100; Pro: 500/300 (página oficial de ayuda, sujetos a cambios). |
+| Escalabilidad | Los límites alcanzan por bastante tiempo. El cuello de botella es **mantener las fuentes sincronizadas**: los Docs de Drive se actualizan solos, pero PDFs y archivos subidos no, y los `.md` del repositorio nunca. |
+| Riesgos | Posible incumplimiento de los términos de Google y roturas sin aviso (endpoints no oficiales); exposición de credenciales completas de la cuenta; documentos jurídicos en cuentas personales (con Workspace no hay revisión humana ni entrenamiento). |
+
+**Recomendación:** no conectar `notebooklm-py` ni MCP no oficiales a cuentas con documentos reales. La base de
+conocimiento principal para Claude Code son los `.md` del repositorio (siempre al día, sin costo) más el conector
+de Google Drive para actas. NotebookLM puede usarse **manualmente desde la web, con cuentas Workspace**, como
+herramienta de consulta para el abogado y quienes no programan, alimentado con Google Docs de Drive. Si se quiere
+probar la integración, que sea con una cuenta dedicada y solo documentos no sensibles. Decisión pendiente del
+equipo (tarjeta en Backlog).
