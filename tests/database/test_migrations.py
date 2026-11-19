@@ -749,3 +749,31 @@ def test_dashboard_no_falla_con_esquema_desactualizado_de_obligaciones(
 
     view = DashboardView()
     qtbot.addWidget(view)
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_tope_suspensivo_sprint84(tmp_path):
+    """Sprint 84 (seguimiento): una bastium.db anterior no tiene
+    fecha_admision_demanda/fecha_notificacion_sentencia -- deben agregarse al
+    arrancar y la migracion debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_tope_suspensivo_tributario_sprint84 import migrar
+
+    db_path = tmp_path / "sin_tope_suspensivo.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fecha_admision_demanda")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fecha_notificacion_sentencia")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "fecha_admision_demanda" in columnas
+    assert "fecha_notificacion_sentencia" in columnas
+    assert migrar(db_path) is False

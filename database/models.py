@@ -364,6 +364,16 @@ class Obligacion(Base):
     # despido antes de cumplirse el plazo). Nula para INDEFINIDO.
     fecha_fin_pactada: Mapped[date | None] = mapped_column(Date, nullable=True)
 
+    # fecha_admision_demanda/fecha_notificacion_sentencia (Sprint 84, seguimiento):
+    # solo relevantes en TRIBUTARIO, cuando hay demanda ante lo contencioso
+    # administrativo. Tope suspensivo del interes moratorio: el interes deja de
+    # causarse despues de fecha_tope_24m (admision + 24 meses) y se reanuda en
+    # fecha_reanudacion_interes (notificacion + 11 dias). Esas dos fechas se
+    # CALCULAN (app/engine/tax/tope_suspensivo.py), no se guardan. Nulas = sin
+    # demanda contenciosa (comportamiento identico al anterior).
+    fecha_admision_demanda: Mapped[date | None] = mapped_column(Date, nullable=True)
+    fecha_notificacion_sentencia: Mapped[date | None] = mapped_column(Date, nullable=True)
+
     # salario_diario/dias_laborados_semana (Sprint 96): captura de un salario
     # pactado por dia (trabajo domestico por dias/jornada parcial, comun con
     # 1-3 dias/semana), en vez de un salario mensual directo. Cuando ambos

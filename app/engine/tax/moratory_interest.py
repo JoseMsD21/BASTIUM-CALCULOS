@@ -21,18 +21,15 @@ esta respuesta el motor usaba por error la formula compuesta -- ver el
 historial de este docstring para la discrepancia ya documentada desde el
 primer cierre del Sprint 84.
 
-La misma respuesta trajo ademas dos reglas nuevas que quedan FUERA de
-alcance de este cambio (no implementadas, documentadas como seguimiento en
-docs/Preguntas-Para-Abogado-Abiertas.md, Sprint 84 (seguimiento)): (1)
-"Imputacion Proporcional" (Art. 804 E.T.) -- un abono se reparte
-proporcionalmente entre capital/sancion/interes en vez de la regla civil de
-intereses primero, y (2) un "Tope Suspensivo" que congela el interes 24
-meses despues de admitida una demanda contenciosa hasta 11 dias despues de
-la sentencia. Ninguna de las dos es la pregunta que motivo este sprint (la
-convencion de dias del año), y ambas requieren datos (fecha de admision de
-demanda, fecha de sentencia, reglas de imputacion propias de Tributario) que
-el modelo actual no captura -- se documentan para no perderlas, no se
-implementan a ciegas.
+La misma respuesta trajo ademas dos reglas que se confirmaron por separado
+(Respondidas, "Sprint 84 (seguimiento)", respuesta del 16/11/2026) y ya
+estan implementadas fuera de este modulo: (1) "Imputacion Proporcional"
+(Art. 804 E.T.) -- AllocationEngine.allocate_proporcional_art_804, usada por
+TributarioStrategy -- y (2) el "Tope Suspensivo" por demanda contenciosa --
+app/engine/tax/tope_suspensivo.py, aplicado sobre el rate provider de cada
+obligacion en TributarioStrategy. `calcular_interes_moratorio_tributario`
+(abajo) sigue siendo capital fijo, sin abonos ni tope suspensivo: solo lo
+usa el calculo del techo/actualizacion del Art. 867-1 E.T.
 """
 
 import calendar

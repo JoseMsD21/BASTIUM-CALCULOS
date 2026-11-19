@@ -3344,3 +3344,127 @@ def test_liquidacion_contrato_laboral_sigue_guardando_puntual_sin_reajuste(qtbot
     assert guardada.categoria == "LIQUIDACION_CONTRATO_LABORAL"
     assert guardada.tipo_reajuste_anual == TipoReajusteAnual.NINGUNO
     session.close()
+
+
+# --- Sprint 84 (seguimiento): tope suspensivo por demanda contenciosa -------
+
+
+def _dialog_impuesto_tributario(qtbot, monkeypatch) -> tuple[ObligacionFormDialog, int]:
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_categoria.setCurrentIndex(
+        dialog.combo_categoria.findData("IMPUESTO_A_CARGO")
+    )
+    dialog.campo_concepto.setText("Impuesto de renta 2022")
+    dialog.campo_valor.setText("10000000.00")
+    dialog.campo_fecha_origen.setDate(date(2022, 2, 1))
+    return dialog, expediente_id
+
+
+def test_campos_de_demanda_contenciosa_solo_visibles_con_la_casilla_marcada(qtbot, monkeypatch):
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    assert dialog.check_demanda_contenciosa.isVisible() is True
+    assert dialog.campo_fecha_admision_demanda.isVisible() is False
+    assert dialog.campo_fecha_notificacion_sentencia.isVisible() is False
+
+    dialog.check_demanda_contenciosa.setChecked(True)
+    assert dialog.campo_fecha_admision_demanda.isVisible() is True
+    assert dialog.campo_fecha_notificacion_sentencia.isVisible() is True
+    assert dialog.label_fecha_tope_24m.isVisible() is True
+    assert dialog.label_fecha_reanudacion_interes.isVisible() is True
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+    # Renta liquida es informativa (no es una deuda): no muestra la casilla.
+    dialog.combo_categoria.setCurrentIndex(dialog.combo_categoria.findData("RENTA_LIQUIDA"))
+    assert dialog.check_demanda_contenciosa.isVisible() is False
+    assert dialog.campo_fecha_admision_demanda.isVisible() is False
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+
+def test_casilla_de_demanda_contenciosa_no_aparece_fuera_de_tributario(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    assert dialog.check_demanda_contenciosa.isVisible() is False
+    assert dialog.campo_fecha_admision_demanda.isVisible() is False
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+
+def test_fechas_calculadas_tope_24m_y_reanudacion_se_muestran_en_vivo(qtbot, monkeypatch):
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 10))
+    # admision + 24 meses = 2024-03-05; notificacion + 11 dias = 2024-03-21.
+    assert "2024-03-05" in dialog.label_fecha_tope_24m.text()
+    assert "2024-03-21" in dialog.label_fecha_reanudacion_interes.text()
+
+
+def test_guarda_fechas_de_demanda_contenciosa_con_la_casilla_marcada(qtbot, monkeypatch):
+    dialog, expediente_id = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 10))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.fecha_admision_demanda == date(2022, 3, 5)
+    assert guardada.fecha_notificacion_sentencia == date(2024, 3, 10)
+    session.close()
+
+
+def test_sin_la_casilla_no_guarda_fechas_de_demanda(qtbot, monkeypatch):
+    dialog, expediente_id = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.fecha_admision_demanda is None
+    assert guardada.fecha_notificacion_sentencia is None
+    session.close()
+
+
+def test_notificacion_anterior_a_la_admision_se_rechaza_al_guardar(qtbot, monkeypatch):
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2024, 3, 10))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 1))
+
+    with pytest.raises(ValueError, match="anterior"):
+        dialog.guardar()
+
+
+def test_fecha_de_demanda_posterior_al_corte_se_rechaza_al_guardar(qtbot, monkeypatch):
+    # Corte del expediente de prueba: 2026-06-01.
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2026, 7, 1))
+
+    with pytest.raises(ValueError, match="corte"):
+        dialog.guardar()
+
+
+def test_editar_obligacion_con_demanda_precarga_casilla_y_fechas(qtbot, monkeypatch):
+    dialog, expediente_id = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 10))
+    obligacion_id = dialog.guardar()
+
+    editar = ObligacionFormDialog(
+        expediente_id=expediente_id, area="TRIBUTARIO", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(editar)
+    editar.show()
+    assert editar.check_demanda_contenciosa.isChecked() is True
+    assert editar.campo_fecha_admision_demanda.date().toPython() == date(2022, 3, 5)
+    assert editar.campo_fecha_notificacion_sentencia.date().toPython() == date(2024, 3, 10)
+    assert editar.campo_fecha_admision_demanda.isVisible() is True

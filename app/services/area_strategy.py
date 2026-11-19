@@ -24,7 +24,7 @@ from app.engine.indexation.historical_index import (
 )
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
-from app.engine.interest.provider import MemoryRateProvider
+from app.engine.interest.provider import MemoryRateProvider, RateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.interest.usury_validator import calcular_tope_usura
 from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
@@ -55,6 +55,11 @@ from app.engine.tax.sanciones import (
     calcular_sancion_error_aritmetico,
     calcular_sancion_extemporaneidad,
     calcular_sancion_inexactitud,
+)
+from app.engine.tax.tope_suspensivo import (
+    RateProviderConTopeSuspensivo,
+    calcular_fecha_reanudacion_interes,
+    calcular_fecha_tope_24m,
 )
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
@@ -2076,10 +2081,10 @@ class TributarioStrategy(AreaStrategy):
     en vez de un motor de imputacion dedicado: el impuesto a cargo cae en el bucket
     'principal' (event_type = obligacion.categoria = "IMPUESTO_A_CARGO", agregado a
     _capital_concepts igual que cada area anterior), las 3 sanciones se normalizan a un unico
-    event_type "SANCION_TRIBUTARIA" que cae en el bucket 'indexation'. El orden de pago que
-    ya aplica AllocationEngine (indexacion -> interes -> capital) coincide exactamente con el
-    orden exigido para tributario (sanciones -> intereses -> impuesto) -- ver design spec,
-    seccion "Arquitectura".
+    event_type "SANCION_TRIBUTARIA" que cae en el bucket 'indexation'. Hasta el Sprint 84
+    (seguimiento) los abonos seguian el orden de AllocationEngine.allocate (indexacion ->
+    interes -> capital = sanciones -> intereses -> impuesto); desde entonces se imputan
+    proporcionalmente (Art. 804 E.T.), ver mas abajo.
 
     El interes automatico (E.T. art. 635, nunca pactado) reutiliza
     construir_rate_provider_moratorio_tributario del Sprint 11a.
@@ -2116,6 +2121,23 @@ class TributarioStrategy(AreaStrategy):
     _liquidar_por_obligacion, mismo patron que Comercial/CivilFamilia desde el Sprint 21):
     un solo PendingDebt/rate provider compartido para todo el expediente no puede darle
     0% de interes a una sancion y la tasa E.T. 635 al impuesto al mismo tiempo.
+
+    Imputacion proporcional (Sprint 84 seguimiento, respuesta del despacho 16/11/2026:
+    "la imputacion proporcional es imperativa (no se imputa primero a intereses como en
+    lo civil)", Art. 804 E.T.): cada abono se reparte entre los conceptos de SU
+    obligacion (impuesto -> bucket 'principal'; sanciones y actualizacion Art. 867-1 ->
+    'indexation'; intereses -> 'interest') en proporcion al saldo de cada uno en la
+    fecha del abono -- ver AllocationEngine.allocate_proporcional_art_804. Las costas
+    (Sprint 79) siguen pagandose primero. Limite conocido: como cada abono pertenece
+    a UNA obligacion (Abono.obligacion_id, Sprint 21), el reparto proporcional ocurre
+    dentro de esa obligacion; un abono no se reparte entre obligaciones distintas del
+    mismo expediente (ej. un impuesto y su sancion capturados como 2 obligaciones).
+
+    Tope suspensivo (Sprint 84 seguimiento): si la obligacion tiene
+    fecha_admision_demanda (demanda ante lo contencioso administrativo), el interes
+    moratorio no se causa entre fecha_tope_24m (admision + 24 meses) y
+    fecha_reanudacion_interes (notificacion de la sentencia + 11 dias) -- ver
+    app/engine/tax/tope_suspensivo.py y `_construir_rate_provider_obligacion`.
     """
 
     soporta_indexacion_ipc = True
@@ -2165,7 +2187,17 @@ class TributarioStrategy(AreaStrategy):
             fecha_corte=fecha_corte,
             eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
             rate_provider_fn=self._construir_rate_provider_obligacion,
+            # Sprint 84 (seguimiento): Art. 804 E.T., imputacion proporcional
+            # imperativa en toda obligacion tributaria.
+            estrategia_imputacion_fn=lambda obligacion: (
+                AllocationEngine.allocate_proporcional_art_804
+            ),
         )
+
+        for obligacion in obligaciones_deuda:
+            alerta = self._alerta_tope_suspensivo(obligacion, fecha_corte)
+            if alerta is not None:
+                resultado = self._agregar_alerta(resultado, alerta)
 
         for obligacion in obligaciones_deuda:
             # Si _evento_actualizacion_867_1 ya no pudo calcular la
@@ -2199,6 +2231,52 @@ class TributarioStrategy(AreaStrategy):
             resultado = replace(resultado, renta_liquida=renta_liquida)
 
         return resultado
+
+    @staticmethod
+    def _fechas_tope_suspensivo(obligacion) -> tuple[date, date | None] | None:
+        """(fecha_tope_24m, fecha_reanudacion_interes) calculadas a partir de los
+        2 campos capturados, o None si la obligacion no tiene demanda
+        contenciosa (fecha_admision_demanda nula). Sprint 84 (seguimiento)."""
+        if obligacion.fecha_admision_demanda is None:
+            return None
+        reanudacion = None
+        if obligacion.fecha_notificacion_sentencia is not None:
+            reanudacion = calcular_fecha_reanudacion_interes(
+                obligacion.fecha_notificacion_sentencia
+            )
+        return calcular_fecha_tope_24m(obligacion.fecha_admision_demanda), reanudacion
+
+    def _alerta_tope_suspensivo(self, obligacion, fecha_corte: date) -> str | None:
+        """Sprint 84 (seguimiento): alerta informativa (no bloqueante) con el
+        periodo en que el tope suspensivo dejo de causar interes moratorio.
+        None si no hay demanda o si el periodo suspendido no alcanza a empezar
+        antes de fecha_corte."""
+        fechas = self._fechas_tope_suspensivo(obligacion)
+        if fechas is None:
+            return None
+        tope, reanudacion = fechas
+        primer_dia = tope + timedelta(days=1)
+        if primer_dia > fecha_corte:
+            return None
+        if reanudacion is not None and reanudacion <= primer_dia:
+            return None
+        if reanudacion is None:
+            periodo = (
+                f"desde el {primer_dia.isoformat()} hasta la fecha de corte "
+                f"({fecha_corte.isoformat()}), sentencia aún no notificada"
+            )
+            detalle = f"fecha tope 24 meses: {tope.isoformat()}"
+        else:
+            ultimo_dia = min(reanudacion - timedelta(days=1), fecha_corte)
+            periodo = f"del {primer_dia.isoformat()} al {ultimo_dia.isoformat()}"
+            detalle = (
+                f"fecha tope 24 meses: {tope.isoformat()}; reanudación del interés: "
+                f"{reanudacion.isoformat()}"
+            )
+        return (
+            f"Tope suspensivo por demanda contencioso administrativa en "
+            f"'{obligacion.concepto}': sin interés moratorio {periodo} ({detalle})."
+        )
 
     def _alerta_pendiente_certificacion_usura(self, obligacion, fecha_corte: date) -> str | None:
         """Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar.
@@ -2262,6 +2340,20 @@ class TributarioStrategy(AreaStrategy):
                 f"La obligacion tributaria '{obligacion.concepto}' debe ser PUNTUAL "
                 f"(un hecho tributario es un evento unico, no admite RECURRENTE)."
             )
+
+        # Sprint 84 (seguimiento): tope suspensivo por demanda contenciosa.
+        if obligacion.fecha_notificacion_sentencia is not None:
+            if obligacion.fecha_admision_demanda is None:
+                raise ValueError(
+                    f"La obligacion tributaria '{obligacion.concepto}' tiene fecha de "
+                    "notificacion de la sentencia pero no fecha de admision de la demanda."
+                )
+            if obligacion.fecha_notificacion_sentencia < obligacion.fecha_admision_demanda:
+                raise ValueError(
+                    f"En la obligacion tributaria '{obligacion.concepto}' la fecha de "
+                    "notificacion de la sentencia es anterior a la de admision de la "
+                    "demanda."
+                )
 
         if obligacion.categoria == "IMPUESTO_A_CARGO":
             if obligacion.valor is None or obligacion.valor <= Decimal("0.00"):
@@ -2388,7 +2480,18 @@ class TributarioStrategy(AreaStrategy):
             fecha_referencia=obligacion.fecha_origen,
         )
 
-    def _construir_rate_provider_obligacion(
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> RateProvider:
+        """Rate provider E.T. 635 de la obligacion, envuelto con el tope
+        suspensivo por demanda contenciosa cuando la obligacion lo tiene (Sprint
+        84 seguimiento): los dias suspendidos quedan a 0%."""
+        provider = self._construir_rate_provider_base(obligacion, fecha_corte)
+        fechas = self._fechas_tope_suspensivo(obligacion)
+        if fechas is None:
+            return provider
+        tope, reanudacion = fechas
+        return RateProviderConTopeSuspensivo(provider, tope, reanudacion)
+
+    def _construir_rate_provider_base(
         self, obligacion, fecha_corte: date
     ) -> MemoryRateProvider:
         provider = MemoryRateProvider()

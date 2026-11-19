@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from app.engine.liquidation.models import PaymentAllocation, PendingDebt
+from app.engine.math.rounding import Rounding
 
 
 def _imputar(remainder: Decimal, saldo: Decimal) -> tuple[Decimal, Decimal, Decimal]:
@@ -96,6 +97,84 @@ class AllocationEngine:
             principal=new_principal,
             interest=new_interest,
             indexation=new_indexation,
+            costas=new_costas,
+        )
+
+        return allocation, new_debt, remainder
+
+    @staticmethod
+    def allocate_proporcional_art_804(
+        payment_amount: Decimal, current_debt: PendingDebt, payment_date: date
+    ) -> tuple[PaymentAllocation, PendingDebt, Decimal]:
+        """Imputacion proporcional del Art. 804 E.T. -- EXCLUSIVA del area
+        Tributario (Sprint 84; las demas areas siguen con allocate()/
+        allocate_capital_primero()). Respuesta del despacho (16/11/2026): "la
+        imputacion proporcional es imperativa (no se imputa primero a intereses
+        como en lo civil)". Contexto de la pregunta (Respondidas, Sprint 84
+        seguimiento): "el abono se reparte proporcionalmente entre
+        capital/sancion/interes segun el peso de cada uno en la deuda total".
+
+        Formula (sobre el saldo de la obligacion EN LA FECHA DEL ABONO, ya con
+        el interes causado hasta ese dia):
+            disponible = abono - costas pagadas
+            imputado_i = disponible x saldo_i / (impuesto + sanciones + intereses)
+        con saldo_i en {indexation (sanciones/actualizacion 867-1), interest,
+        principal (impuesto)}.
+
+        - Costas procesales (Sprint 79) se pagan PRIMERO, antes del reparto
+          proporcional -- regla general del despacho para toda area.
+        - Redondeo: cada parte se redondea al centavo (ROUND_HALF_UP) y el
+          centavo residual del redondeo va al impuesto (principal), de modo que
+          la suma de las partes cuadra exactamente con el abono.
+        - Si el disponible cubre toda la deuda, se paga todo y el exceso queda
+          como remanente (saldo a favor), igual que en allocate().
+        """
+        remainder = payment_amount
+        to_costas, new_costas, remainder = _imputar(remainder, current_debt.costas)
+
+        total_conceptos = (
+            current_debt.indexation + current_debt.interest + current_debt.principal
+        )
+        if remainder >= total_conceptos:
+            to_indexation = current_debt.indexation
+            to_interest = current_debt.interest
+            to_principal = current_debt.principal
+            remainder = remainder - total_conceptos
+        else:
+            to_indexation = min(
+                Rounding.money(remainder * current_debt.indexation / total_conceptos),
+                current_debt.indexation,
+                remainder,
+            )
+            to_interest = min(
+                Rounding.money(remainder * current_debt.interest / total_conceptos),
+                current_debt.interest,
+                remainder - to_indexation,
+            )
+            to_principal = remainder - to_indexation - to_interest
+            # Caso limite de redondeo (centavos): si el residuo excede el saldo del
+            # impuesto, el excedente se devuelve a intereses y luego a sanciones
+            # (siempre hay capacidad, porque remainder < total_conceptos).
+            exceso = max(to_principal - current_debt.principal, Decimal("0.00"))
+            to_principal -= exceso
+            sube_interes = min(exceso, current_debt.interest - to_interest)
+            to_interest += sube_interes
+            to_indexation += exceso - sube_interes
+            remainder = Decimal("0.00")
+
+        allocation = PaymentAllocation(
+            payment_date=payment_date,
+            total_payment=payment_amount - remainder,
+            to_interest=to_interest,
+            to_indexation=to_indexation,
+            to_principal=to_principal,
+            to_costas=to_costas,
+        )
+
+        new_debt = PendingDebt(
+            principal=current_debt.principal - to_principal,
+            interest=current_debt.interest - to_interest,
+            indexation=current_debt.indexation - to_indexation,
             costas=new_costas,
         )
 

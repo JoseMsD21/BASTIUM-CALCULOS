@@ -39,6 +39,21 @@ tiempo.
   exceso (puede dejar saldo a favor del deudor). Solo se invoca desde el area Comercial.
 - `app/engine/tax/moratory_interest.py`: interes moratorio del E.T. art. 635 para el area Tributario,
   reutilizando el mismo motor de tramos historicos.
+- `app/engine/tax/tope_suspensivo.py` (Sprint 84 seguimiento): tope suspensivo del interes moratorio
+  tributario por demanda ante lo contencioso administrativo. Campos capturados en `Obligacion`:
+  `fecha_admision_demanda`, `fecha_notificacion_sentencia` (columnas nuevas, migracion
+  `scripts/migrate_tope_suspensivo_tributario_sprint84.py`). Calculados, nunca guardados:
+  `fecha_tope_24m` = admision + 24 meses calendario (dia topado a fin de mes) y
+  `fecha_reanudacion_interes` = notificacion + 11 dias calendario. `RateProviderConTopeSuspensivo`
+  envuelve el rate provider E.T. 635 de la obligacion y deja a 0% los dias estrictamente posteriores
+  al tope y estrictamente anteriores a la reanudacion (el dia del tope y el de reanudacion causan
+  interes). Sin sentencia notificada, la suspension corre desde el tope hasta la fecha de corte; si
+  la reanudacion cae en o antes del tope, no hay suspension. `TributarioStrategy` agrega una alerta
+  informativa con el periodo suspendido. En el formulario, la casilla "Hay demanda ante lo
+  contencioso administrativo" (no se guarda: se deduce de que haya fecha de admision) hace
+  obligatorias las 2 fechas; sin la casilla se guardan nulas (interpretacion de "obligatorios en el
+  formulario": una obligacion sin demanda no tiene esas fechas). El calculo del techo/actualizacion
+  del Art. 867-1 (`calcular_interes_moratorio_tributario`) NO aplica el tope suspensivo.
 - `app/engine/liquidation/models.py`: `PendingDebt(principal, interest, indexation)` — inmutable, con
   `.total()`.
 - `app/engine/liquidation/balance.py`: `BalanceEngine` — funciones puras `add_principal`, `add_interest`,
