@@ -10,9 +10,23 @@ tiempo.
   porcentaje. `Rate.from_percent(x)` construye una `Rate` dividiendo `x` entre 100.
 - `app/engine/interest/daily_interest.py`: `DailyInterest.calculate(capital, daily_rate, days)` aplica
   `I = C * i * t` con redondeo monetario (`Rounding.money`).
-- `app/engine/interest/rate_conversion.py`: `EffectiveRateConverter.annual_to_daily(annual_percent)`
-  convierte una tasa efectiva anual (como se pactan/certifican legalmente) a la tasa diaria equivalente,
-  usando `i_diario = (1 + i_EA) ** (1/365) - 1`.
+- `app/engine/interest/rate_conversion.py`: dos conversiones anual -> diaria (Sprint 76):
+  - `EffectiveRateConverter.annual_to_daily(annual_percent)` — efectiva compuesta,
+    `i_diario = (1 + i_EA) ** (1/365) - 1`. Para tasas certificadas o pactadas como efectivas anuales:
+    IBC/usura, tasas remuneratoria/moratoria comerciales (Art. 884 C.Co.), mora laboral con usura
+    (Art. 65 CST), DTF (condena administrativa) y Sancionatorio. (El E.T. 635 tiene su propia conversion
+    en `app/engine/tax/moratory_interest.py`.)
+  - `EffectiveRateConverter.annual_simple_to_daily(annual_percent)` — lineal simple sin anatocismo,
+    `i_diario = i_anual / 365` (base 365 siempre). Para el interes civil legal del 6 % (Art. 1617/2232
+    C.C.) y las tasas pactadas sin capitalizacion en obligaciones de dinero puro: Civil/Familia (tasa
+    pactada y fallback `CIVIL_ANNUAL_RATE`), Honorarios (tasa pactada y modo IPC + civil 6 %) y Comercial
+    solo en el modo (b) de la regla XOR (IPC + interes civil puro). Respuesta del despacho del 16/11/2026:
+    "Obligacion Civil de Credito Ordinario (Simple): Debe usarse la Opcion A (Formula Lineal Simple:
+    0.06 / 365)". Ejemplo: $10.000.000 x 6 % x 30/365 = $49.315,07 con
+    `PoliticaCausacion.EXACTA_POR_PERIODO`; con la politica legada (predeterminada, redondeo diario y tasa
+    cuantizada a 12 decimales) el motor da $49.315,20 (1.643,84/dia x 30).
+  - La tasa pura actuarial mensual (0,0048676) para liquidacion de perjuicios NO esta implementada: ese
+    dominio no existe todavia (Sprint 97).
 - `app/engine/interest/provider.py`: `RateProvider` (interfaz) y `MemoryRateProvider`, que permite inyectar
   tramos de tasa (`RatePeriod`) para que el motor calcule interes por tramos historicos cuando la tasa
   cambia en el tiempo. **Si se usa un `rate_provider`, debe cubrir todo el rango de fechas de la
@@ -45,8 +59,10 @@ tiempo.
   `HonorariosStrategy` y `TributarioStrategy` (no a `LaboralStrategy`, que no tiene tasa por obligacion).
 
 ## Como se usa en el MVP
-Cada `AreaStrategy` construye un `MemoryRateProvider` con la(s) tasa(s) efectiva(s) anual(es) pactadas
-(convertidas a diaria), y delega en `UniversalLiquidationService.liquidar(...)`.
+Cada `AreaStrategy` construye un `MemoryRateProvider` con la(s) tasa(s) anual(es) pactadas o legales
+(convertidas a diaria con la formula que corresponda, ver arriba — `AreaStrategy._rate_provider_tasa_plana`
+recibe `lineal_simple=True` para el interes civil/pactado simple), y delega en
+`UniversalLiquidationService.liquidar(...)`.
 
 ## Pendiente (no implementado aun)
 - `CompoundInterest.calculate()` (`app/engine/interest/compound_interest.py`) sigue huerfano: el

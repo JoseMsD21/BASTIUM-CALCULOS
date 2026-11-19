@@ -52,7 +52,8 @@ def _interes_aislado_dia_a_dia(
     acumulado desde el dia siguiente a fecha_origen hasta fecha_corte
     inclusive. Este es el calculo "autonomo" real de la cuota, aislado de
     cualquier otra obligacion del expediente."""
-    daily_rate = EffectiveRateConverter.annual_to_daily(tasa_efectiva_anual)
+    # Sprint 76: interes civil 6 % -> formula lineal simple (tasa / 365).
+    daily_rate = EffectiveRateConverter.annual_simple_to_daily(tasa_efectiva_anual)
     total = Decimal("0.00")
     dia = fecha_origen + timedelta(days=1)
     while dia <= fecha_corte:
@@ -125,10 +126,12 @@ def test_interes_consolidado_coincide_con_suma_de_interes_aislado_por_cuota():
     # propios dias de mora. Si esto fallara, generar cuotas como Obligacion
     # reales y dejarlas liquidar por el motor existente NO seria equivalente
     # a un motor de interes "autonomo por cuota" -- habria que escalar antes
-    # de construir la Task 4 (UI). Coincide exactamente: $9,158.12 en ambos
-    # lados para este escenario.
+    # de construir la Task 4 (UI). Coincide exactamente en ambos lados.
+    # Sprint 76 (formula lineal simple 0,06/365; antes $9,158.12 con la efectiva
+    # compuesta): 16,44 x 208 + 18,08 x 178 + 18,99 x 147
+    # = 3.419,52 + 3.218,24 + 2.791,53 = $9,429.29.
     assert interes_consolidado == interes_aislado_total
-    assert interes_consolidado == Decimal("9158.12")
+    assert interes_consolidado == Decimal("9429.29")
 
 
 def test_interes_de_cada_cuota_individual_no_se_contamina_con_el_capital_de_las_otras():

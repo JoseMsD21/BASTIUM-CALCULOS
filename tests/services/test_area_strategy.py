@@ -1227,6 +1227,24 @@ def _obligacion_comercial(
     )
 
 
+def _interes_referencia_ea_compuesta(
+    capital: Decimal, tasa_anual_pct: Decimal, fecha_origen: date, fecha_corte: date
+) -> Decimal:
+    """Referencia independiente del interes de una tasa EFECTIVA ANUAL compuesta
+    (Opcion B, `EffectiveRateConverter.annual_to_daily`) sobre capital constante,
+    con la politica legada (interes de cada dia redondeado a centavos), desde el
+    dia siguiente a `fecha_origen` hasta `fecha_corte` inclusive. Sprint 76: antes
+    estos tests usaban CivilFamiliaStrategy como referencia de "la misma tasa sin
+    correccion de usura", pero desde ese sprint Civil/Familia convierte con la
+    formula lineal simple y Comercial (Art. 884) sigue con la efectiva compuesta."""
+    from app.engine.interest.daily_interest import DailyInterest
+    from app.engine.interest.rate_conversion import EffectiveRateConverter
+
+    tasa_diaria = EffectiveRateConverter.annual_to_daily(tasa_anual_pct)
+    interes_dia = DailyInterest.calculate(capital, tasa_diaria, days=1)
+    return interes_dia * (fecha_corte - fecha_origen).days
+
+
 class _TRMProviderDeCalendario:
     """Test double de TRMProvider (Sprint 12): retorna una TRM distinta por
     fecha exacta, para probar que la conversion es realmente dinamica -- nunca
@@ -1303,15 +1321,14 @@ class TestComercialStrategy:
             obligaciones=[obligacion_comercial], abonos=[], fecha_corte=fecha_corte
         )
 
-        obligacion_civil = _obligacion_comercial()
-        resultado_civil = CivilFamiliaStrategy().liquidar(
-            obligaciones=[obligacion_civil], abonos=[], fecha_corte=fecha_corte
+        # Sprint 76: la referencia ya no es CivilFamiliaStrategy (que desde ese
+        # sprint usa la formula lineal simple del Art. 1617) sino la tasa
+        # remuneratoria (6 % EA) convertida como efectiva compuesta: 1.000.000 x
+        # 0,000159653587 = 159,65/dia x 19 dias = 3.033,35.
+        assert resultado_comercial.final_balance().interest == _interes_referencia_ea_compuesta(
+            Decimal("1000000.00"), Decimal("6.00"), date(2025, 1, 1), fecha_corte
         )
-
-        assert (
-            resultado_comercial.final_balance().interest
-            == resultado_civil.final_balance().interest
-        )
+        assert resultado_comercial.final_balance().interest == Decimal("3033.35")
 
     def test_tasa_moratoria_excede_tope_de_usura_no_lanza_error_y_aplica_sancion_doblada(self):
         # Respuesta del despacho (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 2): no se
@@ -1336,37 +1353,13 @@ class TestComercialStrategy:
         )
 
         # Tope legal = 1.5 x 20 = 30%.
-        intereses_cobrados = (
-            CivilFamiliaStrategy()
-            .liquidar(
-                obligaciones=[
-                    _obligacion_comercial(
-                        tasa_remuneratoria=Decimal("35.00"),
-                        fecha_origen=fecha_origen,
-                        fecha_vencimiento=fecha_origen,
-                    )
-                ],
-                abonos=[],
-                fecha_corte=fecha_corte,
-            )
-            .final_balance()
-            .interest
+        # Sprint 76: referencia independiente EA compuesta (ver
+        # _interes_referencia_ea_compuesta) en vez de CivilFamiliaStrategy.
+        intereses_cobrados = _interes_referencia_ea_compuesta(
+            Decimal("1000000.00"), Decimal("35.00"), fecha_origen, fecha_corte
         )
-        intereses_con_tasa_usura = (
-            CivilFamiliaStrategy()
-            .liquidar(
-                obligaciones=[
-                    _obligacion_comercial(
-                        tasa_remuneratoria=Decimal("30.00"),
-                        fecha_origen=fecha_origen,
-                        fecha_vencimiento=fecha_origen,
-                    )
-                ],
-                abonos=[],
-                fecha_corte=fecha_corte,
-            )
-            .final_balance()
-            .interest
+        intereses_con_tasa_usura = _interes_referencia_ea_compuesta(
+            Decimal("1000000.00"), Decimal("30.00"), fecha_origen, fecha_corte
         )
 
         exceso_esperado = intereses_cobrados - intereses_con_tasa_usura
@@ -1393,25 +1386,13 @@ class TestComercialStrategy:
         # remuneratoria -- exactamente lo mismo que CivilFamiliaStrategy con esa tasa (ver
         # test_sin_mora_usa_solo_tasa_remuneratoria arriba), asi que sirve de referencia
         # independiente para "Intereses_Cobrados"/"Intereses_Cobrados_Con_Tasa_Usura".
-        intereses_cobrados = (
-            CivilFamiliaStrategy()
-            .liquidar(
-                obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("35.00"))],
-                abonos=[],
-                fecha_corte=fecha_corte,
-            )
-            .final_balance()
-            .interest
+        # Sprint 76: referencia independiente EA compuesta (ver
+        # _interes_referencia_ea_compuesta) en vez de CivilFamiliaStrategy.
+        intereses_cobrados = _interes_referencia_ea_compuesta(
+            Decimal("1000000.00"), Decimal("35.00"), date(2025, 1, 1), fecha_corte
         )
-        intereses_con_tasa_usura = (
-            CivilFamiliaStrategy()
-            .liquidar(
-                obligaciones=[_obligacion_comercial(tasa_remuneratoria=Decimal("30.00"))],
-                abonos=[],
-                fecha_corte=fecha_corte,
-            )
-            .final_balance()
-            .interest
+        intereses_con_tasa_usura = _interes_referencia_ea_compuesta(
+            Decimal("1000000.00"), Decimal("30.00"), date(2025, 1, 1), fecha_corte
         )
 
         exceso_esperado = intereses_cobrados - intereses_con_tasa_usura
@@ -1696,7 +1677,10 @@ class TestComercialStrategy:
 
         assert resultado.final_balance().principal == Decimal("1000000.00")
         assert resultado.final_balance().indexation == Decimal("77633.53")
-        assert resultado.final_balance().interest == Decimal("94283.40")
+        # Sprint 76: interes civil 6 % lineal (tasa / 365) sobre Va = 1.077.633,53:
+        # 1.077.633,53 x 0,000164383562 = 177,15/dia x 548 dias = 97.078,20
+        # (antes, efectiva compuesta: 172,05 x 548 = 94.283,40).
+        assert resultado.final_balance().interest == Decimal("97078.20")
 
     def test_modo_ipc_activo_no_dispara_sancion_por_usura(self):
         # Sprint 43: la tasa realmente cobrada en modo (b) es la civil legal (nunca
@@ -2608,7 +2592,10 @@ class TestHonorariosStrategy:
 
         assert resultado.final_balance().principal == Decimal("1000000.00")
         assert resultado.final_balance().indexation == Decimal("77633.53")
-        assert resultado.final_balance().interest == Decimal("94283.40")
+        # Sprint 76: interes civil 6 % lineal (tasa / 365) sobre Va = 1.077.633,53:
+        # 1.077.633,53 x 0,000164383562 = 177,15/dia x 548 dias = 97.078,20
+        # (antes, efectiva compuesta: 172,05 x 548 = 94.283,40).
+        assert resultado.final_balance().interest == Decimal("97078.20")
 
     def test_dos_obligaciones_tasas_distintas_fechas_solapadas_liquidan_con_su_propia_tasa(self):
         fecha_corte = date(2026, 1, 11)
@@ -4283,8 +4270,11 @@ def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():
     # principal+indexation.
     assert resultado_legado.final_balance().indexation == Decimal("61933.78")
     assert resultado_suma_unica.final_balance().indexation == Decimal("61933.78")
-    assert resultado_legado.final_balance().interest == Decimal("87488.20")
-    assert resultado_suma_unica.final_balance().interest == Decimal("92907.92")
+    # Sprint 76 (formula lineal simple, 0,06/365 = 0,000164383562): legado
+    # 1.000.000 -> 164,38/dia x 548 = 90.080,24 (antes 87.488,20); Suma Unica
+    # 1.061.933,78 -> 174,56/dia x 548 = 95.658,88 (antes 92.907,92).
+    assert resultado_legado.final_balance().interest == Decimal("90080.24")
+    assert resultado_suma_unica.final_balance().interest == Decimal("95658.88")
     assert (
         resultado_suma_unica.final_balance().interest > resultado_legado.final_balance().interest
     )
@@ -4335,7 +4325,9 @@ def test_civil_familia_suma_unica_mezclada_liquida_cada_obligacion_con_su_criter
     fb = resultado.final_balance()
     assert fb.principal == Decimal("1500000.00")
     assert fb.indexation == Decimal("92900.67")
-    assert fb.interest == Decimal("136654.76")
+    # Sprint 76 (lineal simple): 95.658,88 (a) + 82,19 x 548 = 45.040,12 (b)
+    # = 140.699,00 (antes, efectiva compuesta: 92.907,92 + 43.746,84 = 136.654,76).
+    assert fb.interest == Decimal("140699.00")
 
 
 def test_civil_familia_suma_unica_ignora_obligaciones_sin_indexacion_activa():
@@ -4416,7 +4408,10 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
     # historico -- verificado independientemente replicando la acumulacion diaria del
     # motor (DailyInterest + EffectiveRateConverter) con capital=Va constante durante
     # todo el periodo (la indexacion se causa el mismo dia que el capital).
-    assert fb.interest == Decimal("89004820.88")
+    # Sprint 76 (lineal simple 0,06/365): 101.749.792,77 x 0,000164383562 ->
+    # 16.725,99/dia x 5.479 dias = 91.641.699,21 (antes, efectiva compuesta:
+    # 89.004.820,88).
+    assert fb.interest == Decimal("91641699.21")
 
     # Contraste: con el algoritmo legado (interes solo sobre el capital historico),
     # el mismo caso da un interes bastante menor -- confirma que Suma Unica
@@ -4436,7 +4431,8 @@ def test_pdf_pagina_69_ejemplo_credito_indexado_50_millones_2010_a_2025():
     resultado_legado = CivilFamiliaStrategy().liquidar(
         obligaciones=[obligacion_legado], abonos=[], fecha_corte=date(2025, 1, 1)
     )
-    assert resultado_legado.final_balance().interest == Decimal("43737103.72")
+    # Sprint 76 (lineal simple): 8.219,18/dia x 5.479 = 45.032.887,22 (antes 43.737.103,72).
+    assert resultado_legado.final_balance().interest == Decimal("45032887.22")
     assert fb.interest > resultado_legado.final_balance().interest
 
 
@@ -4702,6 +4698,190 @@ def test_tributario_marca_obligacion_prescrita_sin_cambiar_el_total():
     assert marcado.final_balance() == referencia.final_balance()
 
 
+
+
+# ---------------------------------------------------------------------------
+# Sprint 76 -- interes civil (Art. 1617/2232 C.C.) y tasas pactadas sin
+# capitalizacion en obligaciones de dinero puro: formula LINEAL simple
+# (tasa_anual / 365), respuesta del despacho del 16/11/2026 (Opcion A).
+# ---------------------------------------------------------------------------
+
+_TASA_LINEAL_6 = Decimal("0.06") / Decimal("365")
+
+
+def test_sprint76_civil_10_millones_30_dias_6_pct_usa_formula_lineal():
+    # A mano: 10.000.000 x 0,06 x 30/365 = 49.315,068... -> $49.315,07 exacto.
+    # Politica vigente (LEGADA_DIARIA_REDONDEADA): tasa cuantizada a 12
+    # decimales (0,000164383562) x 10.000.000 = 1.643,83562 -> 1.643,84 por dia
+    # (redondeo diario) x 30 dias = $49.315,20 (+0,13 por el redondeo diario).
+    # Con la Opcion B anterior habria dado 1.596,54 x 30 = $47.896,20.
+    obligacion = _obligacion_puntual(valor=Decimal("10000000.00"))
+    obligacion.fecha_origen = date(2025, 1, 1)
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 1, 31)
+    )
+
+    assert resultado.final_balance().interest == Decimal("49315.20")
+
+
+def test_sprint76_civil_fallback_civil_annual_rate_tambien_es_lineal():
+    obligacion = _obligacion_puntual(valor=Decimal("10000000.00"))
+    obligacion.fecha_origen = date(2025, 1, 1)
+    obligacion.tasa_efectiva_anual = Decimal("0.00")
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2025, 1, 31)
+    )
+
+    assert resultado.final_balance().interest == Decimal("49315.20")
+
+
+def test_sprint76_civil_politica_exacta_reproduce_el_calculo_a_mano_al_centavo():
+    from app.engine.liquidation.politica import PoliticaCausacion
+    from app.engine.temporal.schedulers.base import Event
+
+    obligacion = _obligacion_puntual(valor=Decimal("10000000.00"))
+    obligacion.fecha_origen = date(2025, 1, 1)
+    provider = CivilFamiliaStrategy()._construir_rate_provider_obligacion(
+        obligacion, date(2025, 1, 31)
+    )
+    core = LiquidationCore(
+        rate_provider=provider,
+        politica_causacion=PoliticaCausacion.EXACTA_POR_PERIODO,
+    )
+    resultado = core.process(
+        [
+            Event(
+                date=date(2025, 1, 1),
+                payload={"amount": Decimal("10000000.00"), "label": "Capital"},
+                event_type="DANO_EMERGENTE",
+            )
+        ],
+        cutoff_date=date(2025, 1, 31),
+    )
+
+    assert resultado.final_balance().interest == Decimal("49315.07")
+
+
+def test_sprint76_civil_tasa_pactada_sin_capitalizacion_tambien_es_lineal():
+    obligacion = _obligacion_puntual()
+    obligacion.tasa_efectiva_anual = Decimal("12.00")
+    provider = CivilFamiliaStrategy()._construir_rate_provider_obligacion(
+        obligacion, date(2026, 1, 1)
+    )
+    assert provider.get_rate(date(2025, 12, 1)).value == Decimal("0.12") / Decimal("365")
+
+
+def test_sprint76_honorarios_tasa_pactada_usa_formula_lineal():
+    obligacion = _obligacion_honorarios(tasa_efectiva_anual=Decimal("6.00"))
+    provider = HonorariosStrategy()._construir_rate_provider_obligacion(
+        obligacion, date(2026, 2, 1)
+    )
+    assert provider.get_rate(date(2026, 1, 15)).value == _TASA_LINEAL_6
+
+
+def test_sprint76_honorarios_10_millones_capital_30_dias_lineal():
+    # Capital = 1.000.000 fijos + 20 % de 10.000.000 = 3.000.000.
+    # 3.000.000 x 0,000164383562 = 493,150686 -> 493,15/dia x 30 = 14.794,50.
+    obligacion = _obligacion_honorarios(tasa_efectiva_anual=Decimal("6.00"))
+    resultado = HonorariosStrategy().liquidar(
+        obligaciones=[obligacion], abonos=[], fecha_corte=date(2026, 1, 31)
+    )
+    assert resultado.final_balance().interest == Decimal("14794.50")
+
+
+def test_sprint76_honorarios_con_ipc_usa_civil_lineal():
+    obligacion = _obligacion_honorarios()
+    obligacion.aplica_indexacion_ipc = True
+    provider = HonorariosStrategy()._construir_rate_provider_obligacion(
+        obligacion, date(2026, 2, 1)
+    )
+    assert provider.get_rate(date(2026, 1, 15)).value == _TASA_LINEAL_6
+
+
+def test_sprint76_comercial_modo_ipc_civil_puro_usa_formula_lineal():
+    obligacion = _obligacion_comercial()
+    obligacion.aplica_indexacion_ipc = True
+    obligacion.pacto_expreso_indexacion = True
+    provider = ComercialStrategy()._construir_rate_provider_obligacion(
+        obligacion, date(2025, 6, 1)
+    )
+    assert provider.get_rate(date(2025, 3, 1)).value == _TASA_LINEAL_6
+
+
+def test_sprint76_comercial_tasas_pactadas_884_siguen_efectivas_compuestas():
+    # Remuneratoria/moratoria comercial (Art. 884 C.Co.) se pactan como EA y se
+    # topan contra la usura certificada EA: NO cambian en este sprint.
+    from app.engine.interest.rate_conversion import EffectiveRateConverter
+
+    obligacion = _obligacion_comercial()
+    provider = ComercialStrategy()._construir_rate_provider_obligacion(
+        obligacion, date(2025, 6, 1)
+    )
+    assert provider.get_rate(date(2025, 1, 15)) == EffectiveRateConverter.annual_to_daily(
+        Decimal("6.00")
+    )
+    assert provider.get_rate(date(2025, 3, 1)) == EffectiveRateConverter.annual_to_daily(
+        Decimal("24.00")
+    )
+
+
+def test_sprint76_sancionatorio_no_cambia_de_formula():
+    from app.engine.interest.rate_conversion import EffectiveRateConverter
+
+    obligacion = _obligacion_sancionatoria()
+    provider = SancionatorioStrategy()._construir_rate_provider_obligacion(
+        obligacion, date(2026, 6, 1)
+    )
+    assert provider.get_rate(obligacion.fecha_origen) == EffectiveRateConverter.annual_to_daily(
+        obligacion.tasa_efectiva_anual
+    )
+
+
+def test_sprint76_radicado_2224_reproduce_el_gran_total_con_la_opcion_a():
+    # Caso de la prueba practica del Sprint 76 (Radicado 2224, ver
+    # docs/Preguntas-Para-Abogado-Abiertas.md): cuota de $300.000/mes desde
+    # noviembre de 2023, dia 1, reajustada cada 1 de enero por SMMLV
+    # (1.160.000 -> 1.300.000 -> 1.423.500, redondeo encadenado a centavos:
+    # 336.206,90 en 2024 y 368.146,56 en 2025), 6 % anual, sin IPC, corte
+    # 31/08/2025. Reconstruido con cuotas PUNTUAL equivalentes (los datos reales
+    # viven solo en bastium.db). Capital = 2 x 300.000 + 12 x 336.206,90 +
+    # 8 x 368.146,56 = 7.579.655,28. Valores esperados con la Opcion A tomados
+    # de esa pregunta: intereses 422.866,16 y Gran Total 8.002.521,44 (con la
+    # Opcion B anterior: 410.700,80 / 7.990.356,08).
+    cuotas = []
+    anio, mes = 2023, 11
+    while (anio, mes) <= (2025, 8):
+        valor = {
+            2023: Decimal("300000.00"),
+            2024: Decimal("336206.90"),
+            2025: Decimal("368146.56"),
+        }[anio]
+        cuotas.append(
+            Obligacion(
+                id=len(cuotas) + 1,
+                expediente_id=1,
+                tipo=TipoObligacion.PUNTUAL,
+                concepto=f"Cuota {anio}-{mes:02d}",
+                categoria="CHILD_SUPPORT",
+                fecha_origen=date(anio, mes, 1),
+                valor=valor,
+                tasa_efectiva_anual=Decimal("6.00"),
+            )
+        )
+        mes += 1
+        if mes == 13:
+            anio, mes = anio + 1, 1
+
+    resultado = CivilFamiliaStrategy().liquidar(
+        obligaciones=cuotas, abonos=[], fecha_corte=date(2025, 8, 31)
+    )
+
+    fb = resultado.final_balance()
+    assert fb.principal == Decimal("7579655.28")
+    assert fb.interest == Decimal("422866.16")
+    assert fb.principal + fb.interest == Decimal("8002521.44")
 
 
 # --- Sprint 79: las costas nunca generan interes (regla general del despacho) ---
