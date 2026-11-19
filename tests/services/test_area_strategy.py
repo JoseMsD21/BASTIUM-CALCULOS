@@ -3883,9 +3883,10 @@ class TestTributarioStrategy:
         # documentado (docs/Pendientes.md, Sprint 15): un abono ya no se imputa automaticamente
         # contra el saldo combinado del expediente (sanciones primero, impuesto despues) --
         # cada abono debe indicar explicitamente, via `obligacion_id`, cual obligacion paga,
-        # igual que en las demas areas desde el Sprint 21. Dentro de CADA obligacion, el
-        # orden de imputacion (indexacion/sancion -> interes -> capital) sigue vigente,
-        # simplemente ya no hay una bolsa compartida entre obligaciones distintas.
+        # igual que en las demas areas desde el Sprint 21. Dentro de CADA obligacion, desde
+        # el Sprint 84 (seguimiento) el abono se imputa proporcionalmente (Art. 804 E.T.);
+        # aqui no cambia nada porque cada obligacion tiene un solo concepto con saldo
+        # (mismo dia, sin intereses) -- los valores esperados son los mismos de antes.
         impuesto = _obligacion_tributaria(
             categoria="IMPUESTO_A_CARGO",
             valor=Decimal("1000000.00"),
@@ -4226,6 +4227,124 @@ class TestTributarioStrategy:
         assert not any(
             "Pendiente de Certificación Oficial" in alerta for alerta in resultado.alertas
         )
+
+
+    # --- Sprint 84 (seguimiento): imputacion proporcional Art. 804 E.T. ---
+
+    def test_abono_parcial_se_imputa_proporcionalmente_entre_impuesto_e_intereses(self):
+        # Calculo a mano. Marzo 2024: usura 33,30% - 2 puntos = 31,30% anual;
+        # 2024 es bisiesto -> tasa diaria lineal = 0,3130 / 366 = 0,000855191257.
+        # Interes diario sobre 10.000.000 = 8.551,91 (redondeo diario).
+        # Mora del 2024-03-02 al 2024-03-11 = 10 dias -> intereses = 85.519,10.
+        # Deuda total al dia del abono = 10.000.000 + 85.519,10 = 10.085.519,10.
+        # Abono 1.000.000 (Art. 804: proporcional, NO intereses primero):
+        #   a intereses = 1.000.000 x 85.519,10 / 10.085.519,10 = 8.479,39
+        #   a impuesto  = 1.000.000 - 8.479,39                  = 991.520,61
+        # Saldo: impuesto 9.008.479,39; intereses 77.039,71.
+        # (Con la regla civil el saldo seria impuesto 9.085.519,10 e intereses 0.)
+        impuesto = _obligacion_tributaria(
+            categoria="IMPUESTO_A_CARGO",
+            valor=Decimal("10000000.00"),
+            fecha_origen=date(2024, 3, 1),
+        )
+        abono = Abono(
+            id=1,
+            obligacion_id=impuesto.id,
+            fecha=date(2024, 3, 11),
+            monto=Decimal("1000000.00"),
+            referencia="Abono parcial",
+        )
+
+        resultado = TributarioStrategy().liquidar(
+            obligaciones=[impuesto], abonos=[abono], fecha_corte=date(2024, 3, 11)
+        )
+
+        saldo = resultado.final_balance()
+        assert saldo.principal == Decimal("9008479.39")
+        assert saldo.interest == Decimal("77039.71")
+        assert saldo.indexation == Decimal("0.00")
+        fila_abono = next(i for i in resultado.items if i.balance.event_type == "PAYMENT")
+        assert fila_abono.payment_amount == Decimal("1000000.00")
+
+    # --- Sprint 84 (seguimiento): tope suspensivo por demanda contenciosa ---
+
+    def test_tope_suspensivo_suspende_el_interes_entre_el_tope_y_la_reanudacion(self):
+        # Admision 2022-03-05 -> fecha_tope_24m = 2024-03-05.
+        # Notificacion de la sentencia 2024-03-10 -> reanudacion = 2024-03-21.
+        # Dias sin interes: 2024-03-06 a 2024-03-20 = 15 dias, todos en marzo de
+        # 2024 (interes diario 8.551,91 sobre 10.000.000, ver test anterior).
+        # Diferencia esperada frente a la misma obligacion sin demanda:
+        #   15 x 8.551,91 = 128.278,65
+        def _impuesto():
+            return _obligacion_tributaria(
+                categoria="IMPUESTO_A_CARGO",
+                valor=Decimal("10000000.00"),
+                fecha_origen=date(2022, 2, 1),
+            )
+
+        sin_demanda = _impuesto()
+        con_demanda = _impuesto()
+        con_demanda.fecha_admision_demanda = date(2022, 3, 5)
+        con_demanda.fecha_notificacion_sentencia = date(2024, 3, 10)
+
+        resultado_sin = TributarioStrategy().liquidar(
+            obligaciones=[sin_demanda], abonos=[], fecha_corte=date(2024, 3, 31)
+        )
+        resultado_con = TributarioStrategy().liquidar(
+            obligaciones=[con_demanda], abonos=[], fecha_corte=date(2024, 3, 31)
+        )
+
+        diferencia = (
+            resultado_sin.final_balance().interest - resultado_con.final_balance().interest
+        )
+        assert diferencia == Decimal("128278.65")
+        assert resultado_con.final_balance().principal == Decimal("10000000.00")
+        assert any(
+            "2024-03-06" in alerta and "2024-03-20" in alerta for alerta in resultado_con.alertas
+        )
+
+    def test_tope_suspensivo_sin_sentencia_suspende_hasta_la_fecha_de_corte(self):
+        # Admision 2022-03-05 -> tope 2024-03-05; sin sentencia notificada: del
+        # 2024-03-06 al corte 2024-03-31 (26 dias) no hay interes:
+        #   26 x 8.551,91 = 222.349,66 menos que sin demanda.
+        def _impuesto():
+            return _obligacion_tributaria(
+                categoria="IMPUESTO_A_CARGO",
+                valor=Decimal("10000000.00"),
+                fecha_origen=date(2022, 2, 1),
+            )
+
+        con_demanda = _impuesto()
+        con_demanda.fecha_admision_demanda = date(2022, 3, 5)
+
+        resultado_sin = TributarioStrategy().liquidar(
+            obligaciones=[_impuesto()], abonos=[], fecha_corte=date(2024, 3, 31)
+        )
+        resultado_con = TributarioStrategy().liquidar(
+            obligaciones=[con_demanda], abonos=[], fecha_corte=date(2024, 3, 31)
+        )
+
+        diferencia = (
+            resultado_sin.final_balance().interest - resultado_con.final_balance().interest
+        )
+        assert diferencia == Decimal("222349.66")
+
+    def test_notificacion_de_sentencia_sin_admision_lanza_value_error(self):
+        impuesto = _obligacion_tributaria(valor=Decimal("1000000.00"))
+        impuesto.fecha_notificacion_sentencia = date(2024, 3, 10)
+        with pytest.raises(ValueError, match="admisi"):
+            TributarioStrategy().liquidar(
+                obligaciones=[impuesto], abonos=[], fecha_corte=date(2024, 3, 31)
+            )
+
+    def test_notificacion_anterior_a_la_admision_lanza_value_error(self):
+        impuesto = _obligacion_tributaria(valor=Decimal("1000000.00"))
+        impuesto.fecha_admision_demanda = date(2024, 3, 10)
+        impuesto.fecha_notificacion_sentencia = date(2024, 3, 1)
+        with pytest.raises(ValueError, match="anterior"):
+            TributarioStrategy().liquidar(
+                obligaciones=[impuesto], abonos=[], fecha_corte=date(2024, 3, 31)
+            )
 
 
 def test_civil_familia_suma_unica_activa_interes_es_mayor_que_legado():

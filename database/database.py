@@ -86,6 +86,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
         migrar as migrar_recalculo_historico_sprint47,
     )
     from scripts.migrate_tipo_accion_proceso import migrar as migrar_tipo_accion_proceso
+    from scripts.migrate_tope_suspensivo_tributario_sprint84 import (
+        migrar as migrar_tope_suspensivo_tributario_sprint84,
+    )
     from scripts.migrate_tributario import migrar as migrar_tributario
 
     ruta = db_path if db_path is not None else _resolve_db_path()
@@ -117,6 +120,10 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # mapeaba y una bastium.db anterior fallaba al arrancar con
     # "no such column: obligaciones.salario_diario".
     migrar_salario_domestico_sprint96(ruta)
+    # Sprint 84 (seguimiento): agrega fecha_admision_demanda/
+    # fecha_notificacion_sentencia a obligaciones (tope suspensivo tributario)
+    # -- columnas nuevas independientes, sin dependencia de orden.
+    migrar_tope_suspensivo_tributario_sprint84(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     # Se llama ANTES de migrar_parametros_legales/migrar_ipc_variacion_anual

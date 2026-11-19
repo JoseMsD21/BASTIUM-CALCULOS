@@ -27,6 +27,30 @@ PRIMERO (Arts. 1629, 1653, 2495 C.C. y 446 CGP).
   incluye costas; "Saldo total" si.
 - Auditoria: `deserializar_resultado` lee `costas` con `.get(..., "0.00")` (snapshots anteriores).
 
+### Tributario: imputacion proporcional (Art. 804 E.T., Sprint 84 seguimiento)
+Respuesta del despacho (16/11/2026): "la imputacion proporcional es imperativa (no se imputa
+primero a intereses como en lo civil)" y aplica a toda obligacion tributaria. Contexto de la
+pregunta: "el abono se reparte proporcionalmente entre capital/sancion/interes segun el peso de
+cada uno en la deuda total".
+
+- `AllocationEngine.allocate_proporcional_art_804` (solo la usa `TributarioStrategy`; las demas
+  areas siguen con `allocate`/`allocate_capital_primero`).
+- Costas primero (Sprint 79). Con el resto (`disponible`):
+  `imputado_i = disponible x saldo_i / (impuesto + sanciones + intereses)`, con los saldos de la
+  obligacion en la fecha del abono (intereses causados hasta ese dia incluidos). Buckets:
+  impuesto = `principal`; sanciones y actualizacion Art. 867-1 = `indexation`; intereses =
+  `interest`.
+- Redondeo: cada parte al centavo (HALF_UP); el centavo residual va al impuesto, de modo que la
+  suma cuadra exactamente con el abono. Si el redondeo excediera el saldo del impuesto, el exceso
+  pasa a intereses y luego a sanciones (nunca quedan saldos negativos).
+- Si el abono cubre toda la deuda, se paga todo y el exceso es remanente (saldo a favor).
+- Limite: el reparto es dentro de la obligacion a la que pertenece el abono
+  (`Abono.obligacion_id`, Sprint 21). Un impuesto y su sancion capturados como 2 obligaciones
+  no comparten el abono.
+- Ejemplo verificado a mano (prueba `test_abono_parcial_se_imputa_proporcionalmente_...`):
+  impuesto 10.000.000 exigible 2024-03-01, intereses 85.519,10 al 2024-03-11; abono 1.000.000
+  -> 8.479,39 a intereses y 991.520,61 al impuesto.
+
 ## Componentes
 - `app/engine/liquidation/allocation.py`: `AllocationEngine.allocate(payment_amount, current_debt,
   payment_date)` retorna `(PaymentAllocation, nuevo PendingDebt, remainder)`. El `remainder` es el
@@ -42,7 +66,8 @@ cronologicamente con los eventos de causacion antes de procesarse.
 
 ## Pendiente (no implementado aun)
 - Validadores de pago anomalo (pago mayor al saldo, duplicado, sin soporte).
-- Reglas de imputacion alternativas por regimen (ej. tributario: sanciones -> intereses -> impuesto).
+- Reparto de un mismo abono entre varias obligaciones tributarias del expediente (hoy cada abono
+  pertenece a una sola obligacion).
 - Compensacion, novacion, remision, confusion.
 
 Ver `docs/Pendientes.md`.

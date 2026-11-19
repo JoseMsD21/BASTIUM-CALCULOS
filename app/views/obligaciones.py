@@ -32,6 +32,10 @@ from app.core.constants import (
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
 from app.engine.labor.salario_domestico import salario_diario_a_mensual
+from app.engine.tax.tope_suspensivo import (
+    calcular_fecha_reanudacion_interes,
+    calcular_fecha_tope_24m,
+)
 from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
 from app.services.recurrencia_fechas_fijas import (
     deserializar_fechas_anuales,
@@ -462,6 +466,42 @@ class ObligacionFormDialog(FormDialogBase):
             "aplicar ADEMAS la indexacion IPC del Art. 867-1 E.T. sobre el mismo capital "
             "(evita doble cobro)."
         )
+        # Tope suspensivo por demanda contenciosa (Sprint 84 seguimiento, solo
+        # Tributario). El despacho pidio los 4 campos como "obligatorios en el
+        # formulario"; se interpretan como obligatorios SOLO cuando hay demanda
+        # (esta casilla marcada): una obligacion tributaria sin demanda no tiene
+        # fecha de admision ni de sentencia. fecha_tope_24m y
+        # fecha_reanudacion_interes se calculan (etiquetas de solo lectura), no
+        # se capturan -- ver app/engine/tax/tope_suspensivo.py.
+        self.check_demanda_contenciosa = QCheckBox(
+            "Hay demanda ante lo contencioso administrativo"
+        )
+        self.check_demanda_contenciosa.setToolTip(
+            "Marca si la obligacion esta en discusion ante lo contencioso "
+            "administrativo: a los 24 meses de admitida la demanda el interes "
+            "moratorio deja de causarse hasta 11 dias despues de notificada la "
+            "sentencia."
+        )
+        self.campo_fecha_admision_demanda = QDateEdit(QDate.currentDate())
+        self.campo_fecha_admision_demanda.setCalendarPopup(True)
+        self.campo_fecha_admision_demanda.setToolTip(
+            "Fecha del auto que admitio la demanda ante lo contencioso administrativo."
+        )
+        self.label_fecha_tope_24m = QLabel()
+        self.label_fecha_tope_24m.setToolTip(
+            "Calculada: fecha de admision de la demanda + 24 meses. Desde el dia "
+            "siguiente deja de causarse el interes moratorio."
+        )
+        self.campo_fecha_notificacion_sentencia = QDateEdit(QDate.currentDate())
+        self.campo_fecha_notificacion_sentencia.setCalendarPopup(True)
+        self.campo_fecha_notificacion_sentencia.setToolTip(
+            "Fecha de notificacion de la sentencia que resolvio la demanda."
+        )
+        self.label_fecha_reanudacion_interes = QLabel()
+        self.label_fecha_reanudacion_interes.setToolTip(
+            "Calculada: fecha de notificacion de la sentencia + 11 dias. Desde ese dia "
+            "el interes moratorio vuelve a causarse."
+        )
 
         self.campo_base_sancion = QLineEdit()
         self.campo_base_sancion.setToolTip(
@@ -762,6 +802,19 @@ class ObligacionFormDialog(FormDialogBase):
         # art. 635, nunca se pacta"), asi que un checkbox de Tributario ahi nunca
         # llegaria a mostrarse.
         self.layout_datos_basicos.addRow(self.check_protegida_inflacion_uvr)
+        self.layout_datos_basicos.addRow(self.check_demanda_contenciosa)
+        self.layout_datos_basicos.addRow(
+            "Fecha de admision de la demanda", self.campo_fecha_admision_demanda
+        )
+        self.layout_datos_basicos.addRow(
+            "Fecha tope 24 meses (calculada)", self.label_fecha_tope_24m
+        )
+        self.layout_datos_basicos.addRow(
+            "Fecha de notificacion de la sentencia", self.campo_fecha_notificacion_sentencia
+        )
+        self.layout_datos_basicos.addRow(
+            "Reanudacion del interes (calculada)", self.label_fecha_reanudacion_interes
+        )
 
         self.layout_honorarios_costas.addRow(
             "Honorarios fijos pactados", self.campo_honorarios_fijos
@@ -888,6 +941,12 @@ class ObligacionFormDialog(FormDialogBase):
                 self.campo_costos: False,
                 self.campo_deducciones: False,
                 self.campo_rentas_exentas: False,
+                # Sprint 84 (seguimiento): ocultos por defecto en toda area;
+                # _actualizar_campos_tributario los muestra en Tributario.
+                self.campo_fecha_admision_demanda: False,
+                self.label_fecha_tope_24m: False,
+                self.campo_fecha_notificacion_sentencia: False,
+                self.label_fecha_reanudacion_interes: False,
             },
         )
         self._aplicar_visibilidad_filas(
@@ -928,6 +987,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
         self.check_pacto_expreso_indexacion.setVisible(es_comercial)
         self.check_protegida_inflacion_uvr.setVisible(es_tributario)
+        self.check_demanda_contenciosa.setVisible(es_tributario)
         self.check_es_smmlv.setVisible(es_laboral)
         self.check_salario_diario.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
@@ -977,6 +1037,13 @@ class ObligacionFormDialog(FormDialogBase):
         self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
+        self.check_demanda_contenciosa.stateChanged.connect(self._actualizar_campos_tributario)
+        self.campo_fecha_admision_demanda.dateChanged.connect(
+            self._actualizar_fechas_calculadas_demanda
+        )
+        self.campo_fecha_notificacion_sentencia.dateChanged.connect(
+            self._actualizar_fechas_calculadas_demanda
+        )
         # Sprint 93: la categoria SALARIOS_DEJADOS_DE_PERCIBIR (unica categoria
         # de Laboral que muestra el reajuste anual/oculta despido injustificado
         # y seguridad social) se elige con el mismo combo_categoria -- sin este
@@ -1200,6 +1267,17 @@ class ObligacionFormDialog(FormDialogBase):
                 if obligacion.rentas_exentas is not None:
                     self.campo_rentas_exentas.setText(str(obligacion.rentas_exentas))
                 self.check_protegida_inflacion_uvr.setChecked(obligacion.protegida_inflacion_uvr)
+                # Sprint 84 (seguimiento): la casilla no se guarda, se deduce de
+                # que haya fecha de admision de la demanda.
+                if obligacion.fecha_admision_demanda is not None:
+                    self.check_demanda_contenciosa.setChecked(True)
+                    self.campo_fecha_admision_demanda.setDate(
+                        _qdate(obligacion.fecha_admision_demanda)
+                    )
+                    if obligacion.fecha_notificacion_sentencia is not None:
+                        self.campo_fecha_notificacion_sentencia.setDate(
+                            _qdate(obligacion.fecha_notificacion_sentencia)
+                        )
 
             # Beneficiario (Sprint 74): precarga si esta obligacion ya tiene uno
             # persistido -- fuera del elif de arriba, aplica a cualquier area
@@ -1296,6 +1374,9 @@ class ObligacionFormDialog(FormDialogBase):
             self.check_interes_sobre_capital_indexado,
             self.check_pacto_expreso_indexacion,
             self.check_protegida_inflacion_uvr,
+            self.check_demanda_contenciosa,
+            self.campo_fecha_admision_demanda,
+            self.campo_fecha_notificacion_sentencia,
             self.campo_honorarios_fijos,
             self.campo_cuota_litis_pct,
             self.campo_beneficio_obtenido,
@@ -1367,6 +1448,36 @@ class ObligacionFormDialog(FormDialogBase):
         # addRow(check_sancion_agravada) es de un solo argumento -- sin etiqueta
         # separada, no sufre el bug de fila huerfana (Sprint 39).
         self.check_sancion_agravada.setVisible(es_inexactitud)
+
+        # Tope suspensivo (Sprint 84 seguimiento): toda obligacion que es deuda
+        # (impuesto o sancion) puede estar en demanda; RENTA_LIQUIDA es informativa.
+        self.check_demanda_contenciosa.setVisible(not es_renta_liquida)
+        con_demanda = not es_renta_liquida and self.check_demanda_contenciosa.isChecked()
+        self._aplicar_visibilidad_filas(
+            self.layout_datos_basicos,
+            {
+                self.campo_fecha_admision_demanda: con_demanda,
+                self.label_fecha_tope_24m: con_demanda,
+                self.campo_fecha_notificacion_sentencia: con_demanda,
+                self.label_fecha_reanudacion_interes: con_demanda,
+            },
+        )
+        self._actualizar_fechas_calculadas_demanda()
+
+    @staticmethod
+    def _qdate_a_date(qdate: QDate) -> date:
+        return date(qdate.year(), qdate.month(), qdate.day())
+
+    def _actualizar_fechas_calculadas_demanda(self) -> None:
+        """Muestra en vivo fecha_tope_24m (admision + 24 meses) y
+        fecha_reanudacion_interes (notificacion + 11 dias) -- Sprint 84
+        (seguimiento). Solo lectura: se recalculan siempre en el motor."""
+        admision = self._qdate_a_date(self.campo_fecha_admision_demanda.date())
+        notificacion = self._qdate_a_date(self.campo_fecha_notificacion_sentencia.date())
+        self.label_fecha_tope_24m.setText(calcular_fecha_tope_24m(admision).isoformat())
+        self.label_fecha_reanudacion_interes.setText(
+            calcular_fecha_reanudacion_interes(notificacion).isoformat()
+        )
 
     def _actualizar_campos_beneficiario(self) -> None:
         """Muestra/oculta `check_estudia` (solo NINO) y
@@ -1745,7 +1856,9 @@ class ObligacionFormDialog(FormDialogBase):
         if not self.campo_concepto.text().strip():
             raise ValueError("El concepto es obligatorio.")
 
-    def _validar_fecha_no_posterior_a_corte(self, fecha: date) -> None:
+    def _validar_fecha_no_posterior_a_corte(
+        self, fecha: date, nombre_fecha: str = "La fecha de origen/inicio"
+    ) -> None:
         """La fecha de origen/inicio de una obligacion no puede quedar despues de la
         fecha de corte del expediente (Sprint 24): de lo contrario la liquidacion no
         tendria ningun dia que acumular intereses, y el dato casi siempre es un error
@@ -1757,7 +1870,7 @@ class ObligacionFormDialog(FormDialogBase):
             session.close()
         if fecha > expediente.fecha_corte_default:
             raise ValueError(
-                "La fecha de origen/inicio no puede ser posterior a la fecha de corte "
+                f"{nombre_fecha} no puede ser posterior a la fecha de corte "
                 f"del expediente ({expediente.fecha_corte_default.isoformat()})."
             )
 
@@ -2188,6 +2301,28 @@ class ObligacionFormDialog(FormDialogBase):
                 if campo_valor < Decimal("0"):
                     raise ValueError(f"{nombre_campo} no puede ser negativo.")
 
+        # Tope suspensivo (Sprint 84 seguimiento): ambas fechas obligatorias
+        # cuando hay demanda contenciosa (casilla marcada); sin demanda se
+        # guardan nulas. RENTA_LIQUIDA nunca las lleva (no es una deuda).
+        fecha_admision_demanda = None
+        fecha_notificacion_sentencia = None
+        if categoria != "RENTA_LIQUIDA" and self.check_demanda_contenciosa.isChecked():
+            fecha_admision_demanda = self._qdate_a_date(self.campo_fecha_admision_demanda.date())
+            fecha_notificacion_sentencia = self._qdate_a_date(
+                self.campo_fecha_notificacion_sentencia.date()
+            )
+            if fecha_notificacion_sentencia < fecha_admision_demanda:
+                raise ValueError(
+                    "La fecha de notificacion de la sentencia no puede ser anterior a la "
+                    "fecha de admision de la demanda."
+                )
+            self._validar_fecha_no_posterior_a_corte(
+                fecha_admision_demanda, "La fecha de admision de la demanda"
+            )
+            self._validar_fecha_no_posterior_a_corte(
+                fecha_notificacion_sentencia, "La fecha de notificacion de la sentencia"
+            )
+
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
             session,
@@ -2212,6 +2347,8 @@ class ObligacionFormDialog(FormDialogBase):
             # protegida_inflacion_uvr (Sprint 43): prohibicion de doble cobro -- ver
             # TributarioStrategy.liquidar().
             protegida_inflacion_uvr=self.check_protegida_inflacion_uvr.isChecked(),
+            fecha_admision_demanda=fecha_admision_demanda,
+            fecha_notificacion_sentencia=fecha_notificacion_sentencia,
         )
         session.close()
         return obligacion_id
