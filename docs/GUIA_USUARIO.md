@@ -683,8 +683,12 @@ Al liquidar, el programa valida automáticamente que la suma de honorarios fijos
 el 50% del "Beneficio obtenido" (ver
 [sección 7.6](#76-tope-de-honorarios-50-acumulado-del-beneficio-obtenido)). Si se excede, el programa
 muestra el mensaje "Cuota litis excede el tope" al hacer clic en "Liquidar" y no calcula nada. Si
-diligenciaste el porcentaje de costas, el resultado de la liquidación trae dos filas de capital
-separadas: una de honorarios profesionales y otra de costas procesales.
+diligenciaste el porcentaje de costas, el resultado de la liquidación muestra las costas como un rubro
+propio, **"Costas Procesales (no generan interés)"**, separado del capital de honorarios.
+
+**Costas en cualquier área (desde el Sprint 79, 2026-11-19):** por respuesta del despacho, las costas procesales
+**nunca generan intereses**, en ninguna área ni algoritmo (tampoco con "Suma Única"): se suman "en seco" al total.
+Cuando registras un abono, el programa lo aplica **primero a las costas** y después a lo demás.
 
 ### 5.11. Agregar una obligación laboral y liquidar un contrato terminado
 
@@ -712,7 +716,12 @@ de forma. El primer campo, **Categoría**, elige cuál de las dos formas de liqu
      (`salario_diario × días_laborados_semana / 7 × 30`). El resultado de las prestaciones sociales es
      exactamente el mismo que si hubieras calculado el equivalente mensual a mano y lo hubieras digitado
      en "Valor" — la diferencia es solo de captura de datos, para no perder el rastro de auditoría de cómo
-     se llegó a esa cifra.
+     se llegó a esa cifra. **Auxilio de transporte (desde el Sprint 96, 2026-11-19):** con salario pactado
+     por día, el programa agrega el auxilio de transporte proporcional (auxilio mensual ÷ 30 × días
+     laborados en el mes) si el salario mensual equivalente no supera 2 SMMLV, y lo incluye en la base de
+     cesantías y prima, como indicó el despacho. Usa el valor del año de terminación del contrato (parámetro
+     **AUXILIO_TRANSPORTE**, editable en "⚙ Configuraciones" → "Parámetros"). Si falta el valor de ese año,
+     verás una alerta y la liquidación sigue sin auxilio.
    - **Fecha de inicio del contrato**: el día en que empezó el contrato.
    - **Fecha de terminación de contrato**: el día en que el contrato terminó. A partir de esta fecha se
      calculan las prestaciones (todas se vuelven exigibles ese mismo día — es una liquidación final, no
@@ -1235,18 +1244,20 @@ Lo que sigue documenta además dónde vive cada valor por dentro, para quien pro
   código para usar una tasa distinta en un caso puntual.
 - **Dónde vive el valor por defecto en el código**: `app/views/obligaciones.py`, línea del campo
   `self.campo_tasa = QLineEdit("6.00")`.
-- **Cómo se convierte esa tasa anual a diaria**: `app/engine/interest/rate_conversion.py`, clase
-  `EffectiveRateConverter`, usando la fórmula `i_diario = (1 + i_anual)^(1/365) - 1`.
-- **Ejemplo numérico completo**: con la tasa por defecto del 6% anual, `i_diario = (1.06)^(1/365) - 1 ≈
-  0,00015965` (0,015965% diario). Sobre un capital de **$10.000.000** durante **30 días**, el interés es
-  `I = C × i × t = 10.000.000 × 0,00015965 × 30 ≈ $47.896`.
-- **Pregunta abierta con el despacho (Sprint 76):** esta fórmula ("efectiva compuesta") no es la única
-  forma válida de convertir un 6% anual a una tasa diaria — existe también la fórmula lineal (`6% ÷ 365 =
-  0,0164%` diario), que es la que trae el documento de requisitos del despacho. Con un caso real de prueba,
-  la fórmula lineal acercó el resultado de BASTIUM al de un Excel del despacho casi 3 veces más que la
-  fórmula actual (0,04% de diferencia vs. 0,11%). Todavía no hay confirmación de cuál debe usar el software
-  — ver el desarrollo completo, con ejemplos numéricos paso a paso, en
-  `Preguntas-Para-Abogado-Abiertas.md`, Sprint 76.
+- **Cómo se convierte esa tasa anual a diaria (desde el Sprint 76, 2026-11-19)**: con la fórmula **lineal
+  simple** `i_diario = i_anual ÷ 365`, confirmada por el despacho para el interés civil del Art. 1617/2232 C.C.
+  y las tasas pactadas sin capitalización (Civil/Familia, Honorarios y Comercial en modo IPC + interés civil).
+  Usar una fórmula compuesta en deuda civil pura violaría la prohibición de anatocismo. Código:
+  `app/engine/interest/rate_conversion.py`, `EffectiveRateConverter.annual_simple_to_daily`.
+- **Ejemplo numérico completo**: con el 6% anual, `i_diario = 0,06 ÷ 365 ≈ 0,000164384` (0,0164% diario).
+  Sobre **$10.000.000** durante **30 días**: `10.000.000 × 0,06 × 30 ÷ 365 = $49.315,07`. El programa muestra
+  **$49.315,20**, porque redondea el interés de cada día a centavos antes de sumarlo (1.643,84 × 30); la forma de
+  redondear está en consulta con el despacho (`Preguntas-Para-Abogado-Abiertas.md`, Sprint 118, pregunta 3).
+- **Qué sigue con fórmula efectiva compuesta** (`(1 + i_anual)^(1/365) - 1`): las tasas comerciales pactadas
+  del Art. 884 C.Co., la tasa de usura/IBC, la mora laboral, la DTF y Sancionatorio. Las tasas pactadas en
+  Comercial están en confirmación con el despacho (Sprint 119, pregunta 5).
+- **Validación con un caso real:** con la fórmula lineal, el caso de prueba Radicado 2224 da un Gran Total de
+  **$8.002.521,44**, el valor esperado según el Excel del despacho (antes daba $7.990.356,08).
 
 ### 7.1.1. Tope de usura comercial (1.5x IBC, Ley 45/1990 art. 72)
 
@@ -1532,6 +1543,21 @@ completo de cada una (qué construir, qué documentos consultar, en qué orden) 
 ---
 
 ## 9. Preguntas frecuentes y solución de problemas
+
+**"La liquidación muestra 'Pendiente de Certificación Oficial'."**
+Desde el Sprint 110 (2026-11-19), por instrucción del despacho, el programa **nunca inventa** una tasa de usura
+que la Superintendencia Financiera no ha certificado. Si la fecha de corte es posterior al último mes cargado en
+la tabla de usura (hoy julio de 2026), los intereses moratorios se calculan solo hasta ese último día y el resto
+queda pendiente, con esta alerta en pantalla y en el PDF/Word. Para completar el cálculo, carga las tasas de los
+meses nuevos en "⚙ Configuraciones" → "Parámetros" y vuelve a liquidar.
+
+**"El interés de una obligación con costas bajó respecto a una liquidación anterior."**
+Es esperado: desde el Sprint 79 las costas ya no generan intereses (antes se mezclaban con el capital). Las
+liquidaciones guardadas antes del cambio no se recalculan solas; vuelve a liquidar para ver la cifra nueva.
+
+**"El interés civil cambió un poco respecto a una liquidación anterior."**
+Es esperado: desde el Sprint 76 el interés civil del 6% usa la fórmula lineal (6% ÷ 365) que confirmó el
+despacho, en vez de la efectiva compuesta. Ver [sección 7.1](#71-tasa-de-interés-civil-6-anual-art-1617-cc).
 
 **"Al instalar me sale un error de rutas largas / Long Path."**
 Ver [sección 2.5](#25-problema-conocido-rutas-largas-en-windows).

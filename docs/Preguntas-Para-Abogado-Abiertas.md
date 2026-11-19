@@ -83,6 +83,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 79 (repregunta) — Prelación de pagos: ¿intereses antes que indexación? Contradice la regla general vigente](#sprint-79-repregunta--prelación-de-pagos-intereses-antes-que-indexación-contradice-la-regla-general-vigente)
 - [Sprint 97/98 (datos pendientes) — Tablas completas de mortalidad de inválidos (hombres y mujeres) de la Superfinanciera](#sprint-9798-datos-pendientes--tablas-completas-de-mortalidad-de-inválidos-hombres-y-mujeres-de-la-superfinanciera)
 - [Sprint 118 — Paquete de noviembre: seis reglas que cambiarían resultados (vacancia, festivo nuevo, redondeo, pagos anticipados, notificación y vacancia por despacho)](#sprint-118--paquete-de-noviembre-seis-reglas-que-cambiarían-resultados-vacancia-festivo-nuevo-redondeo-pagos-anticipados-notificación-y-vacancia-por-despacho)
+- [Sprint 119 — Cinco dudas que surgieron al aplicar las respuestas del 16/11/2026](#sprint-119--cinco-dudas-que-surgieron-al-aplicar-las-respuestas-del-16112026)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -255,6 +256,53 @@ plantilla mensual) sigue abierta en la sección Sprint 76 de este archivo. El pa
 **Qué necesito exactamente:** una respuesta corta por pregunta: (1) "10" u "11"; (2) sí/no y la norma; (3) "a"
 o "b"; (4) "imputar" o "saldo a favor"; (5) el artículo y un ejemplo con fechas; (6) la lista de tipos de
 proceso o despacho en los que la vacancia no suspende términos, o "ninguno".
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 119 — Cinco dudas que surgieron al aplicar las respuestas del 16/11/2026
+
+**Contexto:** con las respuestas del 16/11/2026 se implementaron los Sprints 70/91, 76, 79, 95, 96 y 110 (ver
+`Pendientes.md`, Sprint 119). Al programarlos aparecieron cinco puntos que las respuestas no cubren. En todos se
+aplicó la opción más conservadora y se dejó anotada aquí; nada de esto bloquea el uso actual.
+
+**Pregunta 1 — Horas extra festivas antes del 1-jul-2025 (Sprint 95).**
+El despacho dio los factores de HEFD/HEFN desde el 1-jul-2025 (tramos de la Ley 2466). *Por qué se pregunta:* para
+horas causadas antes de esa fecha el software no tiene un factor confirmado y hoy exige que el usuario lo ingrese a
+mano. La práctica tradicional (recargo festivo del 75 %) daría HEFD = 2,00 y HEFN = 2,50. ¿Se usan esos factores
+antes del 1-jul-2025?
+
+**Pregunta 2 — Auxilio de transporte en trabajo doméstico por días (Sprint 96).**
+*Por qué se pregunta:* la respuesta fija la fórmula, pero no estos detalles, que cambian el resultado:
+(a) el tope de 2 SMMLV, ¿se compara contra el salario mensual **proporcional** a los días trabajados (lo que hace hoy
+el software) o contra el salario de tiempo completo (salario diario × 30)?; (b) ¿aplica también a contratos con
+salario **mensual** (hoy solo se aplica al salario pactado por día)?; (c) ¿entra en la base de **vacaciones** (hoy
+solo cesantías y prima, como dice la respuesta)?; (d) por favor verificar la serie de valores anuales cargada, de
+$61.500 (2010) a $249.095 (2026), contra los decretos.
+
+**Pregunta 3 — Vigencia de la Ley 797/2003 (Sprint 70).**
+La respuesta fija su vigencia el **29/01/2003**. *Por qué se pregunta:* la plantilla P9 del despacho y la versión
+anterior del software aplicaban la fórmula de la Ley 797 "desde 2004". Con la fecha nueva, una pensión causada entre
+el 29/01/2003 y el 31/12/2003 cambia de fórmula. ¿Se confirma el 29/01/2003?
+
+**Pregunta 4 — Indexación IPC del Art. 867-1 E.T. después del último mes de usura certificado (Sprint 110).**
+Se aplicó "nunca extrapolar": el interés se calcula solo hasta el último día certificado. *Por qué se pregunta:* la
+indexación IPC del rubro de impuesto está topada por la usura plena, y sin tasa certificada no se puede comprobar ese
+tope, así que también se suspendió. ¿Es correcto suspender la indexación, o debe seguir corriendo sin tope hasta el
+corte?
+
+**Pregunta 5 — Tasas comerciales pactadas (Art. 884 C.Co.) (Sprint 76).**
+El interés civil del 6 % y las tasas pactadas simples ya usan la fórmula lineal. *Por qué se pregunta:* las tasas
+remuneratorias y moratorias **pactadas** en Comercial se dejaron en efectiva compuesta, porque se pactan como
+efectivas anuales y se comparan contra la usura. La respuesta habla del "cobro del 6 % en litigios comerciales
+simples" pero no de las tasas pactadas. ¿Las tasas pactadas en Comercial siguen en efectiva compuesta?
+
+**Qué necesito exactamente:** (1) sí/no a 2,00/2,50; (2) a: "proporcional" o "tiempo completo", b: sí/no, c: sí/no,
+d: confirmación o valores corregidos; (3) sí/no; (4) "suspender" o "seguir sin tope"; (5) sí/no.
 
 **Respuesta del despacho:**
 

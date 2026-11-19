@@ -143,8 +143,21 @@ solo las mejoras que no cambian ninguna cifra (precisión decimal en todos los h
 `float`, política de causación explícita con la legada como predeterminada); lo que cambiaría plazos o montos
 (calendario propio, redondeo exacto por defecto, pagos anticipados, notificación) queda como 6 preguntas al
 despacho. Tablero Kanban del equipo en GitHub Projects y plan en `docs/PLAN_INTEGRACION_NOVIEMBRE.md`.
+Sprint 119 (2026-11-19): respuestas del despacho del 16/11/2026 procesadas: 18 preguntas pasan a Respondidas, 4
+repreguntas con su porqué, y 6 implementaciones integradas (Sprints 76, 79, 95, 96, 70/91 y 110). Suite: 1776
+pruebas en verde.
 
 ### Added
+- Factores de horas extra por tramo de la Ley 2466/2025 (Sprint 95): HED 1,25, HEN 1,75 y HEFD/HEFN 2,05/2,55
+  (desde 1-jul-2025), 2,15/2,65 (1-jul-2026) y 2,25/2,75 (1-jul-2027), en `app/engine/labor/horas_extra.py`.
+  Todavía no está conectado al formulario Laboral.
+- Vigencia pensional por fecha exacta (Sprint 70): Ley 33/1985 (13/02/1985), Ley 71/1988 (28/01/1989),
+  Acuerdo 049/1990 (18/04/1990), Ley 100/1993 (01/04/1994) y Ley 797/2003 (29/01/2003), en
+  `app/engine/labor/vigencia_pensional.py`. Invalidez grado 1 (Sprint 91): 45 % a 500 semanas + 1,5 % por
+  cada 50 adicionales, tope 60 % a 1.000.
+- Auxilio de transporte en trabajo doméstico por días (Sprint 96): auxilio mensual / 30 × días laborados del
+  mes, hasta 2 SMMLV, incluido en la base de cesantías y prima. Nuevo parámetro legal `AUXILIO_TRANSPORTE`
+  (2010-2026), sembrado automáticamente al arrancar; pendiente de verificación del despacho contra los decretos.
 - Política de causación explícita en el motor (Sprint 118): `PoliticaCausacion` (`app/engine/liquidation/politica.py`)
   con `LEGADA_DIARIA_REDONDEADA` (predeterminada, comportamiento actual bit a bit) y `EXACTA_POR_PERIODO`
   (un solo redondeo por tramo, disponible pero sin activar hasta que el despacho responda). Nuevo
@@ -321,6 +334,10 @@ despacho. Tablero Kanban del equipo en GitHub Projects y plan en `docs/PLAN_INTE
   hijas/abonos del Sprint 41.
 
 ### Fixed
+- Liquidaciones con fecha de corte posterior al último mes de usura certificado (Sprint 110): Tributario (E.T. 635
+  y Art. 867-1) ya no lanza excepción y Laboral (Art. 65 CST fase 2) ya no omite el rubro completo. Por
+  instrucción del despacho ("nunca extrapolar"), el interés se calcula hasta el último día certificado y el
+  resto queda "Pendiente de Certificación Oficial", con alerta en pantalla y PDF/Word.
 - La política decimal (precisión 28, `ROUND_HALF_UP`) solo se aplicaba al hilo principal (Sprint 118): los hilos
   nuevos (`QThread`, pools) heredaban `decimal.DefaultContext` y redondeaban con `ROUND_HALF_EVEN` en cualquier
   operación sin redondeo explícito. Ahora también se fija la plantilla de hilos nuevos.
@@ -464,6 +481,14 @@ despacho. Tablero Kanban del equipo en GitHub Projects y plan en `docs/PLAN_INTE
   Sprint 50.
 
 ### Changed
+- **Interés civil con fórmula lineal** (Sprint 76, respuesta del despacho): el 6 % del Art. 1617/2232 C.C. y
+  las tasas pactadas sin capitalización (Civil/Familia, Honorarios, Comercial modo IPC + civil) se convierten a
+  diaria con `tasa_anual / 365` en vez de la efectiva compuesta. Cambia el interés de esas liquidaciones (p. ej.
+  $49.315,20 en vez de $47.896,20 por $10.000.000 a 30 días). Radicado 2224 reproduce el valor esperado
+  ($8.002.521,44). Usura/IBC, Art. 884, mora laboral, DTF, Sancionatorio y E.T. 635 no cambian.
+- **Costas procesales sin intereses** (Sprint 79, respuesta del despacho): las costas son un componente aparte de
+  la deuda que nunca genera interés, en todas las áreas y algoritmos, y se pagan primero al imputar un abono.
+  PDF, Word y pantalla las muestran como rubro propio. Baja el interés de toda liquidación con costas.
 - Navegación de "Parametros" reorganizada en "Configuraciones" (Sprint 66): el botón del sidebar pasa a
   llamarse "Configuraciones" y abre una pantalla con submenú lateral (Parámetros/Apariencia, con espacio
   para futuras secciones); el interruptor de modo oscuro/claro, antes alojado en Parámetros, se mueve a la
