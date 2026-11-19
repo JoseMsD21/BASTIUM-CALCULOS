@@ -35,6 +35,7 @@ from app.engine.audit.service import (
 from app.engine.liquidation.registry import AreaRegistry
 from app.services.reajuste_anual import generar_cuotas_mensuales
 from app.services.recurrencia_fechas_fijas import generar_cuotas_fechas_fijas
+from app.services.vista_sensibilidad_indexacion import cargar_datos_de_liquidacion
 from app.views.abonos import AbonoFormDialog
 from app.views.concurrency import TareaEnHilo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
@@ -57,18 +58,9 @@ def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
     aqui de `expediente.fecha_corte_default` -- para permitir un override
     puntual desde la pantalla de liquidacion sin tocar el expediente guardado.
     """
-    session = session_module.get_session()
-    expediente = session.get(Expediente, expediente_id)
-    obligaciones = list(expediente.obligaciones)
-    abonos = [abono for obligacion in obligaciones for abono in obligacion.abonos]
-    for obligacion in obligaciones:
-        list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
-        list(obligacion.descuentos_laborales)  # idem (Sprint 44, punto 3)
-        # idem (Sprint 74): CivilFamiliaStrategy lee obligacion.beneficiario para
-        # topar la vigencia de las cuotas RECURRENTE.
-        _ = obligacion.beneficiario
-    area = expediente.area_derecho.value
-    session.close()
+    # Sprint 107: la carga (obligaciones detached con sus relaciones ya cargadas)
+    # se comparte con la vista de sensibilidad "Ver con/sin indexación".
+    obligaciones, abonos, area = cargar_datos_de_liquidacion(expediente_id)
 
     estrategia = AreaRegistry.get_strategy(area)
     resultado = estrategia.liquidar(
@@ -118,6 +110,12 @@ class ExpedienteDetallePage(QWidget):
         super().__init__()
         self._on_liquidado = on_liquidado
         self._expediente_id = None
+        # Sprint 107: fecha de corte del ultimo resultado entregado a on_liquidado
+        # (liquidacion en vivo o reconstruida del historial). MainWindow la pasa a
+        # ResultadoLiquidacionView para el interruptor "Ver con/sin indexación".
+        self.fecha_corte_ultimo_resultado: date | None = None
+        self._fecha_corte_en_curso: date | None = None
+        self._fechas_corte_historial_por_fila: list[date] = []
         self._obligacion_ids_por_fila = []
         # Area del expediente actualmente cargado, como str (AreaDerecho.value) --
         # Sprint 75: la necesita _abrir_dialogo_pago_por_rango para instanciar
@@ -442,6 +440,7 @@ class ExpedienteDetallePage(QWidget):
 
         self.tabla_historial.setRowCount(len(historial))
         self._audit_log_ids_por_fila = []
+        self._fechas_corte_historial_por_fila = []
         for fila, registro in enumerate(historial):
             self.tabla_historial.setItem(
                 fila, 0, QTableWidgetItem(registro.fecha_ejecucion.strftime("%Y-%m-%d %H:%M:%S"))
@@ -452,6 +451,7 @@ class ExpedienteDetallePage(QWidget):
                 fila, 3, QTableWidgetItem(registro.fecha_corte.isoformat())
             )
             self._audit_log_ids_por_fila.append(registro.id)
+            self._fechas_corte_historial_por_fila.append(registro.fecha_corte)
         session.close()
 
     def _reconstruir_desde_historial(self, fila: int, columna: int) -> None:
@@ -460,6 +460,7 @@ class ExpedienteDetallePage(QWidget):
         resultado = reconstruir_liquidacion(session, audit_log_id)
         session.close()
         self._mostrar_alertas_de_liquidacion(resultado)
+        self.fecha_corte_ultimo_resultado = self._fechas_corte_historial_por_fila[fila]
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
 
@@ -817,6 +818,7 @@ class ExpedienteDetallePage(QWidget):
         qdate_corte = self.campo_fecha_corte_liquidacion.date()
         fecha_corte = date(qdate_corte.year(), qdate_corte.month(), qdate_corte.day())
 
+        self._fecha_corte_en_curso = fecha_corte
         self._tarea_liquidar = TareaEnHilo(
             _liquidar_en_hilo_de_fondo, self._expediente_id, fecha_corte
         )
@@ -851,6 +853,7 @@ class ExpedienteDetallePage(QWidget):
         self._finalizar_liquidacion_en_curso()
         self._refrescar_historial()
         self._mostrar_alertas_de_liquidacion(resultado)
+        self.fecha_corte_ultimo_resultado = self._fecha_corte_en_curso
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
         self.liquidacion_finalizada.emit()

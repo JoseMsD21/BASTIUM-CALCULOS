@@ -2347,3 +2347,46 @@ def test_obligacion_por_fila_retorna_la_obligacion_real(qtbot, monkeypatch):
     obligacion = pagina._obligacion_por_fila(0)
     assert obligacion.id == obligacion_padre_id
     assert obligacion.concepto == "CUOTA ALIMENTARIA"
+
+
+def test_liquidar_recuerda_la_fecha_de_corte_del_ultimo_resultado(qtbot, monkeypatch):
+    # Sprint 107: la pantalla de resultados necesita la fecha de corte de la
+    # liquidacion mostrada para el interruptor "Ver con/sin indexación".
+    from PySide6.QtCore import QDate
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    page = ExpedienteDetallePage(on_liquidado=lambda resultado, exp_id: None)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page.campo_fecha_corte_liquidacion.setDate(QDate(2026, 5, 15))
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
+
+    assert page.fecha_corte_ultimo_resultado == date(2026, 5, 15)
+
+
+def test_reconstruir_desde_historial_recuerda_la_fecha_de_corte_registrada(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    estrategia = AreaRegistry.get_strategy(expediente.area_derecho.value)
+    resultado = estrategia.liquidar(
+        obligaciones=list(expediente.obligaciones), abonos=[], fecha_corte=date(2026, 3, 1)
+    )
+    registrar_liquidacion(
+        session,
+        expediente_id=expediente_id,
+        area_derecho=expediente.area_derecho.value,
+        fecha_corte=date(2026, 3, 1),
+        resultado=resultado,
+        usuario="jsilva",
+    )
+    session.close()
+
+    page = ExpedienteDetallePage(on_liquidado=lambda resultado, exp_id: None)
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page._reconstruir_desde_historial(0, 0)
+
+    assert page.fecha_corte_ultimo_resultado == date(2026, 3, 1)

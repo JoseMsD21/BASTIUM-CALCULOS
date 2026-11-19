@@ -272,7 +272,11 @@ class MainWindow(QMainWindow):
         self.show_page("detalle")
 
     def _mostrar_resultado(self, resultado, expediente_id: int) -> None:
-        self.resultado_page.mostrar(resultado, expediente_id)
+        self.resultado_page.mostrar(
+            resultado,
+            expediente_id,
+            fecha_corte=self.detalle_page.fecha_corte_ultimo_resultado,
+        )
         self.show_page("resultado")
 
     def _ir_a_configuraciones(self) -> None:
