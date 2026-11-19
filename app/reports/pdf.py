@@ -237,8 +237,14 @@ class JudicialPDFGenerator:
             ("Saldo Final Capital", summary["saldo_final_capital"]),
             ("Saldo Final Intereses", summary["saldo_final_intereses"]),
             ("Saldo Final Indexación/Sanciones", summary["saldo_final_indexacion"]),
-            ("GRAN TOTAL ADEUDADO", summary["gran_total_adeudado"]),
         ]
+        # Sprint 79: costas procesales como rubro propio (no generan interes, se
+        # suman en seco al gran total) -- solo cuando build_summary lo agrego.
+        if "saldo_final_costas" in summary:
+            filas_resumen.append(
+                ("Costas Procesales (no generan interés)", summary["saldo_final_costas"])
+            )
+        filas_resumen.append(("GRAN TOTAL ADEUDADO", summary["gran_total_adeudado"]))
         # Sprint 46: el saldo a favor de un sobrepago (Sprint 23) solo se muestra
         # cuando ReportSummaryBuilder.build_summary lo agrego al diccionario (es
         # decir, cuando efectivamente hubo un sobrepago).

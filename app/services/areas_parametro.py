@@ -62,6 +62,8 @@ AREA_UNIDAD_POR_CLAVE: dict[str, tuple[list[AreaDerecho], str]] = {
     "IBC_CONSUMO_ORDINARIO": ([_TR, _LA], "%"),
     "USURA_CONSUMO_ORDINARIO": ([_TR, _LA], "%"),
     "UVT": ([_TR, _SA], "COP"),
+    # Sprint 96 (seguimiento): solo LaboralStrategy (trabajo domestico por dias).
+    "AUXILIO_TRANSPORTE": ([_LA], "COP"),
     "EXTEMPORANEIDAD_PCT_MENSUAL": ([_TR], "%"),
     "INEXACTITUD_PCT": ([_TR], "%"),
     "INEXACTITUD_AGRAVADA_PCT": ([_TR], "%"),

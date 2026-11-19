@@ -43,7 +43,10 @@ from app.engine.indexation.historical_index import (
 )
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.interest.daily_interest import DailyInterest
-from app.engine.tax.moratory_interest import tasa_diaria_lineal_tributaria
+from app.engine.tax.moratory_interest import (
+    fecha_fin_mora_certificada,
+    tasa_diaria_lineal_tributaria,
+)
 
 UMBRAL_MORA_DIAS = 365 * 3
 
@@ -70,11 +73,18 @@ def calcular_interes_usura_plena(
     puntos del E.T. art. 635) sobre `capital`, dia a dia, desde el dia
     siguiente a `fecha_origen` hasta `fecha_corte` -- mismo patron que
     calcular_interes_moratorio_tributario (moratory_interest.py), pero sin el
-    descuento. Se usa unicamente como techo legal para el rubro Impuesto."""
+    descuento. Se usa unicamente como techo legal para el rubro Impuesto.
+
+    Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar"): solo
+    suma hasta el ultimo dia con tasa de usura certificada
+    (`fecha_fin_mora_certificada`); los dias posteriores no aportan nada al
+    techo -- mismo corte que calcular_interes_moratorio_tributario, asi que
+    ambos siguen comparandose sobre el mismo periodo."""
     if capital <= Decimal("0.00"):
         return Decimal("0.00")
 
     inicio_mora = fecha_origen + timedelta(days=1)
+    fecha_corte = fecha_fin_mora_certificada(fecha_corte)
     if fecha_corte < inicio_mora:
         return Decimal("0.00")
 

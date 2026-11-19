@@ -100,16 +100,12 @@ def test_indexacion_topada_no_recorta_si_el_interes_ya_liquidado_es_cero():
     assert topada == indexacion_sin_topar
 
 
-def test_fecha_corte_posterior_al_ultimo_tramo_lanza_value_error_con_mensaje_claro():
-    # Sprint 110, hallazgo 3: _TRAMOS_IBC_USURA (historical_index.py) termina
-    # el 2026-07-31 -- antes de este fix, una fecha_corte posterior indexaba
-    # tasa_por_dia[dia] sin comprobar que la clave existiera, y reproducia
-    # exactamente KeyError: datetime.date(2026, 8, 1), sin ningun mensaje. Se
-    # convierte en un ValueError con el mismo mensaje claro que ya usa
-    # get_ibc_usura_for_date -- defensa en profundidad (no resuelve por si
-    # solo el criterio de extrapolacion, que sigue pendiente de decidir con
-    # el despacho, ver docs/Pendientes.md Sprint 110).
-    with pytest.raises(
-        ValueError, match=r"No hay tramo de IBC/Usura configurado para la fecha 2026-08-01"
-    ):
-        calcular_interes_usura_plena(Decimal("1000000"), date(2020, 1, 1), date(2026, 8, 25))
+def test_fecha_corte_posterior_al_ultimo_tramo_topa_el_techo_al_ultimo_dia_certificado():
+    # Sprint 110, hallazgo 3 (respuesta del despacho, 26/08/2026: NUNCA
+    # extrapolar): antes lanzaba KeyError/ValueError. Ahora el techo de usura
+    # plena se calcula solo hasta el 2026-07-31 (ultimo tramo certificado).
+    # Julio: 1.000.000 x 0.2879 / 365 = 788.767123 -> 788.77 por dia, x 31 =
+    # 24.451,87. Agosto-septiembre (sin tasa certificada) no suman nada.
+    assert calcular_interes_usura_plena(
+        Decimal("1000000"), date(2026, 6, 30), date(2026, 9, 15)
+    ) == Decimal("24451.87")

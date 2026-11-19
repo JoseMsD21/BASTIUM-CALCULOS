@@ -13,7 +13,8 @@ necesita despues del re-cableado. Esto sigue siendo cierto para
 TOPE_MULTIPLICADOR (usury_validator), PUNTOS_DESCUENTO_ET_635
 (moratory_interest), LegalRates.CIVIL_ANNUAL_RATE (legal_rates),
 PLAZOS_PRESCRIPCION_MESES/PLAZOS_CADUCIDAD_MESES_CONOCIDOS (prescripcion) y
-las 4 series historicas de historical_index.py (SMLMV, IPC, IBC/usura, UVT).
+las 5 series historicas de historical_index.py (SMLMV, IPC, IBC/usura, UVT,
+auxilio de transporte -- esta ultima agregada en el Sprint 96, seguimiento).
 
 Excepcion: HONORARIOS_TOTAL_PCT SI se retranscribe a mano como Decimal("50")
 -- a diferencia de los demas, esta constante (antes
@@ -56,6 +57,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.engine.indexation.historical_index import (
+    _AUXILIO_TRANSPORTE_POR_ANIO,
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
@@ -232,6 +234,14 @@ def _sembrar(session) -> int:
         if not _clave_ya_sembrada(session, "UVT"):
             for anio, valor in _UVT_POR_ANIO.items():
                 session.add(_fila("UVT", valor, date(anio, 1, 1)))
+            sembradas += 1
+
+        # Sprint 96 (seguimiento): clave nueva -- como la siembra es idempotente
+        # POR CLAVE, una bastium.db ya sembrada la recibe en el siguiente
+        # arranque (aplicar_migraciones_pendientes llama a migrar() siempre).
+        if not _clave_ya_sembrada(session, "AUXILIO_TRANSPORTE"):
+            for anio, valor in _AUXILIO_TRANSPORTE_POR_ANIO.items():
+                session.add(_fila("AUXILIO_TRANSPORTE", valor, date(anio, 1, 1)))
             sembradas += 1
 
         session.commit()

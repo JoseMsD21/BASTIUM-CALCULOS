@@ -61,6 +61,9 @@ def _item_desde_dict(data: dict) -> LiquidationItem:
         principal=Decimal(debt_data["principal"]),
         interest=Decimal(debt_data["interest"]),
         indexation=Decimal(debt_data["indexation"]),
+        # Sprint 79: snapshots anteriores no tienen "costas" (las costas iban
+        # mezcladas en principal) -- mismo criterio .get() que rate_source.
+        costas=Decimal(debt_data.get("costas", "0.00")),
     )
     balance = RunningBalance(
         date=date.fromisoformat(balance_data["date"]),
