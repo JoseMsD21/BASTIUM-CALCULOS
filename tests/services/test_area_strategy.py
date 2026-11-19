@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 import database.session as session_module
 from app.core.exceptions import CuotaLitisExcedeTopeError
 from app.engine.indexation.historical_index import (
+    _AUXILIO_TRANSPORTE_POR_ANIO,
     _IPC_INDICE_ACUMULADO,
     _SMLMV_POR_ANIO,
     _TRAMOS_IBC_USURA,
@@ -111,6 +112,21 @@ def _parametros_legales_en_memoria(monkeypatch):
         session.add(
             ParametroLegal(
                 clave="SMLMV",
+                valor=valor,
+                vigente_desde=_date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=_dt.now(),
+            )
+        )
+    # AUXILIO_TRANSPORTE (Sprint 96, seguimiento): LaboralStrategy lo lee para
+    # trabajo domestico por dias (salario_diario). Mismo criterio que SMLMV/UVT:
+    # desde el diccionario congelado que consume migrate_parametros_legales.py.
+    for anio, valor in _AUXILIO_TRANSPORTE_POR_ANIO.items():
+        session.add(
+            ParametroLegal(
+                clave="AUXILIO_TRANSPORTE",
                 valor=valor,
                 vigente_desde=_date(anio, 1, 1),
                 vigente_hasta=None,
@@ -3644,11 +3660,15 @@ class TestLaboralStrategy:
         smlmv_2020 = Decimal("877803.00")
         assert salario_proporcional < smlmv_2020  # confirma que el piso SI aplica aqui
 
-        # Prestaciones sobre el salario proporcional REAL (sin piso).
+        # Prestaciones sobre el salario proporcional REAL (sin piso). Sprint 96
+        # (seguimiento): 642.857,14 <= 2 SMMLV 2020 (1.755.606), asi que
+        # cesantias/prima incluyen ademas el auxilio de transporte proporcional:
+        # 102.854 x 3 / 7 = 44.080,29.
         eventos_prestaciones = LaborScheduler(
             salario_base=salario_proporcional,
             dias_trabajados=360,
             fecha_liquidacion=obligacion.fecha_fin,
+            auxilio_transporte=Decimal("44080.29"),
         ).generate()
         monto_prestaciones = sum(
             (e.payload["amount"] for e in eventos_prestaciones), Decimal("0.00")
@@ -3668,6 +3688,98 @@ class TestLaboralStrategy:
         )
 
         assert resultado.final_balance().principal == monto_prestaciones + monto_cotizaciones
+
+
+    def test_salario_diario_hasta_2_smmlv_suma_auxilio_transporte_a_cesantias_y_prima(self):
+        # Sprint 96 (seguimiento), respuesta del despacho (23/08/2026):
+        # auxilio = (Auxilio_Mensual / 30) x Dias_Trabajados_en_el_mes, solo si
+        # el salario es de hasta 2 SMMLV, y forma parte de la base de
+        # cesantias y prima de servicios.
+        # Calculo a mano (contrato 2020, 360 dias comerciales):
+        #   salario  = 50.000 x 3 / 7 x 30          = 642.857,14 (<= 2 x 877.803)
+        #   dias mes = 3 / 7 x 30                   = 12,857142...
+        #   auxilio  = 102.854 / 30 x 12,857142...  =  44.080,29
+        #   base cesantias/prima = 642.857,14 + 44.080,29 = 686.937,43
+        #   cesantias  = 686.937,43
+        #   intereses  = 686.937,43 x 0,12          =  82.432,49
+        #   prima x 2  = 686.937,43 / 2 = 343.468,715 -> 343.468,72 c/u
+        #   vacaciones = 642.857,14 / 2 (sin auxilio) = 321.428,57
+        #   total = 686.937,43 + 82.432,49 + 686.937,44 + 321.428,57 = 1.777.735,93
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("50000.00")
+        obligacion.dias_laborados_semana = 3
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert obligacion.valor == Decimal("642857.14")
+        assert resultado.final_balance().principal == Decimal("1777735.93")
+        assert resultado.alertas == []
+        conceptos = [item.concept for item in resultado.items]
+        assert any("auxilio de transporte $44,080.29" in c for c in conceptos)
+
+    def test_salario_diario_por_encima_de_2_smmlv_no_suma_auxilio_transporte(self):
+        # 100.000 x 7 / 7 x 30 = 3.000.000 > 2 x 877.803 = 1.755.606 (2020):
+        # sin auxilio, mismo total que un salario mensual de 3.000.000
+        # (3.000.000 x 2,62 = 7.860.000,00).
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("100000.00")
+        obligacion.dias_laborados_semana = 7
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert resultado.final_balance().principal == Decimal("7860000.00")
+        assert not any("auxilio" in item.concept for item in resultado.items)
+
+    def test_salario_mensual_sin_salario_diario_no_suma_auxilio_transporte(self):
+        # La respuesta del despacho se limito al trabajo domestico por dias:
+        # un contrato con salario mensual directo (salario_diario None) se
+        # liquida exactamente igual que antes, aunque gane menos de 2 SMMLV.
+        # 1.000.000 x 2,62 = 2.620.000,00.
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1000000.00"),
+            fecha_inicio=date(2020, 1, 1),
+            fecha_fin=date(2020, 12, 31),
+        )
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert resultado.final_balance().principal == Decimal("2620000.00")
+
+    def test_salario_diario_sin_auxilio_configurado_para_el_anio_alerta_y_no_lo_suma(self):
+        # AUXILIO_TRANSPORTE se siembra 2010-2026: para un contrato que termina
+        # en 2005 no hay valor -> alerta NO bloqueante y prestaciones sin auxilio.
+        #   salario = 20.000 x 3 / 7 x 30 = 257.142,86 (<= 2 x 381.500)
+        #   cesantias 257.142,86 + intereses 30.857,14 + prima 2 x 128.571,43
+        #   + vacaciones 128.571,43 = 673.714,29
+        obligacion = _obligacion_laboral(
+            salario=Decimal("1.00"),
+            fecha_inicio=date(2005, 1, 1),
+            fecha_fin=date(2005, 12, 31),
+        )
+        obligacion.salario_diario = Decimal("20000.00")
+        obligacion.dias_laborados_semana = 3
+
+        resultado = LaboralStrategy().liquidar(
+            obligaciones=[obligacion], abonos=[], fecha_corte=obligacion.fecha_fin
+        )
+
+        assert resultado.final_balance().principal == Decimal("673714.29")
+        assert len(resultado.alertas) == 1
+        assert "auxilio de transporte" in resultado.alertas[0].lower()
 
 
 def _obligacion_tributaria(
