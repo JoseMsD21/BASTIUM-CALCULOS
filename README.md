@@ -21,7 +21,23 @@ están los valores legales (como la tasa de interés) por si necesitas consultar
 **¿Buscas un documento de proyecto en particular** (visión y alcance, requisitos, arquitectura, riesgos,
 QA, mantenimiento...)**?** Ver el [Mapa de documentación](docs/MAPA_DOCUMENTACION.md).
 
-## Estado actual (2026-08-20)
+## Estado actual (2026-11-19)
+
+**Novedades de noviembre de 2026** (detalle en [CHANGELOG](CHANGELOG.md) y en
+[Pendientes.md](docs/Pendientes.md), Sprints 117-119):
+
+- **Interés civil del 6 % con fórmula lineal** (6 % ÷ 365), confirmada por el despacho; el caso real de prueba
+  Radicado 2224 reproduce al centavo el valor del Excel del despacho.
+- **Las costas procesales nunca generan intereses** y se pagan primero al imputar abonos, en todas las áreas.
+- **Tasa de usura sin extrapolar:** si la fecha de corte supera el último mes certificado, el interés se calcula
+  hasta ese día y el resto queda "Pendiente de Certificación Oficial", con alerta.
+- **Laboral:** auxilio de transporte en trabajo doméstico por días; factores de horas extra de la Ley 2466 y
+  vigencia pensional por fecha exacta e invalidez grado 1 en el motor (aún sin pantalla).
+- **Precisión:** redondeo `ROUND_HALF_UP` garantizado en todos los hilos y `Decimal` en vez de `float` en PDF.
+- **Instalación:** `Iniciar BASTIUM.bat` crea el entorno e instala las dependencias solo.
+- **Equipo:** tablero [Kanban](https://github.com/users/JoseMsD21/projects/1) y
+  [plan de integración](docs/PLAN_INTEGRACION_NOVIEMBRE.md). Preguntas pendientes al despacho en
+  [Preguntas Abiertas](docs/Preguntas-Para-Abogado-Abiertas.md).
 
 ✅ **Funcional hoy:** captura manual de expedientes y liquidación real de las áreas **Civil / Familia**
 (interés del Art. 1617 del Código Civil, 6% anual, sobre obligaciones puntuales y recurrentes, con

@@ -1,6 +1,6 @@
 # Plan de integración del paquete "BASTIUM VERSION NOVIEMBRE" y forma de trabajo del equipo
 
-Última actualización: 2026-11-19 (Sprint 118).
+Última actualización: 2026-11-19 (Sprints 118 y 119).
 
 Este documento explica qué traía el paquete de cambios de noviembre, qué se integró, qué no y por qué, y cómo
 seguimos trabajando en equipo (Kanban + Drive). El detalle técnico está en [`Pendientes.md`](Pendientes.md),
@@ -108,9 +108,17 @@ Nombres sugeridos para las actas: `AAAA-MM-DD - Acta - <tema>` y `AAAA-MM-DD - A
 
 ## 7. Próximos pasos
 
-1. Enviar al despacho las 6 preguntas del Sprint 118 y los seguimientos pendientes de los Sprints 76 y 79.
-2. Decidir en equipo si se integra la capa API (fase 3).
-3. Programar como sprint propio la corrección de `Numeric` sobre SQLite.
+**Actualización 2026-11-19 (Sprint 119):** el despacho respondió el 16/11 las preguntas antiguas (Sprints 76 y 79
+incluidos). Se implementaron los Sprints 76, 79, 95, 96, 70/91 y 110, y las preguntas quedaron ordenadas en
+Respondidas y Abiertas. Ver `Pendientes.md`, Sprint 119.
+
+1. Enviar al despacho lo que sigue abierto en `Preguntas-Para-Abogado-Abiertas.md`: las 6 preguntas del Sprint 118
+   (paquete de noviembre), las 5 del Sprint 119, y las repreguntas de los Sprints 18, 79 (orden intereses vs.
+   indexación) y 97/98 (tablas de mortalidad de inválidos).
+2. Implementar los sprints desbloqueados (columna "Listo" del tablero): 84, 85, 86/87, 89, 94, 97/100, 104, 105,
+   106, 107, y conectar a la pantalla Laboral lo de los Sprints 70/91 y 95.
+3. Decidir en equipo si se integra la capa API (fase 3) y si se adopta NotebookLM (sección 8).
+4. Programar como sprint propio la corrección de `Numeric` sobre SQLite (tarjeta #38).
 
 ## 8. Herramienta evaluada: NotebookLM como gestor de conocimiento (2026-11-19)
 
