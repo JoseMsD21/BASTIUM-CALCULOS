@@ -964,6 +964,7 @@ def test_orden_de_tabulacion_sigue_el_orden_visual_del_formulario(qtbot, monkeyp
         dialog.campo_demandante,
         dialog.campo_demandado,
         dialog.combo_area,
+        dialog.combo_tipo_proceso,  # Sprint 105
         dialog.campo_juzgado,
         dialog.campo_fecha_corte,
         dialog.boton_guardar,
@@ -976,3 +977,146 @@ def test_orden_de_tabulacion_sigue_el_orden_visual_del_formulario(qtbot, monkeyp
     for widget_esperado in orden_esperado[1:]:
         qtbot.keyClick(dialog, Qt.Key.Key_Tab)
         assert dialog.focusWidget() is widget_esperado
+
+
+# --- Sprint 105: tipo de proceso (intake Area -> Tipo de proceso) -----------
+
+
+def _seleccionar_area(dialog, area: AreaDerecho) -> None:
+    dialog.combo_area.setCurrentIndex(dialog.combo_area.findData(area.value))
+
+
+def _codigos_combo_tipo_proceso(dialog) -> list:
+    return [
+        dialog.combo_tipo_proceso.itemData(i) for i in range(dialog.combo_tipo_proceso.count())
+    ]
+
+
+def test_combo_tipo_proceso_se_filtra_por_area(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    _seleccionar_area(dialog, AreaDerecho.LABORAL)
+    assert _codigos_combo_tipo_proceso(dialog) == [None, "LABORAL_ORDINARIO"]
+
+    _seleccionar_area(dialog, AreaDerecho.CIVIL_FAMILIA)
+    codigos = _codigos_combo_tipo_proceso(dialog)
+    assert codigos[0] is None
+    assert "CIVIL_COMERCIAL_EJECUTIVO" in codigos
+    assert "FAMILIA_EJECUTIVO_ALIMENTOS" in codigos
+
+    _seleccionar_area(dialog, AreaDerecho.TRIBUTARIO)
+    assert _codigos_combo_tipo_proceso(dialog) == [None]
+    assert not dialog.combo_tipo_proceso.isEnabled()
+
+
+def test_combo_tipo_proceso_tiene_tooltip_y_muestra_ayuda_del_tipo_elegido(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    assert dialog.combo_tipo_proceso.toolTip() != ""
+
+    _seleccionar_area(dialog, AreaDerecho.CIVIL_FAMILIA)
+    dialog.combo_tipo_proceso.setCurrentIndex(
+        dialog.combo_tipo_proceso.findData("CIVIL_COMERCIAL_DECLARATIVO")
+    )
+    texto = dialog.etiqueta_ayuda_tipo_proceso.text()
+    assert "¿La obligación dineraria es expresa, clara, exigible" in texto
+    assert "NO" in texto
+    assert "audiencia de conciliación extrajudicial" in texto
+
+    dialog.combo_tipo_proceso.setCurrentIndex(0)
+    assert "audiencia de conciliación extrajudicial" not in (
+        dialog.etiqueta_ayuda_tipo_proceso.text()
+    )
+
+
+def test_guardar_nuevo_expediente_persiste_tipo_proceso(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-105")
+    _seleccionar_area(dialog, AreaDerecho.CIVIL_FAMILIA)
+    dialog.combo_tipo_proceso.setCurrentIndex(
+        dialog.combo_tipo_proceso.findData("FAMILIA_EJECUTIVO_ALIMENTOS")
+    )
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso == "FAMILIA_EJECUTIVO_ALIMENTOS"
+    session.close()
+
+
+def test_guardar_sin_tipo_proceso_deja_none(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-106")
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso is None
+    session.close()
+
+
+def test_editar_expediente_precarga_tipo_proceso(qtbot, monkeypatch):
+    session = crear_sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-107",
+        demandante="A",
+        demandado="B",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 6, 1),
+        tipo_proceso="LABORAL_ORDINARIO",
+    )
+    session.add(expediente)
+    session.commit()
+
+    dialog = ExpedienteFormDialog(expediente=expediente)
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo_proceso.currentData() == "LABORAL_ORDINARIO"
+    session.close()
+
+
+def test_editar_expediente_viejo_sin_tipo_proceso_funciona(qtbot, monkeypatch):
+    session = crear_sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-108",
+        demandante="A",
+        demandado="B",
+        area_derecho=AreaDerecho.COMERCIAL,
+        fecha_corte_default=date(2026, 6, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+
+    dialog = ExpedienteFormDialog(expediente=expediente)
+    qtbot.addWidget(dialog)
+    assert dialog.combo_tipo_proceso.currentData() is None
+    dialog.guardar()
+
+    session.close()
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso is None
+    session.close()
+
+
+def test_cambiar_area_descarta_tipo_proceso_de_otra_area(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-109")
+    _seleccionar_area(dialog, AreaDerecho.LABORAL)
+    dialog.combo_tipo_proceso.setCurrentIndex(1)
+    _seleccionar_area(dialog, AreaDerecho.HONORARIOS)
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso is None
+    session.close()

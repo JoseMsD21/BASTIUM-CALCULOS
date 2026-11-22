@@ -207,6 +207,11 @@ class Expediente(Base):
         default=EstadoProcesal.EN_TRAMITE,
         server_default=EstadoProcesal.EN_TRAMITE.value,
     )
+    # tipo_proceso (Sprint 105): codigo de TipoProceso del catalogo informativo
+    # app/services/catalogo_tipos_proceso.py (ej. "FAMILIA_EJECUTIVO_ALIMENTOS").
+    # Opcional: los expedientes anteriores al sprint quedan en NULL y siguen
+    # funcionando igual. No afecta ningun calculo.
+    tipo_proceso: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
     obligaciones: Mapped[list[Obligacion]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
