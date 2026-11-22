@@ -2392,6 +2392,28 @@ def test_reconstruir_desde_historial_recuerda_la_fecha_de_corte_registrada(qtbot
     assert page.fecha_corte_ultimo_resultado == date(2026, 3, 1)
 
 
+def test_cargar_expediente_muestra_tipo_proceso(qtbot, monkeypatch):
+    """Sprint 105: el detalle muestra el tipo de proceso del expediente (con su
+    rama), o 'Sin especificar' para expedientes viejos sin tipo."""
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+
+    page.cargar_expediente(expediente_id)
+    assert "Sin especificar" in page.etiqueta_tipo_proceso.text()
+
+    session = session_module.get_session()
+    session.get(Expediente, expediente_id).tipo_proceso = "FAMILIA_EJECUTIVO_ALIMENTOS"
+    session.commit()
+    session.close()
+
+    page.cargar_expediente(expediente_id)
+    texto = page.etiqueta_tipo_proceso.text()
+    assert "Ejecutivo de Alimentos" in texto
+    assert "Rama de Familia" in texto
+    assert "obligaciones de sustento incumplidas" in page.etiqueta_tipo_proceso.toolTip()
+
+
 # --- Sprint 106: datos del titulo ejecutivo en el detalle del expediente ---
 
 

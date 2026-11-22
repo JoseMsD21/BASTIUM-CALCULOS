@@ -779,6 +779,38 @@ def test_aplicar_migraciones_pendientes_agrega_columnas_tope_suspensivo_sprint84
     assert migrar(db_path) is False
 
 
+def test_aplicar_migraciones_pendientes_agrega_tipo_proceso_sprint105(tmp_path):
+    """Sprint 105: una bastium.db anterior no tiene expedientes.tipo_proceso --
+    debe agregarse al arrancar (nullable: los expedientes viejos quedan sin
+    tipo de proceso) y la migracion debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_tipo_proceso_expediente import migrar
+
+    db_path = tmp_path / "sin_tipo_proceso.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE expedientes DROP COLUMN tipo_proceso")
+    con.execute(
+        "INSERT INTO expedientes (radicado, demandante, demandado, area_derecho, "
+        "fecha_corte_default) VALUES ('viejo', 'A', 'B', 'LABORAL', '2026-01-01')"
+    )
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(expedientes)")}
+    valor = con.execute("SELECT tipo_proceso FROM expedientes WHERE radicado='viejo'").fetchone()
+    con.close()
+    assert "tipo_proceso" in columnas
+    assert valor == (None,)
+    assert migrar(db_path) is False
+
+
 def test_aplicar_migraciones_pendientes_agrega_columnas_titulo_ejecutivo_sprint106(tmp_path):
     """Sprint 106: una bastium.db anterior no tiene los datos del titulo
     ejecutivo en expedientes -- deben agregarse al arrancar (todas NULL en los

@@ -32,6 +32,7 @@ from app.engine.audit.service import (
     registrar_liquidacion,
 )
 from app.engine.liquidation.registry import AreaRegistry
+from app.services.catalogo_tipos_proceso import buscar_tipo_proceso, nombre_rama, texto_ayuda
 from app.services.reajuste_anual import generar_cuotas_mensuales
 from app.services.recurrencia_fechas_fijas import generar_cuotas_fechas_fijas
 from app.services.titulo_ejecutivo import ETIQUETAS_TIPO_TITULO
@@ -309,6 +310,11 @@ class ExpedienteDetallePage(QWidget):
         columnas.addWidget(self.grupo_eventos_laborales)
         columnas.addWidget(self.grupo_descuentos_laborales)
 
+        # Tipo de proceso del expediente (Sprint 105, catalogo informativo
+        # app/services/catalogo_tipos_proceso.py); se llena en cargar_expediente().
+        self.etiqueta_tipo_proceso = QLabel()
+        self.etiqueta_tipo_proceso.setWordWrap(True)
+
         # Datos del titulo ejecutivo (Sprint 106): solo lectura aqui, se editan
         # desde 'Editar expediente'. Se llenan en cargar_expediente().
         self.etiqueta_titulo_ejecutivo = QLabel()
@@ -322,6 +328,7 @@ class ExpedienteDetallePage(QWidget):
         grupo_titulo_ejecutivo.setLayout(layout_titulo_ejecutivo)
 
         layout_principal = QVBoxLayout()
+        layout_principal.addWidget(self.etiqueta_tipo_proceso)
         layout_principal.addWidget(grupo_titulo_ejecutivo)
         layout_principal.addLayout(columnas)
         layout_principal.addLayout(layout_fecha_corte)
@@ -349,7 +356,9 @@ class ExpedienteDetallePage(QWidget):
         )
         self._area = expediente.area_derecho.value
         self.etiqueta_titulo_ejecutivo.setText(_texto_titulo_ejecutivo(expediente))
+        codigo_tipo_proceso = expediente.tipo_proceso
         session.close()
+        self._mostrar_tipo_proceso(codigo_tipo_proceso)
 
         # Precarga el override de fecha de corte (Sprint 44, punto 5) con el
         # valor guardado en el expediente -- el usuario puede cambiarlo desde
@@ -374,6 +383,25 @@ class ExpedienteDetallePage(QWidget):
         # habilitado "heredado" del expediente anterior hasta el proximo clic en la
         # tabla.
         self._actualizar_boton_pagar_cuotas_seleccionadas()
+
+    def _mostrar_tipo_proceso(self, codigo: str | None) -> None:
+        """Sprint 105: muestra el tipo de proceso con su rama; la pregunta
+        orientadora y la descripcion van en el tooltip. Un codigo que ya no
+        este en el catalogo se muestra tal cual en vez de ocultarse."""
+        tipo = buscar_tipo_proceso(codigo)
+        if tipo is not None:
+            self.etiqueta_tipo_proceso.setText(
+                f"Tipo de proceso: {tipo.nombre} ({nombre_rama(tipo.rama)})"
+            )
+            self.etiqueta_tipo_proceso.setToolTip(texto_ayuda(tipo))
+        elif codigo:
+            self.etiqueta_tipo_proceso.setText(f"Tipo de proceso: {codigo}")
+            self.etiqueta_tipo_proceso.setToolTip("")
+        else:
+            self.etiqueta_tipo_proceso.setText("Tipo de proceso: Sin especificar")
+            self.etiqueta_tipo_proceso.setToolTip(
+                "Puede elegirse con 'Editar expediente' (opcional, informativo)."
+            )
 
     def _refrescar_obligaciones(self) -> None:
         session = session_module.get_session()

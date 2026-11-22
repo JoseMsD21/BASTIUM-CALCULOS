@@ -23,6 +23,11 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
+from app.services.catalogo_tipos_proceso import (
+    buscar_tipo_proceso,
+    texto_ayuda,
+    tipos_proceso_por_area,
+)
 from app.services.titulo_ejecutivo import (
     ETIQUETAS_TIPO_TITULO,
     calcular_fecha_limite_prescripcion_titulo,
@@ -71,6 +76,21 @@ class ExpedienteFormDialog(FormDialogBase):
                 item.setToolTip("Proximamente")
 
         self._construir_grupo_titulo_ejecutivo()
+        # Tipo de proceso (Sprint 105): combo filtrado por el area elegida, con
+        # la pregunta orientadora y la descripcion del despacho como ayuda
+        # (app/services/catalogo_tipos_proceso.py). Opcional e informativo: no
+        # cambia ningun calculo.
+        self.combo_tipo_proceso = QComboBox()
+        self.combo_tipo_proceso.setToolTip(
+            "Tipo de proceso segun el catalogo del despacho para el area elegida "
+            "(opcional, informativo: no cambia ningun calculo)."
+        )
+        self.etiqueta_ayuda_tipo_proceso = QLabel()
+        self.etiqueta_ayuda_tipo_proceso.setWordWrap(True)
+        self.etiqueta_ayuda_tipo_proceso.setStyleSheet(f"color: {colores.TEXTO_SECUNDARIO};")
+        self.combo_area.currentIndexChanged.connect(self._poblar_tipos_proceso)
+        self.combo_tipo_proceso.currentIndexChanged.connect(self._actualizar_ayuda_tipo_proceso)
+        self._poblar_tipos_proceso()
 
         if expediente:
             self.campo_radicado.setText(expediente.radicado)
@@ -88,6 +108,9 @@ class ExpedienteFormDialog(FormDialogBase):
             if indice_area >= 0:
                 self.combo_area.setCurrentIndex(indice_area)
             self._precargar_titulo_ejecutivo(expediente)
+            indice_tipo = self.combo_tipo_proceso.findData(expediente.tipo_proceso)
+            if expediente.tipo_proceso and indice_tipo >= 0:
+                self.combo_tipo_proceso.setCurrentIndex(indice_tipo)
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
@@ -108,6 +131,8 @@ class ExpedienteFormDialog(FormDialogBase):
         layout.addRow("Demandante", self.campo_demandante)
         layout.addRow("Demandado", self.campo_demandado)
         layout.addRow("Area del derecho", self.combo_area)
+        layout.addRow("Tipo de proceso", self.combo_tipo_proceso)
+        layout.addRow("", self.etiqueta_ayuda_tipo_proceso)
         layout.addRow("Juzgado", self.campo_juzgado)
         # "Fecha de corte" recibe ademas el icono (i) explicito (Sprint 59, helper
         # compartido agregar_ayuda) -- es el campo con mayor efecto no obvio del
@@ -144,6 +169,7 @@ class ExpedienteFormDialog(FormDialogBase):
             self.campo_demandante,
             self.campo_demandado,
             self.combo_area,
+            self.combo_tipo_proceso,
             self.campo_juzgado,
             self.campo_fecha_corte,
             self.grupo_titulo_ejecutivo,
@@ -180,6 +206,7 @@ class ExpedienteFormDialog(FormDialogBase):
         expediente.demandante = self.campo_demandante.text().strip()
         expediente.demandado = self.campo_demandado.text().strip()
         expediente.area_derecho = AreaDerecho(self.combo_area.currentData())
+        expediente.tipo_proceso = self.combo_tipo_proceso.currentData()
         expediente.juzgado = self.campo_juzgado.text().strip() or None
         expediente.fecha_corte_default = fecha_corte
         self._volcar_titulo_ejecutivo(expediente)
@@ -313,6 +340,38 @@ class ExpedienteFormDialog(FormDialogBase):
         expediente.fecha_exigibilidad = self.campo_fecha_exigibilidad.fecha()
         expediente.es_primera_copia_ejecutiva = self.check_primera_copia.isChecked()
         expediente.termino_prescripcion_anos = self.spin_termino_prescripcion.value() or None
+    def _poblar_tipos_proceso(self) -> None:
+        """Repuebla el combo de tipo de proceso con los tipos del area elegida
+        (Sprint 105). Al cambiar de area se vuelve a "(Sin especificar)": un
+        tipo de otra rama no aplica al area nueva."""
+        self.combo_tipo_proceso.blockSignals(True)
+        self.combo_tipo_proceso.clear()
+        self.combo_tipo_proceso.addItem("(Sin especificar)", userData=None)
+        tipos = tipos_proceso_por_area(AreaDerecho(self.combo_area.currentData()))
+        for tipo in tipos:
+            self.combo_tipo_proceso.addItem(tipo.nombre, userData=tipo.codigo)
+            self.combo_tipo_proceso.setItemData(
+                self.combo_tipo_proceso.count() - 1,
+                texto_ayuda(tipo),
+                Qt.ItemDataRole.ToolTipRole,
+            )
+        self.combo_tipo_proceso.setEnabled(bool(tipos))
+        self.combo_tipo_proceso.blockSignals(False)
+        self._actualizar_ayuda_tipo_proceso()
+
+    def _actualizar_ayuda_tipo_proceso(self) -> None:
+        tipo = buscar_tipo_proceso(self.combo_tipo_proceso.currentData())
+        if tipo is not None:
+            self.etiqueta_ayuda_tipo_proceso.setText(texto_ayuda(tipo))
+        elif self.combo_tipo_proceso.count() > 1:
+            self.etiqueta_ayuda_tipo_proceso.setText(
+                "Opcional. Pase el cursor sobre cada opcion para ver su pregunta "
+                "orientadora y su descripcion."
+            )
+        else:
+            self.etiqueta_ayuda_tipo_proceso.setText(
+                "El catalogo del despacho no define tipos de proceso para esta area."
+            )
 
     def _marcar_campo_invalido(self, campo: QLineEdit, mensaje: str) -> None:
         campo.setProperty("class", "invalid")
