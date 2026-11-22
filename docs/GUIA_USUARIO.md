@@ -315,9 +315,22 @@ obligación?") son mensajes simples y no tienen esos controles.
      [5.10](#510-agregar-una-obligación-de-honorarios--litigio),
      [5.11](#511-agregar-una-obligación-laboral-y-liquidar-un-contrato-terminado) o
      [5.15](#515-agregar-una-obligación-tributaria) según el área.
+   - **Tipo de proceso** (opcional, desde el Sprint 105): después de elegir el área, el combo muestra
+     solo los tipos de proceso del catálogo del despacho para esa área (por ejemplo, en Civil/Comercial:
+     Ejecutivo, Declarativo, Divisorio o Insolvencia; en Familia: Ejecutivo de alimentos o Adjudicación
+     judicial de apoyos; en Laboral: Ordinario laboral). Debajo aparece la pregunta orientadora del
+     despacho y la descripción del proceso elegido. Es informativo: **no cambia ningún cálculo**. Honorarios
+     y Tributario no tienen tipos en el catálogo y el combo queda deshabilitado.
    - **Juzgado**: opcional, el juzgado donde está el proceso, si aplica.
    - **Fecha de corte**: la fecha hasta la cual se va a calcular el interés (normalmente, hoy o la fecha
      en que se necesita presentar la liquidación).
+   - **Título ejecutivo (opcional)**, desde el Sprint 106: marca la casilla del grupo para capturar, una sola
+     vez por expediente, los datos del título que se ejecuta: tipo (Sentencia, Acta, Laudo, Resolución u
+     Otro), número o identificador, fechas de expedición, ejecutoria y exigibilidad, si es primera copia que
+     presta mérito ejecutivo, y el término de prescripción en años. El programa muestra en vivo la **fecha
+     límite de prescripción** (exigibilidad + término; si cae en día inhábil, pasa al siguiente hábil). Las
+     obligaciones nuevas del expediente usan la fecha de exigibilidad como fecha por defecto (la puedes
+     cambiar). Si desmarcas el grupo al editar, se borran los datos del título.
 4. Haz clic en **"Guardar"**.
 5. El expediente aparece ahora en la tabla de la Lista de Expedientes.
 
@@ -537,6 +550,15 @@ la vez, no la reemplaza.
 
 Si el expediente no tiene ninguna obligación cargada, el botón "Liquidar" te muestra el mensaje
 "No se pudo liquidar" en vez de calcular.
+
+**Ver con/sin indexación (desde el Sprint 107):** en la pantalla de resultado hay una casilla **"Ver con/sin
+indexación"** y un selector "Sin indexación IPC" / "Con indexación IPC". Al marcarla, el programa recalcula
+el expediente completo en memoria con la indexación apagada o encendida, para comparar (por ejemplo, para un
+análisis de sensibilidad o para explicarlo ante el juez). Mientras está activa verás el aviso **"VISTA DE
+SENSIBILIDAD — NO ES LA LIQUIDACIÓN OFICIAL"** y los botones de PDF y Word quedan deshabilitados: solo se
+exporta la liquidación oficial. Nada de lo que ves en esa vista se guarda: tus obligaciones y el historial
+de auditoría no cambian. Desmarca la casilla para volver a la liquidación oficial. "Con indexación" activa la
+indexación IPC pero respeta lo que cada obligación tenga guardado sobre "Suma Única".
 
 ### 5.7. Agregar una obligación comercial
 
@@ -1171,6 +1193,16 @@ existe un orden automático de "primero sanciones, luego intereses, luego impues
 abono entre varias obligaciones — si quieres pagar tanto una sanción como el impuesto, registra un abono
 para cada una desde su propia fila.
 
+**Imputación proporcional (desde el Sprint 84, Art. 804 E.T.):** dentro de una obligación tributaria, cada
+abono se reparte **en proporción** a lo que se debe de cada concepto (impuesto e intereses) en la fecha del
+pago, no "primero intereses" como en lo civil. Si hay costas, se pagan primero.
+
+**Demanda ante lo contencioso administrativo (tope suspensivo, Sprint 84):** en el formulario de la obligación
+tributaria marca **"Hay demanda ante lo contencioso administrativo"** y llena la fecha de admisión de la
+demanda y la de notificación de la sentencia (ambas obligatorias al marcar la casilla). El programa calcula y
+muestra la fecha tope (admisión + 24 meses) y la de reanudación del interés (notificación + 11 días): el interés
+moratorio **no corre** entre esas dos fechas, y el resultado trae una alerta informativa con el periodo.
+
 ### 5.16. Editar o eliminar una obligación o un abono
 
 Dentro del Detalle de un expediente, tanto la tabla de **Obligaciones** como la de **Abonos** tienen
@@ -1554,6 +1586,12 @@ meses nuevos en "⚙ Configuraciones" → "Parámetros" y vuelve a liquidar.
 **"El interés de una obligación con costas bajó respecto a una liquidación anterior."**
 Es esperado: desde el Sprint 79 las costas ya no generan intereses (antes se mezclaban con el capital). Las
 liquidaciones guardadas antes del cambio no se recalculan solas; vuelve a liquidar para ver la cifra nueva.
+
+**"Las fechas ahora se ven como día/mes/año."**
+Es esperado: desde el Sprint 106 todos los campos y tablas de fecha usan el formato **dd/mm/aaaa**, sin
+importar la configuración regional del computador. Las "fechas anuales fijas" de una obligación recurrente
+se capturan con un selector de día y mes (botones Agregar/Quitar); el 29 de febrero cae el 28 en años no
+bisiestos.
 
 **"El interés civil cambió un poco respecto a una liquidación anterior."**
 Es esperado: desde el Sprint 76 el interés civil del 6% usa la fórmula lineal (6% ÷ 365) que confirmó el

@@ -84,6 +84,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 97/98 (datos pendientes) — Tablas completas de mortalidad de inválidos (hombres y mujeres) de la Superfinanciera](#sprint-9798-datos-pendientes--tablas-completas-de-mortalidad-de-inválidos-hombres-y-mujeres-de-la-superfinanciera)
 - [Sprint 118 — Paquete de noviembre: seis reglas que cambiarían resultados (vacancia, festivo nuevo, redondeo, pagos anticipados, notificación y vacancia por despacho)](#sprint-118--paquete-de-noviembre-seis-reglas-que-cambiarían-resultados-vacancia-festivo-nuevo-redondeo-pagos-anticipados-notificación-y-vacancia-por-despacho)
 - [Sprint 119 — Cinco dudas que surgieron al aplicar las respuestas del 16/11/2026](#sprint-119--cinco-dudas-que-surgieron-al-aplicar-las-respuestas-del-16112026)
+- [Sprint 120 — Dudas surgidas al implementar los Sprints 84, 85, 86/87, 94, 100, 105, 106 y 107](#sprint-120--dudas-surgidas-al-implementar-los-sprints-84-85-8687-94-100-105-106-y-107)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -303,6 +304,61 @@ simples" pero no de las tasas pactadas. ¿Las tasas pactadas en Comercial siguen
 
 **Qué necesito exactamente:** (1) sí/no a 2,00/2,50; (2) a: "proporcional" o "tiempo completo", b: sí/no, c: sí/no,
 d: confirmación o valores corregidos; (3) sí/no; (4) "suspender" o "seguir sin tope"; (5) sí/no.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 120 — Dudas surgidas al implementar los Sprints 84, 85, 86/87, 94, 100, 105, 106 y 107
+
+**Contexto:** con las respuestas del 16/11/2026 se implementaron 8 sprints más (ver `Pendientes.md`, Sprint 120).
+En cada punto de abajo el software aplicó la opción más prudente y la dejó documentada; nada de esto impide usar
+lo ya construido, pero cada respuesta puede cambiar una cifra.
+
+**Pregunta 1 — Tope suspensivo tributario (Sprint 84).** *Por qué:* la respuesta dio las fórmulas (admisión + 24
+meses; notificación + 11 días) pero no los bordes. Hoy: (a) el día del tope y el día de reanudación **sí** causan
+interés (solo se suspenden los días intermedios); (b) los "11 días" son calendario; (c) para marcar la demanda se
+exige también la fecha de notificación de la sentencia, así que no se puede registrar una demanda en curso sin
+sentencia. ¿Es correcto (a), (b) y cómo se liquida una demanda todavía sin sentencia?
+
+**Pregunta 2 — Retroactivo pensional (Sprint 85).** *Por qué:* (a) el Art. 141 habla de la tasa "vigente en el
+momento en que se efectúe el pago"; el software aplica la usura certificada de **cada día** de mora. ¿Cuál se
+usa? (b) Se supuso que cada mesada es exigible el último día de su mes y la mora corre desde el día siguiente.
+(c) El reajuste anual de la mesada (Art. 14 Ley 100) no está confirmado: hoy el usuario digita el porcentaje de
+cada año. ¿Se usa el IPC del año anterior? (d) El primer mes se prorratea sobre 30 días.
+
+**Pregunta 3 — Cálculo actuarial (Sprints 86/87).** *Por qué:* (a) la respuesta no dice cómo se obtiene la pensión
+de referencia (PR), que hoy se digita; (b) no dice la base de días para pasar fechas a años en `t`, `n` y `t1`;
+(c) el prorrateo de la DTF pensional se aplicó como exponente (DTF^(días/días del año)); ¿o es lineal?; (d) en
+la tabla entregada, FAC1 de mujeres es exactamente FAC1 de hombres corrida 5 años, y el Salario Medio Nacional
+salta de 1,006649 (13 años) a 1,135599 (14 años). ¿Pueden confirmar que la tabla está bien transcrita?
+
+**Pregunta 4 — Contrato realidad (Sprint 94).** *Por qué:* (a) para el Decreto 0320/2026 solo se dio el tope de
+2026 ($2.968.262); desde 2027 el software pide el tope. ¿Cuál es? (b) ¿El porcentaje de la bonificación se aplica
+sobre asignación básica + gastos de representación? (c) ¿Aplica a todo el sector público o solo a territoriales?
+(d) Salud (12,5 %) y pensión (16 %) no tienen vigencias históricas cargadas; los años anteriores a 2007/2008 usan
+esos mismos porcentajes. ¿Pueden dar los históricos?
+
+**Pregunta 5 — Fruto civil (Sprint 100).** *Por qué:* se usó el IPC de cierre de cada mes, gastos de conservación
+por su valor nominal (sin indexar) y prorrateo por días calendario; el período lo fija el usuario. ¿Es correcto?
+¿Y cómo se aplica la distinción del Art. 964 entre poseedor de buena y mala fe (desde cuándo se deben los frutos)?
+
+**Pregunta 6 — Catálogo de procesos (Sprint 105).** *Por qué:* (a) la "checklist de obligaciones predefinidas"
+por tipo de proceso no se definió: ¿qué obligaciones trae cada tipo? (b) El "Procedimiento Sancionatorio
+Contractual (Ley 1474)" se asoció al área Sancionatorio, que hoy calcula multas en SMLMV/UVT. ¿Es correcto?
+
+**Pregunta 7 — Título ejecutivo (Sprint 106).** *Por qué:* la fecha límite de prescripción se cuenta desde la
+**fecha de exigibilidad** y las obligaciones nuevas usan esa misma fecha por defecto. ¿Es la fecha correcta en
+ambos casos (o la de ejecutoria)?
+
+**Pregunta 8 — Vista "Ver con/sin indexación" (Sprint 107).** *Por qué:* en modo "Con indexación" se enciende la
+indexación IPC pero no se fuerza el interés sobre capital indexado (Suma Única). ¿Debería encenderse también?
+
+**Qué necesito exactamente:** una respuesta corta por pregunta y letra; donde se piden datos (topes, históricos,
+checklist), el valor o el documento fuente.
 
 **Respuesta del despacho:**
 
