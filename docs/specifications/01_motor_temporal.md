@@ -33,6 +33,20 @@ prescripcion/caducidad.
   `semanas_minimas_requeridas` — modulo pensional (IBL, tasa de reemplazo, densidad de semanas
   post-SL138-2024) implementado como funciones puras probadas (Sprint 17), standalone: sin
   `PensionalStrategy` ni wiring a ninguna pantalla todavia (mismo patron que `app/engine/tax/*`).
+- `app/services/titulo_ejecutivo.py` (Sprint 106): `calcular_fecha_limite_prescripcion_titulo` deriva la
+  fecha limite de prescripcion del titulo ejecutivo del expediente (`Expediente.fecha_exigibilidad` +
+  `termino_prescripcion_anos`, con `CalendarUtils.vencimiento_calendario`: tope de fin de mes -- un 29 de
+  febrero cae en 28 en año no bisiesto -- y corrimiento al siguiente dia habil). Se calcula, no se guarda
+  (`Expediente.fecha_limite_prescripcion` es una propiedad). Es informativa: no alimenta las alertas de
+  prescripcion del Dashboard, que siguen usando `Obligacion.tipo_accion_proceso`.
+- Fechas anuales fijas (Sprint 73/106): se capturan con el widget estructurado Dia/Mes
+  `SelectorFechasAnuales` (`app/views/fecha_widgets.py`) pero se siguen guardando como lista JSON de
+  "MM-DD" en `Obligacion.fechas_anuales_fijas` (formato interno que consume
+  `app/services/recurrencia_fechas_fijas.py`, sin migracion de datos). El 29 de febrero se acepta y en años
+  no bisiestos genera la cuota el 28 de febrero (`CalendarUtils.safe_create_date`).
+- Formato de fecha en pantalla (Sprint 106): toda vista crea sus `QDateEdit` con
+  `crear_campo_fecha` (`dd/MM/yyyy` fijo, independiente de la configuracion regional) y muestra fechas con
+  `formatear_fecha` (dia/mes/año).
 
 ## Como se usa en el MVP
 `CivilFamiliaStrategy` (`app/services/area_strategy.py`) usa `FamilyScheduler` para expandir obligaciones

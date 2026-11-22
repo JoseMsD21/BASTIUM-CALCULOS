@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
-    QDateEdit,
     QDialog,
     QFormLayout,
     QHBoxLayout,
@@ -35,6 +34,7 @@ from app.services.parametro_service import (
     valor_vigente_hoy,
     vigencia_hasta_mostrar,
 )
+from app.views.fecha_widgets import crear_campo_fecha
 from app.views.form_utils import FormDialogBase, agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
 from database.models import AreaDerecho, ParametroLegal
@@ -98,9 +98,9 @@ class ParametroFormDialog(FormDialogBase):
             self.combo_clave.addItem(f"{info.descripcion} ({clave})", userData=clave)
 
         self.campo_valor = QLineEdit()
-        self.campo_vigente_desde = QDateEdit(QDate.currentDate())
+        self.campo_vigente_desde = crear_campo_fecha()
         self.campo_vigente_desde.setCalendarPopup(True)
-        self.campo_vigente_hasta = QDateEdit(QDate.currentDate())
+        self.campo_vigente_hasta = crear_campo_fecha()
         self.campo_vigente_hasta.setCalendarPopup(True)
         self.campo_vigente_hasta.setToolTip(
             "Fecha hasta la que este valor rige; solo aplica a parametros con un "
@@ -208,7 +208,7 @@ class ParametroFormDialog(FormDialogBase):
             self.campo_vigente_desde,
             tooltip=(
                 "Fecha desde la que este valor empieza a regir (normalmente la fecha del "
-                "decreto o resolucion). Ejemplo: 2024-01-01."
+                "decreto o resolucion). Ejemplo: 01/01/2024."
             ),
         )
         self._contenedor_vigente_hasta_con_ayuda = agregar_ayuda(

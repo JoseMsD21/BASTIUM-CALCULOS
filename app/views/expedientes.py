@@ -3,15 +3,17 @@ from datetime import date
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
-    QDateEdit,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -21,9 +23,14 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
+from app.services.titulo_ejecutivo import (
+    ETIQUETAS_TIPO_TITULO,
+    calcular_fecha_limite_prescripcion_titulo,
+)
+from app.views.fecha_widgets import CampoFechaOpcional, crear_campo_fecha, formatear_fecha
 from app.views.form_utils import FormDialogBase, agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
-from database.models import AreaDerecho, Expediente
+from database.models import AreaDerecho, Expediente, TipoTituloEjecutivo
 
 
 class ExpedienteFormDialog(FormDialogBase):
@@ -44,7 +51,7 @@ class ExpedienteFormDialog(FormDialogBase):
         self.campo_demandado.setToolTip("Nombre completo de la parte demandada (o accionada).")
         self.campo_juzgado = QLineEdit()
         self.campo_juzgado.setToolTip("Despacho judicial que conoce del proceso (opcional).")
-        self.campo_fecha_corte = QDateEdit(QDate.currentDate())
+        self.campo_fecha_corte = crear_campo_fecha()
         self.campo_fecha_corte.setCalendarPopup(True)
         self.campo_fecha_corte.setToolTip(
             "Fecha hasta la que se calculan los intereses por defecto al liquidar este expediente."
@@ -63,6 +70,8 @@ class ExpedienteFormDialog(FormDialogBase):
                 item.setEnabled(False)
                 item.setToolTip("Proximamente")
 
+        self._construir_grupo_titulo_ejecutivo()
+
         if expediente:
             self.campo_radicado.setText(expediente.radicado)
             self.campo_demandante.setText(expediente.demandante)
@@ -78,6 +87,7 @@ class ExpedienteFormDialog(FormDialogBase):
             indice_area = self.combo_area.findData(expediente.area_derecho.value)
             if indice_area >= 0:
                 self.combo_area.setCurrentIndex(indice_area)
+            self._precargar_titulo_ejecutivo(expediente)
 
         self.boton_guardar = QPushButton("Guardar")
         self.boton_guardar.setIcon(icon("save"))
@@ -113,10 +123,11 @@ class ExpedienteFormDialog(FormDialogBase):
                 "este expediente."
             ),
             ejemplo=(
-                "si el corte es 2026-06-30, los intereses se calculan hasta ese dia "
+                "si el corte es 30/06/2026, los intereses se calculan hasta ese dia "
                 "salvo que se indique otra fecha al momento de liquidar."
             ),
         )
+        layout.addRow(self.grupo_titulo_ejecutivo)
         layout.addRow(self.boton_guardar)
         self.setLayout(layout)
 
@@ -135,6 +146,17 @@ class ExpedienteFormDialog(FormDialogBase):
             self.combo_area,
             self.campo_juzgado,
             self.campo_fecha_corte,
+            self.grupo_titulo_ejecutivo,
+            self.combo_tipo_titulo,
+            self.campo_numero_titulo,
+            self.campo_fecha_expedicion.check,
+            self.campo_fecha_expedicion.campo_fecha,
+            self.campo_fecha_ejecutoria.check,
+            self.campo_fecha_ejecutoria.campo_fecha,
+            self.campo_fecha_exigibilidad.check,
+            self.campo_fecha_exigibilidad.campo_fecha,
+            self.check_primera_copia,
+            self.spin_termino_prescripcion,
             self.boton_guardar,
         ]
         for anterior, siguiente in zip(orden, orden[1:], strict=False):
@@ -160,11 +182,137 @@ class ExpedienteFormDialog(FormDialogBase):
         expediente.area_derecho = AreaDerecho(self.combo_area.currentData())
         expediente.juzgado = self.campo_juzgado.text().strip() or None
         expediente.fecha_corte_default = fecha_corte
+        self._volcar_titulo_ejecutivo(expediente)
 
         session.commit()
         expediente_id = expediente.id
         session.close()
         return expediente_id
+
+    def _construir_grupo_titulo_ejecutivo(self) -> None:
+        """Datos del titulo ejecutivo (Sprint 106), capturados una sola vez por
+        expediente. Grupo marcable y desmarcado por defecto: todos los campos son
+        opcionales y un expediente sin titulo se guarda con todo en NULL (igual
+        que los expedientes anteriores a este sprint). Desmarcarlo al editar
+        borra los datos del titulo."""
+        self.grupo_titulo_ejecutivo = QGroupBox("Título ejecutivo (opcional)")
+        self.grupo_titulo_ejecutivo.setCheckable(True)
+        self.grupo_titulo_ejecutivo.setChecked(False)
+        self.grupo_titulo_ejecutivo.setToolTip(
+            "Datos del título que se ejecuta (sentencia, acta, laudo...). Se capturan una "
+            "sola vez aquí; las obligaciones nuevas del expediente usan la fecha de "
+            "exigibilidad como fecha por defecto."
+        )
+
+        self.combo_tipo_titulo = QComboBox()
+        for tipo in TipoTituloEjecutivo:
+            self.combo_tipo_titulo.addItem(ETIQUETAS_TIPO_TITULO[tipo], userData=tipo.value)
+        self.combo_tipo_titulo.setToolTip("Clase de título ejecutivo.")
+        self.campo_numero_titulo = QLineEdit()
+        self.campo_numero_titulo.setToolTip(
+            "Número o identificador del título (ej. número de la sentencia o del acta)."
+        )
+        self.campo_fecha_expedicion = CampoFechaOpcional()
+        self.campo_fecha_expedicion.setToolTip("Fecha de expedición u otorgamiento del título.")
+        self.campo_fecha_ejecutoria = CampoFechaOpcional()
+        self.campo_fecha_ejecutoria.setToolTip("Fecha de ejecutoria del título.")
+        self.campo_fecha_exigibilidad = CampoFechaOpcional()
+        self.campo_fecha_exigibilidad.setToolTip(
+            "Fecha desde la cual la obligación es exigible. Desde ella se cuenta la fecha "
+            "límite de prescripción."
+        )
+        self.check_primera_copia = QCheckBox("Es primera copia que presta mérito ejecutivo")
+        self.spin_termino_prescripcion = QSpinBox()
+        self.spin_termino_prescripcion.setRange(0, 50)
+        self.spin_termino_prescripcion.setSuffix(" años")
+        self.spin_termino_prescripcion.setSpecialValueText("(sin definir)")
+        self.spin_termino_prescripcion.setToolTip(
+            "Término de prescripción del título, en años. Déjelo en '(sin definir)' si no "
+            "aplica o no se conoce."
+        )
+        self.label_fecha_limite_prescripcion = QLabel()
+        self.label_fecha_limite_prescripcion.setToolTip(
+            "Calculada: fecha de exigibilidad + término de prescripción (si cae en día "
+            "inhábil, se corre al siguiente día hábil). No se guarda."
+        )
+
+        layout_titulo = QFormLayout()
+        layout_titulo.addRow("Tipo de título", self.combo_tipo_titulo)
+        layout_titulo.addRow("Número / identificador", self.campo_numero_titulo)
+        layout_titulo.addRow("Fecha de expedición u otorgamiento", self.campo_fecha_expedicion)
+        layout_titulo.addRow("Fecha de ejecutoria", self.campo_fecha_ejecutoria)
+        layout_titulo.addRow("Fecha de exigibilidad", self.campo_fecha_exigibilidad)
+        layout_titulo.addRow(self.check_primera_copia)
+        layout_titulo.addRow("Término de prescripción", self.spin_termino_prescripcion)
+        layout_titulo.addRow(
+            "Fecha límite de prescripción (calculada)", self.label_fecha_limite_prescripcion
+        )
+        self.grupo_titulo_ejecutivo.setLayout(layout_titulo)
+
+        self.campo_fecha_exigibilidad.check.toggled.connect(
+            self._actualizar_fecha_limite_prescripcion
+        )
+        self.campo_fecha_exigibilidad.campo_fecha.dateChanged.connect(
+            self._actualizar_fecha_limite_prescripcion
+        )
+        self.spin_termino_prescripcion.valueChanged.connect(
+            self._actualizar_fecha_limite_prescripcion
+        )
+        self._actualizar_fecha_limite_prescripcion()
+
+    def _actualizar_fecha_limite_prescripcion(self, *_args) -> None:
+        fecha_limite = calcular_fecha_limite_prescripcion_titulo(
+            self.campo_fecha_exigibilidad.fecha(), self.spin_termino_prescripcion.value()
+        )
+        self.label_fecha_limite_prescripcion.setText(
+            formatear_fecha(fecha_limite)
+            if fecha_limite is not None
+            else "— (requiere fecha de exigibilidad y término)"
+        )
+
+    def _precargar_titulo_ejecutivo(self, expediente: Expediente) -> None:
+        tiene_titulo = any(
+            valor is not None
+            for valor in (
+                expediente.tipo_titulo,
+                expediente.numero_identificador_titulo,
+                expediente.fecha_expedicion_otorgamiento,
+                expediente.fecha_exigibilidad,
+                expediente.es_primera_copia_ejecutiva,
+                expediente.fecha_ejecutoria,
+                expediente.termino_prescripcion_anos,
+            )
+        )
+        self.grupo_titulo_ejecutivo.setChecked(tiene_titulo)
+        if not tiene_titulo:
+            return
+        if expediente.tipo_titulo is not None:
+            indice = self.combo_tipo_titulo.findData(expediente.tipo_titulo.value)
+            self.combo_tipo_titulo.setCurrentIndex(max(indice, 0))
+        self.campo_numero_titulo.setText(expediente.numero_identificador_titulo or "")
+        self.campo_fecha_expedicion.establecer_fecha(expediente.fecha_expedicion_otorgamiento)
+        self.campo_fecha_ejecutoria.establecer_fecha(expediente.fecha_ejecutoria)
+        self.campo_fecha_exigibilidad.establecer_fecha(expediente.fecha_exigibilidad)
+        self.check_primera_copia.setChecked(bool(expediente.es_primera_copia_ejecutiva))
+        self.spin_termino_prescripcion.setValue(expediente.termino_prescripcion_anos or 0)
+
+    def _volcar_titulo_ejecutivo(self, expediente: Expediente) -> None:
+        if not self.grupo_titulo_ejecutivo.isChecked():
+            expediente.tipo_titulo = None
+            expediente.numero_identificador_titulo = None
+            expediente.fecha_expedicion_otorgamiento = None
+            expediente.fecha_exigibilidad = None
+            expediente.es_primera_copia_ejecutiva = None
+            expediente.fecha_ejecutoria = None
+            expediente.termino_prescripcion_anos = None
+            return
+        expediente.tipo_titulo = TipoTituloEjecutivo(self.combo_tipo_titulo.currentData())
+        expediente.numero_identificador_titulo = self.campo_numero_titulo.text().strip() or None
+        expediente.fecha_expedicion_otorgamiento = self.campo_fecha_expedicion.fecha()
+        expediente.fecha_ejecutoria = self.campo_fecha_ejecutoria.fecha()
+        expediente.fecha_exigibilidad = self.campo_fecha_exigibilidad.fecha()
+        expediente.es_primera_copia_ejecutiva = self.check_primera_copia.isChecked()
+        expediente.termino_prescripcion_anos = self.spin_termino_prescripcion.value() or None
 
     def _marcar_campo_invalido(self, campo: QLineEdit, mensaje: str) -> None:
         campo.setProperty("class", "invalid")

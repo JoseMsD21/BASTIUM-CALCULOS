@@ -185,6 +185,21 @@ class TipoBeneficiario(enum.Enum):
     OTRO = "OTRO"
 
 
+class TipoTituloEjecutivo(enum.Enum):
+    """Tipo del titulo ejecutivo de un Expediente (Sprint 106). Lista
+    confirmada por el despacho (docs/Preguntas-Para-Abogado-Respondidas.md,
+    Sprint 106: "tipo_titulo (Enum: Sentencia, Acta, Laudo, etc.)") mas
+    RESOLUCION, mencionada en la misma pregunta, y OTRO para cubrir el "etc."
+    sin inventar tipos adicionales. ACTA cubre el acta de conciliacion y
+    cualquier otra acta que preste merito ejecutivo."""
+
+    SENTENCIA = "SENTENCIA"
+    ACTA = "ACTA"
+    LAUDO = "LAUDO"
+    RESOLUCION = "RESOLUCION"
+    OTRO = "OTRO"
+
+
 class Expediente(Base):
     __tablename__ = "expedientes"
 
@@ -208,12 +223,39 @@ class Expediente(Base):
         server_default=EstadoProcesal.EN_TRAMITE.value,
     )
 
+    # Datos del titulo ejecutivo (Sprint 106): capturados UNA sola vez por
+    # expediente en vez de repetirse en cada obligacion. Todos opcionales
+    # (nullable, sin default) para no romper expedientes existentes -- NULL
+    # significa "no capturado". Campos exactos confirmados por el despacho
+    # (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 106).
+    # fecha_limite_prescripcion NO se guarda: se calcula (propiedad de abajo).
+    tipo_titulo: Mapped[TipoTituloEjecutivo | None] = mapped_column(
+        SAEnum(TipoTituloEjecutivo), nullable=True
+    )
+    numero_identificador_titulo: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fecha_expedicion_otorgamiento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    fecha_exigibilidad: Mapped[date | None] = mapped_column(Date, nullable=True)
+    es_primera_copia_ejecutiva: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    fecha_ejecutoria: Mapped[date | None] = mapped_column(Date, nullable=True)
+    termino_prescripcion_anos: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     obligaciones: Mapped[list[Obligacion]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
     )
     audit_logs: Mapped[list[AuditLog]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
     )
+
+    @property
+    def fecha_limite_prescripcion(self) -> date | None:
+        """Calculada, nunca guardada (Sprint 106): ver
+        app.services.titulo_ejecutivo.calcular_fecha_limite_prescripcion_titulo
+        para desde que fecha se cuenta y como se computa."""
+        from app.services.titulo_ejecutivo import calcular_fecha_limite_prescripcion_titulo
+
+        return calcular_fecha_limite_prescripcion_titulo(
+            self.fecha_exigibilidad, self.termino_prescripcion_anos
+        )
 
 
 class Obligacion(Base):

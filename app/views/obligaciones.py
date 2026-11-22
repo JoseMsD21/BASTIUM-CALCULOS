@@ -6,7 +6,6 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDateEdit,
     QFormLayout,
     QGridLayout,
     QGroupBox,
@@ -44,6 +43,11 @@ from app.services.recurrencia_fechas_fijas import (
 from app.services.vigencia_alimentos import (
     calcular_vigencia_alimentos,
     validar_fecha_corte_beneficiario_obligatoria,
+)
+from app.views.fecha_widgets import (
+    SelectorFechasAnuales,
+    crear_campo_fecha,
+    formatear_fecha,
 )
 from app.views.form_utils import (
     FormDialogBase,
@@ -153,17 +157,17 @@ class ObligacionFormDialog(FormDialogBase):
             "Tasa de interes pactada o aplicable, en porcentaje efectivo anual (%EA)."
         )
 
-        self.campo_fecha_origen = QDateEdit(QDate.currentDate())
+        self.campo_fecha_origen = crear_campo_fecha()
         self.campo_fecha_origen.setCalendarPopup(True)
         self.campo_fecha_origen.setToolTip(
             "Fecha en que se causo la obligacion puntual (ej. la fecha de la factura o "
             "del hecho dañoso). Los intereses se calculan desde este dia."
         )
 
-        self.campo_fecha_inicio = QDateEdit(QDate.currentDate())
+        self.campo_fecha_inicio = crear_campo_fecha()
         self.campo_fecha_inicio.setCalendarPopup(True)
         self.campo_fecha_inicio.setToolTip(
-            "Fecha del primer pago periodico. Ejemplo: 2024-01-05 si la primera cuota "
+            "Fecha del primer pago periodico. Ejemplo: 05/01/2024 si la primera cuota "
             "alimentaria vence ese dia."
         )
         self.campo_dia_pago = QSpinBox()
@@ -222,18 +226,20 @@ class ObligacionFormDialog(FormDialogBase):
         )
         self.combo_tipo_recurrencia.setToolTip(
             "Mensual: una cuota cada mes (cuota alimentaria tipica). Fechas anuales fijas: "
-            "solo se causan obligaciones en las fechas MM-DD indicadas abajo, no una cuota "
+            "solo se causan obligaciones en las fechas (dia/mes) indicadas abajo, no una cuota "
             "mensual -- util para gastos que se repiten cada año en fechas concretas (ej. "
             "gastos de vestuario en junio, diciembre y el cumpleaños del beneficiario)."
         )
-        self.campo_fechas_anuales_fijas = QLineEdit()
-        self.campo_fechas_anuales_fijas.setPlaceholderText("06-15, 12-15, 03-22")
+        # Sprint 106: widget estructurado Dia/Mes en vez del texto libre "MM-DD"
+        # del Sprint 73 (respuesta del despacho: el texto libre es inviable). El
+        # formato guardado no cambia -- ver app/views/fecha_widgets.py.
+        self.campo_fechas_anuales_fijas = SelectorFechasAnuales()
         self.campo_fechas_anuales_fijas.setToolTip(
-            "Lista de fechas fijas por año en formato MM-DD, separadas por comas (ej. "
-            "'06-15, 12-15, 03-22' para gastos de vestuario en junio, diciembre y el "
-            "cumpleaños del beneficiario). El cumpleaños se ingresa aqui a mano -- todavia "
-            "no se deriva automaticamente de una fecha de nacimiento de beneficiario "
-            "(Sprint 74, no implementado)."
+            "Fechas fijas de cada año (dia y mes), ej. 15 de junio, 15 de diciembre y el "
+            "cumpleaños del beneficiario. Elija dia y mes y pulse 'Agregar'. El 29 de "
+            "febrero se acepta: en los años no bisiestos la cuota se causa el 28 de "
+            "febrero. El cumpleaños se ingresa aqui a mano -- no se deriva "
+            "automaticamente de la fecha de nacimiento del beneficiario."
         )
 
         # Beneficiario (Sprint 74): captura opcional (grupo_beneficiario mas
@@ -266,7 +272,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.campo_nombre_beneficiario.setToolTip(
             "Nombre completo de quien recibe los alimentos."
         )
-        self.campo_fecha_nacimiento_beneficiario = QDateEdit(QDate.currentDate())
+        self.campo_fecha_nacimiento_beneficiario = crear_campo_fecha()
         self.campo_fecha_nacimiento_beneficiario.setCalendarPopup(True)
         self.campo_fecha_nacimiento_beneficiario.setToolTip(
             "Fecha de nacimiento del beneficiario -- el sistema calcula su edad "
@@ -322,7 +328,7 @@ class ObligacionFormDialog(FormDialogBase):
             "sistema no puede calcular esta fecha por si solo, la debe "
             "proporcionar el usuario segun la decision de la autoridad."
         )
-        self.campo_fecha_corte_beneficiario = QDateEdit(QDate.currentDate())
+        self.campo_fecha_corte_beneficiario = crear_campo_fecha()
         self.campo_fecha_corte_beneficiario.setCalendarPopup(True)
         self.campo_fecha_corte_beneficiario.setEnabled(False)
         self.campo_fecha_corte_beneficiario.setToolTip(
@@ -339,7 +345,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Tasa de interes que se cobra automaticamente despues del vencimiento (mora), "
             "en porcentaje efectivo anual."
         )
-        self.campo_fecha_vencimiento = QDateEdit(QDate.currentDate())
+        self.campo_fecha_vencimiento = crear_campo_fecha()
         self.campo_fecha_vencimiento.setCalendarPopup(True)
         self.campo_fecha_vencimiento.setToolTip(
             "Fecha pactada de pago de la obligacion comercial; despues de esta fecha se "
@@ -362,7 +368,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Marca si existe un acuerdo posterior a la demanda que autoriza capitalizar "
             "intereses sobre intereses (anatocismo convencional, Art. 886 C.Co.)."
         )
-        self.campo_anatocismo_fecha_acuerdo = QDateEdit(QDate.currentDate())
+        self.campo_anatocismo_fecha_acuerdo = crear_campo_fecha()
         self.campo_anatocismo_fecha_acuerdo.setCalendarPopup(True)
         self.campo_anatocismo_fecha_acuerdo.setToolTip(
             "Fecha del acuerdo posterior que autoriza el anatocismo; desde esa fecha "
@@ -380,7 +386,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.campo_trm_aplicable.setToolTip(
             "Tasa Representativa del Mercado (COP por USD) aplicable en la fecha de referencia."
         )
-        self.campo_trm_fecha_referencia = QDateEdit(QDate.currentDate())
+        self.campo_trm_fecha_referencia = crear_campo_fecha()
         self.campo_trm_fecha_referencia.setCalendarPopup(True)
         self.campo_trm_fecha_referencia.setToolTip(
             "Fecha de la TRM certificada por el Banco de la Republica que se usa para la "
@@ -401,7 +407,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.label_unidad_smlmv_uvt = QLabel()
         self.label_unidad_smlmv_uvt.setToolTip(
             "Segun la fecha de origen, la cantidad de arriba se interpreta como SMLMV "
-            "(antes del 2020-01-01) o como UVT (desde esa fecha), segun la Ley 1955 de "
+            "(antes del 01/01/2020) o como UVT (desde esa fecha), segun la Ley 1955 de "
             "2019, art. 49."
         )
 
@@ -482,7 +488,7 @@ class ObligacionFormDialog(FormDialogBase):
             "moratorio deja de causarse hasta 11 dias despues de notificada la "
             "sentencia."
         )
-        self.campo_fecha_admision_demanda = QDateEdit(QDate.currentDate())
+        self.campo_fecha_admision_demanda = crear_campo_fecha()
         self.campo_fecha_admision_demanda.setCalendarPopup(True)
         self.campo_fecha_admision_demanda.setToolTip(
             "Fecha del auto que admitio la demanda ante lo contencioso administrativo."
@@ -492,7 +498,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Calculada: fecha de admision de la demanda + 24 meses. Desde el dia "
             "siguiente deja de causarse el interes moratorio."
         )
-        self.campo_fecha_notificacion_sentencia = QDateEdit(QDate.currentDate())
+        self.campo_fecha_notificacion_sentencia = crear_campo_fecha()
         self.campo_fecha_notificacion_sentencia.setCalendarPopup(True)
         self.campo_fecha_notificacion_sentencia.setToolTip(
             "Fecha de notificacion de la sentencia que resolvio la demanda."
@@ -547,7 +553,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Rentas exentas del periodo, si aplica. Ejemplo: $1.000.000."
         )
 
-        self.campo_fecha_fin = QDateEdit(QDate.currentDate())
+        self.campo_fecha_fin = crear_campo_fecha()
         self.campo_fecha_fin.setCalendarPopup(True)
         self.campo_fecha_fin.setToolTip(
             "Fecha en que termino la relacion laboral; se usa para liquidar "
@@ -586,7 +592,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Marca si el empleador ya pago las prestaciones sociales liquidadas; "
             "habilita 'Fecha de pago real' para calcular intereses solo hasta esa fecha."
         )
-        self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
+        self.campo_fecha_pago_total = crear_campo_fecha()
         self.campo_fecha_pago_total.setCalendarPopup(True)
         self.campo_fecha_pago_total.setToolTip(
             "Fecha en que el empleador realmente pago las prestaciones sociales "
@@ -626,7 +632,7 @@ class ObligacionFormDialog(FormDialogBase):
             "justa causa comprobada -- agrega el evento de indemnizacion por despido "
             "injustificado, independiente de la indemnizacion moratoria (Art. 65 CST)."
         )
-        self.campo_fecha_fin_pactada = QDateEdit(QDate.currentDate())
+        self.campo_fecha_fin_pactada = crear_campo_fecha()
         self.campo_fecha_fin_pactada.setCalendarPopup(True)
         self.campo_fecha_fin_pactada.setToolTip(
             "Solo para contrato a termino fijo/obra-labor: fecha en que se pacto que "
@@ -740,7 +746,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Tipo de recurrencia (Recurrente, Civil/Familia)", self.combo_tipo_recurrencia
         )
         self.layout_datos_basicos.addRow(
-            "Fechas anuales fijas MM-DD (Fechas anuales fijas)",
+            "Fechas anuales fijas, día/mes (Fechas anuales fijas)",
             self.campo_fechas_anuales_fijas,
         )
         self.layout_datos_basicos.addRow(
@@ -1085,6 +1091,26 @@ class ObligacionFormDialog(FormDialogBase):
 
         if obligacion_id is not None:
             self._precargar_desde_obligacion(obligacion_id)
+        else:
+            self._precargar_fecha_desde_titulo_ejecutivo()
+
+    def _precargar_fecha_desde_titulo_ejecutivo(self) -> None:
+        """Sprint 106: la fecha del titulo ejecutivo se captura una sola vez en
+        el expediente; una obligacion NUEVA arranca con su fecha de
+        exigibilidad como fecha de origen/inicio por defecto (editable), en vez
+        de la fecha de hoy. Si el expediente no la tiene, no cambia nada. No se
+        aplica al editar una obligacion ya guardada."""
+        session = session_module.get_session()
+        try:
+            expediente = session.get(Expediente, self._expediente_id)
+            fecha = expediente.fecha_exigibilidad if expediente is not None else None
+        finally:
+            session.close()
+        if fecha is None:
+            return
+        qdate = QDate(fecha.year, fecha.month, fecha.day)
+        self.campo_fecha_origen.setDate(qdate)
+        self.campo_fecha_inicio.setDate(qdate)
 
     def _precargar_desde_obligacion(self, obligacion_id: int) -> None:
         """Precarga todos los campos del formulario desde una `Obligacion` ya
@@ -1149,8 +1175,8 @@ class ObligacionFormDialog(FormDialogBase):
                 if indice_recurrencia >= 0:
                     self.combo_tipo_recurrencia.setCurrentIndex(indice_recurrencia)
                 if obligacion.fechas_anuales_fijas:
-                    self.campo_fechas_anuales_fijas.setText(
-                        ", ".join(deserializar_fechas_anuales(obligacion.fechas_anuales_fijas))
+                    self.campo_fechas_anuales_fijas.establecer_fechas_mm_dd(
+                        deserializar_fechas_anuales(obligacion.fechas_anuales_fijas)
                     )
             else:
                 self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
@@ -1342,7 +1368,8 @@ class ObligacionFormDialog(FormDialogBase):
             self.campo_dia_pago,
             self.combo_tipo_reajuste_anual,
             self.combo_tipo_recurrencia,
-            self.campo_fechas_anuales_fijas,
+            # Sprint 106: widget compuesto -- se encadenan sus controles internos.
+            *self.campo_fechas_anuales_fijas.widgets_en_orden_de_tabulacion(),
             self.campo_cantidad_smlmv_uvt,
             self.campo_base_sancion,
             self.campo_meses_extemporaneidad,
@@ -1474,9 +1501,9 @@ class ObligacionFormDialog(FormDialogBase):
         (seguimiento). Solo lectura: se recalculan siempre en el motor."""
         admision = self._qdate_a_date(self.campo_fecha_admision_demanda.date())
         notificacion = self._qdate_a_date(self.campo_fecha_notificacion_sentencia.date())
-        self.label_fecha_tope_24m.setText(calcular_fecha_tope_24m(admision).isoformat())
+        self.label_fecha_tope_24m.setText(formatear_fecha(calcular_fecha_tope_24m(admision)))
         self.label_fecha_reanudacion_interes.setText(
-            calcular_fecha_reanudacion_interes(notificacion).isoformat()
+            formatear_fecha(calcular_fecha_reanudacion_interes(notificacion))
         )
 
     def _actualizar_campos_beneficiario(self) -> None:
@@ -1871,7 +1898,7 @@ class ObligacionFormDialog(FormDialogBase):
         if fecha > expediente.fecha_corte_default:
             raise ValueError(
                 f"{nombre_fecha} no puede ser posterior a la fecha de corte "
-                f"del expediente ({expediente.fecha_corte_default.isoformat()})."
+                f"del expediente ({formatear_fecha(expediente.fecha_corte_default)})."
             )
 
     def _envolver_campo_con_iconos(self, campo: QLineEdit) -> QWidget:
@@ -1986,11 +2013,7 @@ class ObligacionFormDialog(FormDialogBase):
             "fechas_anuales_fijas": None,
         }
         if tipo_recurrencia == TipoRecurrencia.FECHAS_ANUALES_FIJAS:
-            fechas = [
-                parte.strip()
-                for parte in self.campo_fechas_anuales_fijas.text().split(",")
-                if parte.strip()
-            ]
+            fechas = self.campo_fechas_anuales_fijas.fechas_mm_dd()
             # serializar_fechas_anuales valida formato/lista vacia y lanza
             # ValueError -- _guardar_y_cerrar ya lo captura y lo muestra como
             # "Datos invalidos" (mismo patron que el resto de validaciones de
