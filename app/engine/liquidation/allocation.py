@@ -63,6 +63,42 @@ class AllocationEngine:
         return allocation, new_debt, remainder
 
     @staticmethod
+    def allocate_intereses_primero(
+        payment_amount: Decimal, current_debt: PendingDebt, payment_date: date
+    ) -> tuple[PaymentAllocation, PendingDebt, Decimal]:
+        """Imputacion del Art. 1653 C.C. para la liquidacion tramo a tramo de Suma
+        Unica con abonos (Sprint 104, algoritmo del despacho 22/08/2026): costas
+        primero (Sprint 79), luego intereses, y el remanente al capital indexado
+        (indexacion y despues principal: ambos son "capital indexado" en ese
+        algoritmo, el orden entre ellos no cambia la base del tramo siguiente).
+        Solo la usa `CivilFamiliaStrategy` en ese modo; `allocate()` conserva su
+        orden de siempre para todo lo demas."""
+        remainder = payment_amount
+
+        to_costas, new_costas, remainder = _imputar(remainder, current_debt.costas)
+        to_interest, new_interest, remainder = _imputar(remainder, current_debt.interest)
+        to_indexation, new_indexation, remainder = _imputar(remainder, current_debt.indexation)
+        to_principal, new_principal, remainder = _imputar(remainder, current_debt.principal)
+
+        allocation = PaymentAllocation(
+            payment_date=payment_date,
+            total_payment=payment_amount - remainder,
+            to_interest=to_interest,
+            to_indexation=to_indexation,
+            to_principal=to_principal,
+            to_costas=to_costas,
+        )
+
+        new_debt = PendingDebt(
+            principal=new_principal,
+            interest=new_interest,
+            indexation=new_indexation,
+            costas=new_costas,
+        )
+
+        return allocation, new_debt, remainder
+
+    @staticmethod
     def allocate_capital_primero(
         payment_amount: Decimal, current_debt: PendingDebt, payment_date: date
     ) -> tuple[PaymentAllocation, PendingDebt, Decimal]:

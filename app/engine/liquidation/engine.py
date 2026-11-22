@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from decimal import Decimal, localcontext
 
 from app.engine.financial.rate import Rate
+from app.engine.indexation.suma_unica_con_abonos import CausacionTramoATramo
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.provider import RateProvider
 from app.engine.liquidation.allocation import AllocationEngine
@@ -43,8 +44,16 @@ class LiquidationCore:
             [Decimal, PendingDebt, date], tuple[PaymentAllocation, PendingDebt, Decimal]
         ] = AllocationEngine.allocate,
         politica_causacion: PoliticaCausacion = PoliticaCausacion.LEGADA_DIARIA_REDONDEADA,
+        causacion_tramo_a_tramo: CausacionTramoATramo | None = None,
     ):
+        """`causacion_tramo_a_tramo` (Sprint 104): si se pasa, el paso del tiempo
+        entre eventos ya no causa interes diario con el `rate_provider`, sino que
+        aplica el algoritmo tramo a tramo del despacho (Suma Unica con abonos):
+        reindexa `principal + indexation` desde el evento anterior y causa interes
+        compuesto mensual sobre ese capital indexado (ver `CausacionTramoATramo`).
+        None (default) deja el comportamiento de siempre, bit a bit."""
         self._politica_causacion = politica_causacion
+        self._causacion_tramo_a_tramo = causacion_tramo_a_tramo
         self._current_debt = PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))
         self._history: list[LiquidationItem] = []
         self._default_rate = default_daily_rate
@@ -111,15 +120,23 @@ class LiquidationCore:
                 break
 
             interes_antes = self._current_debt.interest
+            indexacion_antes = self._current_debt.indexation
             self._accrue_time_passage(event.date)
             interes_causado_periodo = self._current_debt.interest - interes_antes
-            item = self._process_event(event, interes_causado_periodo)
+            # Solo distinto de cero con causacion tramo a tramo (Sprint 104): en el
+            # modo de siempre la indexacion entra unicamente por eventos INDEXATION.
+            indexacion_causada_periodo = self._current_debt.indexation - indexacion_antes
+            item = self._process_event(
+                event, interes_causado_periodo, indexacion_causada_periodo
+            )
             self._history.append(item)
             self._last_event_date = event.date
 
         interes_antes_cierre = self._current_debt.interest
+        indexacion_antes_cierre = self._current_debt.indexation
         self._accrue_time_passage(cutoff_date)
         interes_causado_cierre = self._current_debt.interest - interes_antes_cierre
+        indexacion_causada_cierre = self._current_debt.indexation - indexacion_antes_cierre
 
         if self._last_event_date and self._last_event_date < cutoff_date:
             closing_rb = RunningBalance(
@@ -131,7 +148,7 @@ class LiquidationCore:
                 capital_base=self._capital_base_actual(),
                 interest_rate=self._get_rate_for_date(cutoff_date).percent(),
                 interest_amount=interes_causado_cierre,
-                indexation_amount=Decimal("0.00"),
+                indexation_amount=indexacion_causada_cierre,
                 payment_amount=Decimal("0.00"),
                 balance=closing_rb,
                 rate_source=self._get_rate_source_for_date(cutoff_date),
@@ -153,11 +170,17 @@ class LiquidationCore:
         )
 
     def _get_rate_for_date(self, target_date: date) -> Rate:
+        if self._causacion_tramo_a_tramo is not None:
+            # Tasa MENSUAL pura del tramo (no diaria): es la que realmente causo
+            # el interes de la fila -- la fuente lo aclara.
+            return Rate(self._causacion_tramo_a_tramo.tasa_interes_mensual)
         if self._rate_provider:
             return self._rate_provider.get_rate(target_date)
         return self._default_rate
 
     def _get_rate_source_for_date(self, target_date: date) -> str:
+        if self._causacion_tramo_a_tramo is not None:
+            return self._causacion_tramo_a_tramo.fuente
         if self._rate_provider:
             return self._rate_provider.get_rate_source(target_date)
         return "N/A"
@@ -168,6 +191,16 @@ class LiquidationCore:
 
         capital_base = self._capital_base_actual()
         if capital_base <= Decimal("0.00"):
+            return
+
+        if self._causacion_tramo_a_tramo is not None:
+            indexacion, interes = self._causacion_tramo_a_tramo.causar(
+                capital_base, self._last_event_date, target_date
+            )
+            if indexacion > Decimal("0.00"):
+                self._current_debt = BalanceEngine.add_indexation(self._current_debt, indexacion)
+            if interes > Decimal("0.00"):
+                self._current_debt = BalanceEngine.add_interest(self._current_debt, interes)
             return
 
         current_day = self._last_event_date + timedelta(days=1)
@@ -198,7 +231,10 @@ class LiquidationCore:
             )
 
     def _process_event(
-        self, event: Event, interes_causado_periodo: Decimal = Decimal("0.00")
+        self,
+        event: Event,
+        interes_causado_periodo: Decimal = Decimal("0.00"),
+        indexacion_causada_periodo: Decimal = Decimal("0.00"),
     ) -> LiquidationItem:
         concept = event.payload.get("label", event.event_type)
         payment_amount = Decimal("0.00")
@@ -206,7 +242,7 @@ class LiquidationCore:
         # antes de este evento -- ver Sprint 40. Se acumula aparte del interés inyectado
         # explícitamente por el (raro) evento tipo INTEREST, ambos son aditivos.
         interest_amount = interes_causado_periodo
-        indexation_amount = Decimal("0.00")
+        indexation_amount = indexacion_causada_periodo
         saldo_a_favor = Decimal("0.00")
 
         # Enrutador de impacto patrimonial
@@ -229,7 +265,7 @@ class LiquidationCore:
 
         elif event.event_type in ("INDEXATION", "SANCION_TRIBUTARIA"):
             amount = Decimal(str(event.payload.get("amount", "0.00")))
-            indexation_amount = amount
+            indexation_amount += amount
             self._current_debt = BalanceEngine.add_indexation(self._current_debt, amount)
 
         elif event.event_type == "PAYMENT":

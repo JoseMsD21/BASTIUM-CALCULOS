@@ -25,8 +25,10 @@ tiempo.
     0.06 / 365)". Ejemplo: $10.000.000 x 6 % x 30/365 = $49.315,07 con
     `PoliticaCausacion.EXACTA_POR_PERIODO`; con la politica legada (predeterminada, redondeo diario y tasa
     cuantizada a 12 decimales) el motor da $49.315,20 (1.643,84/dia x 30).
-  - La tasa pura actuarial mensual (0,0048676) para liquidacion de perjuicios NO esta implementada: ese
-    dominio no existe todavia (Sprint 97).
+  - La tasa pura actuarial mensual (0,0048676): conectada desde el Sprint 104 a la liquidacion tramo a
+    tramo de Suma Unica con abonos en Civil/Familia (`TASA_INTERES_MENSUAL_PURA`,
+    `app/engine/indexation/suma_unica_con_abonos.py`; interes compuesto `C x ((1+i)^meses - 1)` en meses
+    comerciales 30/360). Para liquidacion de perjuicios sigue sin dominio propio (Sprint 97).
 - `app/engine/interest/provider.py`: `RateProvider` (interfaz) y `MemoryRateProvider`, que permite inyectar
   tramos de tasa (`RatePeriod`) para que el motor calcule interes por tramos historicos cuando la tasa
   cambia en el tiempo. **Si se usa un `rate_provider`, debe cubrir todo el rango de fechas de la

@@ -36,7 +36,10 @@ class EffectiveRateConverter:
        La base es siempre 365 (tambien en anos bisiestos), literal de esa
        respuesta. La "tasa pura actuarial mensual" (0,0048676) que el despacho
        menciona para liquidacion de perjuicios NO se implementa aqui: ese
-       dominio no existe todavia (ver Sprint 97 en docs/Pendientes.md).
+       dominio no existe todavia (ver Sprint 97 en docs/Pendientes.md). Desde
+       el Sprint 104 si se usa en la liquidacion tramo a tramo de Suma Unica
+       con abonos (`TASA_INTERES_MENSUAL_PURA`,
+       app/engine/indexation/suma_unica_con_abonos.py), fuera de este conversor.
 
     Formula mensual (`annual_to_monthly`): i_mensual = (1 + i_EA) ** (1/12) - 1
     -- misma familia "efectiva compuesta" que la diaria, en base mensual. Es la

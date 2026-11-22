@@ -24,6 +24,7 @@ from app.engine.indexation.historical_index import (
 )
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
+from app.engine.indexation.suma_unica_con_abonos import CausacionTramoATramo
 from app.engine.interest.provider import MemoryRateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.interest.usury_validator import calcular_tope_usura
@@ -139,6 +140,7 @@ def _liquidar_por_obligacion(
     usar_suma_unica_fn: Callable[[object], bool] = lambda obligacion: False,
     monto_abono_fn: Callable[[object, object], Decimal] = lambda obligacion, abono: abono.monto,
     estrategia_imputacion_fn: Callable[[object], Callable] = _estrategia_imputacion_por_obligacion,
+    causacion_tramo_fn: Callable[[object], CausacionTramoATramo | None] = lambda obligacion: None,
 ) -> LiquidationResult:
     """Corre un LiquidationCore independiente por obligacion -- cada una con su propia
     tasa (via rate_provider_fn) y solo sus propios abonos (Abono.obligacion_id) -- y
@@ -158,7 +160,11 @@ def _liquidar_por_obligacion(
     monto_abono_fn (Sprint 12, correccion 2026-08-01): resuelve el monto de cada abono
     antes de aplicarlo -- identidad por defecto (mismo comportamiento de siempre). Solo
     ComercialStrategy pasa una funcion real, para convertir a pesos con la TRM dinamica
-    de la fecha de CADA abono (ver ComercialStrategy._monto_abono_en_pesos)."""
+    de la fecha de CADA abono (ver ComercialStrategy._monto_abono_en_pesos).
+
+    causacion_tramo_fn (Sprint 104): configuracion de causacion tramo a tramo
+    (Suma Unica con abonos, algoritmo del despacho) por obligacion, o None para el
+    comportamiento de siempre -- solo CivilFamiliaStrategy pasa una funcion real."""
     ids_obligaciones = {obligacion.id for obligacion in obligaciones}
     for abono in abonos:
         if abono.obligacion_id not in ids_obligaciones:
@@ -187,6 +193,7 @@ def _liquidar_por_obligacion(
                 rate_provider=rate_provider_fn(obligacion, fecha_corte),
                 usar_suma_unica=usar_suma_unica_fn(obligacion),
                 estrategia_imputacion=estrategia_imputacion_fn(obligacion),
+                causacion_tramo_a_tramo=causacion_tramo_fn(obligacion),
             )
         )
 
@@ -271,6 +278,17 @@ def _fusionar_resultados(
             ),
             Decimal("0.00"),
         )
+        # Sprint 104: con causacion tramo a tramo el cierre tambien reindexa el
+        # ultimo tramo (siempre 0,00 en cualquier otra obligacion).
+        indexacion_cierre_consolidada = sum(
+            (
+                item.indexation_amount
+                for resultado in resultados
+                for item in resultado.items
+                if item.balance.event_type == "LIQUIDATION_CUTOFF"
+            ),
+            Decimal("0.00"),
+        )
         items_fusionados.append(
             LiquidationItem(
                 date=fecha_corte,
@@ -278,7 +296,7 @@ def _fusionar_resultados(
                 capital_base=saldo_final.principal,
                 interest_rate=Decimal("0.00"),
                 interest_amount=interes_cierre_consolidado,
-                indexation_amount=Decimal("0.00"),
+                indexation_amount=indexacion_cierre_consolidada,
                 payment_amount=Decimal("0.00"),
                 balance=RunningBalance(
                     date=fecha_corte, debt=saldo_final, event_type="LIQUIDATION_CUTOFF"
@@ -413,15 +431,69 @@ class CivilFamiliaStrategy(AreaStrategy):
             if obligacion.obligacion_padre_id is not None
         }
 
-        return _liquidar_por_obligacion(
+        # Sprint 104: obligaciones que liquidan tramo a tramo (Suma Unica + abonos).
+        ids_tramo_a_tramo = {
+            obligacion.id
+            for obligacion in obligaciones
+            if self._usa_tramo_a_tramo(obligacion, abonos, fecha_corte)
+        }
+
+        resultado = _liquidar_por_obligacion(
             obligaciones=obligaciones,
             abonos=abonos,
             fecha_corte=fecha_corte,
             eventos_fn=lambda obligacion: self._eventos_de_obligacion(
-                obligacion, fecha_corte, ids_con_cuotas_generadas
+                obligacion,
+                fecha_corte,
+                ids_con_cuotas_generadas,
+                tramo_a_tramo=obligacion.id in ids_tramo_a_tramo,
             ),
             rate_provider_fn=self._construir_rate_provider_obligacion,
             usar_suma_unica_fn=self._resolver_suma_unica,
+            estrategia_imputacion_fn=lambda obligacion: (
+                AllocationEngine.allocate_intereses_primero
+                if obligacion.id in ids_tramo_a_tramo
+                else _estrategia_imputacion_por_obligacion(obligacion)
+            ),
+            causacion_tramo_fn=lambda obligacion: (
+                CausacionTramoATramo(indexacion_fn=self._monto_indexacion)
+                if obligacion.id in ids_tramo_a_tramo
+                else None
+            ),
+        )
+
+        tasa_legal = self._tasa_civil_anual_pct(fecha_corte)
+        for obligacion in obligaciones:
+            tasa_pactada = obligacion.tasa_efectiva_anual
+            if obligacion.id in ids_tramo_a_tramo and tasa_pactada and tasa_pactada != tasa_legal:
+                resultado = self._agregar_alerta(
+                    resultado,
+                    f"'{obligacion.concepto}': Suma Única con abonos se liquida tramo a tramo "
+                    f"con la tasa pura mensual 0,48676 % (6 % EA) que fijó el despacho; la tasa "
+                    f"pactada de {tasa_pactada}% EA NO se aplicó. Verifique si corresponde.",
+                )
+        return resultado
+
+    def _usa_tramo_a_tramo(self, obligacion, abonos: list, fecha_corte: date) -> bool:
+        """Sprint 104 -- respuesta del despacho (22/08/2026, Respondidas "Sprint
+        102"): "La indexacion global restando abonos al final es un error
+        matematico y juridico ... El Articulo 1653 del Codigo Civil obliga a
+        imputar el pago primero a intereses y luego a capital. Por lo tanto, debe
+        liquidarse tramo por tramo"; y (seguimiento, Respondidas "Sprint 104"):
+        la tasa pura mensual 0,0048676 es la de "algoritmos de suma unica con
+        abonos".
+
+        Aplica a una obligacion PUNTUAL de cantidad unica (no a cuotas-hija de
+        recurrencia, que conservan la cascada capital-primero del Sprint 75) con
+        Suma Unica activa y al menos un abono propio hasta `fecha_corte`. Sin
+        abonos, o sin Suma Unica, el comportamiento no cambia."""
+        if obligacion.tipo.value != "PUNTUAL" or obligacion.obligacion_padre_id is not None:
+            return False
+        if not self._resolver_suma_unica(obligacion):
+            return False
+        return any(
+            abono.obligacion_id == obligacion.id and abono.fecha <= fecha_corte
+            for abono in abonos
         )
 
     def _resolver_suma_unica(self, obligacion) -> bool:
@@ -440,8 +512,15 @@ class CivilFamiliaStrategy(AreaStrategy):
         )
 
     def _eventos_de_obligacion(
-        self, obligacion, fecha_corte: date, ids_con_cuotas_generadas: set[int] | None = None
+        self,
+        obligacion,
+        fecha_corte: date,
+        ids_con_cuotas_generadas: set[int] | None = None,
+        tramo_a_tramo: bool = False,
     ) -> list[Event]:
+        """`tramo_a_tramo` (Sprint 104): la indexacion no se emite como un evento
+        unico hasta el corte global -- la causa `LiquidationCore` tramo por tramo
+        (ver `_usa_tramo_a_tramo`)."""
         if obligacion.tipo.value == "PUNTUAL":
             eventos = [
                 Event(
@@ -450,7 +529,7 @@ class CivilFamiliaStrategy(AreaStrategy):
                     event_type=obligacion.categoria,
                 )
             ]
-            if obligacion.aplica_indexacion_ipc:
+            if obligacion.aplica_indexacion_ipc and not tramo_a_tramo:
                 eventos.append(
                     self._evento_indexacion(
                         fecha_causacion=obligacion.fecha_origen,
@@ -614,22 +693,31 @@ class CivilFamiliaStrategy(AreaStrategy):
 
         `IPCIndexation.calculate` ya redondea y ya devuelve 0 si hay deflacion o si el
         capital es 0/negativo -- ver docstring de esa funcion."""
-        try:
-            initial_index = get_ipc_interpolado_mensual_for_date(fecha_causacion)
-            final_index = get_ipc_interpolado_mensual_for_date(fecha_corte)
-        except IPCMensualNoDisponibleError:
-            initial_index = get_ipc_interpolado_for_date(fecha_causacion)
-            final_index = get_ipc_interpolado_for_date(fecha_corte)
-
-        monto = IPCIndexation.calculate(
-            capital=capital,
-            initial_index=initial_index,
-            final_index=final_index,
-        )
+        monto = CivilFamiliaStrategy._monto_indexacion(capital, fecha_causacion, fecha_corte)
         return Event(
             date=fecha_causacion,
             payload={"amount": monto, "label": f"Indexación IPC — {concepto}"},
             event_type="INDEXATION",
+        )
+
+    @staticmethod
+    def _monto_indexacion(capital: Decimal, fecha_inicio: date, fecha_fin: date) -> Decimal:
+        """Monto de indexacion IPC de `capital` entre dos fechas con la serie de
+        Civil/Familia (mensual DANE, fallback anual para AMBAS fechas -- ver
+        `_evento_indexacion`). Sprint 104: extraido para que la causacion tramo a
+        tramo reindexe cada tramo con exactamente la misma serie y la misma regla
+        de deflacion (`IPCIndexation.calculate` devuelve 0 si el IPC baja)."""
+        try:
+            initial_index = get_ipc_interpolado_mensual_for_date(fecha_inicio)
+            final_index = get_ipc_interpolado_mensual_for_date(fecha_fin)
+        except IPCMensualNoDisponibleError:
+            initial_index = get_ipc_interpolado_for_date(fecha_inicio)
+            final_index = get_ipc_interpolado_for_date(fecha_fin)
+
+        return IPCIndexation.calculate(
+            capital=capital,
+            initial_index=initial_index,
+            final_index=final_index,
         )
 
     def _construir_rate_provider_obligacion(

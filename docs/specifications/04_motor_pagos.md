@@ -27,6 +27,11 @@ PRIMERO (Arts. 1629, 1653, 2495 C.C. y 446 CGP).
   incluye costas; "Saldo total" si.
 - Auditoria: `deserializar_resultado` lee `costas` con `.get(..., "0.00")` (snapshots anteriores).
 
+### Suma Unica con abonos (Sprint 104)
+`AllocationEngine.allocate_intereses_primero`: costas -> intereses -> indexacion -> capital (Art. 1653
+C.C., algoritmo tramo a tramo del despacho). Solo la usa `CivilFamiliaStrategy` para obligaciones PUNTUAL
+con Suma Unica y abonos (ver `03_motor_indexacion.md`); el resto conserva `allocate`/`allocate_capital_primero`.
+
 ## Componentes
 - `app/engine/liquidation/allocation.py`: `AllocationEngine.allocate(payment_amount, current_debt,
   payment_date)` retorna `(PaymentAllocation, nuevo PendingDebt, remainder)`. El `remainder` es el
