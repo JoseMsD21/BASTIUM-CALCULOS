@@ -3,9 +3,10 @@ from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import QDate
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QDateEdit, QFormLayout, QLineEdit, QMessageBox, QPushButton
+from PySide6.QtWidgets import QFormLayout, QLineEdit, QMessageBox, QPushButton
 
 import database.session as session_module
+from app.views.fecha_widgets import crear_campo_fecha
 from app.views.form_utils import (
     FormDialogBase,
     agregar_ayuda,
@@ -24,7 +25,7 @@ class AbonoFormDialog(FormDialogBase):
         self._obligacion_id = obligacion_id
         self._abono_id = abono_id
 
-        self.campo_fecha = QDateEdit(QDate.currentDate())
+        self.campo_fecha = crear_campo_fecha()
         self.campo_fecha.setCalendarPopup(True)
         self.campo_fecha.setToolTip(
             "Fecha en que se realizo el pago. Ejemplo: si el abono se hizo el "

@@ -3,7 +3,6 @@ from datetime import date
 from PySide6.QtCore import QDate, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QDateEdit,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -36,16 +35,61 @@ from app.engine.liquidation.registry import AreaRegistry
 from app.services.catalogo_tipos_proceso import buscar_tipo_proceso, nombre_rama, texto_ayuda
 from app.services.reajuste_anual import generar_cuotas_mensuales
 from app.services.recurrencia_fechas_fijas import generar_cuotas_fechas_fijas
+from app.services.titulo_ejecutivo import ETIQUETAS_TIPO_TITULO
 from app.services.vista_sensibilidad_indexacion import cargar_datos_de_liquidacion
 from app.views.abonos import AbonoFormDialog
 from app.views.concurrency import TareaEnHilo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog
+from app.views.fecha_widgets import crear_campo_fecha, formatear_fecha
 from app.views.icons import icon
 from app.views.obligaciones import ObligacionFormDialog
 from app.views.pago_por_rango import PagoPorRangoDialog
 from app.views.toast import mostrar_toast
 from database.models import Abono, AreaDerecho, EventoLaboral, Expediente, Obligacion
+
+
+def _texto_titulo_ejecutivo(expediente: Expediente) -> str:
+    """Resumen de los datos del titulo ejecutivo (Sprint 106), fechas en
+    dia/mes/año. La fecha limite de prescripcion se calcula al vuelo (no se
+    guarda) -- ver app/services/titulo_ejecutivo.py."""
+    valores = (
+        expediente.tipo_titulo,
+        expediente.numero_identificador_titulo,
+        expediente.fecha_expedicion_otorgamiento,
+        expediente.fecha_ejecutoria,
+        expediente.fecha_exigibilidad,
+        expediente.es_primera_copia_ejecutiva,
+        expediente.termino_prescripcion_anos,
+    )
+    if all(valor is None for valor in valores):
+        return (
+            "Sin datos del título ejecutivo (se capturan una sola vez en "
+            "'Editar expediente')."
+        )
+    if expediente.es_primera_copia_ejecutiva is None:
+        primera_copia = "—"
+    else:
+        primera_copia = "Sí" if expediente.es_primera_copia_ejecutiva else "No"
+    termino = (
+        f"{expediente.termino_prescripcion_anos} años"
+        if expediente.termino_prescripcion_anos
+        else "—"
+    )
+    lineas = [
+        "Tipo: "
+        + (ETIQUETAS_TIPO_TITULO[expediente.tipo_titulo] if expediente.tipo_titulo else "—"),
+        f"Número / identificador: {expediente.numero_identificador_titulo or '—'}",
+        "Expedición u otorgamiento: "
+        + formatear_fecha(expediente.fecha_expedicion_otorgamiento),
+        f"Ejecutoria: {formatear_fecha(expediente.fecha_ejecutoria)}",
+        f"Exigibilidad: {formatear_fecha(expediente.fecha_exigibilidad)}",
+        f"Primera copia que presta mérito ejecutivo: {primera_copia}",
+        f"Término de prescripción: {termino}",
+        "Fecha límite de prescripción (calculada desde la exigibilidad): "
+        + formatear_fecha(expediente.fecha_limite_prescripcion),
+    ]
+    return "\n".join(lineas)
 
 
 def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
@@ -233,7 +277,7 @@ class ExpedienteDetallePage(QWidget):
         # puntual, precargado desde expediente.fecha_corte_default al abrir el
         # expediente (cargar_expediente) pero editable aqui sin tocar ese
         # valor guardado -- ver _liquidar().
-        self.campo_fecha_corte_liquidacion = QDateEdit(QDate.currentDate())
+        self.campo_fecha_corte_liquidacion = crear_campo_fecha()
         self.campo_fecha_corte_liquidacion.setCalendarPopup(True)
         self.campo_fecha_corte_liquidacion.setToolTip(
             "Fecha de corte para ESTA liquidacion puntual. No modifica la fecha de corte "
@@ -271,8 +315,21 @@ class ExpedienteDetallePage(QWidget):
         self.etiqueta_tipo_proceso = QLabel()
         self.etiqueta_tipo_proceso.setWordWrap(True)
 
+        # Datos del titulo ejecutivo (Sprint 106): solo lectura aqui, se editan
+        # desde 'Editar expediente'. Se llenan en cargar_expediente().
+        self.etiqueta_titulo_ejecutivo = QLabel()
+        self.etiqueta_titulo_ejecutivo.setWordWrap(True)
+        self.etiqueta_titulo_ejecutivo.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        grupo_titulo_ejecutivo = QGroupBox("Título ejecutivo")
+        layout_titulo_ejecutivo = QVBoxLayout()
+        layout_titulo_ejecutivo.addWidget(self.etiqueta_titulo_ejecutivo)
+        grupo_titulo_ejecutivo.setLayout(layout_titulo_ejecutivo)
+
         layout_principal = QVBoxLayout()
         layout_principal.addWidget(self.etiqueta_tipo_proceso)
+        layout_principal.addWidget(grupo_titulo_ejecutivo)
         layout_principal.addLayout(columnas)
         layout_principal.addLayout(layout_fecha_corte)
         layout_principal.addWidget(self.boton_liquidar)
@@ -298,6 +355,7 @@ class ExpedienteDetallePage(QWidget):
             AreaDerecho.COMERCIAL,
         )
         self._area = expediente.area_derecho.value
+        self.etiqueta_titulo_ejecutivo.setText(_texto_titulo_ejecutivo(expediente))
         codigo_tipo_proceso = expediente.tipo_proceso
         session.close()
         self._mostrar_tipo_proceso(codigo_tipo_proceso)
@@ -382,7 +440,7 @@ class ExpedienteDetallePage(QWidget):
 
         self.tabla_abonos.setRowCount(len(abonos))
         for fila, abono in enumerate(abonos):
-            self.tabla_abonos.setItem(fila, 0, QTableWidgetItem(abono.fecha.isoformat()))
+            self.tabla_abonos.setItem(fila, 0, QTableWidgetItem(formatear_fecha(abono.fecha)))
             self.tabla_abonos.setItem(fila, 1, QTableWidgetItem(str(abono.monto)))
             self.tabla_abonos.setItem(fila, 2, QTableWidgetItem(abono.referencia or ""))
 
@@ -415,10 +473,10 @@ class ExpedienteDetallePage(QWidget):
         for fila, evento in enumerate(eventos):
             self.tabla_eventos_laborales.setItem(fila, 0, QTableWidgetItem(evento.tipo.value))
             self.tabla_eventos_laborales.setItem(
-                fila, 1, QTableWidgetItem(evento.fecha_inicio.isoformat())
+                fila, 1, QTableWidgetItem(formatear_fecha(evento.fecha_inicio))
             )
             self.tabla_eventos_laborales.setItem(
-                fila, 2, QTableWidgetItem(evento.fecha_fin.isoformat())
+                fila, 2, QTableWidgetItem(formatear_fecha(evento.fecha_fin))
             )
 
             boton_editar = QPushButton("Editar")
@@ -449,7 +507,7 @@ class ExpedienteDetallePage(QWidget):
         self.tabla_descuentos_laborales.setRowCount(len(descuentos))
         for fila, descuento in enumerate(descuentos):
             self.tabla_descuentos_laborales.setItem(
-                fila, 0, QTableWidgetItem(descuento.fecha.isoformat())
+                fila, 0, QTableWidgetItem(formatear_fecha(descuento.fecha))
             )
             self.tabla_descuentos_laborales.setItem(
                 fila, 1, QTableWidgetItem(str(descuento.monto))
@@ -471,12 +529,12 @@ class ExpedienteDetallePage(QWidget):
         self._fechas_corte_historial_por_fila = []
         for fila, registro in enumerate(historial):
             self.tabla_historial.setItem(
-                fila, 0, QTableWidgetItem(registro.fecha_ejecucion.strftime("%Y-%m-%d %H:%M:%S"))
+                fila, 0, QTableWidgetItem(registro.fecha_ejecucion.strftime("%d/%m/%Y %H:%M:%S"))
             )
             self.tabla_historial.setItem(fila, 1, QTableWidgetItem(registro.usuario))
             self.tabla_historial.setItem(fila, 2, QTableWidgetItem(registro.area_derecho))
             self.tabla_historial.setItem(
-                fila, 3, QTableWidgetItem(registro.fecha_corte.isoformat())
+                fila, 3, QTableWidgetItem(formatear_fecha(registro.fecha_corte))
             )
             self._audit_log_ids_por_fila.append(registro.id)
             self._fechas_corte_historial_por_fila.append(registro.fecha_corte)

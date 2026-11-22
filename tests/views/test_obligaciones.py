@@ -2729,7 +2729,10 @@ def test_guarda_obligacion_recurrente_fechas_anuales_fijas_gastos_vestuario(qtbo
     dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
     # Cumpleanos del beneficiario (23 de marzo) entrado a mano, junto con
     # junio y diciembre -- exactamente el caso del reporte del usuario.
-    dialog.campo_fechas_anuales_fijas.setText("06-15, 12-15, 03-23")
+    # Sprint 106: widget estructurado Dia/Mes en vez de texto libre MM-DD.
+    dialog.campo_fechas_anuales_fijas.agregar_fecha(15, 6)
+    dialog.campo_fechas_anuales_fijas.agregar_fecha(15, 12)
+    dialog.campo_fechas_anuales_fijas.agregar_fecha(23, 3)
 
     dialog.guardar()
 
@@ -2782,7 +2785,7 @@ def test_guardar_fechas_anuales_fijas_con_lista_vacia_lanza_error_de_validacion(
     dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
     indice_fechas_fijas = dialog.combo_tipo_recurrencia.findData("FECHAS_ANUALES_FIJAS")
     dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
-    dialog.campo_fechas_anuales_fijas.setText("")
+    dialog.campo_fechas_anuales_fijas.establecer_fechas_mm_dd([])
 
     with pytest.raises(ValueError, match="al menos una fecha"):
         dialog.guardar()
@@ -2814,7 +2817,8 @@ def test_obligacion_id_precarga_tipo_recurrencia_y_fechas_anuales_fijas(qtbot, m
     qtbot.addWidget(dialog)
 
     assert dialog.combo_tipo_recurrencia.currentData() == "FECHAS_ANUALES_FIJAS"
-    assert dialog.campo_fechas_anuales_fijas.text() == "06-15, 12-15, 03-23"
+    assert dialog.campo_fechas_anuales_fijas.fechas_mm_dd() == ["06-15", "12-15", "03-23"]
+    assert dialog.campo_fechas_anuales_fijas.lista.item(0).text().startswith("15/06")
 
 
 def test_reguardar_fechas_anuales_fijas_editada_no_las_revierte_a_mensual(qtbot, monkeypatch):
@@ -3399,8 +3403,8 @@ def test_fechas_calculadas_tope_24m_y_reanudacion_se_muestran_en_vivo(qtbot, mon
     dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
     dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 10))
     # admision + 24 meses = 2024-03-05; notificacion + 11 dias = 2024-03-21.
-    assert "2024-03-05" in dialog.label_fecha_tope_24m.text()
-    assert "2024-03-21" in dialog.label_fecha_reanudacion_interes.text()
+    assert "05/03/2024" in dialog.label_fecha_tope_24m.text()
+    assert "21/03/2024" in dialog.label_fecha_reanudacion_interes.text()
 
 
 def test_guarda_fechas_de_demanda_contenciosa_con_la_casilla_marcada(qtbot, monkeypatch):
@@ -3468,3 +3472,69 @@ def test_editar_obligacion_con_demanda_precarga_casilla_y_fechas(qtbot, monkeypa
     assert editar.campo_fecha_admision_demanda.date().toPython() == date(2022, 3, 5)
     assert editar.campo_fecha_notificacion_sentencia.date().toPython() == date(2024, 3, 10)
     assert editar.campo_fecha_admision_demanda.isVisible() is True
+
+
+# --- Sprint 106: fecha del titulo ejecutivo como valor por defecto ---------
+
+
+def _expediente_con_titulo(monkeypatch, fecha_exigibilidad) -> int:
+    session = crear_sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-106",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
+        fecha_exigibilidad=fecha_exigibilidad,
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+    return expediente_id
+
+
+def test_obligacion_nueva_usa_la_exigibilidad_del_titulo_como_fecha_por_defecto(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_con_titulo(monkeypatch, date(2021, 6, 1))
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_origen.date().toPython() == date(2021, 6, 1)
+    assert dialog.campo_fecha_inicio.date().toPython() == date(2021, 6, 1)
+
+
+def test_obligacion_nueva_sin_titulo_conserva_la_fecha_de_hoy(qtbot, monkeypatch):
+    expediente_id = _expediente_con_titulo(monkeypatch, None)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_origen.date().toPython() == date.today()
+
+
+def test_editar_obligacion_no_sobrescribe_su_fecha_con_la_del_titulo(qtbot, monkeypatch):
+    expediente_id = _expediente_con_titulo(monkeypatch, date(2021, 6, 1))
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("1000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="CIVIL_FAMILIA", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_origen.date().toPython() == date(2025, 11, 20)

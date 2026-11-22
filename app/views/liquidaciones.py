@@ -30,6 +30,7 @@ from app.reports.pdf import JudicialPDFGenerator
 from app.reports.word import WordReportGenerator
 from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
 from app.views.concurrency import TareaEnHilo
+from app.views.fecha_widgets import formatear_fecha
 from app.views.icons import icon
 from app.views.toast import mostrar_toast
 from database.models import Expediente
@@ -283,7 +284,7 @@ class ResultadoLiquidacionView(QWidget):
                 concepto_texto = f"⚠ {concepto_texto} — Obligación prescrita, no exigible"
 
             celdas_fila = [
-                QTableWidgetItem(item.date.isoformat()),
+                QTableWidgetItem(formatear_fecha(item.date)),
                 QTableWidgetItem(concepto_texto),
                 QTableWidgetItem(str(item.capital_base)),
                 QTableWidgetItem(str(item.interest_rate)),

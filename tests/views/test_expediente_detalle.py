@@ -522,7 +522,7 @@ def test_liquidar_registra_auditoria_y_refresca_historial(qtbot, monkeypatch):
 
     assert page.tabla_historial.rowCount() == 1
     assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
-    assert page.tabla_historial.item(0, 3).text() == "2026-06-01"
+    assert page.tabla_historial.item(0, 3).text() == "01/06/2026"
 
 
 def test_abrir_dialogo_obligacion_pasa_el_area_del_expediente(qtbot, monkeypatch):
@@ -1017,7 +1017,7 @@ def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monke
     assert page.tabla_historial.rowCount() == 1
     assert page.tabla_historial.item(0, 1).text() == "jsilva"
     assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
-    assert page.tabla_historial.item(0, 3).text() == "2026-06-01"
+    assert page.tabla_historial.item(0, 3).text() == "01/06/2026"
 
 
 def test_doble_clic_en_historial_reconstruye_liquidacion(qtbot, monkeypatch):
@@ -2412,3 +2412,47 @@ def test_cargar_expediente_muestra_tipo_proceso(qtbot, monkeypatch):
     assert "Ejecutivo de Alimentos" in texto
     assert "Rama de Familia" in texto
     assert "obligaciones de sustento incumplidas" in page.etiqueta_tipo_proceso.toolTip()
+
+
+# --- Sprint 106: datos del titulo ejecutivo en el detalle del expediente ---
+
+
+def test_detalle_muestra_datos_del_titulo_ejecutivo_en_dia_mes_anio(qtbot, monkeypatch):
+    from database.models import TipoTituloEjecutivo
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+    session = session_module.get_session()
+    expediente = session.get(Expediente, expediente_id)
+    expediente.tipo_titulo = TipoTituloEjecutivo.SENTENCIA
+    expediente.numero_identificador_titulo = "Sentencia 123"
+    expediente.fecha_expedicion_otorgamiento = date(2021, 5, 3)
+    expediente.fecha_ejecutoria = date(2021, 5, 20)
+    expediente.fecha_exigibilidad = date(2021, 6, 1)
+    expediente.es_primera_copia_ejecutiva = True
+    expediente.termino_prescripcion_anos = 5
+    session.commit()
+    session.close()
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    texto = page.etiqueta_titulo_ejecutivo.text()
+    assert "Sentencia" in texto
+    assert "Sentencia 123" in texto
+    assert "03/05/2021" in texto
+    assert "20/05/2021" in texto
+    assert "01/06/2021" in texto
+    assert "Sí" in texto
+    assert "5 años" in texto
+    assert "01/06/2026" in texto  # fecha limite calculada desde la exigibilidad
+
+
+def test_detalle_sin_titulo_ejecutivo_muestra_aviso(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    assert "Sin datos del título ejecutivo" in page.etiqueta_titulo_ejecutivo.text()

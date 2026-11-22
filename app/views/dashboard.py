@@ -27,6 +27,7 @@ from app.engine.temporal.prescripcion import (
     calcular_prescripcion,
 )
 from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
+from app.views.fecha_widgets import formatear_fecha
 from database.models import AuditLog, Expediente
 
 DIAS_ALERTA_VENCIMIENTO = 90
@@ -283,7 +284,7 @@ class DashboardView(QWidget):
         for fila, (expediente, obligacion, fecha_limite, estado) in enumerate(alertas):
             self.tabla_alertas.setItem(fila, 0, QTableWidgetItem(expediente.radicado))
             self.tabla_alertas.setItem(fila, 1, QTableWidgetItem(obligacion.concepto))
-            self.tabla_alertas.setItem(fila, 2, QTableWidgetItem(fecha_limite.isoformat()))
+            self.tabla_alertas.setItem(fila, 2, QTableWidgetItem(formatear_fecha(fecha_limite)))
             self.tabla_alertas.setItem(fila, 3, QTableWidgetItem(estado))
             self._expediente_ids_por_fila_alerta.append(expediente.id)
 
@@ -306,7 +307,7 @@ class DashboardView(QWidget):
             self.tabla_actividad.setItem(
                 fila,
                 0,
-                QTableWidgetItem(registro.fecha_ejecucion.strftime("%Y-%m-%d %H:%M")),
+                QTableWidgetItem(registro.fecha_ejecucion.strftime("%d/%m/%Y %H:%M")),
             )
             self.tabla_actividad.setItem(
                 fila, 1, QTableWidgetItem(registro.expediente.radicado)

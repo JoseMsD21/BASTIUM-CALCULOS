@@ -809,3 +809,46 @@ def test_aplicar_migraciones_pendientes_agrega_tipo_proceso_sprint105(tmp_path):
     assert "tipo_proceso" in columnas
     assert valor == (None,)
     assert migrar(db_path) is False
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_titulo_ejecutivo_sprint106(tmp_path):
+    """Sprint 106: una bastium.db anterior no tiene los datos del titulo
+    ejecutivo en expedientes -- deben agregarse al arrancar (todas NULL en los
+    expedientes existentes) y la migracion debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_titulo_ejecutivo_sprint106 import _COLUMNAS, migrar
+
+    db_path = tmp_path / "sin_titulo_ejecutivo.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    for nombre in _COLUMNAS:
+        con.execute(f"ALTER TABLE expedientes DROP COLUMN {nombre}")
+    con.execute(
+        "INSERT INTO expedientes (radicado, demandante, demandado, area_derecho, "
+        "fecha_corte_default) VALUES ('2020-001', 'A', 'B', 'CIVIL_FAMILIA', '2026-01-01')"
+    )
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(expedientes)")}
+    fila = con.execute(f"SELECT {', '.join(_COLUMNAS)} FROM expedientes").fetchone()
+    con.close()
+    assert set(_COLUMNAS) == {
+        "tipo_titulo",
+        "numero_identificador_titulo",
+        "fecha_expedicion_otorgamiento",
+        "fecha_exigibilidad",
+        "es_primera_copia_ejecutiva",
+        "fecha_ejecutoria",
+        "termino_prescripcion_anos",
+    }
+    assert set(_COLUMNAS) <= columnas
+    assert "fecha_limite_prescripcion" not in columnas  # se calcula, no se guarda
+    assert all(valor is None for valor in fila)
+    assert migrar(db_path) is False

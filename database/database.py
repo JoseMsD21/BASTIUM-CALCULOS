@@ -89,6 +89,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     from scripts.migrate_tipo_proceso_expediente import (
         migrar as migrar_tipo_proceso_expediente,
     )
+    from scripts.migrate_titulo_ejecutivo_sprint106 import (
+        migrar as migrar_titulo_ejecutivo_sprint106,
+    )
     from scripts.migrate_tope_suspensivo_tributario_sprint84 import (
         migrar as migrar_tope_suspensivo_tributario_sprint84,
     )
@@ -127,6 +130,9 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # fecha_notificacion_sentencia a obligaciones (tope suspensivo tributario)
     # -- columnas nuevas independientes, sin dependencia de orden.
     migrar_tope_suspensivo_tributario_sprint84(ruta)
+    # Sprint 106: datos del titulo ejecutivo en expedientes -- columnas nuevas
+    # independientes, sin dependencia de orden.
+    migrar_titulo_ejecutivo_sprint106(ruta)
     # Sprint 105: agrega tipo_proceso (nullable) a expedientes -- columna
     # nueva independiente, sin dependencia de orden.
     migrar_tipo_proceso_expediente(ruta)
