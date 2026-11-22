@@ -283,30 +283,30 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 81 — Extender la serie de IBC/Usura ("Consumo y Ordinario") hacia atrás hasta 1971 con la certificación real de la Superfinanciera ✅ Completado](#sprint-81--extender-la-serie-de-ibcusura-consumo-y-ordinario-hacia-atrás-hasta-1971-con-la-certificación-real-de-la-superfinanciera--completado)
 - [Sprint 82 — Cargar la serie histórica semanal de DTF (Banco de la República) como parámetro legal reutilizable 📋 Desbloqueado — prioridad baja](#sprint-82--cargar-la-serie-histórica-semanal-de-dtf-banco-de-la-república-como-parámetro-legal-reutilizable--desbloqueado--prioridad-baja) — fórmula de interés DTF implementada y probada, aislada; falta confirmar en qué área de BASTIUM vive
 - [Sprint 83 — Documentar y decidir la convención "tasa mensual con prorrateo de 30 días" que usan la mayoría de plantillas del despacho (i1, i2, i7, i9, i13) ✅ Completado (parte de implementación; decisión de comportamiento sigue condicionada a la respuesta del despacho)](#sprint-83--documentar-y-decidir-la-convención-tasa-mensual-con-prorrateo-de-30-días-que-usan-la-mayoría-de-plantillas-del-despacho-i1-i2-i7-i9-i13--completado-parte-de-implementación-decisión-de-comportamiento-sigue-condicionada-a-la-respuesta-del-despacho)
-- [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 📋 Desbloqueado — listo para implementar](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--desbloqueado--listo-para-implementar) — división lineal implementada (respuesta del despacho 2026-08-22); imputación proporcional y tope suspensivo quedan pendientes
-- [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) 📋 Desbloqueado — listo para implementar](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--desbloqueado--listo-para-implementar) — reclasificado 2026-08-25: no tenía código implementado pese a estar marcado Parcial
-- [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 📋 Desbloqueado — listo para implementar](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--desbloqueado--listo-para-implementar) — respuesta parcial del despacho (2026-08-22); falta la tabla actuarial completa, la serie DTF Pensional y resolver una ambigüedad que el propio despacho señaló en FAC3
-- [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 📋 Desbloqueado — listo para implementar](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--desbloqueado--listo-para-implementar) — misma respuesta parcial del Sprint 86, mismos datos faltantes
+- [Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ✅ Completado](#sprint-84--alinear-el-interés-moratorio-tributario-et-art-635-con-la-convención-literal-de-la-dian-366-días-lineal-o-confirmar-que-el-cálculo-actual-es-el-correcto--completado) — división lineal implementada (respuesta del despacho 2026-08-22); imputación proporcional y tope suspensivo quedan pendientes
+- [Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial — motor listo](#sprint-85--retroactivo-y-reliquidación-pensional-mesada-por-mesada-incrementos-e-intereses-de-mora-art-141-ley-100--parcial--motor-listo) — reclasificado 2026-08-25: no tenía código implementado pese a estar marcado Parcial
+- [Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional ⚠️ Parcial — motor listo](#sprint-86--bono-pensional-tipo-a-modalidades-1-y-2-con-intereses-dtf-pensional--parcial--motor-listo) — respuesta parcial del despacho (2026-08-22); falta la tabla actuarial completa, la serie DTF Pensional y resolver una ambigüedad que el propio despacho señaló en FAC3
+- [Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) ⚠️ Parcial — motor listo](#sprint-87--cálculo-actuarial-de-cotizaciones-omisas-intereses-de-mora-en-cotizaciones-y-salario-básico-deflactado-decreto-12252024--parcial--motor-listo) — misma respuesta parcial del Sprint 86, mismos datos faltantes
 - [Sprint 88 — Indemnización sustitutiva de pensión 🔵 Bloqueado — pendiente de confirmación](#sprint-88--indemnización-sustitutiva-de-pensión--bloqueado--pendiente-de-confirmación)
 - [Sprint 89 — Monto mensual de pensión en Régimen de Ahorro Individual (RAIS) 📋 Desbloqueado — rediseño en 2 módulos](#sprint-89--monto-mensual-de-pensión-en-régimen-de-ahorro-individual-rais--desbloqueado--rediseño-en-2-módulos)
 - [Sprint 90 — IBL del régimen ISS anterior a la Ley 100: últimas 100 y 150 semanas ✅ Completado](#sprint-90--ibl-del-régimen-iss-anterior-a-la-ley-100-últimas-100-y-150-semanas--completado)
 - [Sprint 91 — Tasa de reemplazo: extender a pensión de invalidez (grados 1 y 2), régimen 1993-2003 y régimen de transición ⚠️ Parcial](#sprint-91--tasa-de-reemplazo-extender-a-pensión-de-invalidez-grados-1-y-2-régimen-1993-2003-y-régimen-de-transición--parcial) — invalidez grado 2 y régimen 1994-2003 implementados; grado 1 bloqueado por discrepancia de tope (60% vs. 75%)
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--completado)
-- [Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Desbloqueado — listo para implementar](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--desbloqueado--listo-para-implementar)
+- [Sprint 94 — Laboral: contrato realidad (privado y sector público) ⚠️ Parcial — motor listo](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--parcial--motor-listo)
 - [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--parcial)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ✅ Completado](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--completado)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 📋 Desbloqueado — arquitectura decidida](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--desbloqueado--arquitectura-decidida)
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — faltan datos](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--faltan-datos)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
-- [Sprint 100 — Beneficio dejado de percibir como fruto civil 📋 Desbloqueado — listo para implementar](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--desbloqueado--listo-para-implementar)
+- [Sprint 100 — Beneficio dejado de percibir como fruto civil ⚠️ Parcial — motor listo](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--parcial--motor-listo)
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado (calculadora aislada; caso de uso real e integración condicionados a confirmación del despacho)](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--completado-bug-de-dominio-confirmado-corrección-diferida-al-sprint-104)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
 - [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 📋 Desbloqueado — listo para implementar](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--desbloqueado--listo-para-implementar)
-- [Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 📋 Desbloqueado — listo para implementar](#sprint-105--intake-de-caso-área-del-derecho--tipo-de-proceso--subtipo-con-checklist-de-obligaciones-predefinidas--desbloqueado--listo-para-implementar)
-- [Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 📋 Desbloqueado — listo para implementar](#sprint-106--formato-de-fecha-único-díamesaño-y-año-del-actatítulo-capturado-una-sola-vez-por-caso--desbloqueado--listo-para-implementar)
-- [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Desbloqueado — listo para implementar](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--desbloqueado--listo-para-implementar)
+- [Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas ✅ Completado (sin checklist)](#sprint-105--intake-de-caso-área-del-derecho--tipo-de-proceso--subtipo-con-checklist-de-obligaciones-predefinidas--completado-sin-checklist)
+- [Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso ✅ Completado](#sprint-106--formato-de-fecha-único-díamesaño-y-año-del-actatítulo-capturado-una-sola-vez-por-caso--completado)
+- [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación ✅ Completado](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--completado)
 - [Sprint 108 — Bug confirmado: bordes de tabla en borgoña (deben ser negro) y fila TOTALES en negro (debe ser borgoña) en PDF/Word ✅ Completado](#sprint-108--bug-confirmado-bordes-de-tabla-en-borgoña-deben-ser-negro-y-fila-totales-en-negro-debe-ser-borgoña-en-pdfword--completado)
 - [Sprint 109 — Especificación de color para gráficas de línea/curva con degradado borgoña (estándar a futuro) ✅ Completado](#sprint-109--especificación-de-color-para-gráficas-de-líneacurva-con-degradado-borgoña-estándar-a-futuro--completado)
 - [Sprint 110 — Bug confirmado: el motor de tasas IBC/Usura no extrapola más allá de 2026-07-31 (crash en Laboral y Tributario) ✅ Completado](#sprint-110--bug-confirmado-el-motor-de-tasas-ibcusura-no-extrapola-más-allá-de-2026-07-31-crash-en-laboral-y-tributario--completado)
@@ -319,6 +319,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 117 — Bug: `Iniciar BASTIUM.bat` no instalaba dependencias y la migración del Sprint 96 nunca se ejecutaba al arrancar ✅ Completado](#sprint-117--bug-iniciar-bastiumbat-no-instalaba-dependencias-y-la-migración-del-sprint-96-nunca-se-ejecutaba-al-arrancar--completado)
 - [Sprint 118 — Integración selectiva del paquete "BASTIUM VERSION NOVIEMBRE": mejoras sin cambio de resultados, el resto a preguntas ⚠️ Parcial](#sprint-118--integración-selectiva-del-paquete-bastium-version-noviembre-mejoras-sin-cambio-de-resultados-el-resto-a-preguntas--parcial)
 - [Sprint 119 — Respuestas del despacho del 16/11/2026: triaje, 6 implementaciones y repreguntas ⚠️ Parcial](#sprint-119--respuestas-del-despacho-del-16112026-triaje-6-implementaciones-y-repreguntas--parcial)
+- [Sprint 120 — Segunda y tercera tanda de implementaciones con agentes (respuestas del 16/11/2026) ⚠️ Parcial](#sprint-120--segunda-y-tercera-tanda-de-implementaciones-con-agentes-respuestas-del-16112026--parcial)
 
 ---
 
@@ -6434,7 +6435,9 @@ que colgaba la suite indefinidamente — ver Sprint 103.
 
 ---
 
-## Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto 📋 Desbloqueado — listo para implementar
+## Sprint 84 — Alinear el interés moratorio tributario (E.T. art. 635) con la convención literal de la DIAN (366 días, lineal) o confirmar que el cálculo actual es el correcto ✅ Completado
+
+**Actualización 2026-11-22 (Sprint 120):** Imputación proporcional Art. 804 E.T. (`AllocationEngine.allocate_proporcional_art_804`, solo Tributario; costas primero) y tope suspensivo: fecha de admisión de la demanda y de notificación de la sentencia en el formulario, interés en 0 % entre admisión + 24 meses y notificación + 11 días, con alerta (PR #53).
 
 **Actualización 2026-11-19 (Sprint 119):** Imputación proporcional (Art. 804 E.T.) obligatoria en toda obligación tributaria y tope suspensivo con los campos fecha_admision_demanda, fecha_tope_24m (+24 meses), fecha_notificacion_sentencia y fecha_reanudacion_interes (+11 días). Ver Respondidas, Sprint 84.
 
@@ -6479,7 +6482,9 @@ el estado ⚠️ Parcial en vez de ✅ Completado.
 
 ---
 
-## Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) 📋 Desbloqueado — listo para implementar
+## Sprint 85 — Retroactivo y reliquidación pensional: mesada por mesada, incrementos e intereses de mora (Art. 141 Ley 100) ⚠️ Parcial — motor listo
+
+**Actualización 2026-11-22 (Sprint 120):** Motor `app/engine/labor/retroactivo_pensional.py` (PR #51): mesadas 12/13/14 desde la causación, mora Art. 141 a la usura certificada de cada día (con el corte del Sprint 110) o solo IPC por buena fe; sin incremento 14 %/7 %. Falta conectarlo a la UI y las dudas del Sprint 120.
 
 **Actualización 2026-11-19 (Sprint 119):** Tasa de mora del Art. 141 = usura certificada (salvo buena fe probada: solo IPC); incremento 14 %/7 % no vigente (SU-140/2019). Ver Respondidas, Sprint 85.
 
@@ -6538,7 +6543,9 @@ Bloqueado, el estado que refleja la realidad.
 
 ---
 
-## Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional 📋 Desbloqueado — listo para implementar
+## Sprint 86 — Bono pensional Tipo A (modalidades 1 y 2) con intereses DTF pensional ⚠️ Parcial — motor listo
+
+**Actualización 2026-11-22 (Sprint 120):** Motor actuarial del Decreto 1296/2022 en `app/engine/labor/calculo_actuarial.py` + tablas transcritas por script (PR #50). Falta conectarlo a la UI y definir cómo se obtiene la pensión de referencia (PR).
 
 **Actualización 2026-11-19 (Sprint 119):** El despacho entregó FAC1/FAC2 (55-90 años), Salarios Medios Nacionales, DTF pensional y las dos variantes de FAC3. Ver Respondidas, Sprint 86/87.
 
@@ -6584,7 +6591,9 @@ Pensional, y cuál de las dos variantes de FAC3 es la correcta) en `Preguntas-Pa
 
 ---
 
-## Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) 📋 Desbloqueado — listo para implementar
+## Sprint 87 — Cálculo actuarial de cotizaciones omisas, intereses de mora en cotizaciones y salario básico deflactado (Decreto 1225/2024) ⚠️ Parcial — motor listo
+
+**Actualización 2026-11-22 (Sprint 120):** Mismo motor que el Sprint 86 (PR #50): FAC1/FAC2/SMN interpolados por días, FAC3 en sus dos variantes, VRA/CA/VR y actualización con DTF pensional. Falta la UI y las dudas del Sprint 120.
 
 **Actualización 2026-11-19 (Sprint 119):** Mismos datos que el Sprint 86 (Decreto 1296/2022): VRA, comisión 0,5 %, salario y auxilio funerario de referencia. Ver Respondidas, Sprint 86/87.
 
@@ -7052,7 +7061,9 @@ Suite completa en verde (1549 tests) y `ruff check .` limpio antes de mergear.
 
 ---
 
-## Sprint 94 — Laboral: contrato realidad (privado y sector público) 📋 Desbloqueado — listo para implementar
+## Sprint 94 — Laboral: contrato realidad (privado y sector público) ⚠️ Parcial — motor listo
+
+**Actualización 2026-11-22 (Sprint 120):** Motor de contrato realidad privado (L7) y público (L8) en `app/engine/labor/contrato_realidad.py` (PR #55): salud y pensión al 100 % a cargo del empleador, cálculo actuarial opcional para la pensión, bonificación del Decreto 0320/2026 solo en el sector público. Falta la UI.
 
 **Actualización 2026-11-19 (Sprint 119):** El empleador cubre el 100 % de la cotización omisa (no descuenta el 4 % del trabajador); el Decreto 0320/2026 no aplica al sector privado (plantilla L8). Ver Respondidas, Sprint 94.
 
@@ -7483,7 +7494,9 @@ arquitectura del Sprint 97 (¿área nueva o submodo de Civil/Familia?), de la qu
 
 ---
 
-## Sprint 100 — Beneficio dejado de percibir como fruto civil 📋 Desbloqueado — listo para implementar
+## Sprint 100 — Beneficio dejado de percibir como fruto civil ⚠️ Parcial — motor listo
+
+**Actualización 2026-11-22 (Sprint 120):** Motor `app/engine/civil/fruto_civil.py` (PR #54): canon indexado mes a mes por IPC menos gastos ordinarios de conservación, con prorrateo por días calendario. Falta conectarlo a Civil y la distinción de buena/mala fe del Art. 964.
 
 **Actualización 2026-11-19 (Sprint 119):** Regla confirmada en la respuesta del Sprint 97: rendimiento real del activo (p. ej. canon de mercado) indexado mes a mes por IPC, menos gastos ordinarios de conservación (Art. 964 C.C.), nunca con la mecánica pensional.
 
@@ -7707,7 +7720,9 @@ en `c_burgundy`; `app/views/expedientes.py` sigue sin `tipo_proceso`; `app/views
 `campo_fecha_inicio` y el placeholder `MM-DD`; no existe ningún `Line2D`/`fill_between`/`LineCollection` en
 `app/`).
 
-## Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas 📋 Desbloqueado — listo para implementar
+## Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas ✅ Completado (sin checklist)
+
+**Actualización 2026-11-22 (Sprint 120):** Catálogo del despacho (6 ramas, 13 tipos) en `app/services/catalogo_tipos_proceso.py`, combo "Tipo de proceso" filtrado por área en el expediente y columna `expedientes.tipo_proceso` con migración (PR #56). La checklist de obligaciones predefinidas no la definió el despacho y queda pendiente.
 
 **Actualización 2026-11-19 (Sprint 119):** El despacho entregó el árbol de procesos por rama (Civil/Comercial, Familia, Laboral, Penal, Contencioso, Sancionatorio). Ver Respondidas, Sprint 105.
 
@@ -7772,7 +7787,9 @@ de arriba, no se duplica aquí.
 
 ---
 
-## Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso 📋 Desbloqueado — listo para implementar
+## Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso ✅ Completado
+
+**Actualización 2026-11-22 (Sprint 120):** Formato dd/mm/aaaa en toda la UI (`app/views/fecha_widgets.py`, con prueba de guardia), selector día/mes para fechas anuales fijas, y datos del título ejecutivo en el expediente con fecha límite de prescripción calculada (PR #57).
 
 **Actualización 2026-11-19 (Sprint 119):** Widget estructurado día/mes y campos del título: tipo_titulo, numero_identificador_titulo, fecha_expedicion_otorgamiento, fecha_exigibilidad, es_primera_copia_ejecutiva, fecha_ejecutoria, termino_prescripcion_anos y fecha_limite_prescripcion (calculado).
 
@@ -7831,7 +7848,9 @@ despacho sobre esto. Se reclasifica a 🔵 Bloqueado sin tocar código.
 
 ---
 
-## Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación 📋 Desbloqueado — listo para implementar
+## Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación ✅ Completado
+
+**Actualización 2026-11-22 (Sprint 120):** Interruptor "Ver con/sin indexación" en resultados: recalcula en memoria sin tocar la BD ni el AuditLog, con aviso de vista de sensibilidad y exportación bloqueada (PR #52).
 
 **Actualización 2026-11-19 (Sprint 119):** Implementación híbrida: checkbox en el formulario + interruptor "Ver con/sin indexación" en resultados que no altera el dato guardado.
 
@@ -8806,6 +8825,43 @@ conexión a la UI de los Sprints 70/91 y 95. El 82 queda en prioridad baja por d
 
 **Estado (2026-11-19):** ⚠️ Parcial — triaje e implementaciones hechas; quedan las repreguntas y los sprints
 desbloqueados por implementar (tablero Kanban, columna "Listo").
+
+---
+
+## Sprint 120 — Segunda y tercera tanda de implementaciones con agentes (respuestas del 16/11/2026) ⚠️ Parcial
+
+**Origen:** continuación del Sprint 119. Con las respuestas del despacho ya clasificadas, se implementaron en
+paralelo (un agente por sprint, cada uno en su propia copia del repositorio y su propio PR) los sprints
+desbloqueados que no dependían de decisiones del usuario o del equipo.
+
+**Integrado a `main` (CI en verde en todos):**
+
+| Sprint | PR | Qué cambió | Alcance |
+|---|---|---|---|
+| 86/87 | #50 | Cálculo actuarial del Decreto 1296/2022 (tablas FAC1/FAC2 y SMN, FAC3, VRA/CA/VR, DTF pensional) | Solo motor |
+| 85 | #51 | Retroactivo pensional mesada por mesada con mora Art. 141 (usura certificada) o solo IPC por buena fe | Solo motor |
+| 107 | #52 | Interruptor "Ver con/sin indexación" en resultados, sin tocar la base de datos | Completo |
+| 84 | #53 | Tributario: imputación proporcional Art. 804 y tope suspensivo por demanda contenciosa | Completo |
+| 100 | #54 | Fruto civil: canon indexado por IPC menos gastos de conservación | Solo motor |
+| 94 | #55 | Contrato realidad privado/público, salud y pensión al 100 % del empleador, Decreto 0320 solo público | Solo motor |
+| 105 | #56 | Tipo de proceso del catálogo del despacho en el expediente | Completo (sin checklist) |
+| 106 | #57 | Formato dd/mm/aaaa en toda la UI, selector día/mes, datos del título ejecutivo | Completo |
+
+Al integrar el #57 hubo 15 bloques de conflicto con el #56 (mismo formulario y detalle del expediente, dos
+migraciones nuevas); se resolvieron conservando ambos cambios. Suite tras integrar todo: **1965 pruebas en verde**.
+
+**Verificaciones hechas antes de integrar:** los porcentajes y el tope del Decreto 0320/2026 del #55 salen
+textualmente de la respuesta del despacho; las tablas actuariales del #50 se extrajeron por script del archivo de
+respuestas, no a mano; el catálogo del #56 se comparó texto por texto con la respuesta del despacho.
+
+**Pendiente:**
+- Sprint 104 (Suma Única con abonos tramo a tramo): su agente sigue trabajando.
+- Conectar a la UI los motores de los Sprints 85, 86/87, 94 y 100 (y los de los Sprints 70/91 y 95 del Sprint 119).
+- Dudas que surgieron al implementar: repreguntadas en `Preguntas-Para-Abogado-Abiertas.md`, Sprint 120.
+- Deuda menor: las tablas de la pantalla de Parámetros todavía muestran las vigencias como año-mes-día.
+
+**Estado (2026-11-22):** ⚠️ Parcial — 8 PRs integrados; queda el Sprint 104, la conexión a la UI de los motores y las
+repreguntas.
 
 ---
 
