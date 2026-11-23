@@ -8941,7 +8941,8 @@ panel en `tests/views/test_main_window.py`, `tests/domain/test_radicado.py`.
 
 **Hallazgo menor:** en la gráfica del Inicio, los nombres largos de área se montan entre sí en el eje X
 ("Sancionatorio", "Honorarios / Litigio"). Corregido en el Sprint 125 (tarjeta #66). Además, varias pruebas dejan
-conexiones SQLite abiertas (`ResourceWarning`), sin efecto en cifras (tarjeta #68).
+conexiones SQLite abiertas (`ResourceWarning`), sin efecto en cifras (tarjeta #68). **Corregido** el 2026-11-23:
+`tests/conftest.py` cierra el engine en memoria de cada test (`engine.dispose()`); los avisos bajan de 2737 a 0.
 
 ---
 

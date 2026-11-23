@@ -60,6 +60,7 @@ def _db_en_memoria_por_defecto(monkeypatch):
     por session_module) para que aplique a todo el arbol de tests.
     """
     if create_engine is None:
+        yield
         return
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -67,3 +68,8 @@ def _db_en_memoria_por_defecto(monkeypatch):
     monkeypatch.setattr(
         session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
     )
+    yield
+    # Sprint 126 (#68): cerrar las conexiones del pool del engine en memoria al
+    # terminar cada test. Sin esto, la conexion SQLite quedaba abierta hasta el
+    # garbage collector y generaba miles de "ResourceWarning: unclosed database".
+    engine.dispose()

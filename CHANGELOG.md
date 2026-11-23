@@ -359,6 +359,8 @@ membrete en PDF/Word), guía de identidad, README reorganizado y revisión del p
   hijas/abonos del Sprint 41.
 
 ### Fixed
+- Pruebas (#68): cada test cierra su base SQLite en memoria al terminar; desaparecen los 2737 avisos
+  `ResourceWarning: unclosed database` de la suite. Sin cambios en el código de la aplicación.
 - Pantalla de Inicio (Sprint 125): la gráfica por área pasa a barras horizontales (los nombres ya no se montan en el
   eje), con eje entero y valores en cada barra; tablas compactas; la actividad reciente muestra el nombre legible del
   área y la fecha completa.
