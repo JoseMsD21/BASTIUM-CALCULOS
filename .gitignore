@@ -1,4 +1,6 @@
 .venv/
+# Respaldos de entornos viejos (ej. .venv-3.13-respaldo al pasar a Python 3.15, Sprint 122)
+.venv-*/
 __pycache__/
 *.pyc
 *.pyo
@@ -38,3 +40,12 @@ docs/Archivos de referencia abogado/
 # Artefacto local de pytest-cov (Sprint 113) - CI lo genera de nuevo en cada
 # corrida, nunca debe versionarse.
 .coverage
+
+# Salidas de empaquetado (PyInstaller) y datos locales de la plataforma de gestion
+# propuesta el 17-nov (Sprint 122, fase 0 de docs/REVISION_PLATAFORMA_2026-11-17.md).
+# NUNCA versionar datos de clientes.
+.venv-gestor/
+almacen_documentos/
+build/
+dist/
+*.sesion
