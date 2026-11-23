@@ -70,6 +70,10 @@ class LiquidationCore:
             # expediente. Ver LaboralStrategy.liquidar y
             # app/engine/labor/dismissal_indemnity.py.
             "INDEMNIZACION_DESPIDO",
+            # HORAS_EXTRA (Sprint 95, conexion a la UI): horas extra
+            # HED/HEN/HEFD/HEFN de un contrato Laboral, rubro propio -- ver
+            # LaboralStrategy._eventos_horas_extra.
+            "HORAS_EXTRA",
             "DANO_EMERGENTE",
             "LUCRO_CESANTE_CONSOLIDADO",
             "DANOS_MORALES",

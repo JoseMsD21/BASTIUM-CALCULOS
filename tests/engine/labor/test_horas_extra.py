@@ -13,7 +13,9 @@ from app.engine.labor.horas_extra import (
     factor_hora_extra,
     hora_inicio_jornada_nocturna,
     liquidar_hora_extra,
+    liquidar_hora_extra_con_porcentaje_manual,
     porcentaje_recargo_dominical_festivo,
+    requiere_porcentaje_manual,
     validar_limite_horas_extra_ley_2466,
 )
 
@@ -336,3 +338,50 @@ class TestLiquidarHoraExtra:
             liquidar_hora_extra(
                 ConceptoHoraExtra.HEFD, Decimal("1"), Decimal("6250"), date(2025, 1, 1)
             )
+
+
+# --- Sprint 95 (conexion a la UI): porcentaje digitado para HEFD/HEFN previas
+# al Tramo 1 de la Ley 2466 -----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("concepto", "fecha", "esperado"),
+    [
+        ("HED", date(2020, 3, 15), False),
+        ("HEN", date(2020, 3, 15), False),
+        ("HEFD", date(2025, 6, 30), True),
+        ("HEFN", date(2025, 6, 30), True),
+        ("HEFD", date(2025, 7, 1), False),
+        ("HEFN", date(2027, 7, 1), False),
+    ],
+)
+def test_requiere_porcentaje_manual_solo_para_festivas_antes_del_tramo_1(
+    concepto, fecha, esperado
+):
+    assert requiere_porcentaje_manual(concepto, fecha) is esperado
+
+
+def test_con_porcentaje_manual_usa_el_factor_del_motor_cuando_esta_confirmado():
+    # HEFD Tramo 1: 3 h x 8.000 x 2,05 = 49.200,00. El porcentaje digitado se
+    # ignora porque el despacho ya fijo el factor.
+    monto, factor = liquidar_hora_extra_con_porcentaje_manual(
+        "HEFD", Decimal("3"), Decimal("8000"), date(2025, 8, 10), Decimal("100")
+    )
+    assert monto == Decimal("49200.00")
+    assert factor == Decimal("2.05")
+
+
+def test_con_porcentaje_manual_aplica_el_digitado_si_no_hay_factor_confirmado():
+    # HEFN 30/06/2025 con 150 % digitado: 2 h x 10.000 x 2,5 = 50.000,00.
+    monto, factor = liquidar_hora_extra_con_porcentaje_manual(
+        "HEFN", Decimal("2"), Decimal("10000"), date(2025, 6, 30), Decimal("150")
+    )
+    assert monto == Decimal("50000.00")
+    assert factor == Decimal("2.5")
+
+
+def test_con_porcentaje_manual_sin_porcentaje_y_sin_factor_confirmado_lanza_error():
+    with pytest.raises(HoraExtraFestivaSinFactorConfirmadoError):
+        liquidar_hora_extra_con_porcentaje_manual(
+            "HEFD", Decimal("2"), Decimal("10000"), date(2025, 6, 30), None
+        )

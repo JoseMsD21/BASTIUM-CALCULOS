@@ -42,7 +42,8 @@ CATEGORIAS_LABORAL = [
 # Nota: a diferencia de CATEGORIAS_CIVIL_FAMILIA/CATEGORIAS_COMERCIAL, esta
 # categoria es solo una etiqueta de UI -- el event_type real de cada linea de
 # la liquidacion (CESANTIAS, INTERESES_CESANTIAS, PRIMA_JUNIO, PRIMA_DICIEMBRE,
-# VACACIONES, SANCION_MORATORIA, INDEMNIZACION_DESPIDO, SALARIO_DEJADO_DE_PERCIBIR)
+# VACACIONES, SANCION_MORATORIA, INDEMNIZACION_DESPIDO, SALARIO_DEJADO_DE_PERCIBIR,
+# HORAS_EXTRA -- Sprint 95, desde la tabla horas_extra_laborales, no una categoria)
 # lo define LaborScheduler/MoratoryIndemnityCalculator/DismissalIndemnityCalculator/
 # generar_eventos_salarios_dejados_de_percibir internamente en
 # app/services/area_strategy.py y app/services/salarios_dejados_de_percibir.py,

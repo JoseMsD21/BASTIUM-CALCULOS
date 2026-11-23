@@ -167,6 +167,7 @@ def test_todos_los_formularios_con_fecha_usan_dia_mes_anio(qtbot, monkeypatch):
     from app.views.eventos_laborales import EventoLaboralFormDialog
     from app.views.expediente_detalle import ExpedienteDetallePage
     from app.views.expedientes import ExpedienteFormDialog
+    from app.views.horas_extra_laborales import HoraExtraLaboralFormDialog
     from app.views.obligaciones import ObligacionFormDialog
     from tests.views.conftest import crear_sesion_en_memoria
 
@@ -178,6 +179,7 @@ def test_todos_los_formularios_con_fecha_usan_dia_mes_anio(qtbot, monkeypatch):
         AbonoFormDialog(obligacion_id=1),
         EventoLaboralFormDialog(obligacion_id=1),
         DescuentoLaboralFormDialog(obligacion_id=1),
+        HoraExtraLaboralFormDialog(obligacion_id=1),
         ParametroFormDialog(),
     ]
     for area in ("CIVIL_FAMILIA", "COMERCIAL", "LABORAL", "TRIBUTARIO"):
