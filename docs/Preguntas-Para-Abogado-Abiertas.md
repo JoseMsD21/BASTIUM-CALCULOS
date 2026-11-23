@@ -86,6 +86,8 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 119 — Cinco dudas que surgieron al aplicar las respuestas del 16/11/2026](#sprint-119--cinco-dudas-que-surgieron-al-aplicar-las-respuestas-del-16112026)
 - [Sprint 120 — Dudas surgidas al implementar los Sprints 84, 85, 86/87, 94, 100, 105, 106 y 107](#sprint-120--dudas-surgidas-al-implementar-los-sprints-84-85-8687-94-100-105-106-y-107)
 - [Sprint 121 — Horas extra, fruto civil y Suma Única con abonos: cuatro confirmaciones](#sprint-121--horas-extra-fruto-civil-y-suma-única-con-abonos-cuatro-confirmaciones)
+- [Sprint 122 — Guía de identidad y material del equipo: tres confirmaciones](#sprint-122--guía-de-identidad-y-material-del-equipo-tres-confirmaciones)
+- [Sprint 123 — Gestor de casos propuesto: ocho decisiones (solo si el equipo lo adopta)](#sprint-123--gestor-de-casos-propuesto-ocho-decisiones-solo-si-el-equipo-lo-adopta)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -390,6 +392,87 @@ días comerciales (mes de 30 días, año de 360), como en el pseudocódigo del d
 de conteo?
 
 **Qué necesito exactamente:** sí/no por pregunta y, en la 1, desde cuándo una hora extra se considera habitual.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 122 — Guía de identidad y material del equipo: tres confirmaciones
+
+**Contexto:** el equipo entregó el documento maestro *ESTILO Y LÓGICA DE BASTIUM* (ver
+[Guía de identidad](identidad/GUIA_DE_IDENTIDAD.md)) y una carpeta de Drive con mockups y una propuesta de "normas
+faltantes" hecha con IA (Z.AI). Ya se aplicó lo que no cambia cifras: logos y membrete en PDF/Word. Estas tres
+decisiones sí dependen del despacho.
+
+**Pregunta 1 — Estilo de las gráficas del dictamen.** *Por qué:* en el Sprint 109 el despacho pidió gráficas con
+ejes negros y curva borgoña con degradado. La guía nueva pide gráficas "dibujadas a mano" (bordes irregulares,
+sombreado cruzado, fondo cuadriculado) y un rojo distinto (`#C82E2E`). ¿Cuál se usa en los PDF que van al juzgado?
+
+**Pregunta 2 — Semáforo de alertas de términos.** *Por qué:* la guía propone avisar 10, 5, 3 y 1 día antes de cada
+vencimiento, con la misma antelación para todo (rojo = crítico, amarillo = traslado, verde = informativo). ¿Se
+acepta esa escala única o algún tipo de término necesita otra antelación?
+
+**Pregunta 3 — Propuesta de "normas faltantes" (Z.AI).** *Por qué:* el archivo `normas_faltantes.py` de Drive
+propone seis cálculos nuevos, pero al revisarlo encontramos citas y reglas que parecen incorrectas. No se integró
+nada. ¿El despacho quiere estos módulos? Si sí, necesitamos que confirme la regla correcta de cada uno:
+
+| Propuesta | Lo que dice el archivo | Lo que parece correcto (a confirmar) |
+|---|---|---|
+| Prescripción laboral | 3 años, "CST art. 151" y "Sentencia C-1771/2019" | 3 años según Art. 488 CST y Art. 151 CPTSS; no encontramos esa sentencia |
+| Prescripción tributaria | 5 años, "E.T. art. 638" | La acción de cobro prescribe a 5 años por el Art. 817 E.T.; el 638 trata de sanciones |
+| Salario integral | Ley 278/1996; mínimo 10 SMMLV | Art. 132 CST (Ley 50/1990 art. 18): 10 SMMLV **más** 30 % de factor prestacional |
+| Auxilio de transporte | "Ley 1788"; entra en la base de seguridad social | No es salario y no entra en la base de aportes; sí cuenta para cesantías y prima |
+| Incapacidades | 2/3 exacto en vez de 0,6667 | Es una mejora de precisión; falta el piso de 1 SMMLV. ¿Se aplica? |
+| Retención en la fuente salarial | Tabla y depuración propias | La depuración del archivo no coincide con el Art. 388 E.T. ¿Es alcance de BASTIUM? |
+
+**Qué necesito exactamente:** la elección en la 1; sí/no en la 2; en la 3, cuáles módulos se quieren y la regla
+de cada uno.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 123 — Gestor de casos propuesto: ocho decisiones (solo si el equipo lo adopta)
+
+**Contexto:** el parche de plataforma del 17/11 trae un gestor de casos (clientes, casos, términos, vigilancia de
+la Rama Judicial, escritos). Todavía **no está integrado** (ver
+[REVISION_PLATAFORMA_2026-11-17.md](REVISION_PLATAFORMA_2026-11-17.md)). Si el equipo decide adoptarlo, el gestor
+necesita estas respuestas antes de usarse con casos reales. Las preguntas de vacancia, redondeo, pagos anticipados
+y notificación ya están en el Sprint 118.
+
+**Pregunta 1 — Plazos en días calendario que vencen en día inhábil.** ¿En qué casos se corren al siguiente día
+hábil? (Hoy el gestor no los corre; solo advierte.)
+
+**Pregunta 2 — Calendario por tipo de asunto.** ¿Trámites administrativos, conciliaciones, arbitraje,
+disciplinarios y consultas cuentan solo sábados, domingos y festivos, sin vacancia judicial? ¿Desde cuándo y con
+qué transición aplica el nuevo Código Procesal del Trabajo (Ley 2452 de 2025)?
+
+**Pregunta 3 — Etapas de cada tipo de asunto.** ¿Qué etapa sobra, falta o está mal nombrada en las máquinas de
+estado del gestor (Prospecto → … → Terminado)?
+
+**Pregunta 4 — Listas de verificación de escritos** (memorial, poder, derecho de petición, demanda, liquidación del
+crédito). ¿Qué requisito debe bloquear el escrito y cuál solo advertir (por ejemplo, juramento estimatorio y
+cuantía)?
+
+**Pregunta 5 — Tratamiento de datos.** Texto definitivo de la autorización, canales permitidos (¿WhatsApp?) y
+tiempo de conservación.
+
+**Pregunta 6 — Conflicto de interés.** ¿Quién puede autorizar continuar (¿solo un socio?) y hace falta "muro
+ético" por caso?
+
+**Pregunta 7 — Consulta automática a la Rama Judicial.** ¿Se acepta consultar cada 24 horas por proceso
+identificándose con el correo del abogado?
+
+**Pregunta 8 — Semáforo de términos.** El gestor usa 10/5/3 días hábiles (amarillo/naranja/rojo). ¿Se ajusta?
+(Relacionada con la pregunta 2 del Sprint 122.)
+
+**Qué necesito exactamente:** primero, si el equipo adopta el gestor; si sí, respuesta por pregunta.
 
 **Respuesta del despacho:**
 

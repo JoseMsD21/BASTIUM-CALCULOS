@@ -74,7 +74,8 @@ validación año por año.
 
 ## 5. Forma de trabajo: Kanban
 
-Tablero: **[BASTIUM - Kanban](https://github.com/users/JoseMsD21/projects/1)** (GitHub Projects, privado).
+Tablero: **[BASTIUM - Kanban](https://github.com/users/JoseMsD21/projects/1)** (GitHub Projects, **público** desde
+el 2026-11-23: cualquier compañero lo ve sin pedir acceso).
 
 | Columna | Significado | Límite WIP |
 |---|---|---|
@@ -97,7 +98,14 @@ Reglas:
 
 ## 6. Carpeta del equipo en Google Drive
 
-Proyecto de Drive "BASTIUM" del equipo. Uso acordado:
+Dos carpetas del equipo (acceso solo para el equipo):
+
+| Carpeta | Qué guarda |
+|---|---|
+| [Actas y avances](https://drive.google.com/drive/project/1Vf9_sVuHZXNbO3Z8IKPsw2zZyB8jVodV) | Actas de reunión, avances semanales y soporte formal de las respuestas del despacho |
+| [Propuestas, mockups y auditorías](https://drive.google.com/drive/folders/1ZYauFW9pEKFfjMCC1RIHtDJ2pwrut78f) | *MOCKUPS PROPUESTA* (6 pantallas A-F en HTML/PNG y guía frontend), *AUDITORIA Y PRESENTACION V2* (informe del parche del 17-nov) y *Z.AI* (auditoría técnica y propuesta de normas faltantes). Revisado el 2026-11-23: ver [REVISION_PLATAFORMA_2026-11-17.md](REVISION_PLATAFORMA_2026-11-17.md) |
+
+Uso acordado:
 
 - **Drive:** actas de reunión, avances semanales y el soporte formal de las respuestas del despacho.
 - **Repositorio:** todo lo que el código necesita. Cuando el despacho responde, la respuesta se transcribe a
