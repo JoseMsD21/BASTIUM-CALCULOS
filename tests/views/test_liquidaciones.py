@@ -799,3 +799,54 @@ def test_error_en_la_vista_de_sensibilidad_avisa_y_vuelve_a_la_oficial(qtbot, mo
     assert view.etiqueta_saldo_final.text() == texto_oficial
     assert view.boton_exportar_pdf.isEnabled()
     assert _banderas_y_auditoria(expediente_id) == ((False, False), 0)
+
+
+# --- Sprint 100: fruto civil como rubro propio ---
+
+
+def _resultado_con_fruto_civil() -> LiquidationResult:
+    # Dos meses de fruto civil (905.765,41 + 910.139,17 = 1.815.904,58), sin
+    # interes, seguidos del corte.
+    filas = []
+    principal = Decimal("0.00")
+    for fecha, neto in (
+        (date(2019, 2, 28), Decimal("905765.41")),
+        (date(2019, 3, 31), Decimal("910139.17")),
+    ):
+        principal += neto
+        debt = PendingDebt(principal=principal, interest=Decimal("0.00"), indexation=Decimal("0"))
+        filas.append(
+            LiquidationItem(
+                date=fecha,
+                concept=f"Fruto civil {fecha.month:02d}/2019",
+                capital_base=principal,
+                interest_rate=Decimal("0.00"),
+                interest_amount=Decimal("0.00"),
+                indexation_amount=Decimal("0.00"),
+                payment_amount=Decimal("0.00"),
+                balance=RunningBalance(date=fecha, debt=debt, event_type="FRUTO_CIVIL"),
+            )
+        )
+    return LiquidationResult(items=filas)
+
+
+def test_muestra_fruto_civil_como_rubro_propio_cuando_existe(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_con_fruto_civil(), expediente_id=1)
+
+    assert view.etiqueta_fruto_civil.isVisible()
+    assert "1815904.58" in view.etiqueta_fruto_civil.text()
+    assert "sin intereses" in view.etiqueta_fruto_civil.text()
+
+
+def test_oculta_fruto_civil_cuando_no_hay(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.etiqueta_fruto_civil.isVisible()

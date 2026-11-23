@@ -40,6 +40,22 @@ class LiquidationResult:
     def total_saldo_a_favor(self) -> Decimal:
         return sum((item.saldo_a_favor for item in self.items), Decimal("0.00"))
 
+    def total_fruto_civil(self) -> Decimal:
+        """Total del fruto civil causado (Sprint 100, filas FRUTO_CIVIL de
+        Civil/Familia), para mostrarlo como rubro propio. Cada fila FRUTO_CIVIL
+        es un evento de capital puro (sin pago ni interes en la misma fila,
+        tasa 0), asi que su monto es exactamente lo que subio el capital
+        respecto de la fila anterior -- valido tambien sobre el historial
+        fusionado de varias obligaciones (saldo consolidado fila a fila) y
+        sobre un resultado reconstruido desde un snapshot (solo usa `items`)."""
+        total = Decimal("0.00")
+        capital_anterior = Decimal("0.00")
+        for item in self.items:
+            if item.balance.event_type == "FRUTO_CIVIL":
+                total += item.balance.debt.principal - capital_anterior
+            capital_anterior = item.balance.debt.principal
+        return total
+
     def final_balance(self) -> PendingDebt:
         if not self.items:
             return PendingDebt(Decimal("0.00"), Decimal("0.00"), Decimal("0.00"))

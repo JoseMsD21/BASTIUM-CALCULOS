@@ -141,6 +141,11 @@ class ResultadoLiquidacionView(QWidget):
         # suman en seco al saldo final. Oculta cuando la liquidacion no tiene costas.
         self.etiqueta_costas = QLabel("Costas procesales (no generan interés): 0.00")
         self.etiqueta_costas.setVisible(False)
+        # Sprint 100: fruto civil (Art. 964 C.C.) como rubro propio -- ya esta
+        # dentro del capital; esta etiqueta solo lo discrimina. Oculta cuando la
+        # liquidacion no tiene obligaciones de fruto civil.
+        self.etiqueta_fruto_civil = QLabel("Fruto civil causado (sin intereses): 0.00")
+        self.etiqueta_fruto_civil.setVisible(False)
         # Sprint 46: el saldo a favor de un sobrepago (Sprint 23, ya calculado
         # correctamente por LiquidationCore) se vuelve visible aqui -- oculto por
         # completo (nada, ni una fila vacia) cuando no hay sobrepago.
@@ -232,6 +237,7 @@ class ResultadoLiquidacionView(QWidget):
         layout.addWidget(self.etiqueta_alertas)
         layout.addWidget(self.etiqueta_interes_total)
         layout.addWidget(self.etiqueta_pagos_total)
+        layout.addWidget(self.etiqueta_fruto_civil)
         layout.addWidget(self.etiqueta_costas)
         layout.addWidget(self.etiqueta_saldo_final)
         layout.addWidget(self.etiqueta_saldo_a_favor)
@@ -311,6 +317,15 @@ class ResultadoLiquidacionView(QWidget):
             self.etiqueta_costas.setVisible(True)
         else:
             self.etiqueta_costas.setVisible(False)
+
+        if any(item.balance.event_type == "FRUTO_CIVIL" for item in resultado.items):
+            self.etiqueta_fruto_civil.setText(
+                "Fruto civil causado (Art. 964 C.C., sin intereses): "
+                f"{resultado.total_fruto_civil()}"
+            )
+            self.etiqueta_fruto_civil.setVisible(True)
+        else:
+            self.etiqueta_fruto_civil.setVisible(False)
 
         total_saldo_a_favor = resultado.total_saldo_a_favor()
         if total_saldo_a_favor > 0:

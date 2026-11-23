@@ -171,6 +171,17 @@ class WordReportGenerator:
             ("Saldo Final Intereses", summary["saldo_final_intereses"]),
             ("Saldo Final Indexación/Sanciones", summary["saldo_final_indexacion"]),
         ]
+        # Sprint 100: fruto civil (Art. 964 C.C.) como rubro propio -- discrimina
+        # cuanto del capital es fruto civil causado (sin intereses); solo cuando
+        # build_summary lo agrego.
+        if "total_fruto_civil" in summary:
+            filas_resumen.insert(
+                3,
+                (
+                    "Fruto Civil Causado (Art. 964 C.C., sin intereses)",
+                    summary["total_fruto_civil"],
+                ),
+            )
         # Sprint 79: costas procesales como rubro propio (no generan interes, se
         # suman en seco al gran total) -- solo cuando build_summary lo agrego.
         if "saldo_final_costas" in summary:

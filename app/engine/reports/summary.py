@@ -35,6 +35,13 @@ class ReportSummaryBuilder:
         if final_debt.costas > Decimal("0.00"):
             summary["saldo_final_costas"] = self._format(final_debt.costas)
 
+        # Sprint 100: fruto civil (Art. 964 C.C.) como rubro propio -- ya esta
+        # dentro de "saldo_final_capital"; esta linea solo lo discrimina. Mismo
+        # patron opcional: solo presente cuando el resultado tiene filas
+        # FRUTO_CIVIL.
+        if any(item.balance.event_type == "FRUTO_CIVIL" for item in result.items):
+            summary["total_fruto_civil"] = self._format(result.total_fruto_civil())
+
         total_saldo_a_favor = result.total_saldo_a_favor()
         if total_saldo_a_favor > Decimal("0.00"):
             summary["saldo_a_favor"] = self._format(total_saldo_a_favor)
