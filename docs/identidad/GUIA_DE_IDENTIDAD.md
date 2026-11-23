@@ -62,7 +62,7 @@ cuando el equipo confirme qué rojo manda (ver Pendientes, Sprint 122).
   [`app/assets/fonts/`](../../app/assets/fonts/)) desde el Sprint 31.
 - **Cifras:** obligatorio alinear los números en columnas (`font-variant-numeric: tabular-nums` en web). En Qt y
   reportlab el equivalente es alinear a la derecha las columnas de montos y usar una fuente con dígitos de ancho
-  fijo. **Pendiente** revisar que todas las tablas lo cumplan.
+  fijo. **Hecho en pantalla** (Sprint 127, `app/views/celdas.py`); falta el separador de miles en pantalla.
 - Los mockups usan además **Caveat** (manuscrita) para notas al margen.
 
 ## Logos
