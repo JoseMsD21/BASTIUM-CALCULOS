@@ -8,7 +8,9 @@ if not exist ".venv\Scripts\python.exe" (
     echo Primera ejecucion: creando entorno virtual...
     where py >nul 2>nul
     if not errorlevel 1 (
-        py -3 -m venv .venv
+        rem Version recomendada: Python 3.15 ^(Sprint 122^); si no esta, la mas nueva instalada.
+        py -3.15 -m venv .venv >nul 2>nul
+        if not exist ".venv\Scripts\python.exe" py -3 -m venv .venv
     ) else (
         python -m venv .venv
     )
@@ -36,8 +38,8 @@ if errorlevel 1 (
         echo ============================================================
         echo   No se pudieron instalar las dependencias.
         echo   Revisa tu conexion a internet y vuelve a intentarlo.
-        echo   Si el error menciona PySide6, puede que tu version de
-        echo   Python sea demasiado nueva: instala Python 3.12 o 3.13.
+        echo   Si el error menciona PySide6, borra la carpeta .venv y
+        echo   vuelve a abrir este archivo con Python 3.15 o 3.13 instalado.
         echo ============================================================
         echo.
         pause
