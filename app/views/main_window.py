@@ -1,5 +1,5 @@
 from PySide6.QtCore import QSettings, Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
+from app.assets.logos import LEMA, MONOGRAMA
 from app.core.settings import crear_settings
 from app.views.configuraciones import ConfiguracionesView
 from app.views.dashboard import DashboardView
@@ -25,6 +26,7 @@ _CLAVE_GEOMETRIA = "ventana/geometria"
 # Sprint 37 -- ahora es solo el fallback para el primer arranque (sin QSettings previo).
 ANCHO_POR_DEFECTO = 1000
 ALTO_POR_DEFECTO = 700
+ALTO_LOGO_SIDEBAR = 56
 
 
 class MainWindow(QMainWindow):
@@ -141,6 +143,19 @@ class MainWindow(QMainWindow):
         sidebar = QWidget()
         sidebar.setObjectName("sidebar_navegacion")
         layout_sidebar = QVBoxLayout(sidebar)
+        # Sprint 122: monograma oficial "B." arriba del panel lateral (guia de
+        # identidad, docs/identidad/GUIA_DE_IDENTIDAD.md). Lleva su propio
+        # fondo blanco para verse igual en modo claro y oscuro.
+        self.logo_sidebar = QLabel()
+        self.logo_sidebar.setObjectName("logo_sidebar")
+        self.logo_sidebar.setPixmap(
+            QPixmap(str(MONOGRAMA)).scaledToHeight(
+                ALTO_LOGO_SIDEBAR, Qt.TransformationMode.SmoothTransformation
+            )
+        )
+        self.logo_sidebar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.logo_sidebar.setToolTip(f"BASTIUM · {LEMA}")
+        layout_sidebar.addWidget(self.logo_sidebar)
         layout_sidebar.addWidget(self.boton_inicio)
         layout_sidebar.addWidget(self.boton_volver)
         layout_sidebar.addWidget(self.boton_configuraciones)

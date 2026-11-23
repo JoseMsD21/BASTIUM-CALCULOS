@@ -4,9 +4,12 @@ from decimal import Decimal
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from app.assets.logos import LOGO_HORIZONTAL
 
 # Sprint 108: encabezados de columna en extrabold color crema sobre fondo negro
 # (pedido del despacho, 2026-08-22) -- la fuente ya existia en
@@ -18,6 +21,32 @@ _RUTA_FONT_HEADER = os.path.join(
     os.path.dirname(__file__), "..", "assets", "fonts", "AncizarSans-ExtraBold.ttf"
 )
 pdfmetrics.registerFont(TTFont(FONT_HEADER, _RUTA_FONT_HEADER))
+
+# Sprint 122: membrete con el logo oficial (mascota + "Bastium." + lema) en la
+# esquina superior izquierda de cada pagina, como pide la guia de identidad
+# (docs/identidad/GUIA_DE_IDENTIDAD.md, "Layout del PDF generado"). Se dibuja en
+# el canvas (onFirstPage/onLaterPages), fuera del flujo de contenido, asi que no
+# altera tablas ni textos del dictamen.
+ALTO_MEMBRETE = 30
+_SEPARACION_MEMBRETE = 12
+_ANCHO_LOGO_PX, _ALTO_LOGO_PX = ImageReader(str(LOGO_HORIZONTAL)).getSize()
+ANCHO_MEMBRETE = ALTO_MEMBRETE * _ANCHO_LOGO_PX / _ALTO_LOGO_PX
+
+
+def dibujar_membrete(canvas, doc) -> None:
+    """Dibuja el logo horizontal arriba a la izquierda, dentro del margen superior."""
+    _ancho_pagina, alto_pagina = doc.pagesize
+    canvas.saveState()
+    canvas.drawImage(
+        str(LOGO_HORIZONTAL),
+        doc.leftMargin,
+        alto_pagina - _SEPARACION_MEMBRETE - ALTO_MEMBRETE,
+        width=ANCHO_MEMBRETE,
+        height=ALTO_MEMBRETE,
+        mask="auto",
+    )
+    canvas.restoreState()
+
 
 # Peso relativo de cada columna de la tabla de cronologia -- "Concepto" pesa mas
 # porque es la unica columna con texto largo (ej. "Indexacion IPC -- Reparacion
@@ -163,7 +192,7 @@ class JudicialPDFGenerator:
             elementos.append(img)
 
         # Compilar el PDF
-        doc.build(elementos)
+        doc.build(elementos, onFirstPage=dibujar_membrete, onLaterPages=dibujar_membrete)
 
     def generate(
         self,
@@ -187,7 +216,8 @@ class JudicialPDFGenerator:
             pagesize=landscape(letter),
             leftMargin=36,
             rightMargin=36,
-            topMargin=36,
+            # Sprint 122: 36 -> margen que deja espacio al membrete con logo.
+            topMargin=_SEPARACION_MEMBRETE + ALTO_MEMBRETE + 14,
             bottomMargin=36,
         )
         ancho_disponible = doc.width
@@ -454,4 +484,4 @@ class JudicialPDFGenerator:
             elementos.append(Spacer(1, 12))
             elementos.append(Paragraph(diferencia_recalculo["resumen"], self.styles["Normal"]))
 
-        doc.build(elementos)
+        doc.build(elementos, onFirstPage=dibujar_membrete, onLaterPages=dibujar_membrete)

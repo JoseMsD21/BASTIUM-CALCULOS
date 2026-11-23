@@ -550,3 +550,25 @@ def test_generate_no_muestra_fruto_civil_sin_fruto_civil(tmp_path, monkeypatch):
     )
 
     assert not any(fila[0].startswith("Fruto Civil") for fila in llamadas[0])
+
+
+def test_generate_dibuja_el_membrete_con_el_logo_en_cada_pagina(tmp_path, monkeypatch):
+    # Sprint 122: el logo oficial va arriba a la izquierda en todas las hojas.
+    import app.reports.pdf as modulo_pdf
+
+    llamadas = []
+    membrete_real = modulo_pdf.dibujar_membrete
+
+    def _membrete_capturado(canvas, doc):
+        llamadas.append(canvas.getPageNumber())
+        membrete_real(canvas, doc)
+
+    monkeypatch.setattr(modulo_pdf, "dibujar_membrete", _membrete_capturado)
+    ruta = tmp_path / "liquidacion_membrete.pdf"
+    filas = _table_data() * 60  # suficiente para pasar de una pagina
+
+    JudicialPDFGenerator(str(ruta)).generate("LIQUIDACIÓN CON MEMBRETE", _summary(), filas)
+
+    assert len(llamadas) >= 2
+    assert llamadas == list(range(1, len(llamadas) + 1))
+    assert b"/Subtype /Image" in ruta.read_bytes()
