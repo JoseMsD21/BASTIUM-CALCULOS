@@ -21,6 +21,7 @@ from app.views.configuracion import HistorialParametroDialog, ParametroFormDialo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog
 from app.views.expedientes import ExpedienteFormDialog
+from app.views.horas_extra_laborales import HoraExtraLaboralFormDialog
 from app.views.obligaciones import ObligacionFormDialog
 from database.models import AreaDerecho, Expediente, Obligacion, TipoObligacion
 
@@ -114,6 +115,13 @@ def _evento_laboral_form_dialog(qtbot):
     return dialogo
 
 
+def _hora_extra_laboral_form_dialog(qtbot):
+    obligacion_id = _crear_obligacion_laboral()
+    dialogo = HoraExtraLaboralFormDialog(obligacion_id=obligacion_id)
+    qtbot.addWidget(dialogo)
+    return dialogo
+
+
 def _expediente_form_dialog(qtbot):
     dialogo = ExpedienteFormDialog()
     qtbot.addWidget(dialogo)
@@ -135,6 +143,7 @@ def _obligacion_form_dialog(qtbot):
         _historial_parametro_dialog,
         _descuento_laboral_form_dialog,
         _evento_laboral_form_dialog,
+        _hora_extra_laboral_form_dialog,
         _expediente_form_dialog,
         _obligacion_form_dialog,
     ],
@@ -144,6 +153,7 @@ def _obligacion_form_dialog(qtbot):
         "HistorialParametroDialog",
         "DescuentoLaboralFormDialog",
         "EventoLaboralFormDialog",
+        "HoraExtraLaboralFormDialog",
         "ExpedienteFormDialog",
         "ObligacionFormDialog",
     ],

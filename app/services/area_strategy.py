@@ -29,6 +29,10 @@ from app.engine.interest.provider import MemoryRateProvider, RateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.interest.usury_validator import calcular_tope_usura
 from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
+from app.engine.labor.horas_extra import (
+    liquidar_hora_extra_con_porcentaje_manual,
+    requiere_porcentaje_manual,
+)
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.salario_domestico import (
@@ -1366,6 +1370,15 @@ class LaboralStrategy(AreaStrategy):
     `incluir_seguridad_social` en ella (conceptos de finiquito que no aplican
     a un periodo sin contrato vigente -- fuera de alcance de este sprint, no
     un olvido).
+
+    Horas extra (Sprint 95, conexion a la UI): filas `HoraExtraLaboral`
+    (tabla `horas_extra_laborales`, hija de la obligacion, mismo patron que
+    `descuentos_laborales`) -- NO una categoria nueva, porque el area liquida
+    una sola obligacion por expediente. Cada fila genera un evento de capital
+    HORAS_EXTRA (rubro propio en resultados y PDF/Word) con el factor del
+    motor `app/engine/labor/horas_extra.py` vigente en su fecha de causacion
+    (ver `_eventos_horas_extra`). No entran en la base de prestaciones,
+    moratoria, IPC ni costas. Solo en `LIQUIDACION_CONTRATO_LABORAL`.
     """
 
     soporta_indexacion_ipc = True
@@ -1427,6 +1440,13 @@ class LaboralStrategy(AreaStrategy):
         # evento se agrega solo si `despido_injustificado` esta marcado, sin
         # depender de `hay_mora`.
         self._eventos_despido_injustificado(obligacion, eventos)
+
+        # Horas extra HED/HEN/HEFD/HEFN (Sprint 95, conexion a la UI): rubro
+        # propio (evento HORAS_EXTRA) que se agrega DESPUES de calcular
+        # `monto_prestaciones` y la mora de arriba -- no entra en la base de
+        # las prestaciones, de la moratoria del Art. 65, de la indexacion IPC
+        # ni de las costas (no se cambia como se calculan los demas rubros).
+        self._eventos_horas_extra(obligacion, eventos)
 
         # Indexacion IPC (Sprint 43): ver docstring de la clase. Solo se agrega el
         # evento de indexacion cuando NO hay mora (excepcion 1, buena fe probada) --
@@ -1789,6 +1809,47 @@ class LaboralStrategy(AreaStrategy):
                     )
                 )
 
+    def _eventos_horas_extra(self, obligacion, eventos: list) -> None:
+        """Horas extra registradas en el contrato (Sprint 95, conexion a la
+        UI, tabla `horas_extra_laborales`). Cada fila genera un evento de
+        capital HORAS_EXTRA en su fecha de causacion con
+        `horas x valor_hora x factor`, donde el factor lo resuelve
+        `liquidar_hora_extra_con_porcentaje_manual` segun la fecha (HED 1,25;
+        HEN 1,75; HEFD/HEFN por tramo de la Ley 2466/2025). Para HEFD/HEFN
+        anteriores al 01/07/2025 (sin factor confirmado por el despacho) usa el
+        porcentaje digitado por el usuario, o lanza
+        `HoraExtraFestivaSinFactorConfirmadoError` si falta. Muta `eventos`.
+        """
+        for hora_extra in sorted(
+            obligacion.horas_extra_laborales, key=lambda h: h.fecha_causacion
+        ):
+            monto, factor = liquidar_hora_extra_con_porcentaje_manual(
+                hora_extra.concepto,
+                hora_extra.numero_horas,
+                hora_extra.valor_hora,
+                hora_extra.fecha_causacion,
+                hora_extra.porcentaje_manual,
+            )
+            etiqueta = (
+                f"Horas extra {hora_extra.concepto} "
+                f"({Decimal(hora_extra.numero_horas).normalize():f} h x valor hora "
+                f"${Decimal(hora_extra.valor_hora):,.2f} x factor {factor.normalize():f}"
+            )
+            if requiere_porcentaje_manual(hora_extra.concepto, hora_extra.fecha_causacion):
+                etiqueta += (
+                    ", porcentaje digitado "
+                    f"{Decimal(hora_extra.porcentaje_manual).normalize():f} % -- sin factor "
+                    "confirmado antes del 01/07/2025"
+                )
+            etiqueta += f", causadas el {hora_extra.fecha_causacion:%d/%m/%Y})"
+            eventos.append(
+                Event(
+                    date=hora_extra.fecha_causacion,
+                    payload={"amount": monto, "label": etiqueta},
+                    event_type="HORAS_EXTRA",
+                )
+            )
+
     def _eventos_descuentos_empleador(self, obligacion, eventos: list) -> None:
         """Descuentos del empleador (Sprint 44, punto 3): se inyectan como
         eventos PAYMENT mas -- mismo mecanismo de pagos/allocation que ya
@@ -1865,6 +1926,12 @@ class LaboralStrategy(AreaStrategy):
                     "indemnizacion por despido injustificado ni cotizaciones de seguridad "
                     "social (Sprint 93, fuera de alcance) -- desmarcar esas casillas."
                 )
+            if obligacion.horas_extra_laborales:
+                raise ValueError(
+                    "La categoria 'Salarios y prestaciones dejadas de percibir' no admite "
+                    "horas extra (no hubo contrato vigente en ese periodo) -- registrelas "
+                    "en la obligacion 'Liquidacion de contrato laboral'."
+                )
         elif obligacion.tipo.value != "PUNTUAL":
             raise ValueError(
                 "El area Laboral solo admite obligaciones de tipo PUNTUAL "
@@ -1935,6 +2002,14 @@ class LaboralStrategy(AreaStrategy):
                     f"El evento contractual del {evento.fecha_inicio} al {evento.fecha_fin} "
                     "cae fuera del rango del contrato "
                     f"({obligacion.fecha_inicio} a {obligacion.fecha_fin})."
+                )
+
+        for hora_extra in obligacion.horas_extra_laborales:
+            if not obligacion.fecha_inicio <= hora_extra.fecha_causacion <= obligacion.fecha_fin:
+                raise ValueError(
+                    f"Las horas extra {hora_extra.concepto} causadas el "
+                    f"{hora_extra.fecha_causacion:%d/%m/%Y} caen fuera del rango del contrato "
+                    f"({obligacion.fecha_inicio:%d/%m/%Y} a {obligacion.fecha_fin:%d/%m/%Y})."
                 )
 
         eventos_ordenados = sorted(obligacion.eventos_laborales, key=lambda e: e.fecha_inicio)

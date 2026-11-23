@@ -466,6 +466,11 @@ class Obligacion(Base):
     descuentos_laborales: Mapped[list[DescuentoLaboral]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
+    # horas_extra_laborales (Sprint 95, conexion a la UI): horas extra
+    # HED/HEN/HEFD/HEFN de un contrato Laboral -- ver HoraExtraLaboral abajo.
+    horas_extra_laborales: Mapped[list[HoraExtraLaboral]] = relationship(
+        back_populates="obligacion", cascade="all, delete-orphan"
+    )
     # beneficiario (Sprint 74): relacion 1:1 opcional, solo relevante para una
     # Obligacion RECURRENTE de Civil/Familia (cuota alimentaria) -- ver
     # docstring de Beneficiario abajo para el porque de la entidad propia.
@@ -594,6 +599,37 @@ class DescuentoLaboral(Base):
     motivo: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     obligacion: Mapped[Obligacion] = relationship(back_populates="descuentos_laborales")
+
+
+class HoraExtraLaboral(Base):
+    """Horas extra de un contrato Laboral (Sprint 95, conexion a la UI) --
+    mismo patron que `DescuentoLaboral` (tabla propia hija de la obligacion,
+    varias filas independientes). Cada fila es un concepto (`concepto`: HED,
+    HEN, HEFD o HEFN, ver `app.engine.labor.horas_extra.ConceptoHoraExtra`),
+    una cantidad de horas, la fecha de causacion (define el tramo de la Ley
+    2466 de 2025) y el valor de la hora ordinaria digitado por el usuario.
+
+    `porcentaje_manual` solo se usa cuando el motor no tiene factor
+    confirmado por el despacho (HEFD/HEFN causadas antes del 01/07/2025): el
+    usuario lo digita y se liquida con `calcular_hora_extra`. En cualquier
+    otro caso queda en NULL y manda el factor del motor.
+
+    Tabla nueva: `Base.metadata.create_all()` (database.init_db()) la crea en
+    cualquier bastium.db, nueva o existente -- no necesita ALTER TABLE (mismo
+    criterio que `descuentos_laborales`, ver scripts/migrate_es_smmlv_laboral.py).
+    """
+
+    __tablename__ = "horas_extra_laborales"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    obligacion_id: Mapped[int] = mapped_column(ForeignKey("obligaciones.id"), index=True)
+    concepto: Mapped[str] = mapped_column(String(4))
+    fecha_causacion: Mapped[date] = mapped_column(Date)
+    numero_horas: Mapped[Decimal] = mapped_column(DecimalExacto)
+    valor_hora: Mapped[Decimal] = mapped_column(DecimalExacto)
+    porcentaje_manual: Mapped[Decimal | None] = mapped_column(DecimalExacto, nullable=True)
+
+    obligacion: Mapped[Obligacion] = relationship(back_populates="horas_extra_laborales")
 
 
 class AuditLog(Base):

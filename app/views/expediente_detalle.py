@@ -42,11 +42,19 @@ from app.views.concurrency import TareaEnHilo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog
 from app.views.fecha_widgets import crear_campo_fecha, formatear_fecha
+from app.views.horas_extra_laborales import HoraExtraLaboralFormDialog
 from app.views.icons import icon
 from app.views.obligaciones import ObligacionFormDialog
 from app.views.pago_por_rango import PagoPorRangoDialog
 from app.views.toast import mostrar_toast
-from database.models import Abono, AreaDerecho, EventoLaboral, Expediente, Obligacion
+from database.models import (
+    Abono,
+    AreaDerecho,
+    EventoLaboral,
+    Expediente,
+    HoraExtraLaboral,
+    Obligacion,
+)
 
 
 def _texto_titulo_ejecutivo(expediente: Expediente) -> str:
@@ -273,6 +281,24 @@ class ExpedienteDetallePage(QWidget):
         layout_descuentos_laborales.addWidget(self.tabla_descuentos_laborales)
         self.grupo_descuentos_laborales.setLayout(layout_descuentos_laborales)
 
+        # Horas extra HED/HEN/HEFD/HEFN (Sprint 95, conexion a la UI): visible
+        # solo para area Laboral, mismo criterio que los 2 grupos de arriba.
+        self.tabla_horas_extra_laborales = QTableWidget(0, 6)
+        self.tabla_horas_extra_laborales.setHorizontalHeaderLabels(
+            ["Concepto", "Fecha causación", "Horas", "Valor hora", "% digitado", "Eliminar"]
+        )
+        self.boton_agregar_hora_extra_laboral = QPushButton("Agregar horas extra")
+        self.boton_agregar_hora_extra_laboral.setProperty("class", "secondary")
+        self.boton_agregar_hora_extra_laboral.clicked.connect(
+            self._abrir_dialogo_hora_extra_laboral
+        )
+
+        self.grupo_horas_extra_laborales = QGroupBox("Horas extra")
+        layout_horas_extra_laborales = QVBoxLayout()
+        layout_horas_extra_laborales.addWidget(self.boton_agregar_hora_extra_laboral)
+        layout_horas_extra_laborales.addWidget(self.tabla_horas_extra_laborales)
+        self.grupo_horas_extra_laborales.setLayout(layout_horas_extra_laborales)
+
         # Fecha de corte de ESTA liquidacion (Sprint 44, punto 5): override
         # puntual, precargado desde expediente.fecha_corte_default al abrir el
         # expediente (cargar_expediente) pero editable aqui sin tocar ese
@@ -309,6 +335,7 @@ class ExpedienteDetallePage(QWidget):
         columnas.addWidget(grupo_abonos)
         columnas.addWidget(self.grupo_eventos_laborales)
         columnas.addWidget(self.grupo_descuentos_laborales)
+        columnas.addWidget(self.grupo_horas_extra_laborales)
 
         # Tipo de proceso del expediente (Sprint 105, catalogo informativo
         # app/services/catalogo_tipos_proceso.py); se llena en cargar_expediente().
@@ -369,6 +396,7 @@ class ExpedienteDetallePage(QWidget):
         )
         self.grupo_eventos_laborales.setVisible(es_laboral)
         self.grupo_descuentos_laborales.setVisible(es_laboral)
+        self.grupo_horas_extra_laborales.setVisible(es_laboral)
         self.boton_generar_cuotas.setVisible(es_area_con_cuotas_recurrentes)
         self.boton_pagar_cuotas_seleccionadas.setVisible(es_area_con_cuotas_recurrentes)
         self._refrescar_obligaciones()
@@ -377,6 +405,7 @@ class ExpedienteDetallePage(QWidget):
         if es_laboral:
             self._refrescar_eventos_laborales()
             self._refrescar_descuentos_laborales()
+            self._refrescar_horas_extra_laborales()
         # Reinicia el estado habilitado/deshabilitado del boton de pago por rango al
         # cambiar de expediente -- _refrescar_obligaciones() de arriba ya reconstruyo
         # tabla_obligaciones (sin seleccion), asi que sin esto el boton podia quedar
@@ -520,6 +549,40 @@ class ExpedienteDetallePage(QWidget):
             )
         session.close()
 
+    def _refrescar_horas_extra_laborales(self) -> None:
+        session = session_module.get_session()
+        expediente = session.get(Expediente, self._expediente_id)
+        horas_extra = [
+            hora_extra
+            for obligacion in expediente.obligaciones
+            for hora_extra in sorted(
+                obligacion.horas_extra_laborales, key=lambda h: h.fecha_causacion
+            )
+        ]
+
+        tabla = self.tabla_horas_extra_laborales
+        tabla.setRowCount(len(horas_extra))
+        for fila, hora_extra in enumerate(horas_extra):
+            porcentaje = hora_extra.porcentaje_manual
+            textos = [
+                hora_extra.concepto,
+                formatear_fecha(hora_extra.fecha_causacion),
+                str(hora_extra.numero_horas),
+                str(hora_extra.valor_hora),
+                "" if porcentaje is None else str(porcentaje),
+            ]
+            for columna, texto in enumerate(textos):
+                tabla.setItem(fila, columna, QTableWidgetItem(texto))
+
+            boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.setIcon(icon("delete"))
+            boton_eliminar.setProperty("class", "destructive")
+            boton_eliminar.clicked.connect(
+                lambda _checked=False, id_=hora_extra.id: self._eliminar_hora_extra_laboral(id_)
+            )
+            tabla.setCellWidget(fila, 5, boton_eliminar)
+        session.close()
+
     def _refrescar_historial(self) -> None:
         session = session_module.get_session()
         historial = historial_de_expediente(session, self._expediente_id)
@@ -641,6 +704,7 @@ class ExpedienteDetallePage(QWidget):
         self._refrescar_abonos()
         self._refrescar_eventos_laborales()
         self._refrescar_descuentos_laborales()
+        self._refrescar_horas_extra_laborales()
 
     def _obligacion_por_fila(self, fila: int) -> Obligacion:
         """Resuelve la `Obligacion` real (no solo su id) a partir de una fila de
@@ -889,6 +953,42 @@ class ExpedienteDetallePage(QWidget):
         dialogo = DescuentoLaboralFormDialog(obligacion_id=obligacion_id, parent=self)
         if dialogo.exec():
             self._refrescar_descuentos_laborales()
+
+    def _abrir_dialogo_hora_extra_laboral(self) -> None:
+        fila_seleccionada = self.tabla_obligaciones.currentRow()
+        if fila_seleccionada < 0:
+            QMessageBox.warning(
+                self,
+                "Seleccion requerida",
+                "Selecciona una obligacion antes de agregar horas extra.",
+            )
+            return
+
+        obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
+        dialogo = HoraExtraLaboralFormDialog(obligacion_id=obligacion_id, parent=self)
+        if dialogo.exec():
+            self._refrescar_horas_extra_laborales()
+
+    def _eliminar_hora_extra_laboral(self, hora_extra_id: int) -> None:
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar horas extra",
+            "¿Eliminar este registro de horas extra? Esta accion no se puede deshacer.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+
+        session = session_module.get_session()
+        hora_extra = session.get(HoraExtraLaboral, hora_extra_id)
+        if hora_extra is None:
+            session.close()
+            self._avisar_registro_ya_no_existe()
+            self._refrescar_horas_extra_laborales()
+            return
+        session.delete(hora_extra)
+        session.commit()
+        session.close()
+        self._refrescar_horas_extra_laborales()
 
     def _liquidar(self) -> None:
         if not self.boton_liquidar.isEnabled():

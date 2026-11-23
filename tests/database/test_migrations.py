@@ -881,3 +881,38 @@ def test_aplicar_migraciones_pendientes_agrega_columnas_fruto_civil_sprint100(tm
     assert set(_COLUMNAS) == {"fecha_referencia_canon", "gasto_conservacion_mensual"}
     assert set(_COLUMNAS) <= columnas
     assert migrar(db_path) is False
+
+
+def test_init_db_crea_la_tabla_horas_extra_laborales_en_una_bd_existente(tmp_path, monkeypatch):
+    """Sprint 95 (conexion a la UI): `horas_extra_laborales` es una tabla
+    NUEVA, no una columna -- `init_db()` (Base.metadata.create_all, llamado en
+    cada arranque antes de aplicar_migraciones_pendientes, ver main.py) la crea
+    en una bastium.db anterior sin ALTER TABLE, igual que descuentos_laborales
+    (ver scripts/migrate_es_smmlv_laboral.py)."""
+    from database.database import aplicar_migraciones_pendientes, init_db
+
+    db_path = tmp_path / "sin_horas_extra.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    con = sqlite3.connect(db_path)
+    con.execute("DROP TABLE horas_extra_laborales")
+    con.commit()
+    con.close()
+
+    monkeypatch.setattr(database_module, "engine", engine)
+    init_db()
+    aplicar_migraciones_pendientes(db_path)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(horas_extra_laborales)")}
+    con.close()
+    assert columnas == {
+        "id",
+        "obligacion_id",
+        "concepto",
+        "fecha_causacion",
+        "numero_horas",
+        "valor_hora",
+        "porcentaje_manual",
+    }

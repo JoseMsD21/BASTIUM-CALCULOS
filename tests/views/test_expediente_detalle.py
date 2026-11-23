@@ -2456,3 +2456,128 @@ def test_detalle_sin_titulo_ejecutivo_muestra_aviso(qtbot, monkeypatch):
     page.cargar_expediente(expediente_id)
 
     assert "Sin datos del título ejecutivo" in page.etiqueta_titulo_ejecutivo.text()
+
+
+# --- Sprint 95 (conexion a la UI): horas extra en el Detalle Laboral ----------
+
+
+def _agregar_hora_extra_hed(expediente_id: int) -> int:
+    from database.models import HoraExtraLaboral
+
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    hora_extra = HoraExtraLaboral(
+        obligacion_id=obligacion.id,
+        concepto="HED",
+        fecha_causacion=date(2020, 3, 15),
+        numero_horas=Decimal("10"),
+        valor_hora=Decimal("10000"),
+        porcentaje_manual=None,
+    )
+    session.add(hora_extra)
+    session.commit()
+    hora_extra_id = hora_extra.id
+    session.close()
+    return hora_extra_id
+
+
+def test_grupo_horas_extra_visible_para_area_laboral(qtbot, monkeypatch):
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.show()
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.grupo_horas_extra_laborales.isVisible() is True
+
+
+def test_grupo_horas_extra_oculto_para_area_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_con_obligacion(monkeypatch)  # CIVIL_FAMILIA
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.show()
+    pagina.cargar_expediente(expediente_id)
+
+    assert pagina.grupo_horas_extra_laborales.isVisible() is False
+
+
+def test_refrescar_horas_extra_lista_concepto_fecha_horas_y_valor(qtbot, monkeypatch):
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+    _agregar_hora_extra_hed(expediente_id)
+
+    pagina = ExpedienteDetallePage()
+    qtbot.addWidget(pagina)
+    pagina.cargar_expediente(expediente_id)
+
+    tabla = pagina.tabla_horas_extra_laborales
+    assert tabla.rowCount() == 1
+    assert tabla.item(0, 0).text() == "HED"
+    assert tabla.item(0, 1).text() == "15/03/2020"
+    assert tabla.item(0, 2).text() == "10"
+    assert tabla.item(0, 3).text() == "10000"
+    assert tabla.item(0, 4).text() == ""
+
+
+def test_abrir_dialogo_horas_extra_sin_seleccion_muestra_advertencia(qtbot, monkeypatch):
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+
+    avisos = []
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.warning",
+        lambda parent, titulo, mensaje: avisos.append((titulo, mensaje)),
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    page._abrir_dialogo_hora_extra_laboral()
+
+    assert len(avisos) == 1
+
+
+def test_eliminar_hora_extra_la_quita_de_la_tabla(qtbot, monkeypatch):
+    from database.models import HoraExtraLaboral
+
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+    hora_extra_id = _agregar_hora_extra_hed(expediente_id)
+    monkeypatch.setattr(
+        "app.views.expediente_detalle.QMessageBox.question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page._eliminar_hora_extra_laboral(hora_extra_id)
+
+    assert page.tabla_horas_extra_laborales.rowCount() == 0
+    session = session_module.get_session()
+    assert session.query(HoraExtraLaboral).count() == 0
+    session.close()
+
+
+def test_liquidar_laboral_con_horas_extra_las_suma_como_rubro_propio(qtbot, monkeypatch):
+    # Contrato 2020 (prestaciones 7.860.000,00) + HED 10 h x 10.000 x 1,25 =
+    # 125.000,00. Corte el mismo dia de terminacion: sin mora.
+    expediente_id = _expediente_laboral_sin_mora(monkeypatch)
+    _agregar_hora_extra_hed(expediente_id)
+
+    resultados_recibidos = []
+    page = ExpedienteDetallePage(
+        on_liquidado=lambda resultado, exp_id: resultados_recibidos.append(resultado)
+    )
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+    page.campo_fecha_corte_liquidacion.setDate(date(2020, 12, 31))
+
+    with qtbot.waitSignal(page.liquidacion_finalizada, timeout=5000):
+        page._liquidar()
+
+    resultado = resultados_recibidos[0]
+    filas = [item for item in resultado.items if item.balance.event_type == "HORAS_EXTRA"]
+    assert len(filas) == 1
+    assert filas[0].concept.startswith("Horas extra HED")
+    assert resultado.final_balance().principal == Decimal("7985000.00")

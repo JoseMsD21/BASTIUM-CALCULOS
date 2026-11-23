@@ -212,3 +212,50 @@ def liquidar_hora_extra(
     _validar_comunes(numero_horas, valor_hora_ordinaria, factor)
 
     return Rounding.money(numero_horas * valor_hora_ordinaria * factor)
+
+
+def requiere_porcentaje_manual(concepto, fecha_causacion: date) -> bool:
+    """True si el motor no tiene factor confirmado por el despacho para
+    `concepto` en `fecha_causacion` (hoy: HEFD/HEFN causadas antes del
+    01/07/2025) y por tanto el usuario debe digitar el porcentaje. La UI
+    (`app/views/horas_extra_laborales.py`) lo usa para pedir ese dato solo
+    cuando hace falta."""
+    try:
+        factor_hora_extra(concepto, fecha_causacion)
+    except HoraExtraFestivaSinFactorConfirmadoError:
+        return True
+    return False
+
+
+def liquidar_hora_extra_con_porcentaje_manual(
+    concepto,
+    numero_horas,
+    valor_hora_ordinaria,
+    fecha_causacion: date,
+    porcentaje_manual=None,
+) -> tuple[Decimal, Decimal]:
+    """Liquida una fila de horas extra registrada en una liquidacion Laboral
+    (Sprint 95, conexion a la UI) y retorna `(monto, factor_aplicado)`.
+
+    - Si el motor tiene factor confirmado para la fecha, se usa ese
+      (`liquidar_hora_extra`) y `porcentaje_manual` se ignora: el factor legal
+      lo fijo el despacho, no el usuario.
+    - Si no (HEFD/HEFN antes del 01/07/2025), se usa el porcentaje digitado
+      con `calcular_hora_extra` (factor = 1 + porcentaje/100). Sin porcentaje
+      digitado lanza `HoraExtraFestivaSinFactorConfirmadoError`.
+    """
+    if not requiere_porcentaje_manual(concepto, fecha_causacion):
+        factor = factor_hora_extra(concepto, fecha_causacion)
+        monto = liquidar_hora_extra(concepto, numero_horas, valor_hora_ordinaria, fecha_causacion)
+        return monto, factor
+
+    if porcentaje_manual is None:
+        raise HoraExtraFestivaSinFactorConfirmadoError(
+            f"No hay factor confirmado por el despacho para {ConceptoHoraExtra(concepto).value} "
+            f"causada el {fecha_causacion:%d/%m/%Y} (antes del "
+            f"{FECHA_INICIO_TRAMO_1_LEY_2466:%d/%m/%Y}, inicio del Tramo 1 de la Ley 2466 "
+            "de 2025). Digite el porcentaje de la hora extra festiva."
+        )
+    porcentaje = Decimal(str(porcentaje_manual))
+    monto = calcular_hora_extra(numero_horas, valor_hora_ordinaria, porcentaje)
+    return monto, Decimal("1") + porcentaje / Decimal("100")
