@@ -10,7 +10,7 @@ temporales (worktrees) que ya se borraron.
 > del repositorio; el material original sigue en la
 > [carpeta de propuestas de Drive](https://drive.google.com/drive/folders/1ZYauFW9pEKFfjMCC1RIHtDJ2pwrut78f)
 > (*AUDITORIA Y PRESENTACION V2*). Las fases 1 a 5 esperan las decisiones del equipo y del despacho de la
-> sección 6; están en [Pendientes.md](Pendientes.md), Sprint 123, y en el
+> sección 6; están en [Pendientes.md](Pendientes.md), Sprint 123, y en la tarjeta #64 del
 > [tablero Kanban](https://github.com/users/JoseMsD21/projects/1).
 
 ---

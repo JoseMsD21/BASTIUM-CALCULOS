@@ -8908,7 +8908,7 @@ motores de los Sprints 70/91, 85, 86/87 y 94.
 
 ## Sprint 122 — Identidad visual oficial, guía de estilo y material del equipo ✅ Completado
 
-**Origen:** el equipo entregó el 20-23/11/2026 los logos, el documento maestro *ESTILO Y LÓGICA DE BASTIUM* (131
+**Tarjeta:** #63. **Origen:** el equipo entregó el 20-23/11/2026 los logos, el documento maestro *ESTILO Y LÓGICA DE BASTIUM* (131
 páginas), el mapa de flujo del producto, 5 mockups de la plataforma, una carpeta de Drive con propuestas y
 auditorías, y un parche + ZIP de plataforma del 17/11.
 
@@ -8932,19 +8932,21 @@ panel en `tests/views/test_main_window.py`, `tests/domain/test_radicado.py`.
 
 **No se aplicó (necesita decisión):**
 - **Paleta de la guía** (`#C82E2E`, `#18181B`, bordes `#E5E5E5`) frente a la del Sprint 31 (borgoña `#AE1C21`).
-  Decisión del equipo; las gráficas además dependen del despacho (Preguntas Abiertas, Sprint 122, pregunta 1).
+  Decisión del equipo (tarjeta #65); las gráficas además dependen del despacho (Preguntas Abiertas, Sprint 122,
+  pregunta 1; tarjeta #67).
 - **Gráficas "Human Scribble"**, sello QR/SHA-256 en el PDF, estados vacíos con la mascota: sprints futuros.
 - **`normas_faltantes.py` (Z.AI, Drive):** no se integró; tiene citas y reglas que parecen incorrectas (Preguntas
   Abiertas, Sprint 122, pregunta 3).
 
 **Hallazgo menor:** en la gráfica del Inicio, los nombres largos de área se montan entre sí en el eje X
-("Sancionatorio", "Honorarios / Litigio"). Pendiente de corregir.
+("Sancionatorio", "Honorarios / Litigio"). Pendiente de corregir (tarjeta #66). Además, varias pruebas dejan
+conexiones SQLite abiertas (`ResourceWarning`), sin efecto en cifras (tarjeta #68).
 
 ---
 
 ## Sprint 123 — Integración por fases del parche de plataforma (API forense y gestor de casos) 🔴 Bloqueado
 
-**Bloqueado por:** decisiones del equipo (#7 capa API, gestor dentro del repo o externo, sello con firma real) y
+**Tarjeta:** #64. **Bloqueado por:** decisiones del equipo (#7 capa API, gestor dentro del repo o externo, sello con firma real) y
 respuestas del despacho (Sprint 118 preguntas 1, 3 y 6; Sprint 123 de Preguntas Abiertas si se adopta el gestor).
 
 El parche del 17/11 trae un gestor de casos web local (`bastium/`, ~5.800 líneas, 208 pruebas) y una API FastAPI
