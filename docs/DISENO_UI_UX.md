@@ -49,7 +49,12 @@ Búsqueda y filtros en listados, con un estado vacío explícito en vez de una t
 Notificaciones no bloqueantes tipo toast para confirmaciones de bajo riesgo, y jerarquía visual clara entre
 acción primaria/secundaria/destructiva en los botones.
 
-## Gráficas (Sprint 33, Sprint 109)
+## Gráficas (Sprint 33, Sprint 109, Sprint 125)
+
+**Inicio (Sprint 125):** la gráfica de expedientes por área usa **barras horizontales** (el nombre de cada área en
+el eje Y, sin superponerse), eje de conteo en enteros y el valor al final de cada barra; la tabla de al lado es
+compacta (sin desplazamiento ni numeración de filas). Se evaluó moverla a otra página y se decidió dejarla en el
+Inicio, que es donde un resumen por área es útil.
 
 Las gráficas del proyecto hoy son todas de barras (`app/reports/charts.py`, `app/views/dashboard.py`), con
 ejes en negro puro y la barra principal en borgoña de marca — mismo criterio que reutilizan sus propias

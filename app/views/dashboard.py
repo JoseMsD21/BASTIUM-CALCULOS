@@ -2,10 +2,13 @@ from datetime import date, timedelta
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from matplotlib.ticker import MaxNLocator
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
     QTableWidget,
@@ -34,6 +37,25 @@ DIAS_ALERTA_VENCIMIENTO = 90
 MAX_LIQUIDACIONES_RECIENTES = 10
 
 _VALORES_TIPO_ACCION = {tipo.value for tipo in TipoAccion}
+
+# Sprint 125: nombre legible de cada area ("Civil / Familia") a partir del codigo
+# del enum que guarda AuditLog.area_derecho ("CIVIL_FAMILIA").
+_ETIQUETA_POR_AREA = {codigo: etiqueta for codigo, etiqueta, _habilitada in AREAS_DERECHO}
+
+
+def _ajustar_tabla_compacta(tabla: QTableWidget, *, repartir_ancho: bool = True) -> None:
+    """Sprint 125: sin columna de numeracion de filas. Con `repartir_ancho`, las
+    columnas se reparten el ancho disponible por igual (las fechas y los nombres
+    no salen cortados con "..." y una tabla vacia no deja una sola columna
+    gigante); sin el, cada columna mide lo justo para su contenido."""
+    tabla.verticalHeader().setVisible(False)
+    modo = (
+        QHeaderView.ResizeMode.Stretch
+        if repartir_ancho
+        else QHeaderView.ResizeMode.ResizeToContents
+    )
+    tabla.horizontalHeader().setSectionResizeMode(modo)
+    tabla.horizontalHeader().setStretchLastSection(not repartir_ancho)
 
 
 def _fecha_limite_obligacion(obligacion) -> date | None:
@@ -86,6 +108,11 @@ class DashboardView(QWidget):
         # sin persistir el cambio en ningun lado -- solo confunde. Mismo patron
         # que configuracion.py y expediente_detalle.py.
         self.tabla_por_area.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        # Sprint 125: tabla compacta -- muestra sus 6 filas sin desplazamiento y no
+        # se estira a lo ancho; el espacio libre es para la grafica.
+        _ajustar_tabla_compacta(self.tabla_por_area, repartir_ancho=False)
+        self.tabla_por_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.tabla_por_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Grafica de expedientes por area (Sprint 50, Tarea 3): complementa la tabla
         # tabular de arriba, no la reemplaza -- matplotlib estaba en requirements.txt
@@ -121,8 +148,8 @@ class DashboardView(QWidget):
         )
 
         layout_resumen_contenido = QHBoxLayout()
-        layout_resumen_contenido.addWidget(self.tabla_por_area)
-        layout_resumen_contenido.addWidget(self.canvas_por_area)
+        layout_resumen_contenido.addWidget(self.tabla_por_area, 0, Qt.AlignmentFlag.AlignTop)
+        layout_resumen_contenido.addWidget(self.canvas_por_area, 1)
 
         grupo_resumen = QGroupBox("Expedientes por área")
         layout_resumen = QVBoxLayout()
@@ -136,6 +163,7 @@ class DashboardView(QWidget):
         )
         self.tabla_alertas.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla_alertas.cellDoubleClicked.connect(self._abrir_expediente_de_alerta)
+        _ajustar_tabla_compacta(self.tabla_alertas)
         self._expediente_ids_por_fila_alerta: list[int] = []
 
         grupo_alertas = QGroupBox("Plazos próximos a vencer")
@@ -146,6 +174,7 @@ class DashboardView(QWidget):
         self.tabla_actividad = QTableWidget(0, 3)
         self.tabla_actividad.setHorizontalHeaderLabels(["Fecha", "Radicado", "Área"])
         self.tabla_actividad.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        _ajustar_tabla_compacta(self.tabla_actividad)
 
         grupo_actividad = QGroupBox("Actividad reciente")
         layout_actividad = QVBoxLayout()
@@ -197,6 +226,20 @@ class DashboardView(QWidget):
             self.tabla_por_area.setItem(
                 fila, 1, QTableWidgetItem(str(conteo_por_area[codigo]))
             )
+        self._fijar_tamano_tabla_por_area()
+
+    def _fijar_tamano_tabla_por_area(self) -> None:
+        """Fija el alto y ancho de la tabla por area a su contenido exacto (6
+        filas + encabezado), para que no muestre barra de desplazamiento ni
+        espacio vacio a la derecha."""
+        tabla = self.tabla_por_area
+        tabla.resizeColumnsToContents()
+        marco = 2 * tabla.frameWidth()
+        alto = tabla.horizontalHeader().height() + marco
+        alto += sum(tabla.rowHeight(fila) for fila in range(tabla.rowCount()))
+        ancho = marco + sum(tabla.columnWidth(col) for col in range(tabla.columnCount()))
+        tabla.setFixedHeight(alto)
+        tabla.setFixedWidth(max(ancho, 240))
 
     def _refrescar_grafica_por_area(self, expedientes: list[Expediente]) -> None:
         """Puebla `figura_por_area` con un grafico de barras de expedientes por
@@ -214,13 +257,25 @@ class DashboardView(QWidget):
         etiquetas = [etiqueta for _codigo, etiqueta, _habilitada in AREAS_DERECHO]
         conteos = [conteo_por_area[codigo] for codigo, _et, _hab in AREAS_DERECHO]
 
-        self._ejes_por_area.clear()
-        self._ejes_por_area.bar(etiquetas, conteos, color=colores.PRIMARIO)
-        self._ejes_por_area.set_facecolor(colores.SUPERFICIE)
+        # Sprint 125: barras HORIZONTALES. Con barras verticales los nombres
+        # largos ("Honorarios / Litigio", "Sancionatorio") se montaban en el eje X;
+        # en el eje Y cada nombre tiene su propia linea. El eje de conteo solo
+        # muestra enteros y cada barra lleva su valor escrito al final.
+        ejes = self._ejes_por_area
+        ejes.clear()
+        barras = ejes.barh(etiquetas, conteos, color=colores.PRIMARIO, height=0.6)
+        ejes.invert_yaxis()  # la primera area (Civil / Familia) arriba, como en la tabla
+        ejes.bar_label(barras, padding=3, color=colores.TEXTO_PRIMARIO, fontsize=8)
+        ejes.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ejes.set_xlim(0, max(max(conteos, default=0), 1) * 1.15)
+        ejes.set_facecolor(colores.SUPERFICIE)
         self.figura_por_area.set_facecolor(colores.FONDO)
-        self._ejes_por_area.tick_params(colors=colores.TEXTO_PRIMARIO, labelsize=7)
-        for spine in self._ejes_por_area.spines.values():
+        ejes.tick_params(colors=colores.TEXTO_PRIMARIO, labelsize=8)
+        ejes.grid(axis="x", color=colores.SECUNDARIO_BORDE, linewidth=0.5)
+        ejes.set_axisbelow(True)
+        for nombre, spine in ejes.spines.items():
             spine.set_color(colores.SECUNDARIO_BORDE)
+            spine.set_visible(nombre in ("left", "bottom"))
         self.figura_por_area.tight_layout()
         self.canvas_por_area.draw_idle()
 
@@ -312,4 +367,10 @@ class DashboardView(QWidget):
             self.tabla_actividad.setItem(
                 fila, 1, QTableWidgetItem(registro.expediente.radicado)
             )
-            self.tabla_actividad.setItem(fila, 2, QTableWidgetItem(registro.area_derecho))
+            self.tabla_actividad.setItem(
+                fila,
+                2,
+                QTableWidgetItem(
+                    _ETIQUETA_POR_AREA.get(registro.area_derecho, registro.area_derecho)
+                ),
+            )

@@ -359,6 +359,9 @@ membrete en PDF/Word), guía de identidad, README reorganizado y revisión del p
   hijas/abonos del Sprint 41.
 
 ### Fixed
+- Pantalla de Inicio (Sprint 125): la gráfica por área pasa a barras horizontales (los nombres ya no se montan en el
+  eje), con eje entero y valores en cada barra; tablas compactas; la actividad reciente muestra el nombre legible del
+  área y la fecha completa.
 - Prueba `test_restablecer_view_muestra_dialogo_de_progreso_mientras_corre` (Sprint 121): caída nativa
   intermitente (access violation) por crear simulacros desde un hilo de fondo durante el garbage collection;
   ahora usa funciones simples.

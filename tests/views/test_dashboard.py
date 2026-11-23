@@ -311,7 +311,8 @@ def test_dashboard_muestra_liquidaciones_recientes_de_todos_los_expedientes(qtbo
 
     assert view.tabla_actividad.rowCount() == 1
     assert view.tabla_actividad.item(0, 1).text() == "2026-020"
-    assert view.tabla_actividad.item(0, 2).text() == "CIVIL_FAMILIA"
+    # Sprint 125: nombre legible del area, no el codigo interno del enum.
+    assert view.tabla_actividad.item(0, 2).text() == "Civil / Familia"
 
 
 def test_dashboard_actividad_reciente_ordena_recientes_primero_y_recorta_a_10(
@@ -361,8 +362,10 @@ def test_dashboard_grafica_se_puebla_con_expedientes_por_area(qtbot, monkeypatch
 
     ejes = view.figura_por_area.axes[0]
     barras = ejes.containers[0]
-    assert [etiqueta.get_text() for etiqueta in ejes.get_xticklabels()] == etiquetas_esperadas
-    assert [barra.get_height() for barra in barras] == conteos_esperados
+    # Sprint 125: barras horizontales -- el area va en el eje Y (no se montan
+    # los nombres largos) y el conteo es el ancho de cada barra.
+    assert [etiqueta.get_text() for etiqueta in ejes.get_yticklabels()] == etiquetas_esperadas
+    assert [barra.get_width() for barra in barras] == conteos_esperados
 
 
 def test_dashboard_grafica_se_actualiza_al_refrescar_con_datos_nuevos(qtbot, monkeypatch):
@@ -375,7 +378,7 @@ def test_dashboard_grafica_se_actualiza_al_refrescar_con_datos_nuevos(qtbot, mon
     qtbot.addWidget(view)
 
     ejes = view.figura_por_area.axes[0]
-    barras_antes = [barra.get_height() for barra in ejes.containers[0]]
+    barras_antes = [barra.get_width() for barra in ejes.containers[0]]
     assert sum(barras_antes) == 1
 
     session = session_module.get_session()
@@ -384,7 +387,7 @@ def test_dashboard_grafica_se_actualiza_al_refrescar_con_datos_nuevos(qtbot, mon
     view.refrescar()
 
     ejes = view.figura_por_area.axes[0]
-    barras_despues = [barra.get_height() for barra in ejes.containers[0]]
+    barras_despues = [barra.get_width() for barra in ejes.containers[0]]
     assert sum(barras_despues) == 2
 
 
@@ -593,3 +596,66 @@ def test_dashboard_refrescar_no_abre_una_sesion_por_obligacion_con_la_misma_fech
 
     assert view.tabla_alertas.rowCount() == 8
     assert len(llamadas_get_session) == 2
+
+
+# --- Sprint 125: redisenio de la grafica y tablas del Inicio -----------------
+
+
+def test_dashboard_grafica_usa_eje_de_conteo_en_enteros(qtbot, monkeypatch):
+    """Un numero de expedientes nunca es 0,2 o 0,4: el eje de conteo solo
+    muestra enteros."""
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _crear_expediente(session, "2026-040", AreaDerecho.CIVIL_FAMILIA)
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+    view.figura_por_area.canvas.draw()
+
+    ejes = view.figura_por_area.axes[0]
+    marcas = [marca for marca in ejes.get_xticks() if marca >= 0]
+    assert marcas
+    assert all(float(marca).is_integer() for marca in marcas)
+
+
+def test_dashboard_grafica_escribe_el_conteo_en_cada_barra(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    _crear_expediente(session, "2026-041", AreaDerecho.CIVIL_FAMILIA)
+    _crear_expediente(session, "2026-042", AreaDerecho.CIVIL_FAMILIA)
+    _crear_expediente(session, "2026-043", AreaDerecho.TRIBUTARIO)
+    session.close()
+
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    ejes = view.figura_por_area.axes[0]
+    assert [texto.get_text() for texto in ejes.texts] == ["2", "0", "0", "0", "0", "1"]
+
+
+def test_dashboard_grafica_muestra_la_primera_area_arriba(qtbot, monkeypatch):
+    """En barras horizontales matplotlib dibuja la primera categoria abajo; se
+    invierte el eje para que el orden coincida con la tabla (Civil arriba)."""
+    _sesion_en_memoria(monkeypatch)
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    assert view.figura_por_area.axes[0].yaxis_inverted()
+
+
+def test_dashboard_tabla_por_area_es_compacta(qtbot, monkeypatch):
+    """La tabla por area muestra sus 6 filas sin barra de desplazamiento ni la
+    columna de numeracion de filas, y no se estira: el espacio libre es para la
+    grafica."""
+    from PySide6.QtCore import Qt
+
+    _sesion_en_memoria(monkeypatch)
+    view = DashboardView()
+    qtbot.addWidget(view)
+
+    tabla = view.tabla_por_area
+    assert not tabla.verticalHeader().isVisible()
+    assert tabla.verticalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    alto_filas = sum(tabla.rowHeight(fila) for fila in range(tabla.rowCount()))
+    assert tabla.maximumHeight() >= alto_filas + tabla.horizontalHeader().height()
