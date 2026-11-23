@@ -118,7 +118,12 @@ def test_restablecer_view_muestra_dialogo_de_progreso_mientras_corre(qtbot, tmp_
     # QProgressDialog mientras la tarea corre en el hilo de fondo.
     vista = RestablecerView()
     qtbot.addWidget(vista)
+    ruta_backup = tmp_path / "x.bak"
 
+    # Funciones simples (no MagicMock) para lo que corre en el hilo de fondo: crear un
+    # objeto de mock desde un hilo del QThreadPool mientras el hilo principal hace
+    # garbage collection de objetos Qt provocaba un "access violation" intermitente
+    # en Windows/Python 3.13 al correr la suite completa (Sprint 104).
     with (
         patch(
             "app.views.restablecer.ConfirmarRestablecerDialog.exec",
@@ -126,9 +131,9 @@ def test_restablecer_view_muestra_dialogo_de_progreso_mientras_corre(qtbot, tmp_
         ),
         patch(
             "app.views.restablecer.crear_backup_de_base_de_datos",
-            return_value=tmp_path / "x.bak",
+            new=lambda: ruta_backup,
         ),
-        patch("app.views.restablecer.restablecer_datos_fabrica"),
+        patch("app.views.restablecer.restablecer_datos_fabrica", new=lambda: None),
         patch("app.views.restablecer.QMessageBox.information"),
         qtbot.waitSignal(vista.restablecimiento_finalizado, timeout=5000),
     ):

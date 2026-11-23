@@ -7,7 +7,6 @@ from app.engine.indexation.historical_index import get_ipc_interpolado_for_date
 from app.engine.indexation.suma_unica_con_abonos import (
     liquidar_obligacion_con_abonos_tramo_por_tramo,
 )
-from app.engine.time.calendar import CalendarUtils
 
 TASA_MENSUAL_6_EA = Decimal("0.0048676")
 
@@ -35,7 +34,9 @@ def test_sin_abonos_indexa_y_causa_interes_en_un_unico_tramo():
     ipc_origen = get_ipc_interpolado_for_date(fecha_origen)
     ipc_corte = get_ipc_interpolado_for_date(fecha_corte)
     capital_indexado_esperado = capital * (ipc_corte / ipc_origen)
-    dias = Decimal(CalendarUtils.dias_comerciales_360(fecha_origen, fecha_corte))
+    # 30/360 sin +1 inclusivo (Sprint 104): 1 ano (360) + 5 meses (150) + dia 31
+    # topado a 30 menos dia 1 (29) = 539 dias.
+    dias = Decimal("539")
     meses = dias / Decimal("30")
     intereses_esperados = capital_indexado_esperado * (
         (Decimal("1") + TASA_MENSUAL_6_EA) ** meses - Decimal("1")
@@ -62,7 +63,8 @@ def test_un_abono_que_cubre_todos_los_intereses_reduce_el_capital():
     ipc_origen = get_ipc_interpolado_for_date(fecha_origen)
     ipc_abono = get_ipc_interpolado_for_date(fecha_abono)
     capital_indexado_tramo1 = capital * (ipc_abono / ipc_origen)
-    dias_tramo1 = Decimal(CalendarUtils.dias_comerciales_360(fecha_origen, fecha_abono))
+    # 2024-07-01 -> 2025-01-01 en 30/360 (sin +1): 6 meses exactos = 180 dias.
+    dias_tramo1 = Decimal("180")
     meses_tramo1 = dias_tramo1 / Decimal("30")
     intereses_tramo1 = capital_indexado_tramo1 * (
         (Decimal("1") + TASA_MENSUAL_6_EA) ** meses_tramo1 - Decimal("1")
@@ -203,3 +205,14 @@ def test_abono_cero_o_negativo_lanza_error():
             fecha_liquidacion_final=date(2024, 12, 31),
             tasa_interes_mensual=TASA_MENSUAL_6_EA,
         )
+
+
+def test_dias_comerciales_tramo_es_la_diferencia_30_360_sin_el_mas_uno():
+    # Sprint 104: tramos encadenados no pueden contar dos veces la fecha pivote.
+    from app.engine.indexation.suma_unica_con_abonos import dias_comerciales_tramo
+
+    assert dias_comerciales_tramo(date(2024, 7, 1), date(2025, 1, 1)) == 180
+    assert dias_comerciales_tramo(date(2025, 1, 1), date(2025, 6, 1)) == 150
+    assert dias_comerciales_tramo(date(2025, 6, 1), date(2025, 12, 31)) == 209  # 31 -> 30
+    assert dias_comerciales_tramo(date(2024, 7, 1), date(2025, 12, 31)) == 180 + 150 + 209
+    assert dias_comerciales_tramo(date(2025, 3, 3), date(2025, 3, 3)) == 0

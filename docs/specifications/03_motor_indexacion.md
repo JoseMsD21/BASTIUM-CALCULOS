@@ -130,14 +130,32 @@ Sprint 80, ahora acotado a ese único hueco histórico real.
   acotado del Sprint 80, ver `docs/Pendientes.md`).
 - La UVT ya está cargada y conectada en producción (Sprints 5 y 14 — ver arriba, "Componentes"); solo la
   **UVR** sigue sin cargar (fuera de alcance).
-- **Bug de dominio confirmado, sin corregir (Sprint 104):** para una obligación Civil/Familia con Suma
-  Única activa (`interes_sobre_capital_indexado=True`) que recibe abonos parciales antes del `fecha_corte`
-  de la liquidación, el motor indexa el capital una sola vez hasta el corte global en vez de reindexar el
-  saldo residual después de cada abono (patrón "X9" que documenta el despacho). Caso sintético verificado:
-  capital $1.000.000, `fecha_origen=2024-07-01`, abonos de $400.000 (2025-01-01) y $300.000 (2025-06-01),
-  `fecha_corte=2025-12-31` — el motor actual da saldo final $377.633,53, el patrón X9 daría $348.549,45
-  (diferencia $29.084,08, no es redondeo). Pendiente de confirmación del despacho sobre cuál mecánica es la
-  correcta antes de reescribir el motor — ver Sprint 104 en `docs/Pendientes.md` y
-  `docs/Preguntas-Para-Abogado-Abiertas.md`.
+- **Suma Única + abonos: liquidación tramo a tramo (Sprint 104, corregido 2026-11-19).** Respuesta del
+  despacho (22/08/2026): "La indexación global restando abonos al final es un error matemático y
+  jurídico... El Artículo 1653 del Código Civil obliga a imputar el pago primero a intereses y luego a
+  capital. Por lo tanto, debe liquidarse tramo por tramo"; seguimiento: la tasa pura mensual 0,0048676 es
+  la de "algoritmos de suma única con abonos". `CivilFamiliaStrategy._usa_tramo_a_tramo` activa el modo
+  para una obligación PUNTUAL (no cuota-hija de recurrencia) con Suma Única y al menos un abono propio
+  hasta el corte. En ese modo:
+  - No se emite el evento `INDEXATION` único hasta el corte global.
+  - `LiquidationCore` recibe `causacion_tramo_a_tramo=CausacionTramoATramo(...)`
+    (`app/engine/indexation/suma_unica_con_abonos.py`): en cada abono y al corte reindexa
+    `principal + indexation` desde el evento anterior (serie de Civil/Familia: IPC mensual DANE con fallback
+    anual, `CivilFamiliaStrategy._monto_indexacion`; un tramo con deflación indexa 0, regla de
+    `IPCIndexation.calculate`) y causa `capital_indexado × ((1 + 0,0048676)^meses − 1)`, con
+    `meses = días 30/360 / 30` (`dias_comerciales_tramo`: diferencia 30/360, día 31 topado a 30, SIN el +1
+    inclusivo de prestaciones laborales). Indexación e interés se redondean a centavos por tramo.
+  - El abono se imputa con `AllocationEngine.allocate_intereses_primero`: costas (Sprint 79, sin interés),
+    intereses, y el remanente al capital indexado (indexación y luego principal), que es la nueva base. El
+    interés no cubierto queda pendiente y no genera interés.
+  - Cada fila de abono y la de cierre muestran la indexación y el interés del tramo; la tasa mostrada es
+    la mensual (0,48676 %) con su fuente.
+  - Si la obligación trae una tasa pactada distinta del 6 % legal, no se usa (el despacho fijó la tasa
+    pura) y se emite una alerta no bloqueante.
+  Caso sintético (`test_civil_familia_suma_unica_con_abonos_reproduce_el_patron_x9_tramo_a_tramo`):
+  capital $1.000.000 el 2024-07-01, abonos de $400.000 (2025-01-01) y $300.000 (2025-06-01), corte
+  2025-12-31 → total $398.606,82 (capital indexado $385.348,01 + intereses $13.258,81). Sin abonos, o sin
+  Suma Única, el comportamiento no cambia. `liquidar_obligacion_con_abonos_tramo_por_tramo` queda como
+  referencia literal del pseudocódigo del despacho (sin costas, redondeo solo al final).
 
 Ver `docs/Pendientes.md`, Sprints 8, 20, 80 y 104.

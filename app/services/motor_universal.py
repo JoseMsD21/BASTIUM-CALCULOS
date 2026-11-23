@@ -6,6 +6,7 @@ from decimal import Decimal
 from app.core.exceptions import ParametroNoDisponibleError
 from app.domain.obligation.payment import Payment
 from app.engine.financial.rate import Rate
+from app.engine.indexation.suma_unica_con_abonos import CausacionTramoATramo
 from app.engine.interest.provider import RateProvider
 from app.engine.liquidation.allocation import AllocationEngine
 from app.engine.liquidation.engine import LiquidationCore
@@ -41,6 +42,7 @@ class UniversalLiquidationService:
             [Decimal, PendingDebt, date], tuple[PaymentAllocation, PendingDebt, Decimal]
         ] = AllocationEngine.allocate,
         politica_causacion: PoliticaCausacion = PoliticaCausacion.LEGADA_DIARIA_REDONDEADA,
+        causacion_tramo_a_tramo: CausacionTramoATramo | None = None,
     ) -> LiquidationResult:
 
         # 1. Configurar la política de mora
@@ -73,6 +75,7 @@ class UniversalLiquidationService:
             usar_suma_unica=usar_suma_unica,
             estrategia_imputacion=estrategia_imputacion,
             politica_causacion=politica_causacion,
+            causacion_tramo_a_tramo=causacion_tramo_a_tramo,
         )
 
         # 5. Ejecución del procesamiento temporal implacable
