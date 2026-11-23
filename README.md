@@ -38,6 +38,8 @@ QA, mantenimiento...)**?** Ver el [Mapa de documentación](docs/MAPA_DOCUMENTACI
 - **Resultados:** interruptor "Ver con/sin indexación" para análisis de sensibilidad, sin alterar lo guardado.
 - **Tributario:** imputación proporcional de abonos (Art. 804 E.T.) y suspensión del interés por demanda
   contenciosa.
+- **Laboral:** horas extra con los factores de la Ley 2466 en la pantalla; **Civil:** fruto civil (beneficio
+  dejado de percibir) y Suma Única con abonos liquidada tramo a tramo, como pidió el despacho.
 - **Motores nuevos (aún sin pantalla):** cálculo actuarial (Decreto 1296/2022), retroactivo pensional, contrato
   realidad y fruto civil.
 - **Precisión:** redondeo `ROUND_HALF_UP` garantizado en todos los hilos y `Decimal` en vez de `float` en PDF.

@@ -148,9 +148,14 @@ repreguntas con su porqué, y 6 implementaciones integradas (Sprints 76, 79, 95,
 pruebas en verde. Sprint 120 (2026-11-22): 8 PRs más (#50-#57): Tributario proporcional y tope suspensivo, vista
 "Ver con/sin indexación", tipo de proceso y título ejecutivo en el expediente, formato dd/mm/aaaa en toda la UI, y
 los motores de cálculo actuarial, retroactivo pensional, contrato realidad y fruto civil (aún sin pantalla).
-Suite: 1965 pruebas en verde.
+Suite: 1965 pruebas en verde. Sprint 121 (2026-11-22): horas extra en la pantalla Laboral (#59), fruto civil en
+Civil/Familia (#60) y Suma Única con abonos tramo a tramo (#61). Suite: 2045 pruebas en verde.
 
 ### Added
+- Horas extra en la liquidación Laboral (Sprint 95): grupo "Horas extra" en el Detalle del expediente con
+  HED/HEN/HEFD/HEFN, factor por tramo de la Ley 2466 y rubro propio en resultados y PDF/Word.
+- Fruto civil en Civil/Familia (Sprint 100): categoría "Fruto civil (beneficio dejado de percibir)", canon
+  indexado por IPC mes a mes menos gastos de conservación, una fila por mes, sin intereses.
 - Vista de sensibilidad "Ver con/sin indexación" en el resultado de la liquidación (Sprint 107): recalcula en
   memoria sin tocar la base de datos ni el historial de auditoría; aviso visible y exportación bloqueada.
 - Tipo de proceso del catálogo del despacho en el expediente (Sprint 105): 6 ramas y 13 tipos, combo filtrado por
@@ -347,6 +352,9 @@ Suite: 1965 pruebas en verde.
   hijas/abonos del Sprint 41.
 
 ### Fixed
+- Prueba `test_restablecer_view_muestra_dialogo_de_progreso_mientras_corre` (Sprint 121): caída nativa
+  intermitente (access violation) por crear simulacros desde un hilo de fondo durante el garbage collection;
+  ahora usa funciones simples.
 - Liquidaciones con fecha de corte posterior al último mes de usura certificado (Sprint 110): Tributario (E.T. 635
   y Art. 867-1) ya no lanza excepción y Laboral (Art. 65 CST fase 2) ya no omite el rubro completo. Por
   instrucción del despacho ("nunca extrapolar"), el interés se calcula hasta el último día certificado y el
@@ -494,6 +502,10 @@ Suite: 1965 pruebas en verde.
   Sprint 50.
 
 ### Changed
+- **Suma Única con abonos tramo a tramo** (Sprint 104, respuesta del despacho, patrón X9): en cada abono se
+  indexa el capital, se causa el interés del tramo a la tasa pura mensual 0,0048676 y el abono se imputa costas
+  → intereses → indexación → capital (Art. 1653 C.C.). Cambia el saldo de esas liquidaciones; sin abonos o sin
+  Suma Única no cambia nada.
 - Formato de fecha único dd/mm/aaaa en toda la interfaz (Sprint 106), independiente de la configuración regional,
   con prueba de guardia; las fechas anuales fijas de una obligación recurrente pasan de texto libre a un selector
   de día y mes (el formato guardado no cambia).

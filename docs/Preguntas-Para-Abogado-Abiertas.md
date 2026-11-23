@@ -85,6 +85,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 118 — Paquete de noviembre: seis reglas que cambiarían resultados (vacancia, festivo nuevo, redondeo, pagos anticipados, notificación y vacancia por despacho)](#sprint-118--paquete-de-noviembre-seis-reglas-que-cambiarían-resultados-vacancia-festivo-nuevo-redondeo-pagos-anticipados-notificación-y-vacancia-por-despacho)
 - [Sprint 119 — Cinco dudas que surgieron al aplicar las respuestas del 16/11/2026](#sprint-119--cinco-dudas-que-surgieron-al-aplicar-las-respuestas-del-16112026)
 - [Sprint 120 — Dudas surgidas al implementar los Sprints 84, 85, 86/87, 94, 100, 105, 106 y 107](#sprint-120--dudas-surgidas-al-implementar-los-sprints-84-85-8687-94-100-105-106-y-107)
+- [Sprint 121 — Horas extra, fruto civil y Suma Única con abonos: cuatro confirmaciones](#sprint-121--horas-extra-fruto-civil-y-suma-única-con-abonos-cuatro-confirmaciones)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -359,6 +360,36 @@ indexación IPC pero no se fuerza el interés sobre capital indexado (Suma Únic
 
 **Qué necesito exactamente:** una respuesta corta por pregunta y letra; donde se piden datos (topes, históricos,
 checklist), el valor o el documento fuente.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 121 — Horas extra, fruto civil y Suma Única con abonos: cuatro confirmaciones
+
+**Contexto:** ya están en la aplicación las horas extra de Laboral, el fruto civil en Civil y la Suma Única con
+abonos tramo a tramo (ver `Pendientes.md`, Sprint 121). Estas cuatro decisiones las tomó el software de forma
+prudente y pueden cambiar cifras.
+
+**Pregunta 1 — Horas extra en la base de prestaciones (Sprint 95).** *Por qué:* hoy las horas extra se pagan como
+rubro aparte y **no** entran en la base de cesantías, prima, vacaciones ni de la sanción moratoria. Si son
+habituales, el Art. 127 CST podría exigir incluirlas. ¿Se incluyen? ¿Siempre o solo si son habituales?
+
+**Pregunta 2 — Fruto civil con costas (Sprint 100).** *Por qué:* si la obligación de fruto civil tiene costas, hoy
+se calculan sobre el total del fruto. ¿Es la base correcta?
+
+**Pregunta 3 — Suma Única con abonos y tasa pactada (Sprint 104).** *Por qué:* el algoritmo tramo a tramo usa
+siempre la tasa pura mensual 0,48676 % (6 % EA) que fijó el despacho; si la obligación tenía otra tasa pactada, no
+se aplica y el software avisa. ¿Es correcto ignorar la tasa pactada en este algoritmo?
+
+**Pregunta 4 — Mes comercial en el tramo a tramo (Sprint 104).** *Por qué:* los días de cada tramo se cuentan como
+días comerciales (mes de 30 días, año de 360), como en el pseudocódigo del despacho. ¿Se confirma esa convención
+de conteo?
+
+**Qué necesito exactamente:** sí/no por pregunta y, en la 1, desde cuándo una hora extra se considera habitual.
 
 **Respuesta del despacho:**
 

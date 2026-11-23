@@ -294,16 +294,16 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 92 — Laboral: indemnización por despido injustificado (Art. 64 CST) ✅ Completado](#sprint-92--laboral-indemnización-por-despido-injustificado-art-64-cst--completado)
 - [Sprint 93 — Laboral: salarios y prestaciones dejadas de percibir con reajuste anual (IPC o SMMLV) — reabre la exclusión del Sprint 75 ✅ Completado](#sprint-93--laboral-salarios-y-prestaciones-dejadas-de-percibir-con-reajuste-anual-ipc-o-smmlv--reabre-la-exclusión-del-sprint-75--completado)
 - [Sprint 94 — Laboral: contrato realidad (privado y sector público) ⚠️ Parcial — motor listo](#sprint-94--laboral-contrato-realidad-privado-y-sector-público--parcial--motor-listo)
-- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--parcial)
+- [Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ✅ Completado (falta 1 confirmación)](#sprint-95--laboral-horas-extra-diurnasnocturnas-y-recargos-dominicalesfestivos--completado-falta-1-confirmación)
 - [Sprint 96 — Laboral: liquidación de prestaciones para trabajo doméstico por días/jornada parcial ✅ Completado](#sprint-96--laboral-liquidación-de-prestaciones-para-trabajo-doméstico-por-díasjornada-parcial--completado)
 - [Sprint 97 — Nuevo dominio: Responsabilidad Civil Extracontractual / Indemnización de Perjuicios (decisión de alcance y arquitectura) 📋 Desbloqueado — arquitectura decidida](#sprint-97--nuevo-dominio-responsabilidad-civil-extracontractual--indemnización-de-perjuicios-decisión-de-alcance-y-arquitectura--desbloqueado--arquitectura-decidida)
 - [Sprint 98 — Motor actuarial de lucro cesante (fórmula Baremo judicial + tablas de mortalidad Resolución 1555/2010) 🔵 Bloqueado — faltan datos](#sprint-98--motor-actuarial-de-lucro-cesante-fórmula-baremo-judicial--tablas-de-mortalidad-resolución-15552010--bloqueado--faltan-datos)
 - [Sprint 99 — Daño emergente consolidado: ledger mensual de gastos indexados por concepto 🔵 Bloqueado — pendiente de confirmación](#sprint-99--daño-emergente-consolidado-ledger-mensual-de-gastos-indexados-por-concepto--bloqueado--pendiente-de-confirmación)
-- [Sprint 100 — Beneficio dejado de percibir como fruto civil ⚠️ Parcial — motor listo](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--parcial--motor-listo)
+- [Sprint 100 — Beneficio dejado de percibir como fruto civil ✅ Completado](#sprint-100--beneficio-dejado-de-percibir-como-fruto-civil--completado)
 - [Sprint 101 — Desindexación / deflactación de cantidad única (IPC inverso) ✅ Completado (calculadora aislada; caso de uso real e integración condicionados a confirmación del despacho)](#sprint-101--desindexación--deflactación-de-cantidad-única-ipc-inverso--completado-calculadora-aislada-caso-de-uso-real-e-integración-condicionados-a-confirmación-del-despacho)
 - [Sprint 102 — Verificación: indexación de cantidad única con abonos secuenciales (Suma Única + abonos) ✅ Completado (bug de dominio confirmado, corrección diferida al Sprint 104)](#sprint-102--verificación-indexación-de-cantidad-única-con-abonos-secuenciales-suma-única--abonos--completado-bug-de-dominio-confirmado-corrección-diferida-al-sprint-104)
 - [Sprint 103 — Bug de test: `test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos` cuelga la suite indefinidamente ✅ Completado](#sprint-103--bug-de-test-test_pago_por_rango_dialog_con_remanente_no_confirma_ni_crea_abonos-cuelga-la-suite-indefinidamente--completado)
-- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 📋 Desbloqueado — listo para implementar](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--desbloqueado--listo-para-implementar)
+- [Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) ✅ Completado](#sprint-104--bug-de-dominio-suma-única--abonos-no-reindexa-progresivamente-no-reproduce-el-patrón-x9--completado)
 - [Sprint 105 — Intake de caso: Área del derecho → Tipo de proceso → Subtipo, con checklist de obligaciones predefinidas ✅ Completado (sin checklist)](#sprint-105--intake-de-caso-área-del-derecho--tipo-de-proceso--subtipo-con-checklist-de-obligaciones-predefinidas--completado-sin-checklist)
 - [Sprint 106 — Formato de fecha único día/mes/año y año del acta/título capturado una sola vez por caso ✅ Completado](#sprint-106--formato-de-fecha-único-díamesaño-y-año-del-actatítulo-capturado-una-sola-vez-por-caso--completado)
 - [Sprint 107 — Mover la decisión de indexación IPC / interés sobre capital indexado a después de proyectar la liquidación ✅ Completado](#sprint-107--mover-la-decisión-de-indexación-ipc--interés-sobre-capital-indexado-a-después-de-proyectar-la-liquidación--completado)
@@ -320,6 +320,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 118 — Integración selectiva del paquete "BASTIUM VERSION NOVIEMBRE": mejoras sin cambio de resultados, el resto a preguntas ⚠️ Parcial](#sprint-118--integración-selectiva-del-paquete-bastium-version-noviembre-mejoras-sin-cambio-de-resultados-el-resto-a-preguntas--parcial)
 - [Sprint 119 — Respuestas del despacho del 16/11/2026: triaje, 6 implementaciones y repreguntas ⚠️ Parcial](#sprint-119--respuestas-del-despacho-del-16112026-triaje-6-implementaciones-y-repreguntas--parcial)
 - [Sprint 120 — Segunda y tercera tanda de implementaciones con agentes (respuestas del 16/11/2026) ⚠️ Parcial](#sprint-120--segunda-y-tercera-tanda-de-implementaciones-con-agentes-respuestas-del-16112026--parcial)
+- [Sprint 121 — Cuarta tanda: horas extra y fruto civil en la UI, Suma Única con abonos tramo a tramo ✅ Completado](#sprint-121--cuarta-tanda-horas-extra-y-fruto-civil-en-la-ui-suma-única-con-abonos-tramo-a-tramo--completado)
 
 ---
 
@@ -7174,7 +7175,9 @@ sin esa respuesta.
 
 ---
 
-## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ⚠️ Parcial
+## Sprint 95 — Laboral: horas extra diurnas/nocturnas y recargos dominicales/festivos ✅ Completado (falta 1 confirmación)
+
+**Actualización 2026-11-22 (Sprint 121):** Conectado a la UI (PR #59): grupo "Horas extra" en el Detalle de un expediente Laboral (tabla `horas_extra_laborales`), evento `HORAS_EXTRA` en `LaboralStrategy` y rubro propio en resultados y PDF/Word. Festivas antes del 1-jul-2025: porcentaje digitado hasta que el despacho confirme el factor.
 
 **Actualización 2026-11-19 (Sprint 119):** Factores HED 1,25, HEN 1,75 y HEFD/HEFN por tramo de la Ley 2466 (2,05/2,55 → 2,15/2,65 → 2,25/2,75) implementados en `app/engine/labor/horas_extra.py` (PR #41). Falta: conectarlo al formulario Laboral y confirmar el factor de horas festivas antes del 1-jul-2025.
 
@@ -7494,7 +7497,9 @@ arquitectura del Sprint 97 (¿área nueva o submodo de Civil/Familia?), de la qu
 
 ---
 
-## Sprint 100 — Beneficio dejado de percibir como fruto civil ⚠️ Parcial — motor listo
+## Sprint 100 — Beneficio dejado de percibir como fruto civil ✅ Completado
+
+**Actualización 2026-11-22 (Sprint 121):** Conectado a la UI (PR #60): categoría "Fruto civil (beneficio dejado de percibir)" en Civil/Familia, con canon, fecha de referencia, período de privación y gasto de conservación (2 columnas nuevas con migración); una fila por mes en resultados y PDF/Word; sin intereses hasta que el despacho lo confirme.
 
 **Actualización 2026-11-22 (Sprint 120):** Motor `app/engine/civil/fruto_civil.py` (PR #54): canon indexado mes a mes por IPC menos gastos ordinarios de conservación, con prorrateo por días calendario. Falta conectarlo a Civil y la distinción de buena/mala fe del Art. 964.
 
@@ -7620,7 +7625,9 @@ indefinido). Suite completa (`tests` menos `tests/views`): 857 passed en 41s. Si
 
 ---
 
-## Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) 📋 Desbloqueado — listo para implementar
+## Sprint 104 — Bug de dominio: Suma Única + abonos no reindexa progresivamente (no reproduce el patrón X9) ✅ Completado
+
+**Actualización 2026-11-22 (Sprint 121):** Suma Única con abonos liquida tramo a tramo según el patrón X9 (PR #61): indexación por tramo, tasa pura mensual 0,0048676 en meses comerciales e imputación costas → intereses → indexación → capital, solo para PUNTUAL con Suma Única y abonos. Al integrar se corrigieron 3 problemas (ver Sprint 121).
 
 **Actualización 2026-11-19 (Sprint 119):** Tasa pura mensual 0,0048676 para Suma Única con abonos y perjuicios; lineal simple para ejecución de títulos civiles. Ver Respondidas, Sprint 104.
 
@@ -8862,6 +8869,38 @@ respuestas, no a mano; el catálogo del #56 se comparó texto por texto con la r
 
 **Estado (2026-11-22):** ⚠️ Parcial — 8 PRs integrados; queda el Sprint 104, la conexión a la UI de los motores y las
 repreguntas.
+
+---
+
+## Sprint 121 — Cuarta tanda: horas extra y fruto civil en la UI, Suma Única con abonos tramo a tramo ✅ Completado
+
+**Integrado a `main` (CI en verde):**
+
+| Sprint | PR | Qué cambió |
+|---|---|---|
+| 95 | #59 | Horas extra en la pantalla Laboral (tabla `horas_extra_laborales`, factor por tramo de la Ley 2466) |
+| 100 | #60 | Fruto civil como categoría de Civil/Familia, una fila por mes, sin intereses |
+| 104 | #61 | Suma Única con abonos tramo a tramo (patrón X9, tasa pura mensual 0,0048676, Art. 1653 C.C.) |
+
+**Integración del #61 (hecha a mano):** el agente quedó atascado combinando su rama con `main` (2 conflictos en
+`area_strategy.py` y la especificación del motor de pagos) y se detuvo. Al terminar la combinación se encontraron
+y corrigieron tres problemas:
+1. La fusión automática de git dejó el aviso del fruto civil (Sprint 100) después del `return` de otra función;
+   volvió al final de `liquidar()`.
+2. La tasa civil legal se consultaba en **toda** liquidación Civil/Familia y, sin el parámetro
+   `CIVIL_ANNUAL_RATE`, la liquidación fallaba aunque no usara Suma Única (y la pantalla abría un aviso de error
+   que dejaba colgada la suite de pruebas). Ahora solo se consulta si hay obligaciones tramo a tramo.
+3. `test_restablecer_view_muestra_dialogo_de_progreso_mientras_corre` sufría una caída nativa intermitente
+   (access violation, Windows + Python 3.13) por crear simulacros de `unittest.mock` desde un hilo de fondo
+   durante el garbage collection del hilo principal; ahora usa funciones simples.
+
+Suite completa: **2045 pruebas en verde**, `ruff` limpio.
+
+**Lección:** al combinar ramas largas sobre `area_strategy.py`, revisar también el código que git fusiona "sin
+conflicto": puede quedar en la función equivocada. `ruff` lo detectó (nombres sin definir).
+
+**Pendiente:** dudas de esta tanda en `Preguntas-Para-Abogado-Abiertas.md`, Sprint 121; conectar a la UI los
+motores de los Sprints 70/91, 85, 86/87 y 94.
 
 ---
 
