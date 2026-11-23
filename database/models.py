@@ -440,6 +440,22 @@ class Obligacion(Base):
     # app.services.areas_parametro.opciones_tipo_accion_proceso_por_area.
     tipo_accion_proceso: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
+    # fecha_referencia_canon/gasto_conservacion_mensual (Sprint 100, wiring del
+    # motor app/engine/civil/fruto_civil.py): solo relevantes para una
+    # obligacion PUNTUAL de Civil/Familia con categoria FRUTO_CIVIL ("Fruto
+    # civil", beneficio dejado de percibir, Art. 964 C.C.). En esa categoria
+    # `valor` es el canon mensual del activo, `fecha_origen` el inicio del
+    # periodo de privacion y `fecha_fin` su final (ambas inclusive) -- ver
+    # CivilFamiliaStrategy._eventos_fruto_civil. fecha_referencia_canon es la
+    # fecha a cuyos precios esta expresado el canon (base de la indexacion IPC
+    # mes a mes); gasto_conservacion_mensual es el gasto ordinario de
+    # conservacion fijo por mes (opcional, NULL = sin gasto). Nulas para el
+    # resto de obligaciones.
+    fecha_referencia_canon: Mapped[date | None] = mapped_column(Date, nullable=True)
+    gasto_conservacion_mensual: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 2), nullable=True
+    )
+
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"

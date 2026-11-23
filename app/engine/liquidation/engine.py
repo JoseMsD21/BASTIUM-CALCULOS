@@ -73,6 +73,12 @@ class LiquidationCore:
             "DANO_EMERGENTE",
             "LUCRO_CESANTE_CONSOLIDADO",
             "DANOS_MORALES",
+            # FRUTO_CIVIL (Sprint 100): un evento por mes del periodo de
+            # privacion con el fruto neto de ese mes (puede ser negativo si los
+            # gastos de conservacion superan el canon). CivilFamiliaStrategy le
+            # asigna tasa 0 -- no genera interes (decision no confirmada por el
+            # despacho, ver _eventos_fruto_civil).
+            "FRUTO_CIVIL",
             "CAPITAL_PAGARE",
             "CAPITAL_LETRA_CAMBIO",
             "CAPITAL_CHEQUE",

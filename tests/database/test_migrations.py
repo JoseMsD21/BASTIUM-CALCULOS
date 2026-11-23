@@ -852,3 +852,32 @@ def test_aplicar_migraciones_pendientes_agrega_columnas_titulo_ejecutivo_sprint1
     assert "fecha_limite_prescripcion" not in columnas  # se calcula, no se guarda
     assert all(valor is None for valor in fila)
     assert migrar(db_path) is False
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_fruto_civil_sprint100(tmp_path):
+    """Sprint 100 (wiring del fruto civil): una bastium.db anterior no tiene
+    fecha_referencia_canon/gasto_conservacion_mensual en obligaciones -- deben
+    agregarse al arrancar (NULL en las obligaciones existentes) y la migracion
+    debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_fruto_civil_sprint100 import _COLUMNAS, migrar
+
+    db_path = tmp_path / "sin_fruto_civil.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    for nombre in _COLUMNAS:
+        con.execute(f"ALTER TABLE obligaciones DROP COLUMN {nombre}")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert set(_COLUMNAS) == {"fecha_referencia_canon", "gasto_conservacion_mensual"}
+    assert set(_COLUMNAS) <= columnas
+    assert migrar(db_path) is False

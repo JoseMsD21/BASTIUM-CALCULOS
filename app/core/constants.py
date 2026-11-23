@@ -8,6 +8,11 @@ CATEGORIAS_CIVIL_FAMILIA = [
     ("CAPITAL_PAGARE", "Capital de pagare"),
     ("CLOTHING", "Gastos de vestuario"),
     ("MULTA", "Multa"),
+    # FRUTO_CIVIL (Sprint 100): beneficio dejado de percibir como fruto civil
+    # (Art. 964 C.C.). No es un capital plano: CivilFamiliaStrategy lo liquida
+    # mes a mes con app/engine/civil/fruto_civil.py y NO le causa intereses
+    # (ver CivilFamiliaStrategy._eventos_fruto_civil).
+    ("FRUTO_CIVIL", "Fruto civil (beneficio dejado de percibir)"),
 ]
 # Nota: esta lista debe reflejar un subconjunto de
 # app.engine.liquidation.engine.LiquidationCore._capital_concepts pertinente

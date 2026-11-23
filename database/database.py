@@ -66,6 +66,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
         migrar as migrar_fecha_providencia_costas,
     )
     from scripts.migrate_fechas_anuales_fijas import migrar as migrar_fechas_anuales_fijas
+    from scripts.migrate_fruto_civil_sprint100 import migrar as migrar_fruto_civil_sprint100
     from scripts.migrate_ibc_usura_1971_1997 import migrar as migrar_ibc_usura_1971_1997
     from scripts.migrate_indexacion_ipc_areas_sprint43 import (
         migrar as migrar_indexacion_ipc_areas_sprint43,
@@ -126,6 +127,10 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # mapeaba y una bastium.db anterior fallaba al arrancar con
     # "no such column: obligaciones.salario_diario".
     migrar_salario_domestico_sprint96(ruta)
+    # Sprint 100 (wiring del fruto civil): agrega fecha_referencia_canon/
+    # gasto_conservacion_mensual a obligaciones -- columnas nuevas
+    # independientes, sin dependencia de orden.
+    migrar_fruto_civil_sprint100(ruta)
     # Sprint 84 (seguimiento): agrega fecha_admision_demanda/
     # fecha_notificacion_sentencia a obligaciones (tope suspensivo tributario)
     # -- columnas nuevas independientes, sin dependencia de orden.

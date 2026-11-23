@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from app.core.exceptions import CuotaLitisExcedeTopeError, IPCMensualNoDisponibleError
 from app.domain.obligation.payment import Payment
+from app.engine.civil.fruto_civil import calcular_fruto_civil
 from app.engine.costs.agencias_en_derecho import (
     Instancia,
     TipoProceso,
@@ -83,6 +84,12 @@ from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
 # app.core.constants.CATEGORIAS_LABORAL, que trae el mismo codigo para el
 # combo de la UI).
 CATEGORIA_SALARIOS_DEJADOS_DE_PERCIBIR = "SALARIOS_DEJADOS_DE_PERCIBIR"
+
+# Sprint 100 (wiring): categoria de Civil/Familia "Fruto civil" (beneficio
+# dejado de percibir, Art. 964 C.C.) -- se liquida mes a mes con
+# app/engine/civil/fruto_civil.py en vez de como un capital plano, y sin
+# intereses. Ver CivilFamiliaStrategy._eventos_fruto_civil.
+CATEGORIA_FRUTO_CIVIL = "FRUTO_CIVIL"
 
 
 def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
@@ -418,7 +425,7 @@ class CivilFamiliaStrategy(AreaStrategy):
             if obligacion.obligacion_padre_id is not None
         }
 
-        return _liquidar_por_obligacion(
+        resultado = _liquidar_por_obligacion(
             obligaciones=obligaciones,
             abonos=abonos,
             fecha_corte=fecha_corte,
@@ -428,6 +435,23 @@ class CivilFamiliaStrategy(AreaStrategy):
             rate_provider_fn=self._construir_rate_provider_obligacion,
             usar_suma_unica_fn=self._resolver_suma_unica,
         )
+        # Sprint 100: aviso no bloqueante cuando el periodo de privacion de un
+        # fruto civil va mas alla de la fecha de corte (solo se liquida hasta
+        # el corte, ver _eventos_fruto_civil).
+        for obligacion in obligaciones:
+            if (
+                obligacion.categoria == CATEGORIA_FRUTO_CIVIL
+                and obligacion.fecha_fin is not None
+                and obligacion.fecha_fin > fecha_corte
+            ):
+                resultado = self._agregar_alerta(
+                    resultado,
+                    f"Fruto civil '{obligacion.concepto}': el periodo de privacion termina el "
+                    f"{obligacion.fecha_fin.strftime('%d/%m/%Y')}, despues de la fecha de corte "
+                    f"({fecha_corte.strftime('%d/%m/%Y')}); solo se liquidan los frutos "
+                    "hasta la fecha de corte.",
+                )
+        return resultado
 
     def _resolver_suma_unica(self, obligacion) -> bool:
         """Determina si esta obligacion liquida con el algoritmo "Suma Única"
@@ -447,6 +471,8 @@ class CivilFamiliaStrategy(AreaStrategy):
     def _eventos_de_obligacion(
         self, obligacion, fecha_corte: date, ids_con_cuotas_generadas: set[int] | None = None
     ) -> list[Event]:
+        if obligacion.categoria == CATEGORIA_FRUTO_CIVIL:
+            return self._eventos_fruto_civil(obligacion, fecha_corte)
         if obligacion.tipo.value == "PUNTUAL":
             eventos = [
                 Event(
@@ -581,6 +607,90 @@ class CivilFamiliaStrategy(AreaStrategy):
         return eventos
 
     @staticmethod
+    def _validar_fruto_civil(obligacion) -> None:
+        if obligacion.tipo.value != "PUNTUAL":
+            raise ValueError(
+                "Una obligacion 'Fruto civil' debe ser de tipo Puntual: el periodo de "
+                "privacion se fija con su fecha inicial y final."
+            )
+        if obligacion.fecha_fin is None:
+            raise ValueError(
+                f"Fruto civil '{obligacion.concepto}': falta la fecha final del periodo de "
+                "privacion."
+            )
+        if obligacion.fecha_referencia_canon is None:
+            raise ValueError(
+                f"Fruto civil '{obligacion.concepto}': falta la fecha de referencia del canon."
+            )
+        if obligacion.fecha_fin < obligacion.fecha_origen:
+            raise ValueError(
+                f"Fruto civil '{obligacion.concepto}': la fecha final del periodo de privacion "
+                "no puede ser anterior a la inicial."
+            )
+
+    def _eventos_fruto_civil(self, obligacion, fecha_corte: date) -> list[Event]:
+        """Sprint 100 (wiring): obligacion Civil/Familia de categoria
+        FRUTO_CIVIL -- beneficio dejado de percibir como fruto civil (Art. 964
+        C.C.), liquidado con `calcular_fruto_civil`
+        (app/engine/civil/fruto_civil.py, ver sus convenciones de indexacion,
+        prorrateo y redondeo).
+
+        Mapeo de campos de `Obligacion`: `valor` = canon mensual del activo;
+        `fecha_referencia_canon` = fecha a cuyos precios esta el canon;
+        `fecha_origen`/`fecha_fin` = periodo de privacion (ambas inclusive);
+        `gasto_conservacion_mensual` = gasto ordinario de conservacion fijo por
+        mes (opcional).
+
+        Emite UN evento de capital FRUTO_CIVIL por mes del periodo, fechado el
+        ultimo dia privado de ese mes, con el fruto neto del mes (detalle
+        mensual visible en la tabla de resultados/PDF/Word). El periodo se topa
+        en `fecha_corte` (liquidar() agrega una alerta si se topo): no se
+        liquidan frutos aun no causados a la fecha de corte.
+
+        Sin intereses: el despacho NO ha confirmado que el fruto civil genere el
+        interes civil del 6 % despues de su causacion, asi que se suma "en
+        seco" (tasa 0, ver _construir_rate_provider_obligacion). Tampoco aplica
+        la indexacion IPC de la obligacion a la fecha de corte: el canon ya se
+        indexa mes a mes y el despacho no confirmo una segunda actualizacion, asi
+        que `aplica_indexacion_ipc` se ignora en esta categoria (el formulario
+        siempre la guarda en False; la vista de sensibilidad "con indexacion"
+        del Sprint 107 la fuerza en True para todo el expediente y debe seguir
+        funcionando, por eso no se rechaza con error). Tampoco distingue
+        poseedor de buena/mala fe: el usuario fija el periodo. Costas: si la obligacion trae costas
+        configuradas, la base es el total del fruto civil liquidado."""
+        self._validar_fruto_civil(obligacion)
+        fecha_final = min(obligacion.fecha_fin, fecha_corte)
+        if fecha_final < obligacion.fecha_origen:
+            return []
+        resultado = calcular_fruto_civil(
+            canon_mensual=obligacion.valor,
+            fecha_referencia=obligacion.fecha_referencia_canon,
+            fecha_inicial=obligacion.fecha_origen,
+            fecha_final=fecha_final,
+            gasto_conservacion_mensual=obligacion.gasto_conservacion_mensual or Decimal("0"),
+        )
+        eventos = []
+        for mes in resultado.meses:
+            etiqueta = (
+                f"Fruto civil {mes.mes:02d}/{mes.anio} ({mes.dias}/{mes.dias_mes} días): "
+                f"canon ${mes.canon_periodo:,.2f} - conservación "
+                f"${mes.gastos_conservacion:,.2f} — {obligacion.concepto}"
+            )
+            eventos.append(
+                Event(
+                    date=mes.hasta,
+                    payload={"amount": mes.fruto_neto, "label": etiqueta},
+                    event_type=CATEGORIA_FRUTO_CIVIL,
+                )
+            )
+        evento_costas = _evento_costas_procesales(
+            obligacion, pretensiones_reconocidas=resultado.total_fruto_civil
+        )
+        if evento_costas is not None:
+            eventos.append(evento_costas)
+        return eventos
+
+    @staticmethod
     def _evento_indexacion(
         fecha_causacion: date, capital: Decimal, concepto: str, fecha_corte: date
     ) -> Event:
@@ -645,6 +755,17 @@ class CivilFamiliaStrategy(AreaStrategy):
             if obligacion.tipo.value == "PUNTUAL"
             else obligacion.fecha_inicio
         )
+        if obligacion.categoria == CATEGORIA_FRUTO_CIVIL:
+            # Sprint 100: el fruto civil se suma en seco, sin interes -- ver
+            # _eventos_fruto_civil. Tasa 0 explicita (no el fallback del 6 %
+            # que se aplica abajo a una tasa 0 capturada).
+            return self._rate_provider_tasa_plana(
+                fecha_inicio,
+                fecha_corte,
+                Decimal("0"),
+                source="Fruto civil: sin intereses (no confirmado por el despacho)",
+                lineal_simple=True,
+            )
         # Sprint 61: fallback silencioso a CIVIL_ANNUAL_RATE cuando la obligacion
         # no trae tasa propia (0.00 -- mismo patron legitimo que ya usan
         # Sancionatorio/Honorarios para "el campo de tasa no aplica", confirmado

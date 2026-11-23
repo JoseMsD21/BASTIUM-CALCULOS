@@ -96,6 +96,12 @@ class ObligacionFormDialog(FormDialogBase):
         # sobreescribe; el resto de areas que pasan por guardar() (Civil/Familia,
         # Sancionatorio, Honorarios) la dejan en False -- no tienen el checkbox.
         "pacto_expreso_indexacion": False,
+        # fecha_referencia_canon/gasto_conservacion_mensual (Sprint 100): solo
+        # los llena guardar() cuando la categoria es FRUTO_CIVIL (Civil/Familia);
+        # en cualquier otro caso quedan en None (tambien al cambiar de
+        # categoria una obligacion que antes era fruto civil).
+        "fecha_referencia_canon": None,
+        "gasto_conservacion_mensual": None,
     }
 
     def __init__(
@@ -559,6 +565,30 @@ class ObligacionFormDialog(FormDialogBase):
             "Fecha en que termino la relacion laboral; se usa para liquidar "
             "prestaciones sociales hasta ese dia."
         )
+        # Fruto civil (Sprint 100, categoria FRUTO_CIVIL de Civil/Familia):
+        # beneficio dejado de percibir, Art. 964 C.C., liquidado con
+        # app/engine/civil/fruto_civil.py. Reutiliza "Valor" como canon mensual,
+        # "Fecha de origen" como inicio del periodo de privacion y
+        # campo_fecha_fin como su final -- ver _actualizar_campos_visibles.
+        self.campo_fecha_referencia_canon = crear_campo_fecha()
+        self.campo_fecha_referencia_canon.setCalendarPopup(True)
+        self.campo_fecha_referencia_canon.setToolTip(
+            "Fecha a cuyos precios esta expresado el canon mensual (ej. la fecha del "
+            "dictamen pericial del canon de arrendamiento de mercado). El canon de cada "
+            "mes del periodo se indexa por IPC desde esta fecha."
+        )
+        self.campo_gasto_conservacion = QLineEdit()
+        self.campo_gasto_conservacion.setToolTip(
+            "Gasto ordinario de conservacion del activo por mes (Art. 964 C.C.), que se "
+            "descuenta del canon de cada mes (prorrateado en meses incompletos). Opcional: "
+            "dejar vacio si no hay."
+        )
+        self.label_nota_fruto_civil = QLabel(
+            "El fruto civil se liquida mes a mes (canon indexado por IPC menos gastos de "
+            "conservación) y se suma sin intereses: el despacho no ha confirmado que genere "
+            "intereses después de causado."
+        )
+        self.label_nota_fruto_civil.setWordWrap(True)
         # es_smmlv (Sprint 44, punto 1): cuando esta marcado, el salario base se
         # resuelve automaticamente desde el SMLMV vigente del año de inicio del
         # contrato (LaboralStrategy.liquidar) -- "Valor" deja de ser editable a
@@ -726,6 +756,10 @@ class ObligacionFormDialog(FormDialogBase):
         self.layout_datos_basicos.addRow("Categoria", self.combo_categoria)
         self.layout_datos_basicos.addRow("Concepto", self._contenedor_campo_concepto)
         self.layout_datos_basicos.addRow("Valor", self._contenedor_campo_valor)
+        self.label_valor = self.layout_datos_basicos.labelForField(self._contenedor_campo_valor)
+        self.layout_datos_basicos.addRow(
+            "Fecha de referencia del canon", self.campo_fecha_referencia_canon
+        )
         self.layout_datos_basicos.addRow(self.check_es_smmlv)
         self.layout_datos_basicos.addRow(self.check_salario_diario)
         self.layout_datos_basicos.addRow("Salario diario", self.campo_salario_diario)
@@ -775,6 +809,10 @@ class ObligacionFormDialog(FormDialogBase):
         )
         self.layout_datos_basicos.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
         self.label_fecha_fin = self.layout_datos_basicos.labelForField(self.campo_fecha_fin)
+        self.layout_datos_basicos.addRow(
+            "Gasto de conservación mensual (opcional)", self.campo_gasto_conservacion
+        )
+        self.layout_datos_basicos.addRow(self.label_nota_fruto_civil)
         self.layout_datos_basicos.addRow(self.check_pagada)
         self.layout_datos_basicos.addRow("Fecha de pago real", self.campo_fecha_pago_total)
         self.layout_datos_basicos.addRow(self.check_incluir_seguridad_social)
@@ -937,6 +975,8 @@ class ObligacionFormDialog(FormDialogBase):
                 and not es_tributario,
                 self.combo_tipo: not es_laboral and not es_tributario,
                 self.campo_fecha_fin: es_laboral,
+                self.campo_fecha_referencia_canon: False,
+                self.campo_gasto_conservacion: False,
                 self.combo_nivel_riesgo_arl: False,
                 self.combo_tipo_contrato_laboral: False,
                 self.campo_fecha_fin_pactada: False,
@@ -1000,6 +1040,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.check_incluir_seguridad_social.setVisible(es_laboral)
         self.check_despido_injustificado.setVisible(es_laboral)
         self.check_sancion_agravada.setVisible(False)
+        self.label_nota_fruto_civil.setVisible(False)
 
         # Secciones enteras que no aplican al area elegida quedan completamente
         # ocultas (Sprint 34) en vez de mostrar un grupo con todos sus campos
@@ -1180,6 +1221,15 @@ class ObligacionFormDialog(FormDialogBase):
                     )
             else:
                 self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
+                if obligacion.categoria == "FRUTO_CIVIL":
+                    self.campo_fecha_fin.setDate(_qdate(obligacion.fecha_fin))
+                    self.campo_fecha_referencia_canon.setDate(
+                        _qdate(obligacion.fecha_referencia_canon)
+                    )
+                    if obligacion.gasto_conservacion_mensual is not None:
+                        self.campo_gasto_conservacion.setText(
+                            str(obligacion.gasto_conservacion_mensual)
+                        )
 
             self.check_aplica_indexacion_ipc.setChecked(obligacion.aplica_indexacion_ipc)
             self.check_interes_sobre_capital_indexado.setChecked(
@@ -1363,6 +1413,7 @@ class ObligacionFormDialog(FormDialogBase):
             self.combo_categoria,
             self.campo_concepto,
             self.campo_valor,
+            self.campo_fecha_referencia_canon,
             self.campo_fecha_origen,
             self.campo_fecha_inicio,
             self.campo_dia_pago,
@@ -1380,6 +1431,7 @@ class ObligacionFormDialog(FormDialogBase):
             self.campo_deducciones,
             self.campo_rentas_exentas,
             self.campo_fecha_fin,
+            self.campo_gasto_conservacion,
             self.check_pagada,
             self.campo_fecha_pago_total,
             self.check_incluir_seguridad_social,
@@ -1653,8 +1705,14 @@ class ObligacionFormDialog(FormDialogBase):
             )
             return
 
-        es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
         es_civil_familia = self._area == "CIVIL_FAMILIA"
+        # Fruto civil (Sprint 100): siempre PUNTUAL -- el periodo de privacion
+        # se fija con fecha inicial/final, no con cuotas recurrentes. Forzar el
+        # combo vuelve a disparar este metodo (re-entrada inofensiva).
+        es_fruto_civil = es_civil_familia and self._es_fruto_civil()
+        if es_fruto_civil and self.combo_tipo.currentData() != "PUNTUAL":
+            self.combo_tipo.setCurrentIndex(self.combo_tipo.findData("PUNTUAL"))
+        es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
         # Fechas anuales fijas (Sprint 73): mismo alcance que el reajuste anual
         # arriba (solo Civil/Familia) -- gastos de vestuario u otros gastos que
         # se repiten cada año en fechas concretas, no una cuota mensual.
@@ -1679,8 +1737,32 @@ class ObligacionFormDialog(FormDialogBase):
                 self.campo_fechas_anuales_fijas: es_recurrente
                 and es_civil_familia
                 and es_fechas_fijas,
+                self.combo_tipo: self._area != "TRIBUTARIO" and not es_fruto_civil,
+                self.campo_fecha_fin: es_fruto_civil,
+                self.campo_fecha_referencia_canon: es_fruto_civil,
+                self.campo_gasto_conservacion: es_fruto_civil,
             },
         )
+        self.label_nota_fruto_civil.setVisible(es_fruto_civil)
+        if es_civil_familia:
+            # Sin tasa ni indexacion de la obligacion (el fruto civil no genera
+            # interes y ya se indexa mes a mes) ni beneficiario de alimentos.
+            self.grupo_tasas_intereses.setVisible(not es_fruto_civil)
+            self.grupo_beneficiario.setVisible(not es_fruto_civil)
+        if self.label_valor is not None:
+            self.label_valor.setText("Canon mensual del activo" if es_fruto_civil else "Valor")
+        if self.label_fecha_origen is not None:
+            self.label_fecha_origen.setText(
+                "Inicio del periodo de privación"
+                if es_fruto_civil
+                else "Fecha de origen (Puntual)"
+            )
+        if self.label_fecha_fin is not None:
+            self.label_fecha_fin.setText(
+                "Fin del periodo de privación"
+                if es_fruto_civil
+                else "Fecha de terminacion de contrato"
+            )
 
         es_comercial = self._area == "COMERCIAL"
         mostrar_anatocismo = es_comercial and not es_recurrente
@@ -1715,9 +1797,16 @@ class ObligacionFormDialog(FormDialogBase):
         if not es_sancionatorio and not es_honorarios and valor <= Decimal("0"):
             raise ValueError("El valor de la obligacion debe ser mayor que cero.")
 
+        # Sprint 100: el fruto civil no genera interes -- se guarda tasa 0 (la
+        # fila de tasa esta oculta) y nunca beneficiario de alimentos.
+        es_fruto_civil = self._area == "CIVIL_FAMILIA" and self._es_fruto_civil()
+        if es_fruto_civil:
+            tasa = Decimal("0.00")
+            self.grupo_beneficiario.setChecked(False)
+
         self._validar_rango(tasa, Decimal("0"), Decimal("1000"), "La tasa efectiva anual")
         self._validar_concepto_no_vacio()
-        if self._area == "CIVIL_FAMILIA":
+        if self._area == "CIVIL_FAMILIA" and not es_fruto_civil:
             self._validar_beneficiario()
 
         fecha_fin_beneficiario = self._fecha_corte_beneficiario_manual()
@@ -1738,6 +1827,19 @@ class ObligacionFormDialog(FormDialogBase):
         fecha_relevante = fecha_origen if tipo == TipoObligacion.PUNTUAL else fecha_inicio
         self._validar_fecha_no_posterior_a_corte(fecha_relevante)
 
+        fecha_fin = fecha_fin_beneficiario if tipo == TipoObligacion.RECURRENTE else None
+        if es_fruto_civil:
+            fecha_fin = self._qdate_a_date(self.campo_fecha_fin.date())
+            if fecha_fin < fecha_origen:
+                raise ValueError(
+                    "La fecha final del periodo de privación no puede ser anterior a la "
+                    "inicial."
+                )
+            campos_area["fecha_referencia_canon"] = self._qdate_a_date(
+                self.campo_fecha_referencia_canon.date()
+            )
+            campos_area["gasto_conservacion_mensual"] = self._parse_gasto_conservacion()
+
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
             session,
@@ -1750,17 +1852,38 @@ class ObligacionFormDialog(FormDialogBase):
             fecha_origen=fecha_origen if tipo == TipoObligacion.PUNTUAL else fecha_inicio,
             valor=valor,
             tasa_efectiva_anual=tasa,
-            aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
-            interes_sobre_capital_indexado=self.check_interes_sobre_capital_indexado.isChecked(),
+            aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked()
+            and not es_fruto_civil,
+            interes_sobre_capital_indexado=self.check_interes_sobre_capital_indexado.isChecked()
+            and not es_fruto_civil,
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
-            fecha_fin=fecha_fin_beneficiario if tipo == TipoObligacion.RECURRENTE else None,
+            fecha_fin=fecha_fin,
             tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
             **campos_area,
         )
         self._guardar_beneficiario(session, obligacion_id)
         session.close()
         return obligacion_id
+
+    def _es_fruto_civil(self) -> bool:
+        return self.combo_categoria.currentData() == "FRUTO_CIVIL"
+
+    def _parse_gasto_conservacion(self) -> Decimal | None:
+        """Gasto ordinario de conservacion mensual del fruto civil (Sprint 100):
+        opcional -- vacio = None (sin gasto)."""
+        texto = self.campo_gasto_conservacion.text().strip()
+        if not texto:
+            return None
+        try:
+            gasto = Decimal(texto)
+        except InvalidOperation as error:
+            raise ValueError(
+                "El gasto de conservación mensual debe ser un número válido."
+            ) from error
+        if gasto < Decimal("0"):
+            raise ValueError("El gasto de conservación mensual no puede ser negativo.")
+        return gasto
 
     def _fecha_corte_beneficiario_manual(self) -> date | None:
         """Fecha de corte manual (Sprint 74, respuesta del despacho
