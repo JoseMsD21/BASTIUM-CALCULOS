@@ -8963,6 +8963,8 @@ Detalle completo, pruebas y riesgos en [REVISION_PLATAFORMA_2026-11-17.md](REVIS
 | 4 | Calendario propio en vez de `holidays` | Despacho (Sprint 118: 1, 2, 6) | 2 días |
 | 5 | Redondeo exacto por período por defecto | Despacho (Sprint 118: 3) | 2-3 días |
 
+**Decisiones abiertas** (paleta, API/gestor, sello, publicación del PDF maestro): Preguntas Abiertas, Sprint 124.
+
 **Siguiente paso:** que el equipo decida la fase 2 y la 3, y pedir al autor que rebase sobre el `main` actual y
 entregue PRs separados (API, gestor).
 

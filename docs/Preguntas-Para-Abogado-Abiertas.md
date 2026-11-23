@@ -88,6 +88,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 121 — Horas extra, fruto civil y Suma Única con abonos: cuatro confirmaciones](#sprint-121--horas-extra-fruto-civil-y-suma-única-con-abonos-cuatro-confirmaciones)
 - [Sprint 122 — Guía de identidad y material del equipo: tres confirmaciones](#sprint-122--guía-de-identidad-y-material-del-equipo-tres-confirmaciones)
 - [Sprint 123 — Gestor de casos propuesto: ocho decisiones (solo si el equipo lo adopta)](#sprint-123--gestor-de-casos-propuesto-ocho-decisiones-solo-si-el-equipo-lo-adopta)
+- [Sprint 124 — Cuatro decisiones de identidad, plataforma y publicación](#sprint-124--cuatro-decisiones-de-identidad-plataforma-y-publicación)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -473,6 +474,41 @@ identificándose con el correo del abogado?
 (Relacionada con la pregunta 2 del Sprint 122.)
 
 **Qué necesito exactamente:** primero, si el equipo adopta el gestor; si sí, respuesta por pregunta.
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 124 — Cuatro decisiones de identidad, plataforma y publicación
+
+**Contexto:** quedaron abiertas al cerrar el Sprint 122 (ver [Pendientes.md](Pendientes.md), Sprints 122 y 123, y
+la [revisión de plataforma](REVISION_PLATAFORMA_2026-11-17.md)). Algunas son del equipo, pero el despacho tiene la
+última palabra en las que afectan los documentos que van al juzgado. Ninguna cambia cifras mientras no se responda.
+
+**Pregunta 1 — Paleta de colores (tarjeta #65).** *Por qué:* la guía de identidad propone el rojo ladrillo `#C82E2E`
+(con texto carbón `#18181B` y bordes grises `#E5E5E5`); la aplicación y los PDF usan hoy el borgoña `#AE1C21`, que
+fue el que el despacho pidió para las gráficas en el Sprint 109. ¿Cuál queda como color oficial, en la pantalla y en
+los documentos?
+
+**Pregunta 2 — Parche de plataforma (tarjetas #64 y #7).** *Por qué:* trae una API con sello SHA-256 y un gestor de
+casos, pero está hecho sobre una versión vieja y no se puede aplicar tal cual. ¿Se adopta la API? ¿El gestor de
+casos va **dentro** de este repositorio (Python) o como sistema **externo** (Laravel/Vue y n8n)? Recomendación
+técnica: pedir al autor que lo rehaga sobre el `main` actual, en PRs separados (API, gestor).
+
+**Pregunta 3 — El "sello" SHA-256 ante un juez (riesgo R14).** *Por qué:* el sello solo prueba que el cálculo se
+puede reproducir con los mismos datos; **no** prueba quién emitió el documento (cualquiera puede cambiar los datos y
+recalcular el hash). ¿Se presenta solo como "huella de verificación" o el despacho necesita una firma digital real
+(certificado o sellado de tiempo) antes de llamarlo "sellado" o "firmado"?
+
+**Pregunta 4 — Publicación del documento maestro.** *Por qué:* el repositorio es público y las páginas 7 a 35 de
+`docs/identidad/ESTILO_Y_LOGICA_DE_BASTIUM.pdf` reúnen ilustraciones y capturas de terceros usadas como
+inspiración. ¿Se dejan publicadas o se reemplaza el PDF por una versión sin esas páginas?
+
+**Qué necesito exactamente:** en la 1, el color; en la 2, sí/no a la API y "dentro" o "externo" para el gestor; en
+la 3, "huella" o "firma real"; en la 4, "dejar" o "quitar".
 
 **Respuesta del despacho:**
 
