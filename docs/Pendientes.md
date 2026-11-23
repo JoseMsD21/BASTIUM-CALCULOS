@@ -3201,7 +3201,7 @@ la GUI.
 próximos a vencer (reutilizando `calcular_prescripcion` del Sprint 7 con `TipoAccion.EJECUTIVA` como
 heurística documentada — el modelo `Obligacion` no tiene un campo de tipo de acción procesal para un
 mapeo área→tipo más preciso; pregunta abierta al despacho sobre esto en
-[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard))
+[`Preguntas-Para-Abogado-Respondidas.md`](Preguntas-Para-Abogado-Respondidas.md#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard))
 y actividad reciente (reutilizando `historial_de_expediente` del Sprint 9).
 Registrada como pantalla de inicio en `MainWindow`, reemplazando al listado plano de expedientes como
 primera pantalla (accesible con un clic vía "Ver todos los expedientes"). Carga de datos síncrona, sin
