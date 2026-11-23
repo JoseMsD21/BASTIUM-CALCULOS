@@ -323,6 +323,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 121 — Cuarta tanda: horas extra y fruto civil en la UI, Suma Única con abonos tramo a tramo ✅ Completado](#sprint-121--cuarta-tanda-horas-extra-y-fruto-civil-en-la-ui-suma-única-con-abonos-tramo-a-tramo--completado)
 - [Sprint 122 — Identidad visual oficial, guía de estilo y material del equipo ✅ Completado](#sprint-122--identidad-visual-oficial-guía-de-estilo-y-material-del-equipo--completado)
 - [Sprint 123 — Integración por fases del parche de plataforma (API forense y gestor de casos) 🔴 Bloqueado](#sprint-123--integración-por-fases-del-parche-de-plataforma-api-forense-y-gestor-de-casos--bloqueado)
+- [Sprint 125 — Pantalla de Inicio: gráfica por área legible y tablas compactas ✅ Completado](#sprint-125--pantalla-de-inicio-gráfica-por-área-legible-y-tablas-compactas--completado)
 
 ---
 
@@ -8939,7 +8940,7 @@ panel en `tests/views/test_main_window.py`, `tests/domain/test_radicado.py`.
   Abiertas, Sprint 122, pregunta 3).
 
 **Hallazgo menor:** en la gráfica del Inicio, los nombres largos de área se montan entre sí en el eje X
-("Sancionatorio", "Honorarios / Litigio"). Pendiente de corregir (tarjeta #66). Además, varias pruebas dejan
+("Sancionatorio", "Honorarios / Litigio"). Corregido en el Sprint 125 (tarjeta #66). Además, varias pruebas dejan
 conexiones SQLite abiertas (`ResourceWarning`), sin efecto en cifras (tarjeta #68).
 
 ---
@@ -8967,6 +8968,32 @@ Detalle completo, pruebas y riesgos en [REVISION_PLATAFORMA_2026-11-17.md](REVIS
 
 **Siguiente paso:** que el equipo decida la fase 2 y la 3, y pedir al autor que rebase sobre el `main` actual y
 entregue PRs separados (API, gestor).
+
+---
+
+## Sprint 125 — Pantalla de Inicio: gráfica por área legible y tablas compactas ✅ Completado
+
+**Tarjeta:** #66. **Origen:** el usuario reportó el 23/11/2026 que la gráfica del Inicio "no está quedando bien"
+(captura con nombres de área montados en el eje X, eje con 0.2/0.4, gráfica arrinconada y tabla con barra de
+desplazamiento).
+
+**Evaluación:** se consideró mover la gráfica a otra sección o página. Se decidió **dejarla en el Inicio**: un
+resumen por área es justo lo que debe mostrar la pantalla de inicio; el problema era el diseño, no el lugar.
+
+**Hecho** (`app/views/dashboard.py`):
+- Barras **horizontales**: cada área en su propia línea del eje Y (ya no se montan), la primera área arriba como en
+  la tabla, eje de conteo solo con **enteros**, el valor escrito al final de cada barra y cuadrícula vertical suave.
+- Tabla por área **compacta**: sin columna de numeración, sin barra de desplazamiento, del tamaño exacto de sus 6
+  filas; la gráfica ocupa el resto del ancho.
+- Plazos próximos a vencer y Actividad reciente: columnas que se reparten el ancho (la fecha ya no sale cortada con
+  "...") y sin columna de numeración.
+- Actividad reciente muestra el nombre legible del área ("Civil / Familia"), no el código interno
+  (`CIVIL_FAMILIA`).
+
+Pruebas: 4 nuevas y 4 ajustadas en `tests/views/test_dashboard.py`. Suite completa: 2076 en verde.
+
+**Pendiente (no bloquea):** si el equipo adopta la paleta de la guía de identidad (#65), la gráfica cambia de color
+junto con el resto.
 
 ---
 
