@@ -2729,7 +2729,10 @@ def test_guarda_obligacion_recurrente_fechas_anuales_fijas_gastos_vestuario(qtbo
     dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
     # Cumpleanos del beneficiario (23 de marzo) entrado a mano, junto con
     # junio y diciembre -- exactamente el caso del reporte del usuario.
-    dialog.campo_fechas_anuales_fijas.setText("06-15, 12-15, 03-23")
+    # Sprint 106: widget estructurado Dia/Mes en vez de texto libre MM-DD.
+    dialog.campo_fechas_anuales_fijas.agregar_fecha(15, 6)
+    dialog.campo_fechas_anuales_fijas.agregar_fecha(15, 12)
+    dialog.campo_fechas_anuales_fijas.agregar_fecha(23, 3)
 
     dialog.guardar()
 
@@ -2782,7 +2785,7 @@ def test_guardar_fechas_anuales_fijas_con_lista_vacia_lanza_error_de_validacion(
     dialog.campo_fecha_inicio.setDate(date(2026, 1, 1))
     indice_fechas_fijas = dialog.combo_tipo_recurrencia.findData("FECHAS_ANUALES_FIJAS")
     dialog.combo_tipo_recurrencia.setCurrentIndex(indice_fechas_fijas)
-    dialog.campo_fechas_anuales_fijas.setText("")
+    dialog.campo_fechas_anuales_fijas.establecer_fechas_mm_dd([])
 
     with pytest.raises(ValueError, match="al menos una fecha"):
         dialog.guardar()
@@ -2814,7 +2817,8 @@ def test_obligacion_id_precarga_tipo_recurrencia_y_fechas_anuales_fijas(qtbot, m
     qtbot.addWidget(dialog)
 
     assert dialog.combo_tipo_recurrencia.currentData() == "FECHAS_ANUALES_FIJAS"
-    assert dialog.campo_fechas_anuales_fijas.text() == "06-15, 12-15, 03-23"
+    assert dialog.campo_fechas_anuales_fijas.fechas_mm_dd() == ["06-15", "12-15", "03-23"]
+    assert dialog.campo_fechas_anuales_fijas.lista.item(0).text().startswith("15/06")
 
 
 def test_reguardar_fechas_anuales_fijas_editada_no_las_revierte_a_mensual(qtbot, monkeypatch):
@@ -3344,3 +3348,356 @@ def test_liquidacion_contrato_laboral_sigue_guardando_puntual_sin_reajuste(qtbot
     assert guardada.categoria == "LIQUIDACION_CONTRATO_LABORAL"
     assert guardada.tipo_reajuste_anual == TipoReajusteAnual.NINGUNO
     session.close()
+
+
+# --- Sprint 84 (seguimiento): tope suspensivo por demanda contenciosa -------
+
+
+def _dialog_impuesto_tributario(qtbot, monkeypatch) -> tuple[ObligacionFormDialog, int]:
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.TRIBUTARIO)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="TRIBUTARIO")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.combo_categoria.setCurrentIndex(
+        dialog.combo_categoria.findData("IMPUESTO_A_CARGO")
+    )
+    dialog.campo_concepto.setText("Impuesto de renta 2022")
+    dialog.campo_valor.setText("10000000.00")
+    dialog.campo_fecha_origen.setDate(date(2022, 2, 1))
+    return dialog, expediente_id
+
+
+def test_campos_de_demanda_contenciosa_solo_visibles_con_la_casilla_marcada(qtbot, monkeypatch):
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    assert dialog.check_demanda_contenciosa.isVisible() is True
+    assert dialog.campo_fecha_admision_demanda.isVisible() is False
+    assert dialog.campo_fecha_notificacion_sentencia.isVisible() is False
+
+    dialog.check_demanda_contenciosa.setChecked(True)
+    assert dialog.campo_fecha_admision_demanda.isVisible() is True
+    assert dialog.campo_fecha_notificacion_sentencia.isVisible() is True
+    assert dialog.label_fecha_tope_24m.isVisible() is True
+    assert dialog.label_fecha_reanudacion_interes.isVisible() is True
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+    # Renta liquida es informativa (no es una deuda): no muestra la casilla.
+    dialog.combo_categoria.setCurrentIndex(dialog.combo_categoria.findData("RENTA_LIQUIDA"))
+    assert dialog.check_demanda_contenciosa.isVisible() is False
+    assert dialog.campo_fecha_admision_demanda.isVisible() is False
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+
+def test_casilla_de_demanda_contenciosa_no_aparece_fuera_de_tributario(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    assert dialog.check_demanda_contenciosa.isVisible() is False
+    assert dialog.campo_fecha_admision_demanda.isVisible() is False
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+
+def test_fechas_calculadas_tope_24m_y_reanudacion_se_muestran_en_vivo(qtbot, monkeypatch):
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 10))
+    # admision + 24 meses = 2024-03-05; notificacion + 11 dias = 2024-03-21.
+    assert "05/03/2024" in dialog.label_fecha_tope_24m.text()
+    assert "21/03/2024" in dialog.label_fecha_reanudacion_interes.text()
+
+
+def test_guarda_fechas_de_demanda_contenciosa_con_la_casilla_marcada(qtbot, monkeypatch):
+    dialog, expediente_id = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 10))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.fecha_admision_demanda == date(2022, 3, 5)
+    assert guardada.fecha_notificacion_sentencia == date(2024, 3, 10)
+    session.close()
+
+
+def test_sin_la_casilla_no_guarda_fechas_de_demanda(qtbot, monkeypatch):
+    dialog, expediente_id = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.fecha_admision_demanda is None
+    assert guardada.fecha_notificacion_sentencia is None
+    session.close()
+
+
+def test_notificacion_anterior_a_la_admision_se_rechaza_al_guardar(qtbot, monkeypatch):
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2024, 3, 10))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 1))
+
+    with pytest.raises(ValueError, match="anterior"):
+        dialog.guardar()
+
+
+def test_fecha_de_demanda_posterior_al_corte_se_rechaza_al_guardar(qtbot, monkeypatch):
+    # Corte del expediente de prueba: 2026-06-01.
+    dialog, _ = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2026, 7, 1))
+
+    with pytest.raises(ValueError, match="corte"):
+        dialog.guardar()
+
+
+def test_editar_obligacion_con_demanda_precarga_casilla_y_fechas(qtbot, monkeypatch):
+    dialog, expediente_id = _dialog_impuesto_tributario(qtbot, monkeypatch)
+    dialog.check_demanda_contenciosa.setChecked(True)
+    dialog.campo_fecha_admision_demanda.setDate(date(2022, 3, 5))
+    dialog.campo_fecha_notificacion_sentencia.setDate(date(2024, 3, 10))
+    obligacion_id = dialog.guardar()
+
+    editar = ObligacionFormDialog(
+        expediente_id=expediente_id, area="TRIBUTARIO", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(editar)
+    editar.show()
+    assert editar.check_demanda_contenciosa.isChecked() is True
+    assert editar.campo_fecha_admision_demanda.date().toPython() == date(2022, 3, 5)
+    assert editar.campo_fecha_notificacion_sentencia.date().toPython() == date(2024, 3, 10)
+    assert editar.campo_fecha_admision_demanda.isVisible() is True
+
+
+# --- Sprint 106: fecha del titulo ejecutivo como valor por defecto ---------
+
+
+def _expediente_con_titulo(monkeypatch, fecha_exigibilidad) -> int:
+    session = crear_sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-106",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
+        fecha_exigibilidad=fecha_exigibilidad,
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+    return expediente_id
+
+
+def test_obligacion_nueva_usa_la_exigibilidad_del_titulo_como_fecha_por_defecto(
+    qtbot, monkeypatch
+):
+    expediente_id = _expediente_con_titulo(monkeypatch, date(2021, 6, 1))
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_origen.date().toPython() == date(2021, 6, 1)
+    assert dialog.campo_fecha_inicio.date().toPython() == date(2021, 6, 1)
+
+
+def test_obligacion_nueva_sin_titulo_conserva_la_fecha_de_hoy(qtbot, monkeypatch):
+    expediente_id = _expediente_con_titulo(monkeypatch, None)
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="CIVIL_FAMILIA")
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_origen.date().toPython() == date.today()
+
+
+def test_editar_obligacion_no_sobrescribe_su_fecha_con_la_del_titulo(qtbot, monkeypatch):
+    expediente_id = _expediente_con_titulo(monkeypatch, date(2021, 6, 1))
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Gastos medicos",
+        categoria="DANO_EMERGENTE",
+        fecha_origen=date(2025, 11, 20),
+        valor=Decimal("1000.00"),
+        tasa_efectiva_anual=Decimal("6.00"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(
+        expediente_id=expediente_id, area="CIVIL_FAMILIA", obligacion_id=obligacion_id
+    )
+    qtbot.addWidget(dialog)
+
+    assert dialog.campo_fecha_origen.date().toPython() == date(2025, 11, 20)
+
+
+# --- Sprint 100: categoria "Fruto civil" (Civil/Familia) --------------------
+
+
+def _seleccionar_fruto_civil(dialog) -> None:
+    dialog.combo_categoria.setCurrentIndex(dialog.combo_categoria.findData("FRUTO_CIVIL"))
+
+
+def test_categoria_fruto_civil_muestra_sus_campos_y_oculta_tasa_y_tipo(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    # Antes de elegir la categoria: nada del fruto civil visible.
+    assert dialog.campo_fecha_referencia_canon.isVisible() is False
+    assert dialog.campo_gasto_conservacion.isVisible() is False
+    assert dialog.campo_fecha_fin.isVisible() is False
+
+    _seleccionar_fruto_civil(dialog)
+
+    assert dialog.campo_fecha_referencia_canon.isVisible() is True
+    assert dialog.campo_gasto_conservacion.isVisible() is True
+    assert dialog.campo_fecha_fin.isVisible() is True
+    assert dialog.combo_tipo.isVisible() is False
+    assert dialog.combo_tipo.currentData() == "PUNTUAL"
+    assert dialog.grupo_tasas_intereses.isVisible() is False
+    assert dialog.grupo_beneficiario.isVisible() is False
+    assert dialog.label_valor.text() == "Canon mensual del activo"
+    assert dialog.label_fecha_origen.text() == "Inicio del periodo de privación"
+    assert dialog.label_fecha_fin.text() == "Fin del periodo de privación"
+    assert dialog.label_nota_fruto_civil.isVisible() is True
+    assert "intereses" in dialog.label_nota_fruto_civil.text()
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+    # Volver a otra categoria restablece el formulario de siempre.
+    dialog.combo_categoria.setCurrentIndex(dialog.combo_categoria.findData("DANO_EMERGENTE"))
+    assert dialog.campo_fecha_referencia_canon.isVisible() is False
+    assert dialog.campo_gasto_conservacion.isVisible() is False
+    assert dialog.campo_fecha_fin.isVisible() is False
+    assert dialog.combo_tipo.isVisible() is True
+    assert dialog.grupo_tasas_intereses.isVisible() is True
+    assert dialog.grupo_beneficiario.isVisible() is True
+    assert dialog.label_valor.text() == "Valor"
+    assert dialog.label_fecha_origen.text() == "Fecha de origen (Puntual)"
+    assert dialog.label_nota_fruto_civil.isVisible() is False
+    assert _filas_con_etiqueta_huerfana(dialog.layout_datos_basicos) == []
+
+
+def test_categoria_fruto_civil_no_existe_fuera_de_civil_familia(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch, area=AreaDerecho.COMERCIAL)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, area="COMERCIAL")
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_categoria.findData("FRUTO_CIVIL") == -1
+
+
+def _llenar_fruto_civil(dialog) -> None:
+    _seleccionar_fruto_civil(dialog)
+    dialog.campo_concepto.setText("Frutos del apartamento 301")
+    dialog.campo_valor.setText("1000000.00")
+    dialog.campo_fecha_referencia_canon.setDate(date(2019, 1, 31))
+    dialog.campo_fecha_origen.setDate(date(2019, 2, 1))
+    dialog.campo_fecha_fin.setDate(date(2019, 4, 30))
+    dialog.campo_gasto_conservacion.setText("100000.00")
+
+
+def test_guarda_obligacion_fruto_civil(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    _llenar_fruto_civil(dialog)
+    # Aunque el usuario hubiera marcado la indexacion antes de elegir la
+    # categoria, el fruto civil se guarda sin ella (ya se indexa mes a mes).
+    dialog.check_aplica_indexacion_ipc.setChecked(True)
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.tipo == TipoObligacion.PUNTUAL
+    assert guardada.categoria == "FRUTO_CIVIL"
+    assert guardada.valor == Decimal("1000000.00")
+    assert guardada.fecha_origen == date(2019, 2, 1)
+    assert guardada.fecha_fin == date(2019, 4, 30)
+    assert guardada.fecha_referencia_canon == date(2019, 1, 31)
+    assert guardada.gasto_conservacion_mensual == Decimal("100000.00")
+    assert guardada.tasa_efectiva_anual == Decimal("0")
+    assert guardada.aplica_indexacion_ipc is False
+    assert guardada.interes_sobre_capital_indexado is False
+    session.close()
+
+
+def test_guarda_fruto_civil_sin_gasto_de_conservacion_queda_en_none(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    _llenar_fruto_civil(dialog)
+    dialog.campo_gasto_conservacion.setText("")
+
+    dialog.guardar()
+
+    session = session_module.get_session()
+    guardada = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    assert guardada.gasto_conservacion_mensual is None
+    session.close()
+
+
+def test_fruto_civil_fecha_final_anterior_a_la_inicial_lanza_error(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    _llenar_fruto_civil(dialog)
+    dialog.campo_fecha_fin.setDate(date(2019, 1, 31))
+
+    with pytest.raises(ValueError, match="anterior"):
+        dialog.guardar()
+
+
+@pytest.mark.parametrize("gasto", ["-1", "abc"])
+def test_fruto_civil_gasto_de_conservacion_invalido_lanza_error(qtbot, monkeypatch, gasto):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    dialog = ObligacionFormDialog(expediente_id=expediente_id)
+    qtbot.addWidget(dialog)
+    _llenar_fruto_civil(dialog)
+    dialog.campo_gasto_conservacion.setText(gasto)
+
+    with pytest.raises(ValueError, match="conservaci"):
+        dialog.guardar()
+
+
+def test_editar_fruto_civil_precarga_sus_campos(qtbot, monkeypatch):
+    expediente_id = _expediente_de_prueba(monkeypatch)
+    session = session_module.get_session()
+    obligacion = Obligacion(
+        expediente_id=expediente_id,
+        tipo=TipoObligacion.PUNTUAL,
+        concepto="Frutos del apartamento 301",
+        categoria="FRUTO_CIVIL",
+        fecha_origen=date(2019, 2, 1),
+        fecha_fin=date(2019, 4, 30),
+        fecha_referencia_canon=date(2019, 1, 31),
+        gasto_conservacion_mensual=Decimal("100000.00"),
+        valor=Decimal("1000000.00"),
+        tasa_efectiva_anual=Decimal("0"),
+    )
+    session.add(obligacion)
+    session.commit()
+    obligacion_id = obligacion.id
+    session.close()
+
+    dialog = ObligacionFormDialog(expediente_id=expediente_id, obligacion_id=obligacion_id)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    assert dialog.combo_categoria.currentData() == "FRUTO_CIVIL"
+    assert dialog.campo_valor.text() == "1000000.00"
+    assert dialog.campo_fecha_origen.date().toPython() == date(2019, 2, 1)
+    assert dialog.campo_fecha_fin.date().toPython() == date(2019, 4, 30)
+    assert dialog.campo_fecha_referencia_canon.date().toPython() == date(2019, 1, 31)
+    assert Decimal(dialog.campo_gasto_conservacion.text()) == Decimal("100000.00")
+    assert dialog.campo_fecha_referencia_canon.isVisible() is True

@@ -8,6 +8,11 @@ CATEGORIAS_CIVIL_FAMILIA = [
     ("CAPITAL_PAGARE", "Capital de pagare"),
     ("CLOTHING", "Gastos de vestuario"),
     ("MULTA", "Multa"),
+    # FRUTO_CIVIL (Sprint 100): beneficio dejado de percibir como fruto civil
+    # (Art. 964 C.C.). No es un capital plano: CivilFamiliaStrategy lo liquida
+    # mes a mes con app/engine/civil/fruto_civil.py y NO le causa intereses
+    # (ver CivilFamiliaStrategy._eventos_fruto_civil).
+    ("FRUTO_CIVIL", "Fruto civil (beneficio dejado de percibir)"),
 ]
 # Nota: esta lista debe reflejar un subconjunto de
 # app.engine.liquidation.engine.LiquidationCore._capital_concepts pertinente
@@ -42,7 +47,8 @@ CATEGORIAS_LABORAL = [
 # Nota: a diferencia de CATEGORIAS_CIVIL_FAMILIA/CATEGORIAS_COMERCIAL, esta
 # categoria es solo una etiqueta de UI -- el event_type real de cada linea de
 # la liquidacion (CESANTIAS, INTERESES_CESANTIAS, PRIMA_JUNIO, PRIMA_DICIEMBRE,
-# VACACIONES, SANCION_MORATORIA, INDEMNIZACION_DESPIDO, SALARIO_DEJADO_DE_PERCIBIR)
+# VACACIONES, SANCION_MORATORIA, INDEMNIZACION_DESPIDO, SALARIO_DEJADO_DE_PERCIBIR,
+# HORAS_EXTRA -- Sprint 95, desde la tabla horas_extra_laborales, no una categoria)
 # lo define LaborScheduler/MoratoryIndemnityCalculator/DismissalIndemnityCalculator/
 # generar_eventos_salarios_dejados_de_percibir internamente en
 # app/services/area_strategy.py y app/services/salarios_dejados_de_percibir.py,

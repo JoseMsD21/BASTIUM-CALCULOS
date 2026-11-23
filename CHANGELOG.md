@@ -145,9 +145,22 @@ solo las mejoras que no cambian ninguna cifra (precisión decimal en todos los h
 despacho. Tablero Kanban del equipo en GitHub Projects y plan en `docs/PLAN_INTEGRACION_NOVIEMBRE.md`.
 Sprint 119 (2026-11-19): respuestas del despacho del 16/11/2026 procesadas: 18 preguntas pasan a Respondidas, 4
 repreguntas con su porqué, y 6 implementaciones integradas (Sprints 76, 79, 95, 96, 70/91 y 110). Suite: 1776
-pruebas en verde.
+pruebas en verde. Sprint 120 (2026-11-22): 8 PRs más (#50-#57): Tributario proporcional y tope suspensivo, vista
+"Ver con/sin indexación", tipo de proceso y título ejecutivo en el expediente, formato dd/mm/aaaa en toda la UI, y
+los motores de cálculo actuarial, retroactivo pensional, contrato realidad y fruto civil (aún sin pantalla).
+Suite: 1965 pruebas en verde.
 
 ### Added
+- Vista de sensibilidad "Ver con/sin indexación" en el resultado de la liquidación (Sprint 107): recalcula en
+  memoria sin tocar la base de datos ni el historial de auditoría; aviso visible y exportación bloqueada.
+- Tipo de proceso del catálogo del despacho en el expediente (Sprint 105): 6 ramas y 13 tipos, combo filtrado por
+  área con la pregunta orientadora como ayuda; columna `expedientes.tipo_proceso` con migración automática.
+- Datos del título ejecutivo en el expediente (Sprint 106): tipo, número, fechas de expedición, ejecutoria y
+  exigibilidad, primera copia y término de prescripción, con fecha límite calculada; 7 columnas con migración.
+- Tributario (Sprint 84): imputación proporcional de abonos (Art. 804 E.T.) y tope suspensivo del interés por
+  demanda ante lo contencioso administrativo (admisión + 24 meses a notificación + 11 días), con 2 columnas nuevas.
+- Motores de cálculo sin pantalla todavía: actuarial del Decreto 1296/2022 (Sprints 86/87), retroactivo pensional
+  con mora Art. 141 (Sprint 85), contrato realidad privado y público (Sprint 94) y fruto civil (Sprint 100).
 - Factores de horas extra por tramo de la Ley 2466/2025 (Sprint 95): HED 1,25, HEN 1,75 y HEFD/HEFN 2,05/2,55
   (desde 1-jul-2025), 2,15/2,65 (1-jul-2026) y 2,25/2,75 (1-jul-2027), en `app/engine/labor/horas_extra.py`.
   Todavía no está conectado al formulario Laboral.
@@ -481,6 +494,9 @@ pruebas en verde.
   Sprint 50.
 
 ### Changed
+- Formato de fecha único dd/mm/aaaa en toda la interfaz (Sprint 106), independiente de la configuración regional,
+  con prueba de guardia; las fechas anuales fijas de una obligación recurrente pasan de texto libre a un selector
+  de día y mes (el formato guardado no cambia).
 - **Interés civil con fórmula lineal** (Sprint 76, respuesta del despacho): el 6 % del Art. 1617/2232 C.C. y
   las tasas pactadas sin capitalización (Civil/Familia, Honorarios, Comercial modo IPC + civil) se convierten a
   diaria con `tasa_anual / 365` en vez de la efectiva compuesta. Cambia el interés de esas liquidaciones (p. ej.

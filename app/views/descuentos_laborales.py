@@ -1,11 +1,9 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from PySide6.QtCore import QDate
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDateEdit,
     QFormLayout,
     QLineEdit,
     QMessageBox,
@@ -13,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 import database.session as session_module
+from app.views.fecha_widgets import crear_campo_fecha
 from app.views.form_utils import FormDialogBase, hacer_redimensionable
 from app.views.icons import icon
 from database.models import DescuentoLaboral, Obligacion
@@ -32,7 +31,7 @@ class DescuentoLaboralFormDialog(FormDialogBase):
         self.setWindowTitle("Agregar descuento del empleador")
         self._obligacion_id = obligacion_id
 
-        self.campo_fecha = QDateEdit(QDate.currentDate())
+        self.campo_fecha = crear_campo_fecha()
         self.campo_fecha.setCalendarPopup(True)
         self.campo_monto = QLineEdit()
         self.check_es_legal = QCheckBox("Descuento legal (autorizado)")

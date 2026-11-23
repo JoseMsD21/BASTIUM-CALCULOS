@@ -6,7 +6,6 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDateEdit,
     QFormLayout,
     QGridLayout,
     QGroupBox,
@@ -32,6 +31,10 @@ from app.core.constants import (
 from app.engine.indexation.historical_index import get_smlmv_for_year
 from app.engine.indexation.smlmv_to_uvt import FECHA_CORTE_SMLMV_A_UVT
 from app.engine.labor.salario_domestico import salario_diario_a_mensual
+from app.engine.tax.tope_suspensivo import (
+    calcular_fecha_reanudacion_interes,
+    calcular_fecha_tope_24m,
+)
 from app.services.areas_parametro import opciones_tipo_accion_proceso_por_area
 from app.services.recurrencia_fechas_fijas import (
     deserializar_fechas_anuales,
@@ -40,6 +43,11 @@ from app.services.recurrencia_fechas_fijas import (
 from app.services.vigencia_alimentos import (
     calcular_vigencia_alimentos,
     validar_fecha_corte_beneficiario_obligatoria,
+)
+from app.views.fecha_widgets import (
+    SelectorFechasAnuales,
+    crear_campo_fecha,
+    formatear_fecha,
 )
 from app.views.form_utils import (
     FormDialogBase,
@@ -88,6 +96,12 @@ class ObligacionFormDialog(FormDialogBase):
         # sobreescribe; el resto de areas que pasan por guardar() (Civil/Familia,
         # Sancionatorio, Honorarios) la dejan en False -- no tienen el checkbox.
         "pacto_expreso_indexacion": False,
+        # fecha_referencia_canon/gasto_conservacion_mensual (Sprint 100): solo
+        # los llena guardar() cuando la categoria es FRUTO_CIVIL (Civil/Familia);
+        # en cualquier otro caso quedan en None (tambien al cambiar de
+        # categoria una obligacion que antes era fruto civil).
+        "fecha_referencia_canon": None,
+        "gasto_conservacion_mensual": None,
     }
 
     def __init__(
@@ -149,17 +163,17 @@ class ObligacionFormDialog(FormDialogBase):
             "Tasa de interes pactada o aplicable, en porcentaje efectivo anual (%EA)."
         )
 
-        self.campo_fecha_origen = QDateEdit(QDate.currentDate())
+        self.campo_fecha_origen = crear_campo_fecha()
         self.campo_fecha_origen.setCalendarPopup(True)
         self.campo_fecha_origen.setToolTip(
             "Fecha en que se causo la obligacion puntual (ej. la fecha de la factura o "
             "del hecho dañoso). Los intereses se calculan desde este dia."
         )
 
-        self.campo_fecha_inicio = QDateEdit(QDate.currentDate())
+        self.campo_fecha_inicio = crear_campo_fecha()
         self.campo_fecha_inicio.setCalendarPopup(True)
         self.campo_fecha_inicio.setToolTip(
-            "Fecha del primer pago periodico. Ejemplo: 2024-01-05 si la primera cuota "
+            "Fecha del primer pago periodico. Ejemplo: 05/01/2024 si la primera cuota "
             "alimentaria vence ese dia."
         )
         self.campo_dia_pago = QSpinBox()
@@ -218,18 +232,20 @@ class ObligacionFormDialog(FormDialogBase):
         )
         self.combo_tipo_recurrencia.setToolTip(
             "Mensual: una cuota cada mes (cuota alimentaria tipica). Fechas anuales fijas: "
-            "solo se causan obligaciones en las fechas MM-DD indicadas abajo, no una cuota "
+            "solo se causan obligaciones en las fechas (dia/mes) indicadas abajo, no una cuota "
             "mensual -- util para gastos que se repiten cada año en fechas concretas (ej. "
             "gastos de vestuario en junio, diciembre y el cumpleaños del beneficiario)."
         )
-        self.campo_fechas_anuales_fijas = QLineEdit()
-        self.campo_fechas_anuales_fijas.setPlaceholderText("06-15, 12-15, 03-22")
+        # Sprint 106: widget estructurado Dia/Mes en vez del texto libre "MM-DD"
+        # del Sprint 73 (respuesta del despacho: el texto libre es inviable). El
+        # formato guardado no cambia -- ver app/views/fecha_widgets.py.
+        self.campo_fechas_anuales_fijas = SelectorFechasAnuales()
         self.campo_fechas_anuales_fijas.setToolTip(
-            "Lista de fechas fijas por año en formato MM-DD, separadas por comas (ej. "
-            "'06-15, 12-15, 03-22' para gastos de vestuario en junio, diciembre y el "
-            "cumpleaños del beneficiario). El cumpleaños se ingresa aqui a mano -- todavia "
-            "no se deriva automaticamente de una fecha de nacimiento de beneficiario "
-            "(Sprint 74, no implementado)."
+            "Fechas fijas de cada año (dia y mes), ej. 15 de junio, 15 de diciembre y el "
+            "cumpleaños del beneficiario. Elija dia y mes y pulse 'Agregar'. El 29 de "
+            "febrero se acepta: en los años no bisiestos la cuota se causa el 28 de "
+            "febrero. El cumpleaños se ingresa aqui a mano -- no se deriva "
+            "automaticamente de la fecha de nacimiento del beneficiario."
         )
 
         # Beneficiario (Sprint 74): captura opcional (grupo_beneficiario mas
@@ -262,7 +278,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.campo_nombre_beneficiario.setToolTip(
             "Nombre completo de quien recibe los alimentos."
         )
-        self.campo_fecha_nacimiento_beneficiario = QDateEdit(QDate.currentDate())
+        self.campo_fecha_nacimiento_beneficiario = crear_campo_fecha()
         self.campo_fecha_nacimiento_beneficiario.setCalendarPopup(True)
         self.campo_fecha_nacimiento_beneficiario.setToolTip(
             "Fecha de nacimiento del beneficiario -- el sistema calcula su edad "
@@ -318,7 +334,7 @@ class ObligacionFormDialog(FormDialogBase):
             "sistema no puede calcular esta fecha por si solo, la debe "
             "proporcionar el usuario segun la decision de la autoridad."
         )
-        self.campo_fecha_corte_beneficiario = QDateEdit(QDate.currentDate())
+        self.campo_fecha_corte_beneficiario = crear_campo_fecha()
         self.campo_fecha_corte_beneficiario.setCalendarPopup(True)
         self.campo_fecha_corte_beneficiario.setEnabled(False)
         self.campo_fecha_corte_beneficiario.setToolTip(
@@ -335,7 +351,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Tasa de interes que se cobra automaticamente despues del vencimiento (mora), "
             "en porcentaje efectivo anual."
         )
-        self.campo_fecha_vencimiento = QDateEdit(QDate.currentDate())
+        self.campo_fecha_vencimiento = crear_campo_fecha()
         self.campo_fecha_vencimiento.setCalendarPopup(True)
         self.campo_fecha_vencimiento.setToolTip(
             "Fecha pactada de pago de la obligacion comercial; despues de esta fecha se "
@@ -358,7 +374,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Marca si existe un acuerdo posterior a la demanda que autoriza capitalizar "
             "intereses sobre intereses (anatocismo convencional, Art. 886 C.Co.)."
         )
-        self.campo_anatocismo_fecha_acuerdo = QDateEdit(QDate.currentDate())
+        self.campo_anatocismo_fecha_acuerdo = crear_campo_fecha()
         self.campo_anatocismo_fecha_acuerdo.setCalendarPopup(True)
         self.campo_anatocismo_fecha_acuerdo.setToolTip(
             "Fecha del acuerdo posterior que autoriza el anatocismo; desde esa fecha "
@@ -376,7 +392,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.campo_trm_aplicable.setToolTip(
             "Tasa Representativa del Mercado (COP por USD) aplicable en la fecha de referencia."
         )
-        self.campo_trm_fecha_referencia = QDateEdit(QDate.currentDate())
+        self.campo_trm_fecha_referencia = crear_campo_fecha()
         self.campo_trm_fecha_referencia.setCalendarPopup(True)
         self.campo_trm_fecha_referencia.setToolTip(
             "Fecha de la TRM certificada por el Banco de la Republica que se usa para la "
@@ -397,7 +413,7 @@ class ObligacionFormDialog(FormDialogBase):
         self.label_unidad_smlmv_uvt = QLabel()
         self.label_unidad_smlmv_uvt.setToolTip(
             "Segun la fecha de origen, la cantidad de arriba se interpreta como SMLMV "
-            "(antes del 2020-01-01) o como UVT (desde esa fecha), segun la Ley 1955 de "
+            "(antes del 01/01/2020) o como UVT (desde esa fecha), segun la Ley 1955 de "
             "2019, art. 49."
         )
 
@@ -462,6 +478,42 @@ class ObligacionFormDialog(FormDialogBase):
             "aplicar ADEMAS la indexacion IPC del Art. 867-1 E.T. sobre el mismo capital "
             "(evita doble cobro)."
         )
+        # Tope suspensivo por demanda contenciosa (Sprint 84 seguimiento, solo
+        # Tributario). El despacho pidio los 4 campos como "obligatorios en el
+        # formulario"; se interpretan como obligatorios SOLO cuando hay demanda
+        # (esta casilla marcada): una obligacion tributaria sin demanda no tiene
+        # fecha de admision ni de sentencia. fecha_tope_24m y
+        # fecha_reanudacion_interes se calculan (etiquetas de solo lectura), no
+        # se capturan -- ver app/engine/tax/tope_suspensivo.py.
+        self.check_demanda_contenciosa = QCheckBox(
+            "Hay demanda ante lo contencioso administrativo"
+        )
+        self.check_demanda_contenciosa.setToolTip(
+            "Marca si la obligacion esta en discusion ante lo contencioso "
+            "administrativo: a los 24 meses de admitida la demanda el interes "
+            "moratorio deja de causarse hasta 11 dias despues de notificada la "
+            "sentencia."
+        )
+        self.campo_fecha_admision_demanda = crear_campo_fecha()
+        self.campo_fecha_admision_demanda.setCalendarPopup(True)
+        self.campo_fecha_admision_demanda.setToolTip(
+            "Fecha del auto que admitio la demanda ante lo contencioso administrativo."
+        )
+        self.label_fecha_tope_24m = QLabel()
+        self.label_fecha_tope_24m.setToolTip(
+            "Calculada: fecha de admision de la demanda + 24 meses. Desde el dia "
+            "siguiente deja de causarse el interes moratorio."
+        )
+        self.campo_fecha_notificacion_sentencia = crear_campo_fecha()
+        self.campo_fecha_notificacion_sentencia.setCalendarPopup(True)
+        self.campo_fecha_notificacion_sentencia.setToolTip(
+            "Fecha de notificacion de la sentencia que resolvio la demanda."
+        )
+        self.label_fecha_reanudacion_interes = QLabel()
+        self.label_fecha_reanudacion_interes.setToolTip(
+            "Calculada: fecha de notificacion de la sentencia + 11 dias. Desde ese dia "
+            "el interes moratorio vuelve a causarse."
+        )
 
         self.campo_base_sancion = QLineEdit()
         self.campo_base_sancion.setToolTip(
@@ -507,12 +559,36 @@ class ObligacionFormDialog(FormDialogBase):
             "Rentas exentas del periodo, si aplica. Ejemplo: $1.000.000."
         )
 
-        self.campo_fecha_fin = QDateEdit(QDate.currentDate())
+        self.campo_fecha_fin = crear_campo_fecha()
         self.campo_fecha_fin.setCalendarPopup(True)
         self.campo_fecha_fin.setToolTip(
             "Fecha en que termino la relacion laboral; se usa para liquidar "
             "prestaciones sociales hasta ese dia."
         )
+        # Fruto civil (Sprint 100, categoria FRUTO_CIVIL de Civil/Familia):
+        # beneficio dejado de percibir, Art. 964 C.C., liquidado con
+        # app/engine/civil/fruto_civil.py. Reutiliza "Valor" como canon mensual,
+        # "Fecha de origen" como inicio del periodo de privacion y
+        # campo_fecha_fin como su final -- ver _actualizar_campos_visibles.
+        self.campo_fecha_referencia_canon = crear_campo_fecha()
+        self.campo_fecha_referencia_canon.setCalendarPopup(True)
+        self.campo_fecha_referencia_canon.setToolTip(
+            "Fecha a cuyos precios esta expresado el canon mensual (ej. la fecha del "
+            "dictamen pericial del canon de arrendamiento de mercado). El canon de cada "
+            "mes del periodo se indexa por IPC desde esta fecha."
+        )
+        self.campo_gasto_conservacion = QLineEdit()
+        self.campo_gasto_conservacion.setToolTip(
+            "Gasto ordinario de conservacion del activo por mes (Art. 964 C.C.), que se "
+            "descuenta del canon de cada mes (prorrateado en meses incompletos). Opcional: "
+            "dejar vacio si no hay."
+        )
+        self.label_nota_fruto_civil = QLabel(
+            "El fruto civil se liquida mes a mes (canon indexado por IPC menos gastos de "
+            "conservación) y se suma sin intereses: el despacho no ha confirmado que genere "
+            "intereses después de causado."
+        )
+        self.label_nota_fruto_civil.setWordWrap(True)
         # es_smmlv (Sprint 44, punto 1): cuando esta marcado, el salario base se
         # resuelve automaticamente desde el SMLMV vigente del año de inicio del
         # contrato (LaboralStrategy.liquidar) -- "Valor" deja de ser editable a
@@ -546,7 +622,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Marca si el empleador ya pago las prestaciones sociales liquidadas; "
             "habilita 'Fecha de pago real' para calcular intereses solo hasta esa fecha."
         )
-        self.campo_fecha_pago_total = QDateEdit(QDate.currentDate())
+        self.campo_fecha_pago_total = crear_campo_fecha()
         self.campo_fecha_pago_total.setCalendarPopup(True)
         self.campo_fecha_pago_total.setToolTip(
             "Fecha en que el empleador realmente pago las prestaciones sociales "
@@ -586,7 +662,7 @@ class ObligacionFormDialog(FormDialogBase):
             "justa causa comprobada -- agrega el evento de indemnizacion por despido "
             "injustificado, independiente de la indemnizacion moratoria (Art. 65 CST)."
         )
-        self.campo_fecha_fin_pactada = QDateEdit(QDate.currentDate())
+        self.campo_fecha_fin_pactada = crear_campo_fecha()
         self.campo_fecha_fin_pactada.setCalendarPopup(True)
         self.campo_fecha_fin_pactada.setToolTip(
             "Solo para contrato a termino fijo/obra-labor: fecha en que se pacto que "
@@ -680,6 +756,10 @@ class ObligacionFormDialog(FormDialogBase):
         self.layout_datos_basicos.addRow("Categoria", self.combo_categoria)
         self.layout_datos_basicos.addRow("Concepto", self._contenedor_campo_concepto)
         self.layout_datos_basicos.addRow("Valor", self._contenedor_campo_valor)
+        self.label_valor = self.layout_datos_basicos.labelForField(self._contenedor_campo_valor)
+        self.layout_datos_basicos.addRow(
+            "Fecha de referencia del canon", self.campo_fecha_referencia_canon
+        )
         self.layout_datos_basicos.addRow(self.check_es_smmlv)
         self.layout_datos_basicos.addRow(self.check_salario_diario)
         self.layout_datos_basicos.addRow("Salario diario", self.campo_salario_diario)
@@ -700,7 +780,7 @@ class ObligacionFormDialog(FormDialogBase):
             "Tipo de recurrencia (Recurrente, Civil/Familia)", self.combo_tipo_recurrencia
         )
         self.layout_datos_basicos.addRow(
-            "Fechas anuales fijas MM-DD (Fechas anuales fijas)",
+            "Fechas anuales fijas, día/mes (Fechas anuales fijas)",
             self.campo_fechas_anuales_fijas,
         )
         self.layout_datos_basicos.addRow(
@@ -729,6 +809,10 @@ class ObligacionFormDialog(FormDialogBase):
         )
         self.layout_datos_basicos.addRow("Fecha de terminacion de contrato", self.campo_fecha_fin)
         self.label_fecha_fin = self.layout_datos_basicos.labelForField(self.campo_fecha_fin)
+        self.layout_datos_basicos.addRow(
+            "Gasto de conservación mensual (opcional)", self.campo_gasto_conservacion
+        )
+        self.layout_datos_basicos.addRow(self.label_nota_fruto_civil)
         self.layout_datos_basicos.addRow(self.check_pagada)
         self.layout_datos_basicos.addRow("Fecha de pago real", self.campo_fecha_pago_total)
         self.layout_datos_basicos.addRow(self.check_incluir_seguridad_social)
@@ -762,6 +846,19 @@ class ObligacionFormDialog(FormDialogBase):
         # art. 635, nunca se pacta"), asi que un checkbox de Tributario ahi nunca
         # llegaria a mostrarse.
         self.layout_datos_basicos.addRow(self.check_protegida_inflacion_uvr)
+        self.layout_datos_basicos.addRow(self.check_demanda_contenciosa)
+        self.layout_datos_basicos.addRow(
+            "Fecha de admision de la demanda", self.campo_fecha_admision_demanda
+        )
+        self.layout_datos_basicos.addRow(
+            "Fecha tope 24 meses (calculada)", self.label_fecha_tope_24m
+        )
+        self.layout_datos_basicos.addRow(
+            "Fecha de notificacion de la sentencia", self.campo_fecha_notificacion_sentencia
+        )
+        self.layout_datos_basicos.addRow(
+            "Reanudacion del interes (calculada)", self.label_fecha_reanudacion_interes
+        )
 
         self.layout_honorarios_costas.addRow(
             "Honorarios fijos pactados", self.campo_honorarios_fijos
@@ -878,6 +975,8 @@ class ObligacionFormDialog(FormDialogBase):
                 and not es_tributario,
                 self.combo_tipo: not es_laboral and not es_tributario,
                 self.campo_fecha_fin: es_laboral,
+                self.campo_fecha_referencia_canon: False,
+                self.campo_gasto_conservacion: False,
                 self.combo_nivel_riesgo_arl: False,
                 self.combo_tipo_contrato_laboral: False,
                 self.campo_fecha_fin_pactada: False,
@@ -888,6 +987,12 @@ class ObligacionFormDialog(FormDialogBase):
                 self.campo_costos: False,
                 self.campo_deducciones: False,
                 self.campo_rentas_exentas: False,
+                # Sprint 84 (seguimiento): ocultos por defecto en toda area;
+                # _actualizar_campos_tributario los muestra en Tributario.
+                self.campo_fecha_admision_demanda: False,
+                self.label_fecha_tope_24m: False,
+                self.campo_fecha_notificacion_sentencia: False,
+                self.label_fecha_reanudacion_interes: False,
             },
         )
         self._aplicar_visibilidad_filas(
@@ -928,12 +1033,14 @@ class ObligacionFormDialog(FormDialogBase):
         self.check_interes_sobre_capital_indexado.setVisible(self._area == "CIVIL_FAMILIA")
         self.check_pacto_expreso_indexacion.setVisible(es_comercial)
         self.check_protegida_inflacion_uvr.setVisible(es_tributario)
+        self.check_demanda_contenciosa.setVisible(es_tributario)
         self.check_es_smmlv.setVisible(es_laboral)
         self.check_salario_diario.setVisible(es_laboral)
         self.check_pagada.setVisible(es_laboral)
         self.check_incluir_seguridad_social.setVisible(es_laboral)
         self.check_despido_injustificado.setVisible(es_laboral)
         self.check_sancion_agravada.setVisible(False)
+        self.label_nota_fruto_civil.setVisible(False)
 
         # Secciones enteras que no aplican al area elegida quedan completamente
         # ocultas (Sprint 34) en vez de mostrar un grupo con todos sus campos
@@ -977,6 +1084,13 @@ class ObligacionFormDialog(FormDialogBase):
         self.check_anatocismo_acuerdo.stateChanged.connect(self._actualizar_campos_visibles)
         self.combo_moneda.currentIndexChanged.connect(self._actualizar_visibilidad_trm)
         self.combo_categoria.currentIndexChanged.connect(self._actualizar_campos_tributario)
+        self.check_demanda_contenciosa.stateChanged.connect(self._actualizar_campos_tributario)
+        self.campo_fecha_admision_demanda.dateChanged.connect(
+            self._actualizar_fechas_calculadas_demanda
+        )
+        self.campo_fecha_notificacion_sentencia.dateChanged.connect(
+            self._actualizar_fechas_calculadas_demanda
+        )
         # Sprint 93: la categoria SALARIOS_DEJADOS_DE_PERCIBIR (unica categoria
         # de Laboral que muestra el reajuste anual/oculta despido injustificado
         # y seguridad social) se elige con el mismo combo_categoria -- sin este
@@ -1018,6 +1132,26 @@ class ObligacionFormDialog(FormDialogBase):
 
         if obligacion_id is not None:
             self._precargar_desde_obligacion(obligacion_id)
+        else:
+            self._precargar_fecha_desde_titulo_ejecutivo()
+
+    def _precargar_fecha_desde_titulo_ejecutivo(self) -> None:
+        """Sprint 106: la fecha del titulo ejecutivo se captura una sola vez en
+        el expediente; una obligacion NUEVA arranca con su fecha de
+        exigibilidad como fecha de origen/inicio por defecto (editable), en vez
+        de la fecha de hoy. Si el expediente no la tiene, no cambia nada. No se
+        aplica al editar una obligacion ya guardada."""
+        session = session_module.get_session()
+        try:
+            expediente = session.get(Expediente, self._expediente_id)
+            fecha = expediente.fecha_exigibilidad if expediente is not None else None
+        finally:
+            session.close()
+        if fecha is None:
+            return
+        qdate = QDate(fecha.year, fecha.month, fecha.day)
+        self.campo_fecha_origen.setDate(qdate)
+        self.campo_fecha_inicio.setDate(qdate)
 
     def _precargar_desde_obligacion(self, obligacion_id: int) -> None:
         """Precarga todos los campos del formulario desde una `Obligacion` ya
@@ -1082,11 +1216,20 @@ class ObligacionFormDialog(FormDialogBase):
                 if indice_recurrencia >= 0:
                     self.combo_tipo_recurrencia.setCurrentIndex(indice_recurrencia)
                 if obligacion.fechas_anuales_fijas:
-                    self.campo_fechas_anuales_fijas.setText(
-                        ", ".join(deserializar_fechas_anuales(obligacion.fechas_anuales_fijas))
+                    self.campo_fechas_anuales_fijas.establecer_fechas_mm_dd(
+                        deserializar_fechas_anuales(obligacion.fechas_anuales_fijas)
                     )
             else:
                 self.campo_fecha_origen.setDate(_qdate(obligacion.fecha_origen))
+                if obligacion.categoria == "FRUTO_CIVIL":
+                    self.campo_fecha_fin.setDate(_qdate(obligacion.fecha_fin))
+                    self.campo_fecha_referencia_canon.setDate(
+                        _qdate(obligacion.fecha_referencia_canon)
+                    )
+                    if obligacion.gasto_conservacion_mensual is not None:
+                        self.campo_gasto_conservacion.setText(
+                            str(obligacion.gasto_conservacion_mensual)
+                        )
 
             self.check_aplica_indexacion_ipc.setChecked(obligacion.aplica_indexacion_ipc)
             self.check_interes_sobre_capital_indexado.setChecked(
@@ -1200,6 +1343,17 @@ class ObligacionFormDialog(FormDialogBase):
                 if obligacion.rentas_exentas is not None:
                     self.campo_rentas_exentas.setText(str(obligacion.rentas_exentas))
                 self.check_protegida_inflacion_uvr.setChecked(obligacion.protegida_inflacion_uvr)
+                # Sprint 84 (seguimiento): la casilla no se guarda, se deduce de
+                # que haya fecha de admision de la demanda.
+                if obligacion.fecha_admision_demanda is not None:
+                    self.check_demanda_contenciosa.setChecked(True)
+                    self.campo_fecha_admision_demanda.setDate(
+                        _qdate(obligacion.fecha_admision_demanda)
+                    )
+                    if obligacion.fecha_notificacion_sentencia is not None:
+                        self.campo_fecha_notificacion_sentencia.setDate(
+                            _qdate(obligacion.fecha_notificacion_sentencia)
+                        )
 
             # Beneficiario (Sprint 74): precarga si esta obligacion ya tiene uno
             # persistido -- fuera del elif de arriba, aplica a cualquier area
@@ -1259,12 +1413,14 @@ class ObligacionFormDialog(FormDialogBase):
             self.combo_categoria,
             self.campo_concepto,
             self.campo_valor,
+            self.campo_fecha_referencia_canon,
             self.campo_fecha_origen,
             self.campo_fecha_inicio,
             self.campo_dia_pago,
             self.combo_tipo_reajuste_anual,
             self.combo_tipo_recurrencia,
-            self.campo_fechas_anuales_fijas,
+            # Sprint 106: widget compuesto -- se encadenan sus controles internos.
+            *self.campo_fechas_anuales_fijas.widgets_en_orden_de_tabulacion(),
             self.campo_cantidad_smlmv_uvt,
             self.campo_base_sancion,
             self.campo_meses_extemporaneidad,
@@ -1275,6 +1431,7 @@ class ObligacionFormDialog(FormDialogBase):
             self.campo_deducciones,
             self.campo_rentas_exentas,
             self.campo_fecha_fin,
+            self.campo_gasto_conservacion,
             self.check_pagada,
             self.campo_fecha_pago_total,
             self.check_incluir_seguridad_social,
@@ -1296,6 +1453,9 @@ class ObligacionFormDialog(FormDialogBase):
             self.check_interes_sobre_capital_indexado,
             self.check_pacto_expreso_indexacion,
             self.check_protegida_inflacion_uvr,
+            self.check_demanda_contenciosa,
+            self.campo_fecha_admision_demanda,
+            self.campo_fecha_notificacion_sentencia,
             self.campo_honorarios_fijos,
             self.campo_cuota_litis_pct,
             self.campo_beneficio_obtenido,
@@ -1367,6 +1527,36 @@ class ObligacionFormDialog(FormDialogBase):
         # addRow(check_sancion_agravada) es de un solo argumento -- sin etiqueta
         # separada, no sufre el bug de fila huerfana (Sprint 39).
         self.check_sancion_agravada.setVisible(es_inexactitud)
+
+        # Tope suspensivo (Sprint 84 seguimiento): toda obligacion que es deuda
+        # (impuesto o sancion) puede estar en demanda; RENTA_LIQUIDA es informativa.
+        self.check_demanda_contenciosa.setVisible(not es_renta_liquida)
+        con_demanda = not es_renta_liquida and self.check_demanda_contenciosa.isChecked()
+        self._aplicar_visibilidad_filas(
+            self.layout_datos_basicos,
+            {
+                self.campo_fecha_admision_demanda: con_demanda,
+                self.label_fecha_tope_24m: con_demanda,
+                self.campo_fecha_notificacion_sentencia: con_demanda,
+                self.label_fecha_reanudacion_interes: con_demanda,
+            },
+        )
+        self._actualizar_fechas_calculadas_demanda()
+
+    @staticmethod
+    def _qdate_a_date(qdate: QDate) -> date:
+        return date(qdate.year(), qdate.month(), qdate.day())
+
+    def _actualizar_fechas_calculadas_demanda(self) -> None:
+        """Muestra en vivo fecha_tope_24m (admision + 24 meses) y
+        fecha_reanudacion_interes (notificacion + 11 dias) -- Sprint 84
+        (seguimiento). Solo lectura: se recalculan siempre en el motor."""
+        admision = self._qdate_a_date(self.campo_fecha_admision_demanda.date())
+        notificacion = self._qdate_a_date(self.campo_fecha_notificacion_sentencia.date())
+        self.label_fecha_tope_24m.setText(formatear_fecha(calcular_fecha_tope_24m(admision)))
+        self.label_fecha_reanudacion_interes.setText(
+            formatear_fecha(calcular_fecha_reanudacion_interes(notificacion))
+        )
 
     def _actualizar_campos_beneficiario(self) -> None:
         """Muestra/oculta `check_estudia` (solo NINO) y
@@ -1515,8 +1705,14 @@ class ObligacionFormDialog(FormDialogBase):
             )
             return
 
-        es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
         es_civil_familia = self._area == "CIVIL_FAMILIA"
+        # Fruto civil (Sprint 100): siempre PUNTUAL -- el periodo de privacion
+        # se fija con fecha inicial/final, no con cuotas recurrentes. Forzar el
+        # combo vuelve a disparar este metodo (re-entrada inofensiva).
+        es_fruto_civil = es_civil_familia and self._es_fruto_civil()
+        if es_fruto_civil and self.combo_tipo.currentData() != "PUNTUAL":
+            self.combo_tipo.setCurrentIndex(self.combo_tipo.findData("PUNTUAL"))
+        es_recurrente = self.combo_tipo.currentData() == "RECURRENTE"
         # Fechas anuales fijas (Sprint 73): mismo alcance que el reajuste anual
         # arriba (solo Civil/Familia) -- gastos de vestuario u otros gastos que
         # se repiten cada año en fechas concretas, no una cuota mensual.
@@ -1541,8 +1737,32 @@ class ObligacionFormDialog(FormDialogBase):
                 self.campo_fechas_anuales_fijas: es_recurrente
                 and es_civil_familia
                 and es_fechas_fijas,
+                self.combo_tipo: self._area != "TRIBUTARIO" and not es_fruto_civil,
+                self.campo_fecha_fin: es_fruto_civil,
+                self.campo_fecha_referencia_canon: es_fruto_civil,
+                self.campo_gasto_conservacion: es_fruto_civil,
             },
         )
+        self.label_nota_fruto_civil.setVisible(es_fruto_civil)
+        if es_civil_familia:
+            # Sin tasa ni indexacion de la obligacion (el fruto civil no genera
+            # interes y ya se indexa mes a mes) ni beneficiario de alimentos.
+            self.grupo_tasas_intereses.setVisible(not es_fruto_civil)
+            self.grupo_beneficiario.setVisible(not es_fruto_civil)
+        if self.label_valor is not None:
+            self.label_valor.setText("Canon mensual del activo" if es_fruto_civil else "Valor")
+        if self.label_fecha_origen is not None:
+            self.label_fecha_origen.setText(
+                "Inicio del periodo de privación"
+                if es_fruto_civil
+                else "Fecha de origen (Puntual)"
+            )
+        if self.label_fecha_fin is not None:
+            self.label_fecha_fin.setText(
+                "Fin del periodo de privación"
+                if es_fruto_civil
+                else "Fecha de terminacion de contrato"
+            )
 
         es_comercial = self._area == "COMERCIAL"
         mostrar_anatocismo = es_comercial and not es_recurrente
@@ -1577,9 +1797,16 @@ class ObligacionFormDialog(FormDialogBase):
         if not es_sancionatorio and not es_honorarios and valor <= Decimal("0"):
             raise ValueError("El valor de la obligacion debe ser mayor que cero.")
 
+        # Sprint 100: el fruto civil no genera interes -- se guarda tasa 0 (la
+        # fila de tasa esta oculta) y nunca beneficiario de alimentos.
+        es_fruto_civil = self._area == "CIVIL_FAMILIA" and self._es_fruto_civil()
+        if es_fruto_civil:
+            tasa = Decimal("0.00")
+            self.grupo_beneficiario.setChecked(False)
+
         self._validar_rango(tasa, Decimal("0"), Decimal("1000"), "La tasa efectiva anual")
         self._validar_concepto_no_vacio()
-        if self._area == "CIVIL_FAMILIA":
+        if self._area == "CIVIL_FAMILIA" and not es_fruto_civil:
             self._validar_beneficiario()
 
         fecha_fin_beneficiario = self._fecha_corte_beneficiario_manual()
@@ -1600,6 +1827,19 @@ class ObligacionFormDialog(FormDialogBase):
         fecha_relevante = fecha_origen if tipo == TipoObligacion.PUNTUAL else fecha_inicio
         self._validar_fecha_no_posterior_a_corte(fecha_relevante)
 
+        fecha_fin = fecha_fin_beneficiario if tipo == TipoObligacion.RECURRENTE else None
+        if es_fruto_civil:
+            fecha_fin = self._qdate_a_date(self.campo_fecha_fin.date())
+            if fecha_fin < fecha_origen:
+                raise ValueError(
+                    "La fecha final del periodo de privación no puede ser anterior a la "
+                    "inicial."
+                )
+            campos_area["fecha_referencia_canon"] = self._qdate_a_date(
+                self.campo_fecha_referencia_canon.date()
+            )
+            campos_area["gasto_conservacion_mensual"] = self._parse_gasto_conservacion()
+
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
             session,
@@ -1612,17 +1852,38 @@ class ObligacionFormDialog(FormDialogBase):
             fecha_origen=fecha_origen if tipo == TipoObligacion.PUNTUAL else fecha_inicio,
             valor=valor,
             tasa_efectiva_anual=tasa,
-            aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked(),
-            interes_sobre_capital_indexado=self.check_interes_sobre_capital_indexado.isChecked(),
+            aplica_indexacion_ipc=self.check_aplica_indexacion_ipc.isChecked()
+            and not es_fruto_civil,
+            interes_sobre_capital_indexado=self.check_interes_sobre_capital_indexado.isChecked()
+            and not es_fruto_civil,
             dia_pago=self.campo_dia_pago.value() if tipo == TipoObligacion.RECURRENTE else None,
             fecha_inicio=fecha_inicio if tipo == TipoObligacion.RECURRENTE else None,
-            fecha_fin=fecha_fin_beneficiario if tipo == TipoObligacion.RECURRENTE else None,
+            fecha_fin=fecha_fin,
             tipo_accion_proceso=self.combo_tipo_accion_proceso.currentData(),
             **campos_area,
         )
         self._guardar_beneficiario(session, obligacion_id)
         session.close()
         return obligacion_id
+
+    def _es_fruto_civil(self) -> bool:
+        return self.combo_categoria.currentData() == "FRUTO_CIVIL"
+
+    def _parse_gasto_conservacion(self) -> Decimal | None:
+        """Gasto ordinario de conservacion mensual del fruto civil (Sprint 100):
+        opcional -- vacio = None (sin gasto)."""
+        texto = self.campo_gasto_conservacion.text().strip()
+        if not texto:
+            return None
+        try:
+            gasto = Decimal(texto)
+        except InvalidOperation as error:
+            raise ValueError(
+                "El gasto de conservación mensual debe ser un número válido."
+            ) from error
+        if gasto < Decimal("0"):
+            raise ValueError("El gasto de conservación mensual no puede ser negativo.")
+        return gasto
 
     def _fecha_corte_beneficiario_manual(self) -> date | None:
         """Fecha de corte manual (Sprint 74, respuesta del despacho
@@ -1745,7 +2006,9 @@ class ObligacionFormDialog(FormDialogBase):
         if not self.campo_concepto.text().strip():
             raise ValueError("El concepto es obligatorio.")
 
-    def _validar_fecha_no_posterior_a_corte(self, fecha: date) -> None:
+    def _validar_fecha_no_posterior_a_corte(
+        self, fecha: date, nombre_fecha: str = "La fecha de origen/inicio"
+    ) -> None:
         """La fecha de origen/inicio de una obligacion no puede quedar despues de la
         fecha de corte del expediente (Sprint 24): de lo contrario la liquidacion no
         tendria ningun dia que acumular intereses, y el dato casi siempre es un error
@@ -1757,8 +2020,8 @@ class ObligacionFormDialog(FormDialogBase):
             session.close()
         if fecha > expediente.fecha_corte_default:
             raise ValueError(
-                "La fecha de origen/inicio no puede ser posterior a la fecha de corte "
-                f"del expediente ({expediente.fecha_corte_default.isoformat()})."
+                f"{nombre_fecha} no puede ser posterior a la fecha de corte "
+                f"del expediente ({formatear_fecha(expediente.fecha_corte_default)})."
             )
 
     def _envolver_campo_con_iconos(self, campo: QLineEdit) -> QWidget:
@@ -1873,11 +2136,7 @@ class ObligacionFormDialog(FormDialogBase):
             "fechas_anuales_fijas": None,
         }
         if tipo_recurrencia == TipoRecurrencia.FECHAS_ANUALES_FIJAS:
-            fechas = [
-                parte.strip()
-                for parte in self.campo_fechas_anuales_fijas.text().split(",")
-                if parte.strip()
-            ]
+            fechas = self.campo_fechas_anuales_fijas.fechas_mm_dd()
             # serializar_fechas_anuales valida formato/lista vacia y lanza
             # ValueError -- _guardar_y_cerrar ya lo captura y lo muestra como
             # "Datos invalidos" (mismo patron que el resto de validaciones de
@@ -2188,6 +2447,28 @@ class ObligacionFormDialog(FormDialogBase):
                 if campo_valor < Decimal("0"):
                     raise ValueError(f"{nombre_campo} no puede ser negativo.")
 
+        # Tope suspensivo (Sprint 84 seguimiento): ambas fechas obligatorias
+        # cuando hay demanda contenciosa (casilla marcada); sin demanda se
+        # guardan nulas. RENTA_LIQUIDA nunca las lleva (no es una deuda).
+        fecha_admision_demanda = None
+        fecha_notificacion_sentencia = None
+        if categoria != "RENTA_LIQUIDA" and self.check_demanda_contenciosa.isChecked():
+            fecha_admision_demanda = self._qdate_a_date(self.campo_fecha_admision_demanda.date())
+            fecha_notificacion_sentencia = self._qdate_a_date(
+                self.campo_fecha_notificacion_sentencia.date()
+            )
+            if fecha_notificacion_sentencia < fecha_admision_demanda:
+                raise ValueError(
+                    "La fecha de notificacion de la sentencia no puede ser anterior a la "
+                    "fecha de admision de la demanda."
+                )
+            self._validar_fecha_no_posterior_a_corte(
+                fecha_admision_demanda, "La fecha de admision de la demanda"
+            )
+            self._validar_fecha_no_posterior_a_corte(
+                fecha_notificacion_sentencia, "La fecha de notificacion de la sentencia"
+            )
+
         session = session_module.get_session()
         obligacion_id = guardar_o_actualizar(
             session,
@@ -2212,6 +2493,8 @@ class ObligacionFormDialog(FormDialogBase):
             # protegida_inflacion_uvr (Sprint 43): prohibicion de doble cobro -- ver
             # TributarioStrategy.liquidar().
             protegida_inflacion_uvr=self.check_protegida_inflacion_uvr.isChecked(),
+            fecha_admision_demanda=fecha_admision_demanda,
+            fecha_notificacion_sentencia=fecha_notificacion_sentencia,
         )
         session.close()
         return obligacion_id

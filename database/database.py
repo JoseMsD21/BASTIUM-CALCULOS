@@ -66,6 +66,7 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
         migrar as migrar_fecha_providencia_costas,
     )
     from scripts.migrate_fechas_anuales_fijas import migrar as migrar_fechas_anuales_fijas
+    from scripts.migrate_fruto_civil_sprint100 import migrar as migrar_fruto_civil_sprint100
     from scripts.migrate_ibc_usura_1971_1997 import migrar as migrar_ibc_usura_1971_1997
     from scripts.migrate_indexacion_ipc_areas_sprint43 import (
         migrar as migrar_indexacion_ipc_areas_sprint43,
@@ -86,6 +87,15 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
         migrar as migrar_recalculo_historico_sprint47,
     )
     from scripts.migrate_tipo_accion_proceso import migrar as migrar_tipo_accion_proceso
+    from scripts.migrate_tipo_proceso_expediente import (
+        migrar as migrar_tipo_proceso_expediente,
+    )
+    from scripts.migrate_titulo_ejecutivo_sprint106 import (
+        migrar as migrar_titulo_ejecutivo_sprint106,
+    )
+    from scripts.migrate_tope_suspensivo_tributario_sprint84 import (
+        migrar as migrar_tope_suspensivo_tributario_sprint84,
+    )
     from scripts.migrate_tributario import migrar as migrar_tributario
 
     ruta = db_path if db_path is not None else _resolve_db_path()
@@ -117,6 +127,20 @@ def aplicar_migraciones_pendientes(db_path: Path | None = None) -> None:
     # mapeaba y una bastium.db anterior fallaba al arrancar con
     # "no such column: obligaciones.salario_diario".
     migrar_salario_domestico_sprint96(ruta)
+    # Sprint 100 (wiring del fruto civil): agrega fecha_referencia_canon/
+    # gasto_conservacion_mensual a obligaciones -- columnas nuevas
+    # independientes, sin dependencia de orden.
+    migrar_fruto_civil_sprint100(ruta)
+    # Sprint 84 (seguimiento): agrega fecha_admision_demanda/
+    # fecha_notificacion_sentencia a obligaciones (tope suspensivo tributario)
+    # -- columnas nuevas independientes, sin dependencia de orden.
+    migrar_tope_suspensivo_tributario_sprint84(ruta)
+    # Sprint 106: datos del titulo ejecutivo en expedientes -- columnas nuevas
+    # independientes, sin dependencia de orden.
+    migrar_titulo_ejecutivo_sprint106(ruta)
+    # Sprint 105: agrega tipo_proceso (nullable) a expedientes -- columna
+    # nueva independiente, sin dependencia de orden.
+    migrar_tipo_proceso_expediente(ruta)
     migrar_indices(ruta)
     migrar_es_smmlv(ruta)
     # Se llama ANTES de migrar_parametros_legales/migrar_ipc_variacion_anual

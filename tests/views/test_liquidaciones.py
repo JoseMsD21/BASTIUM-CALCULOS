@@ -565,3 +565,288 @@ def test_oculta_costas_cuando_no_hay(qtbot):
     view.mostrar(_resultado_de_prueba(), expediente_id=1)
 
     assert not view.etiqueta_costas.isVisible()
+
+
+# --- Sprint 107: interruptor "Ver con/sin indexación" (vista de sensibilidad) ---
+
+
+def _expediente_sprint107(monkeypatch, area=AreaDerecho.CIVIL_FAMILIA, **extra):
+    from datetime import datetime
+
+    from app.engine.indexation.historical_index import _IPC_INDICE_ACUMULADO
+    from database.models import Obligacion, ParametroLegal, TipoObligacion
+
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(
+        session_module, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False)
+    )
+    session = session_module.get_session()
+    for anio, valor in _IPC_INDICE_ACUMULADO.items():
+        session.add(
+            ParametroLegal(
+                clave="IPC_INDICE_ACUMULADO",
+                valor=valor,
+                vigente_desde=date(anio, 1, 1),
+                vigente_hasta=None,
+                usuario="test",
+                motivo=None,
+                creado_en=datetime.now(),
+            )
+        )
+    expediente = Expediente(
+        radicado="2026-107",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=area,
+        juzgado="Juzgado 1",
+        fecha_corte_default=date(2025, 12, 31),
+    )
+    session.add(expediente)
+    session.flush()
+    campos = {"aplica_indexacion_ipc": True, "interes_sobre_capital_indexado": True}
+    campos.update(extra)
+    session.add(
+        Obligacion(
+            expediente_id=expediente.id,
+            tipo=TipoObligacion.PUNTUAL,
+            concepto="Dano emergente",
+            categoria="DANO_EMERGENTE",
+            fecha_origen=date(2024, 7, 1),
+            valor=Decimal("1000000.00"),
+            tasa_efectiva_anual=Decimal("6.00"),
+            **campos,
+        )
+    )
+    session.commit()
+    expediente_id = expediente.id
+    session.close()
+    return expediente_id
+
+
+def _banderas_y_auditoria(expediente_id: int):
+    from database.models import AuditLog, Obligacion
+
+    session = session_module.get_session()
+    obligacion = session.query(Obligacion).filter_by(expediente_id=expediente_id).one()
+    banderas = (obligacion.aplica_indexacion_ipc, obligacion.interes_sobre_capital_indexado)
+    cantidad_logs = session.query(AuditLog).count()
+    session.close()
+    return banderas, cantidad_logs
+
+
+def _elegir_sentido(view, con_indexacion: bool) -> None:
+    selector = view.selector_indexacion_sensibilidad
+    selector.setCurrentIndex(selector.findData(con_indexacion))
+
+
+def test_interruptor_sensibilidad_deshabilitado_sin_fecha_de_corte(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.check_vista_sensibilidad.isEnabled()
+    assert view.etiqueta_vista_sensibilidad.isHidden()
+
+
+def test_interruptor_sensibilidad_recalcula_sin_indexacion_y_vuelve_a_la_oficial(
+    qtbot, monkeypatch
+):
+    from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
+
+    expediente_id = _expediente_sprint107(monkeypatch)
+    fecha_corte = date(2025, 12, 31)
+    # Resultado oficial = lo guardado (la obligacion ya tiene indexacion marcada).
+    oficial = liquidar_vista_sensibilidad(expediente_id, fecha_corte, con_indexacion=True)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(oficial, expediente_id, fecha_corte=fecha_corte)
+
+    # 1.000.000 + interes Suma Unica 95.658,88 + indexacion 61.933,78.
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+    assert view.check_vista_sensibilidad.isEnabled()
+
+    _elegir_sentido(view, False)
+    with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
+        view.check_vista_sensibilidad.setChecked(True)
+
+    # Sin indexacion: 1.000.000 + 164,38 x 548 dias = 1.090.080,24.
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1090080.24"
+    assert not view.etiqueta_vista_sensibilidad.isHidden()
+    assert "SIN indexación" in view.etiqueta_vista_sensibilidad.text()
+    assert not view.boton_exportar_pdf.isEnabled()
+    assert not view.boton_exportar_word.isEnabled()
+    # La obligacion guardada y el AuditLog quedan intactos.
+    assert _banderas_y_auditoria(expediente_id) == ((True, True), 0)
+
+    view.check_vista_sensibilidad.setChecked(False)
+
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+    assert view.etiqueta_vista_sensibilidad.isHidden()
+    assert view.boton_exportar_pdf.isEnabled()
+    assert view.boton_exportar_word.isEnabled()
+    assert _banderas_y_auditoria(expediente_id) == ((True, True), 0)
+
+
+def test_interruptor_sensibilidad_con_indexacion_sobre_obligacion_sin_indexar(
+    qtbot, monkeypatch
+):
+    from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
+
+    expediente_id = _expediente_sprint107(
+        monkeypatch, aplica_indexacion_ipc=False, interes_sobre_capital_indexado=False
+    )
+    fecha_corte = date(2025, 12, 31)
+    oficial = liquidar_vista_sensibilidad(expediente_id, fecha_corte, con_indexacion=False)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(oficial, expediente_id, fecha_corte=fecha_corte)
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1090080.24"
+
+    _elegir_sentido(view, True)
+    with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
+        view.check_vista_sensibilidad.setChecked(True)
+
+    # Con IPC y sin Suma Unica guardada: el interes civil queda sobre el capital
+    # historico (90.080,24) y se suma la indexacion (61.933,78).
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1152014.02"
+    assert "CON indexación" in view.etiqueta_vista_sensibilidad.text()
+    assert _banderas_y_auditoria(expediente_id) == ((False, False), 0)
+
+
+def test_cambiar_el_selector_con_la_vista_activa_recalcula(qtbot, monkeypatch):
+    from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
+
+    expediente_id = _expediente_sprint107(monkeypatch)
+    fecha_corte = date(2025, 12, 31)
+    oficial = liquidar_vista_sensibilidad(expediente_id, fecha_corte, con_indexacion=True)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(oficial, expediente_id, fecha_corte=fecha_corte)
+    _elegir_sentido(view, False)
+    with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
+        view.check_vista_sensibilidad.setChecked(True)
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1090080.24"
+
+    with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
+        _elegir_sentido(view, True)
+
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+    assert not view.etiqueta_vista_sensibilidad.isHidden()
+
+
+def test_mostrar_un_resultado_nuevo_apaga_la_vista_de_sensibilidad(qtbot, monkeypatch):
+    from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
+
+    expediente_id = _expediente_sprint107(monkeypatch)
+    fecha_corte = date(2025, 12, 31)
+    oficial = liquidar_vista_sensibilidad(expediente_id, fecha_corte, con_indexacion=True)
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(oficial, expediente_id, fecha_corte=fecha_corte)
+    _elegir_sentido(view, False)
+    with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
+        view.check_vista_sensibilidad.setChecked(True)
+
+    view.mostrar(oficial, expediente_id, fecha_corte=fecha_corte)
+
+    assert not view.check_vista_sensibilidad.isChecked()
+    assert view.etiqueta_vista_sensibilidad.isHidden()
+    assert view.boton_exportar_pdf.isEnabled()
+    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+
+
+def test_error_en_la_vista_de_sensibilidad_avisa_y_vuelve_a_la_oficial(qtbot, monkeypatch):
+    # Comercial con IPC exige pacto expreso en el titulo (Sprint 43): forzar "Con
+    # indexación" sobre una obligacion sin ese pacto no se puede calcular -- se
+    # informa el error de la estrategia tal cual y se vuelve a la vista oficial.
+    expediente_id = _expediente_sprint107(
+        monkeypatch,
+        area=AreaDerecho.COMERCIAL,
+        aplica_indexacion_ipc=False,
+        interes_sobre_capital_indexado=False,
+        tasa_moratoria_anual=Decimal("9.00"),
+        fecha_vencimiento=date(2024, 8, 1),
+        ibc_vigente_anual=Decimal("20.00"),
+        pacto_expreso_indexacion=False,
+    )
+    advertencias = []
+    monkeypatch.setattr(
+        "app.views.liquidaciones.QMessageBox.warning",
+        lambda parent, titulo, mensaje: advertencias.append(mensaje),
+    )
+
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.mostrar(_resultado_de_prueba(), expediente_id, fecha_corte=date(2025, 12, 31))
+    texto_oficial = view.etiqueta_saldo_final.text()
+    _elegir_sentido(view, True)
+
+    with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
+        view.check_vista_sensibilidad.setChecked(True)
+
+    assert len(advertencias) == 1
+    assert "Pacto expreso" in advertencias[0]
+    assert not view.check_vista_sensibilidad.isChecked()
+    assert view.etiqueta_vista_sensibilidad.isHidden()
+    assert view.etiqueta_saldo_final.text() == texto_oficial
+    assert view.boton_exportar_pdf.isEnabled()
+    assert _banderas_y_auditoria(expediente_id) == ((False, False), 0)
+
+
+# --- Sprint 100: fruto civil como rubro propio ---
+
+
+def _resultado_con_fruto_civil() -> LiquidationResult:
+    # Dos meses de fruto civil (905.765,41 + 910.139,17 = 1.815.904,58), sin
+    # interes, seguidos del corte.
+    filas = []
+    principal = Decimal("0.00")
+    for fecha, neto in (
+        (date(2019, 2, 28), Decimal("905765.41")),
+        (date(2019, 3, 31), Decimal("910139.17")),
+    ):
+        principal += neto
+        debt = PendingDebt(principal=principal, interest=Decimal("0.00"), indexation=Decimal("0"))
+        filas.append(
+            LiquidationItem(
+                date=fecha,
+                concept=f"Fruto civil {fecha.month:02d}/2019",
+                capital_base=principal,
+                interest_rate=Decimal("0.00"),
+                interest_amount=Decimal("0.00"),
+                indexation_amount=Decimal("0.00"),
+                payment_amount=Decimal("0.00"),
+                balance=RunningBalance(date=fecha, debt=debt, event_type="FRUTO_CIVIL"),
+            )
+        )
+    return LiquidationResult(items=filas)
+
+
+def test_muestra_fruto_civil_como_rubro_propio_cuando_existe(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_con_fruto_civil(), expediente_id=1)
+
+    assert view.etiqueta_fruto_civil.isVisible()
+    assert "1815904.58" in view.etiqueta_fruto_civil.text()
+    assert "sin intereses" in view.etiqueta_fruto_civil.text()
+
+
+def test_oculta_fruto_civil_cuando_no_hay(qtbot):
+    view = ResultadoLiquidacionView()
+    qtbot.addWidget(view)
+    view.show()
+
+    view.mostrar(_resultado_de_prueba(), expediente_id=1)
+
+    assert not view.etiqueta_fruto_civil.isVisible()

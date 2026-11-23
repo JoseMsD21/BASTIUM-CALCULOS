@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from app.core.exceptions import CuotaLitisExcedeTopeError, IPCMensualNoDisponibleError
 from app.domain.obligation.payment import Payment
+from app.engine.civil.fruto_civil import calcular_fruto_civil
 from app.engine.costs.agencias_en_derecho import (
     Instancia,
     TipoProceso,
@@ -25,10 +26,14 @@ from app.engine.indexation.historical_index import (
 from app.engine.indexation.ipc import IPCIndexation
 from app.engine.indexation.smlmv_to_uvt import resolver_base_sancion
 from app.engine.indexation.suma_unica_con_abonos import CausacionTramoATramo
-from app.engine.interest.provider import MemoryRateProvider
+from app.engine.interest.provider import MemoryRateProvider, RateProvider
 from app.engine.interest.rate_conversion import EffectiveRateConverter
 from app.engine.interest.usury_validator import calcular_tope_usura
 from app.engine.labor.dismissal_indemnity import DismissalIndemnityCalculator
+from app.engine.labor.horas_extra import (
+    liquidar_hora_extra_con_porcentaje_manual,
+    requiere_porcentaje_manual,
+)
 from app.engine.labor.incapacidad import IncapacidadCalculator
 from app.engine.labor.moratory_indemnity import MoratoryIndemnityCalculator
 from app.engine.labor.salario_domestico import (
@@ -57,6 +62,11 @@ from app.engine.tax.sanciones import (
     calcular_sancion_extemporaneidad,
     calcular_sancion_inexactitud,
 )
+from app.engine.tax.tope_suspensivo import (
+    RateProviderConTopeSuspensivo,
+    calcular_fecha_reanudacion_interes,
+    calcular_fecha_tope_24m,
+)
 from app.engine.temporal.schedulers.base import Event
 from app.engine.temporal.schedulers.family import FamilyScheduler
 from app.engine.temporal.schedulers.labor import LaborScheduler
@@ -79,6 +89,12 @@ from app.services.vigencia_alimentos import fecha_fin_efectiva_recurrente
 # app.core.constants.CATEGORIAS_LABORAL, que trae el mismo codigo para el
 # combo de la UI).
 CATEGORIA_SALARIOS_DEJADOS_DE_PERCIBIR = "SALARIOS_DEJADOS_DE_PERCIBIR"
+
+# Sprint 100 (wiring): categoria de Civil/Familia "Fruto civil" (beneficio
+# dejado de percibir, Art. 964 C.C.) -- se liquida mes a mes con
+# app/engine/civil/fruto_civil.py en vez de como un capital plano, y sin
+# intereses. Ver CivilFamiliaStrategy._eventos_fruto_civil.
+CATEGORIA_FRUTO_CIVIL = "FRUTO_CIVIL"
 
 
 def _evento_costas_procesales(obligacion, pretensiones_reconocidas: Decimal) -> Event | None:
@@ -462,7 +478,10 @@ class CivilFamiliaStrategy(AreaStrategy):
             ),
         )
 
-        tasa_legal = self._tasa_civil_anual_pct(fecha_corte)
+        # La tasa legal solo se necesita para avisar sobre obligaciones tramo a tramo:
+        # consultarla siempre haria fallar cualquier liquidacion Civil/Familia sin el
+        # parametro CIVIL_ANNUAL_RATE configurado, aunque no use Suma Unica.
+        tasa_legal = self._tasa_civil_anual_pct(fecha_corte) if ids_tramo_a_tramo else None
         for obligacion in obligaciones:
             tasa_pactada = obligacion.tasa_efectiva_anual
             if obligacion.id in ids_tramo_a_tramo and tasa_pactada and tasa_pactada != tasa_legal:
@@ -471,6 +490,22 @@ class CivilFamiliaStrategy(AreaStrategy):
                     f"'{obligacion.concepto}': Suma Única con abonos se liquida tramo a tramo "
                     f"con la tasa pura mensual 0,48676 % (6 % EA) que fijó el despacho; la tasa "
                     f"pactada de {tasa_pactada}% EA NO se aplicó. Verifique si corresponde.",
+                )
+        # Sprint 100: aviso no bloqueante cuando el periodo de privacion de un
+        # fruto civil va mas alla de la fecha de corte (solo se liquida hasta
+        # el corte, ver _eventos_fruto_civil).
+        for obligacion in obligaciones:
+            if (
+                obligacion.categoria == CATEGORIA_FRUTO_CIVIL
+                and obligacion.fecha_fin is not None
+                and obligacion.fecha_fin > fecha_corte
+            ):
+                resultado = self._agregar_alerta(
+                    resultado,
+                    f"Fruto civil '{obligacion.concepto}': el periodo de privacion termina el "
+                    f"{obligacion.fecha_fin.strftime('%d/%m/%Y')}, despues de la fecha de corte "
+                    f"({fecha_corte.strftime('%d/%m/%Y')}); solo se liquidan los frutos "
+                    "hasta la fecha de corte.",
                 )
         return resultado
 
@@ -521,6 +556,8 @@ class CivilFamiliaStrategy(AreaStrategy):
         """`tramo_a_tramo` (Sprint 104): la indexacion no se emite como un evento
         unico hasta el corte global -- la causa `LiquidationCore` tramo por tramo
         (ver `_usa_tramo_a_tramo`)."""
+        if obligacion.categoria == CATEGORIA_FRUTO_CIVIL:
+            return self._eventos_fruto_civil(obligacion, fecha_corte)
         if obligacion.tipo.value == "PUNTUAL":
             eventos = [
                 Event(
@@ -655,6 +692,90 @@ class CivilFamiliaStrategy(AreaStrategy):
         return eventos
 
     @staticmethod
+    def _validar_fruto_civil(obligacion) -> None:
+        if obligacion.tipo.value != "PUNTUAL":
+            raise ValueError(
+                "Una obligacion 'Fruto civil' debe ser de tipo Puntual: el periodo de "
+                "privacion se fija con su fecha inicial y final."
+            )
+        if obligacion.fecha_fin is None:
+            raise ValueError(
+                f"Fruto civil '{obligacion.concepto}': falta la fecha final del periodo de "
+                "privacion."
+            )
+        if obligacion.fecha_referencia_canon is None:
+            raise ValueError(
+                f"Fruto civil '{obligacion.concepto}': falta la fecha de referencia del canon."
+            )
+        if obligacion.fecha_fin < obligacion.fecha_origen:
+            raise ValueError(
+                f"Fruto civil '{obligacion.concepto}': la fecha final del periodo de privacion "
+                "no puede ser anterior a la inicial."
+            )
+
+    def _eventos_fruto_civil(self, obligacion, fecha_corte: date) -> list[Event]:
+        """Sprint 100 (wiring): obligacion Civil/Familia de categoria
+        FRUTO_CIVIL -- beneficio dejado de percibir como fruto civil (Art. 964
+        C.C.), liquidado con `calcular_fruto_civil`
+        (app/engine/civil/fruto_civil.py, ver sus convenciones de indexacion,
+        prorrateo y redondeo).
+
+        Mapeo de campos de `Obligacion`: `valor` = canon mensual del activo;
+        `fecha_referencia_canon` = fecha a cuyos precios esta el canon;
+        `fecha_origen`/`fecha_fin` = periodo de privacion (ambas inclusive);
+        `gasto_conservacion_mensual` = gasto ordinario de conservacion fijo por
+        mes (opcional).
+
+        Emite UN evento de capital FRUTO_CIVIL por mes del periodo, fechado el
+        ultimo dia privado de ese mes, con el fruto neto del mes (detalle
+        mensual visible en la tabla de resultados/PDF/Word). El periodo se topa
+        en `fecha_corte` (liquidar() agrega una alerta si se topo): no se
+        liquidan frutos aun no causados a la fecha de corte.
+
+        Sin intereses: el despacho NO ha confirmado que el fruto civil genere el
+        interes civil del 6 % despues de su causacion, asi que se suma "en
+        seco" (tasa 0, ver _construir_rate_provider_obligacion). Tampoco aplica
+        la indexacion IPC de la obligacion a la fecha de corte: el canon ya se
+        indexa mes a mes y el despacho no confirmo una segunda actualizacion, asi
+        que `aplica_indexacion_ipc` se ignora en esta categoria (el formulario
+        siempre la guarda en False; la vista de sensibilidad "con indexacion"
+        del Sprint 107 la fuerza en True para todo el expediente y debe seguir
+        funcionando, por eso no se rechaza con error). Tampoco distingue
+        poseedor de buena/mala fe: el usuario fija el periodo. Costas: si la obligacion trae costas
+        configuradas, la base es el total del fruto civil liquidado."""
+        self._validar_fruto_civil(obligacion)
+        fecha_final = min(obligacion.fecha_fin, fecha_corte)
+        if fecha_final < obligacion.fecha_origen:
+            return []
+        resultado = calcular_fruto_civil(
+            canon_mensual=obligacion.valor,
+            fecha_referencia=obligacion.fecha_referencia_canon,
+            fecha_inicial=obligacion.fecha_origen,
+            fecha_final=fecha_final,
+            gasto_conservacion_mensual=obligacion.gasto_conservacion_mensual or Decimal("0"),
+        )
+        eventos = []
+        for mes in resultado.meses:
+            etiqueta = (
+                f"Fruto civil {mes.mes:02d}/{mes.anio} ({mes.dias}/{mes.dias_mes} días): "
+                f"canon ${mes.canon_periodo:,.2f} - conservación "
+                f"${mes.gastos_conservacion:,.2f} — {obligacion.concepto}"
+            )
+            eventos.append(
+                Event(
+                    date=mes.hasta,
+                    payload={"amount": mes.fruto_neto, "label": etiqueta},
+                    event_type=CATEGORIA_FRUTO_CIVIL,
+                )
+            )
+        evento_costas = _evento_costas_procesales(
+            obligacion, pretensiones_reconocidas=resultado.total_fruto_civil
+        )
+        if evento_costas is not None:
+            eventos.append(evento_costas)
+        return eventos
+
+    @staticmethod
     def _evento_indexacion(
         fecha_causacion: date, capital: Decimal, concepto: str, fecha_corte: date
     ) -> Event:
@@ -728,6 +849,17 @@ class CivilFamiliaStrategy(AreaStrategy):
             if obligacion.tipo.value == "PUNTUAL"
             else obligacion.fecha_inicio
         )
+        if obligacion.categoria == CATEGORIA_FRUTO_CIVIL:
+            # Sprint 100: el fruto civil se suma en seco, sin interes -- ver
+            # _eventos_fruto_civil. Tasa 0 explicita (no el fallback del 6 %
+            # que se aplica abajo a una tasa 0 capturada).
+            return self._rate_provider_tasa_plana(
+                fecha_inicio,
+                fecha_corte,
+                Decimal("0"),
+                source="Fruto civil: sin intereses (no confirmado por el despacho)",
+                lineal_simple=True,
+            )
         # Sprint 61: fallback silencioso a CIVIL_ANNUAL_RATE cuando la obligacion
         # no trae tasa propia (0.00 -- mismo patron legitimo que ya usan
         # Sancionatorio/Honorarios para "el campo de tasa no aplica", confirmado
@@ -1328,6 +1460,15 @@ class LaboralStrategy(AreaStrategy):
     `incluir_seguridad_social` en ella (conceptos de finiquito que no aplican
     a un periodo sin contrato vigente -- fuera de alcance de este sprint, no
     un olvido).
+
+    Horas extra (Sprint 95, conexion a la UI): filas `HoraExtraLaboral`
+    (tabla `horas_extra_laborales`, hija de la obligacion, mismo patron que
+    `descuentos_laborales`) -- NO una categoria nueva, porque el area liquida
+    una sola obligacion por expediente. Cada fila genera un evento de capital
+    HORAS_EXTRA (rubro propio en resultados y PDF/Word) con el factor del
+    motor `app/engine/labor/horas_extra.py` vigente en su fecha de causacion
+    (ver `_eventos_horas_extra`). No entran en la base de prestaciones,
+    moratoria, IPC ni costas. Solo en `LIQUIDACION_CONTRATO_LABORAL`.
     """
 
     soporta_indexacion_ipc = True
@@ -1389,6 +1530,13 @@ class LaboralStrategy(AreaStrategy):
         # evento se agrega solo si `despido_injustificado` esta marcado, sin
         # depender de `hay_mora`.
         self._eventos_despido_injustificado(obligacion, eventos)
+
+        # Horas extra HED/HEN/HEFD/HEFN (Sprint 95, conexion a la UI): rubro
+        # propio (evento HORAS_EXTRA) que se agrega DESPUES de calcular
+        # `monto_prestaciones` y la mora de arriba -- no entra en la base de
+        # las prestaciones, de la moratoria del Art. 65, de la indexacion IPC
+        # ni de las costas (no se cambia como se calculan los demas rubros).
+        self._eventos_horas_extra(obligacion, eventos)
 
         # Indexacion IPC (Sprint 43): ver docstring de la clase. Solo se agrega el
         # evento de indexacion cuando NO hay mora (excepcion 1, buena fe probada) --
@@ -1751,6 +1899,47 @@ class LaboralStrategy(AreaStrategy):
                     )
                 )
 
+    def _eventos_horas_extra(self, obligacion, eventos: list) -> None:
+        """Horas extra registradas en el contrato (Sprint 95, conexion a la
+        UI, tabla `horas_extra_laborales`). Cada fila genera un evento de
+        capital HORAS_EXTRA en su fecha de causacion con
+        `horas x valor_hora x factor`, donde el factor lo resuelve
+        `liquidar_hora_extra_con_porcentaje_manual` segun la fecha (HED 1,25;
+        HEN 1,75; HEFD/HEFN por tramo de la Ley 2466/2025). Para HEFD/HEFN
+        anteriores al 01/07/2025 (sin factor confirmado por el despacho) usa el
+        porcentaje digitado por el usuario, o lanza
+        `HoraExtraFestivaSinFactorConfirmadoError` si falta. Muta `eventos`.
+        """
+        for hora_extra in sorted(
+            obligacion.horas_extra_laborales, key=lambda h: h.fecha_causacion
+        ):
+            monto, factor = liquidar_hora_extra_con_porcentaje_manual(
+                hora_extra.concepto,
+                hora_extra.numero_horas,
+                hora_extra.valor_hora,
+                hora_extra.fecha_causacion,
+                hora_extra.porcentaje_manual,
+            )
+            etiqueta = (
+                f"Horas extra {hora_extra.concepto} "
+                f"({Decimal(hora_extra.numero_horas).normalize():f} h x valor hora "
+                f"${Decimal(hora_extra.valor_hora):,.2f} x factor {factor.normalize():f}"
+            )
+            if requiere_porcentaje_manual(hora_extra.concepto, hora_extra.fecha_causacion):
+                etiqueta += (
+                    ", porcentaje digitado "
+                    f"{Decimal(hora_extra.porcentaje_manual).normalize():f} % -- sin factor "
+                    "confirmado antes del 01/07/2025"
+                )
+            etiqueta += f", causadas el {hora_extra.fecha_causacion:%d/%m/%Y})"
+            eventos.append(
+                Event(
+                    date=hora_extra.fecha_causacion,
+                    payload={"amount": monto, "label": etiqueta},
+                    event_type="HORAS_EXTRA",
+                )
+            )
+
     def _eventos_descuentos_empleador(self, obligacion, eventos: list) -> None:
         """Descuentos del empleador (Sprint 44, punto 3): se inyectan como
         eventos PAYMENT mas -- mismo mecanismo de pagos/allocation que ya
@@ -1827,6 +2016,12 @@ class LaboralStrategy(AreaStrategy):
                     "indemnizacion por despido injustificado ni cotizaciones de seguridad "
                     "social (Sprint 93, fuera de alcance) -- desmarcar esas casillas."
                 )
+            if obligacion.horas_extra_laborales:
+                raise ValueError(
+                    "La categoria 'Salarios y prestaciones dejadas de percibir' no admite "
+                    "horas extra (no hubo contrato vigente en ese periodo) -- registrelas "
+                    "en la obligacion 'Liquidacion de contrato laboral'."
+                )
         elif obligacion.tipo.value != "PUNTUAL":
             raise ValueError(
                 "El area Laboral solo admite obligaciones de tipo PUNTUAL "
@@ -1897,6 +2092,14 @@ class LaboralStrategy(AreaStrategy):
                     f"El evento contractual del {evento.fecha_inicio} al {evento.fecha_fin} "
                     "cae fuera del rango del contrato "
                     f"({obligacion.fecha_inicio} a {obligacion.fecha_fin})."
+                )
+
+        for hora_extra in obligacion.horas_extra_laborales:
+            if not obligacion.fecha_inicio <= hora_extra.fecha_causacion <= obligacion.fecha_fin:
+                raise ValueError(
+                    f"Las horas extra {hora_extra.concepto} causadas el "
+                    f"{hora_extra.fecha_causacion:%d/%m/%Y} caen fuera del rango del contrato "
+                    f"({obligacion.fecha_inicio:%d/%m/%Y} a {obligacion.fecha_fin:%d/%m/%Y})."
                 )
 
         eventos_ordenados = sorted(obligacion.eventos_laborales, key=lambda e: e.fecha_inicio)
@@ -2164,10 +2367,10 @@ class TributarioStrategy(AreaStrategy):
     en vez de un motor de imputacion dedicado: el impuesto a cargo cae en el bucket
     'principal' (event_type = obligacion.categoria = "IMPUESTO_A_CARGO", agregado a
     _capital_concepts igual que cada area anterior), las 3 sanciones se normalizan a un unico
-    event_type "SANCION_TRIBUTARIA" que cae en el bucket 'indexation'. El orden de pago que
-    ya aplica AllocationEngine (indexacion -> interes -> capital) coincide exactamente con el
-    orden exigido para tributario (sanciones -> intereses -> impuesto) -- ver design spec,
-    seccion "Arquitectura".
+    event_type "SANCION_TRIBUTARIA" que cae en el bucket 'indexation'. Hasta el Sprint 84
+    (seguimiento) los abonos seguian el orden de AllocationEngine.allocate (indexacion ->
+    interes -> capital = sanciones -> intereses -> impuesto); desde entonces se imputan
+    proporcionalmente (Art. 804 E.T.), ver mas abajo.
 
     El interes automatico (E.T. art. 635, nunca pactado) reutiliza
     construir_rate_provider_moratorio_tributario del Sprint 11a.
@@ -2204,6 +2407,23 @@ class TributarioStrategy(AreaStrategy):
     _liquidar_por_obligacion, mismo patron que Comercial/CivilFamilia desde el Sprint 21):
     un solo PendingDebt/rate provider compartido para todo el expediente no puede darle
     0% de interes a una sancion y la tasa E.T. 635 al impuesto al mismo tiempo.
+
+    Imputacion proporcional (Sprint 84 seguimiento, respuesta del despacho 16/11/2026:
+    "la imputacion proporcional es imperativa (no se imputa primero a intereses como en
+    lo civil)", Art. 804 E.T.): cada abono se reparte entre los conceptos de SU
+    obligacion (impuesto -> bucket 'principal'; sanciones y actualizacion Art. 867-1 ->
+    'indexation'; intereses -> 'interest') en proporcion al saldo de cada uno en la
+    fecha del abono -- ver AllocationEngine.allocate_proporcional_art_804. Las costas
+    (Sprint 79) siguen pagandose primero. Limite conocido: como cada abono pertenece
+    a UNA obligacion (Abono.obligacion_id, Sprint 21), el reparto proporcional ocurre
+    dentro de esa obligacion; un abono no se reparte entre obligaciones distintas del
+    mismo expediente (ej. un impuesto y su sancion capturados como 2 obligaciones).
+
+    Tope suspensivo (Sprint 84 seguimiento): si la obligacion tiene
+    fecha_admision_demanda (demanda ante lo contencioso administrativo), el interes
+    moratorio no se causa entre fecha_tope_24m (admision + 24 meses) y
+    fecha_reanudacion_interes (notificacion de la sentencia + 11 dias) -- ver
+    app/engine/tax/tope_suspensivo.py y `_construir_rate_provider_obligacion`.
     """
 
     soporta_indexacion_ipc = True
@@ -2253,7 +2473,17 @@ class TributarioStrategy(AreaStrategy):
             fecha_corte=fecha_corte,
             eventos_fn=lambda obligacion: self._eventos_de_obligacion(obligacion, fecha_corte),
             rate_provider_fn=self._construir_rate_provider_obligacion,
+            # Sprint 84 (seguimiento): Art. 804 E.T., imputacion proporcional
+            # imperativa en toda obligacion tributaria.
+            estrategia_imputacion_fn=lambda obligacion: (
+                AllocationEngine.allocate_proporcional_art_804
+            ),
         )
+
+        for obligacion in obligaciones_deuda:
+            alerta = self._alerta_tope_suspensivo(obligacion, fecha_corte)
+            if alerta is not None:
+                resultado = self._agregar_alerta(resultado, alerta)
 
         for obligacion in obligaciones_deuda:
             # Si _evento_actualizacion_867_1 ya no pudo calcular la
@@ -2287,6 +2517,52 @@ class TributarioStrategy(AreaStrategy):
             resultado = replace(resultado, renta_liquida=renta_liquida)
 
         return resultado
+
+    @staticmethod
+    def _fechas_tope_suspensivo(obligacion) -> tuple[date, date | None] | None:
+        """(fecha_tope_24m, fecha_reanudacion_interes) calculadas a partir de los
+        2 campos capturados, o None si la obligacion no tiene demanda
+        contenciosa (fecha_admision_demanda nula). Sprint 84 (seguimiento)."""
+        if obligacion.fecha_admision_demanda is None:
+            return None
+        reanudacion = None
+        if obligacion.fecha_notificacion_sentencia is not None:
+            reanudacion = calcular_fecha_reanudacion_interes(
+                obligacion.fecha_notificacion_sentencia
+            )
+        return calcular_fecha_tope_24m(obligacion.fecha_admision_demanda), reanudacion
+
+    def _alerta_tope_suspensivo(self, obligacion, fecha_corte: date) -> str | None:
+        """Sprint 84 (seguimiento): alerta informativa (no bloqueante) con el
+        periodo en que el tope suspensivo dejo de causar interes moratorio.
+        None si no hay demanda o si el periodo suspendido no alcanza a empezar
+        antes de fecha_corte."""
+        fechas = self._fechas_tope_suspensivo(obligacion)
+        if fechas is None:
+            return None
+        tope, reanudacion = fechas
+        primer_dia = tope + timedelta(days=1)
+        if primer_dia > fecha_corte:
+            return None
+        if reanudacion is not None and reanudacion <= primer_dia:
+            return None
+        if reanudacion is None:
+            periodo = (
+                f"desde el {primer_dia.isoformat()} hasta la fecha de corte "
+                f"({fecha_corte.isoformat()}), sentencia aún no notificada"
+            )
+            detalle = f"fecha tope 24 meses: {tope.isoformat()}"
+        else:
+            ultimo_dia = min(reanudacion - timedelta(days=1), fecha_corte)
+            periodo = f"del {primer_dia.isoformat()} al {ultimo_dia.isoformat()}"
+            detalle = (
+                f"fecha tope 24 meses: {tope.isoformat()}; reanudación del interés: "
+                f"{reanudacion.isoformat()}"
+            )
+        return (
+            f"Tope suspensivo por demanda contencioso administrativa en "
+            f"'{obligacion.concepto}': sin interés moratorio {periodo} ({detalle})."
+        )
 
     def _alerta_pendiente_certificacion_usura(self, obligacion, fecha_corte: date) -> str | None:
         """Sprint 110 (respuesta del despacho, 26/08/2026: "NUNCA extrapolar.
@@ -2350,6 +2626,20 @@ class TributarioStrategy(AreaStrategy):
                 f"La obligacion tributaria '{obligacion.concepto}' debe ser PUNTUAL "
                 f"(un hecho tributario es un evento unico, no admite RECURRENTE)."
             )
+
+        # Sprint 84 (seguimiento): tope suspensivo por demanda contenciosa.
+        if obligacion.fecha_notificacion_sentencia is not None:
+            if obligacion.fecha_admision_demanda is None:
+                raise ValueError(
+                    f"La obligacion tributaria '{obligacion.concepto}' tiene fecha de "
+                    "notificacion de la sentencia pero no fecha de admision de la demanda."
+                )
+            if obligacion.fecha_notificacion_sentencia < obligacion.fecha_admision_demanda:
+                raise ValueError(
+                    f"En la obligacion tributaria '{obligacion.concepto}' la fecha de "
+                    "notificacion de la sentencia es anterior a la de admision de la "
+                    "demanda."
+                )
 
         if obligacion.categoria == "IMPUESTO_A_CARGO":
             if obligacion.valor is None or obligacion.valor <= Decimal("0.00"):
@@ -2476,7 +2766,18 @@ class TributarioStrategy(AreaStrategy):
             fecha_referencia=obligacion.fecha_origen,
         )
 
-    def _construir_rate_provider_obligacion(
+    def _construir_rate_provider_obligacion(self, obligacion, fecha_corte: date) -> RateProvider:
+        """Rate provider E.T. 635 de la obligacion, envuelto con el tope
+        suspensivo por demanda contenciosa cuando la obligacion lo tiene (Sprint
+        84 seguimiento): los dias suspendidos quedan a 0%."""
+        provider = self._construir_rate_provider_base(obligacion, fecha_corte)
+        fechas = self._fechas_tope_suspensivo(obligacion)
+        if fechas is None:
+            return provider
+        tope, reanudacion = fechas
+        return RateProviderConTopeSuspensivo(provider, tope, reanudacion)
+
+    def _construir_rate_provider_base(
         self, obligacion, fecha_corte: date
     ) -> MemoryRateProvider:
         provider = MemoryRateProvider()

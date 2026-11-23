@@ -465,3 +465,28 @@ def test_generate_no_muestra_costas_sin_costas(tmp_path):
 
     etiquetas = [f.cells[0].text for f in Document(str(ruta)).tables[0].rows]
     assert not any(e.startswith("Costas Procesales") for e in etiquetas)
+
+
+def test_generate_muestra_fruto_civil_como_rubro_propio(tmp_path):
+    # Sprint 100: mismo criterio que el PDF.
+    ruta = tmp_path / "liquidacion_fruto_civil.docx"
+    summary = _summary()
+    summary["total_fruto_civil"] = "$2,731,013.92"
+
+    WordReportGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", summary, _table_data()
+    )
+
+    filas = {f.cells[0].text: f.cells[1].text for f in Document(str(ruta)).tables[0].rows}
+    assert filas["Fruto Civil Causado (Art. 964 C.C., sin intereses)"] == "$2,731,013.92"
+
+
+def test_generate_no_muestra_fruto_civil_sin_fruto_civil(tmp_path):
+    ruta = tmp_path / "liquidacion_sin_fruto_civil.docx"
+
+    WordReportGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    etiquetas = [f.cells[0].text for f in Document(str(ruta)).tables[0].rows]
+    assert not any(e.startswith("Fruto Civil") for e in etiquetas)

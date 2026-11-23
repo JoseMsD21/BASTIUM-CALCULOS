@@ -3,7 +3,6 @@ from datetime import date
 from PySide6.QtCore import QDate, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QDateEdit,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -33,17 +32,72 @@ from app.engine.audit.service import (
     registrar_liquidacion,
 )
 from app.engine.liquidation.registry import AreaRegistry
+from app.services.catalogo_tipos_proceso import buscar_tipo_proceso, nombre_rama, texto_ayuda
 from app.services.reajuste_anual import generar_cuotas_mensuales
 from app.services.recurrencia_fechas_fijas import generar_cuotas_fechas_fijas
+from app.services.titulo_ejecutivo import ETIQUETAS_TIPO_TITULO
+from app.services.vista_sensibilidad_indexacion import cargar_datos_de_liquidacion
 from app.views.abonos import AbonoFormDialog
 from app.views.concurrency import TareaEnHilo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog
+from app.views.fecha_widgets import crear_campo_fecha, formatear_fecha
+from app.views.horas_extra_laborales import HoraExtraLaboralFormDialog
 from app.views.icons import icon
 from app.views.obligaciones import ObligacionFormDialog
 from app.views.pago_por_rango import PagoPorRangoDialog
 from app.views.toast import mostrar_toast
-from database.models import Abono, AreaDerecho, EventoLaboral, Expediente, Obligacion
+from database.models import (
+    Abono,
+    AreaDerecho,
+    EventoLaboral,
+    Expediente,
+    HoraExtraLaboral,
+    Obligacion,
+)
+
+
+def _texto_titulo_ejecutivo(expediente: Expediente) -> str:
+    """Resumen de los datos del titulo ejecutivo (Sprint 106), fechas en
+    dia/mes/año. La fecha limite de prescripcion se calcula al vuelo (no se
+    guarda) -- ver app/services/titulo_ejecutivo.py."""
+    valores = (
+        expediente.tipo_titulo,
+        expediente.numero_identificador_titulo,
+        expediente.fecha_expedicion_otorgamiento,
+        expediente.fecha_ejecutoria,
+        expediente.fecha_exigibilidad,
+        expediente.es_primera_copia_ejecutiva,
+        expediente.termino_prescripcion_anos,
+    )
+    if all(valor is None for valor in valores):
+        return (
+            "Sin datos del título ejecutivo (se capturan una sola vez en "
+            "'Editar expediente')."
+        )
+    if expediente.es_primera_copia_ejecutiva is None:
+        primera_copia = "—"
+    else:
+        primera_copia = "Sí" if expediente.es_primera_copia_ejecutiva else "No"
+    termino = (
+        f"{expediente.termino_prescripcion_anos} años"
+        if expediente.termino_prescripcion_anos
+        else "—"
+    )
+    lineas = [
+        "Tipo: "
+        + (ETIQUETAS_TIPO_TITULO[expediente.tipo_titulo] if expediente.tipo_titulo else "—"),
+        f"Número / identificador: {expediente.numero_identificador_titulo or '—'}",
+        "Expedición u otorgamiento: "
+        + formatear_fecha(expediente.fecha_expedicion_otorgamiento),
+        f"Ejecutoria: {formatear_fecha(expediente.fecha_ejecutoria)}",
+        f"Exigibilidad: {formatear_fecha(expediente.fecha_exigibilidad)}",
+        f"Primera copia que presta mérito ejecutivo: {primera_copia}",
+        f"Término de prescripción: {termino}",
+        "Fecha límite de prescripción (calculada desde la exigibilidad): "
+        + formatear_fecha(expediente.fecha_limite_prescripcion),
+    ]
+    return "\n".join(lineas)
 
 
 def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
@@ -57,18 +111,9 @@ def _liquidar_en_hilo_de_fondo(expediente_id: int, fecha_corte: date):
     aqui de `expediente.fecha_corte_default` -- para permitir un override
     puntual desde la pantalla de liquidacion sin tocar el expediente guardado.
     """
-    session = session_module.get_session()
-    expediente = session.get(Expediente, expediente_id)
-    obligaciones = list(expediente.obligaciones)
-    abonos = [abono for obligacion in obligaciones for abono in obligacion.abonos]
-    for obligacion in obligaciones:
-        list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
-        list(obligacion.descuentos_laborales)  # idem (Sprint 44, punto 3)
-        # idem (Sprint 74): CivilFamiliaStrategy lee obligacion.beneficiario para
-        # topar la vigencia de las cuotas RECURRENTE.
-        _ = obligacion.beneficiario
-    area = expediente.area_derecho.value
-    session.close()
+    # Sprint 107: la carga (obligaciones detached con sus relaciones ya cargadas)
+    # se comparte con la vista de sensibilidad "Ver con/sin indexación".
+    obligaciones, abonos, area = cargar_datos_de_liquidacion(expediente_id)
 
     estrategia = AreaRegistry.get_strategy(area)
     resultado = estrategia.liquidar(
@@ -118,6 +163,12 @@ class ExpedienteDetallePage(QWidget):
         super().__init__()
         self._on_liquidado = on_liquidado
         self._expediente_id = None
+        # Sprint 107: fecha de corte del ultimo resultado entregado a on_liquidado
+        # (liquidacion en vivo o reconstruida del historial). MainWindow la pasa a
+        # ResultadoLiquidacionView para el interruptor "Ver con/sin indexación".
+        self.fecha_corte_ultimo_resultado: date | None = None
+        self._fecha_corte_en_curso: date | None = None
+        self._fechas_corte_historial_por_fila: list[date] = []
         self._obligacion_ids_por_fila = []
         # Area del expediente actualmente cargado, como str (AreaDerecho.value) --
         # Sprint 75: la necesita _abrir_dialogo_pago_por_rango para instanciar
@@ -230,11 +281,29 @@ class ExpedienteDetallePage(QWidget):
         layout_descuentos_laborales.addWidget(self.tabla_descuentos_laborales)
         self.grupo_descuentos_laborales.setLayout(layout_descuentos_laborales)
 
+        # Horas extra HED/HEN/HEFD/HEFN (Sprint 95, conexion a la UI): visible
+        # solo para area Laboral, mismo criterio que los 2 grupos de arriba.
+        self.tabla_horas_extra_laborales = QTableWidget(0, 6)
+        self.tabla_horas_extra_laborales.setHorizontalHeaderLabels(
+            ["Concepto", "Fecha causación", "Horas", "Valor hora", "% digitado", "Eliminar"]
+        )
+        self.boton_agregar_hora_extra_laboral = QPushButton("Agregar horas extra")
+        self.boton_agregar_hora_extra_laboral.setProperty("class", "secondary")
+        self.boton_agregar_hora_extra_laboral.clicked.connect(
+            self._abrir_dialogo_hora_extra_laboral
+        )
+
+        self.grupo_horas_extra_laborales = QGroupBox("Horas extra")
+        layout_horas_extra_laborales = QVBoxLayout()
+        layout_horas_extra_laborales.addWidget(self.boton_agregar_hora_extra_laboral)
+        layout_horas_extra_laborales.addWidget(self.tabla_horas_extra_laborales)
+        self.grupo_horas_extra_laborales.setLayout(layout_horas_extra_laborales)
+
         # Fecha de corte de ESTA liquidacion (Sprint 44, punto 5): override
         # puntual, precargado desde expediente.fecha_corte_default al abrir el
         # expediente (cargar_expediente) pero editable aqui sin tocar ese
         # valor guardado -- ver _liquidar().
-        self.campo_fecha_corte_liquidacion = QDateEdit(QDate.currentDate())
+        self.campo_fecha_corte_liquidacion = crear_campo_fecha()
         self.campo_fecha_corte_liquidacion.setCalendarPopup(True)
         self.campo_fecha_corte_liquidacion.setToolTip(
             "Fecha de corte para ESTA liquidacion puntual. No modifica la fecha de corte "
@@ -266,8 +335,28 @@ class ExpedienteDetallePage(QWidget):
         columnas.addWidget(grupo_abonos)
         columnas.addWidget(self.grupo_eventos_laborales)
         columnas.addWidget(self.grupo_descuentos_laborales)
+        columnas.addWidget(self.grupo_horas_extra_laborales)
+
+        # Tipo de proceso del expediente (Sprint 105, catalogo informativo
+        # app/services/catalogo_tipos_proceso.py); se llena en cargar_expediente().
+        self.etiqueta_tipo_proceso = QLabel()
+        self.etiqueta_tipo_proceso.setWordWrap(True)
+
+        # Datos del titulo ejecutivo (Sprint 106): solo lectura aqui, se editan
+        # desde 'Editar expediente'. Se llenan en cargar_expediente().
+        self.etiqueta_titulo_ejecutivo = QLabel()
+        self.etiqueta_titulo_ejecutivo.setWordWrap(True)
+        self.etiqueta_titulo_ejecutivo.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        grupo_titulo_ejecutivo = QGroupBox("Título ejecutivo")
+        layout_titulo_ejecutivo = QVBoxLayout()
+        layout_titulo_ejecutivo.addWidget(self.etiqueta_titulo_ejecutivo)
+        grupo_titulo_ejecutivo.setLayout(layout_titulo_ejecutivo)
 
         layout_principal = QVBoxLayout()
+        layout_principal.addWidget(self.etiqueta_tipo_proceso)
+        layout_principal.addWidget(grupo_titulo_ejecutivo)
         layout_principal.addLayout(columnas)
         layout_principal.addLayout(layout_fecha_corte)
         layout_principal.addWidget(self.boton_liquidar)
@@ -293,7 +382,10 @@ class ExpedienteDetallePage(QWidget):
             AreaDerecho.COMERCIAL,
         )
         self._area = expediente.area_derecho.value
+        self.etiqueta_titulo_ejecutivo.setText(_texto_titulo_ejecutivo(expediente))
+        codigo_tipo_proceso = expediente.tipo_proceso
         session.close()
+        self._mostrar_tipo_proceso(codigo_tipo_proceso)
 
         # Precarga el override de fecha de corte (Sprint 44, punto 5) con el
         # valor guardado en el expediente -- el usuario puede cambiarlo desde
@@ -304,6 +396,7 @@ class ExpedienteDetallePage(QWidget):
         )
         self.grupo_eventos_laborales.setVisible(es_laboral)
         self.grupo_descuentos_laborales.setVisible(es_laboral)
+        self.grupo_horas_extra_laborales.setVisible(es_laboral)
         self.boton_generar_cuotas.setVisible(es_area_con_cuotas_recurrentes)
         self.boton_pagar_cuotas_seleccionadas.setVisible(es_area_con_cuotas_recurrentes)
         self._refrescar_obligaciones()
@@ -312,12 +405,32 @@ class ExpedienteDetallePage(QWidget):
         if es_laboral:
             self._refrescar_eventos_laborales()
             self._refrescar_descuentos_laborales()
+            self._refrescar_horas_extra_laborales()
         # Reinicia el estado habilitado/deshabilitado del boton de pago por rango al
         # cambiar de expediente -- _refrescar_obligaciones() de arriba ya reconstruyo
         # tabla_obligaciones (sin seleccion), asi que sin esto el boton podia quedar
         # habilitado "heredado" del expediente anterior hasta el proximo clic en la
         # tabla.
         self._actualizar_boton_pagar_cuotas_seleccionadas()
+
+    def _mostrar_tipo_proceso(self, codigo: str | None) -> None:
+        """Sprint 105: muestra el tipo de proceso con su rama; la pregunta
+        orientadora y la descripcion van en el tooltip. Un codigo que ya no
+        este en el catalogo se muestra tal cual en vez de ocultarse."""
+        tipo = buscar_tipo_proceso(codigo)
+        if tipo is not None:
+            self.etiqueta_tipo_proceso.setText(
+                f"Tipo de proceso: {tipo.nombre} ({nombre_rama(tipo.rama)})"
+            )
+            self.etiqueta_tipo_proceso.setToolTip(texto_ayuda(tipo))
+        elif codigo:
+            self.etiqueta_tipo_proceso.setText(f"Tipo de proceso: {codigo}")
+            self.etiqueta_tipo_proceso.setToolTip("")
+        else:
+            self.etiqueta_tipo_proceso.setText("Tipo de proceso: Sin especificar")
+            self.etiqueta_tipo_proceso.setToolTip(
+                "Puede elegirse con 'Editar expediente' (opcional, informativo)."
+            )
 
     def _refrescar_obligaciones(self) -> None:
         session = session_module.get_session()
@@ -356,7 +469,7 @@ class ExpedienteDetallePage(QWidget):
 
         self.tabla_abonos.setRowCount(len(abonos))
         for fila, abono in enumerate(abonos):
-            self.tabla_abonos.setItem(fila, 0, QTableWidgetItem(abono.fecha.isoformat()))
+            self.tabla_abonos.setItem(fila, 0, QTableWidgetItem(formatear_fecha(abono.fecha)))
             self.tabla_abonos.setItem(fila, 1, QTableWidgetItem(str(abono.monto)))
             self.tabla_abonos.setItem(fila, 2, QTableWidgetItem(abono.referencia or ""))
 
@@ -389,10 +502,10 @@ class ExpedienteDetallePage(QWidget):
         for fila, evento in enumerate(eventos):
             self.tabla_eventos_laborales.setItem(fila, 0, QTableWidgetItem(evento.tipo.value))
             self.tabla_eventos_laborales.setItem(
-                fila, 1, QTableWidgetItem(evento.fecha_inicio.isoformat())
+                fila, 1, QTableWidgetItem(formatear_fecha(evento.fecha_inicio))
             )
             self.tabla_eventos_laborales.setItem(
-                fila, 2, QTableWidgetItem(evento.fecha_fin.isoformat())
+                fila, 2, QTableWidgetItem(formatear_fecha(evento.fecha_fin))
             )
 
             boton_editar = QPushButton("Editar")
@@ -423,7 +536,7 @@ class ExpedienteDetallePage(QWidget):
         self.tabla_descuentos_laborales.setRowCount(len(descuentos))
         for fila, descuento in enumerate(descuentos):
             self.tabla_descuentos_laborales.setItem(
-                fila, 0, QTableWidgetItem(descuento.fecha.isoformat())
+                fila, 0, QTableWidgetItem(formatear_fecha(descuento.fecha))
             )
             self.tabla_descuentos_laborales.setItem(
                 fila, 1, QTableWidgetItem(str(descuento.monto))
@@ -436,22 +549,58 @@ class ExpedienteDetallePage(QWidget):
             )
         session.close()
 
+    def _refrescar_horas_extra_laborales(self) -> None:
+        session = session_module.get_session()
+        expediente = session.get(Expediente, self._expediente_id)
+        horas_extra = [
+            hora_extra
+            for obligacion in expediente.obligaciones
+            for hora_extra in sorted(
+                obligacion.horas_extra_laborales, key=lambda h: h.fecha_causacion
+            )
+        ]
+
+        tabla = self.tabla_horas_extra_laborales
+        tabla.setRowCount(len(horas_extra))
+        for fila, hora_extra in enumerate(horas_extra):
+            porcentaje = hora_extra.porcentaje_manual
+            textos = [
+                hora_extra.concepto,
+                formatear_fecha(hora_extra.fecha_causacion),
+                str(hora_extra.numero_horas),
+                str(hora_extra.valor_hora),
+                "" if porcentaje is None else str(porcentaje),
+            ]
+            for columna, texto in enumerate(textos):
+                tabla.setItem(fila, columna, QTableWidgetItem(texto))
+
+            boton_eliminar = QPushButton("Eliminar")
+            boton_eliminar.setIcon(icon("delete"))
+            boton_eliminar.setProperty("class", "destructive")
+            boton_eliminar.clicked.connect(
+                lambda _checked=False, id_=hora_extra.id: self._eliminar_hora_extra_laboral(id_)
+            )
+            tabla.setCellWidget(fila, 5, boton_eliminar)
+        session.close()
+
     def _refrescar_historial(self) -> None:
         session = session_module.get_session()
         historial = historial_de_expediente(session, self._expediente_id)
 
         self.tabla_historial.setRowCount(len(historial))
         self._audit_log_ids_por_fila = []
+        self._fechas_corte_historial_por_fila = []
         for fila, registro in enumerate(historial):
             self.tabla_historial.setItem(
-                fila, 0, QTableWidgetItem(registro.fecha_ejecucion.strftime("%Y-%m-%d %H:%M:%S"))
+                fila, 0, QTableWidgetItem(registro.fecha_ejecucion.strftime("%d/%m/%Y %H:%M:%S"))
             )
             self.tabla_historial.setItem(fila, 1, QTableWidgetItem(registro.usuario))
             self.tabla_historial.setItem(fila, 2, QTableWidgetItem(registro.area_derecho))
             self.tabla_historial.setItem(
-                fila, 3, QTableWidgetItem(registro.fecha_corte.isoformat())
+                fila, 3, QTableWidgetItem(formatear_fecha(registro.fecha_corte))
             )
             self._audit_log_ids_por_fila.append(registro.id)
+            self._fechas_corte_historial_por_fila.append(registro.fecha_corte)
         session.close()
 
     def _reconstruir_desde_historial(self, fila: int, columna: int) -> None:
@@ -460,6 +609,7 @@ class ExpedienteDetallePage(QWidget):
         resultado = reconstruir_liquidacion(session, audit_log_id)
         session.close()
         self._mostrar_alertas_de_liquidacion(resultado)
+        self.fecha_corte_ultimo_resultado = self._fechas_corte_historial_por_fila[fila]
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
 
@@ -554,6 +704,7 @@ class ExpedienteDetallePage(QWidget):
         self._refrescar_abonos()
         self._refrescar_eventos_laborales()
         self._refrescar_descuentos_laborales()
+        self._refrescar_horas_extra_laborales()
 
     def _obligacion_por_fila(self, fila: int) -> Obligacion:
         """Resuelve la `Obligacion` real (no solo su id) a partir de una fila de
@@ -803,6 +954,42 @@ class ExpedienteDetallePage(QWidget):
         if dialogo.exec():
             self._refrescar_descuentos_laborales()
 
+    def _abrir_dialogo_hora_extra_laboral(self) -> None:
+        fila_seleccionada = self.tabla_obligaciones.currentRow()
+        if fila_seleccionada < 0:
+            QMessageBox.warning(
+                self,
+                "Seleccion requerida",
+                "Selecciona una obligacion antes de agregar horas extra.",
+            )
+            return
+
+        obligacion_id = self._obligacion_ids_por_fila[fila_seleccionada]
+        dialogo = HoraExtraLaboralFormDialog(obligacion_id=obligacion_id, parent=self)
+        if dialogo.exec():
+            self._refrescar_horas_extra_laborales()
+
+    def _eliminar_hora_extra_laboral(self, hora_extra_id: int) -> None:
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar horas extra",
+            "¿Eliminar este registro de horas extra? Esta accion no se puede deshacer.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+
+        session = session_module.get_session()
+        hora_extra = session.get(HoraExtraLaboral, hora_extra_id)
+        if hora_extra is None:
+            session.close()
+            self._avisar_registro_ya_no_existe()
+            self._refrescar_horas_extra_laborales()
+            return
+        session.delete(hora_extra)
+        session.commit()
+        session.close()
+        self._refrescar_horas_extra_laborales()
+
     def _liquidar(self) -> None:
         if not self.boton_liquidar.isEnabled():
             return  # ya hay una liquidacion en curso: evita doble liquidacion concurrente
@@ -817,6 +1004,7 @@ class ExpedienteDetallePage(QWidget):
         qdate_corte = self.campo_fecha_corte_liquidacion.date()
         fecha_corte = date(qdate_corte.year(), qdate_corte.month(), qdate_corte.day())
 
+        self._fecha_corte_en_curso = fecha_corte
         self._tarea_liquidar = TareaEnHilo(
             _liquidar_en_hilo_de_fondo, self._expediente_id, fecha_corte
         )
@@ -851,6 +1039,7 @@ class ExpedienteDetallePage(QWidget):
         self._finalizar_liquidacion_en_curso()
         self._refrescar_historial()
         self._mostrar_alertas_de_liquidacion(resultado)
+        self.fecha_corte_ultimo_resultado = self._fecha_corte_en_curso
         if self._on_liquidado:
             self._on_liquidado(resultado, self._expediente_id)
         self.liquidacion_finalizada.emit()

@@ -964,8 +964,12 @@ def test_orden_de_tabulacion_sigue_el_orden_visual_del_formulario(qtbot, monkeyp
         dialog.campo_demandante,
         dialog.campo_demandado,
         dialog.combo_area,
+        dialog.combo_tipo_proceso,  # Sprint 105
         dialog.campo_juzgado,
         dialog.campo_fecha_corte,
+        # Sprint 106: grupo marcable del titulo ejecutivo (desmarcado, sus
+        # campos internos quedan deshabilitados y fuera del recorrido).
+        dialog.grupo_titulo_ejecutivo,
         dialog.boton_guardar,
     ]
 
@@ -976,3 +980,286 @@ def test_orden_de_tabulacion_sigue_el_orden_visual_del_formulario(qtbot, monkeyp
     for widget_esperado in orden_esperado[1:]:
         qtbot.keyClick(dialog, Qt.Key.Key_Tab)
         assert dialog.focusWidget() is widget_esperado
+
+
+# --- Sprint 105: tipo de proceso (intake Area -> Tipo de proceso) -----------
+
+
+def _seleccionar_area(dialog, area: AreaDerecho) -> None:
+    dialog.combo_area.setCurrentIndex(dialog.combo_area.findData(area.value))
+
+
+def _codigos_combo_tipo_proceso(dialog) -> list:
+    return [
+        dialog.combo_tipo_proceso.itemData(i) for i in range(dialog.combo_tipo_proceso.count())
+    ]
+
+
+def test_combo_tipo_proceso_se_filtra_por_area(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+
+    _seleccionar_area(dialog, AreaDerecho.LABORAL)
+    assert _codigos_combo_tipo_proceso(dialog) == [None, "LABORAL_ORDINARIO"]
+
+    _seleccionar_area(dialog, AreaDerecho.CIVIL_FAMILIA)
+    codigos = _codigos_combo_tipo_proceso(dialog)
+    assert codigos[0] is None
+    assert "CIVIL_COMERCIAL_EJECUTIVO" in codigos
+    assert "FAMILIA_EJECUTIVO_ALIMENTOS" in codigos
+
+    _seleccionar_area(dialog, AreaDerecho.TRIBUTARIO)
+    assert _codigos_combo_tipo_proceso(dialog) == [None]
+    assert not dialog.combo_tipo_proceso.isEnabled()
+
+
+def test_combo_tipo_proceso_tiene_tooltip_y_muestra_ayuda_del_tipo_elegido(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    assert dialog.combo_tipo_proceso.toolTip() != ""
+
+    _seleccionar_area(dialog, AreaDerecho.CIVIL_FAMILIA)
+    dialog.combo_tipo_proceso.setCurrentIndex(
+        dialog.combo_tipo_proceso.findData("CIVIL_COMERCIAL_DECLARATIVO")
+    )
+    texto = dialog.etiqueta_ayuda_tipo_proceso.text()
+    assert "¿La obligación dineraria es expresa, clara, exigible" in texto
+    assert "NO" in texto
+    assert "audiencia de conciliación extrajudicial" in texto
+
+    dialog.combo_tipo_proceso.setCurrentIndex(0)
+    assert "audiencia de conciliación extrajudicial" not in (
+        dialog.etiqueta_ayuda_tipo_proceso.text()
+    )
+
+
+def test_guardar_nuevo_expediente_persiste_tipo_proceso(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-105")
+    _seleccionar_area(dialog, AreaDerecho.CIVIL_FAMILIA)
+    dialog.combo_tipo_proceso.setCurrentIndex(
+        dialog.combo_tipo_proceso.findData("FAMILIA_EJECUTIVO_ALIMENTOS")
+    )
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso == "FAMILIA_EJECUTIVO_ALIMENTOS"
+    session.close()
+
+
+def test_guardar_sin_tipo_proceso_deja_none(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-106")
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso is None
+    session.close()
+
+
+def test_editar_expediente_precarga_tipo_proceso(qtbot, monkeypatch):
+    session = crear_sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-107",
+        demandante="A",
+        demandado="B",
+        area_derecho=AreaDerecho.LABORAL,
+        fecha_corte_default=date(2026, 6, 1),
+        tipo_proceso="LABORAL_ORDINARIO",
+    )
+    session.add(expediente)
+    session.commit()
+
+    dialog = ExpedienteFormDialog(expediente=expediente)
+    qtbot.addWidget(dialog)
+
+    assert dialog.combo_tipo_proceso.currentData() == "LABORAL_ORDINARIO"
+    session.close()
+
+
+def test_editar_expediente_viejo_sin_tipo_proceso_funciona(qtbot, monkeypatch):
+    session = crear_sesion_en_memoria(monkeypatch)
+    expediente = Expediente(
+        radicado="2026-108",
+        demandante="A",
+        demandado="B",
+        area_derecho=AreaDerecho.COMERCIAL,
+        fecha_corte_default=date(2026, 6, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    expediente_id = expediente.id
+
+    dialog = ExpedienteFormDialog(expediente=expediente)
+    qtbot.addWidget(dialog)
+    assert dialog.combo_tipo_proceso.currentData() is None
+    dialog.guardar()
+
+    session.close()
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso is None
+    session.close()
+
+
+def test_cambiar_area_descarta_tipo_proceso_de_otra_area(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.campo_radicado.setText("2026-109")
+    _seleccionar_area(dialog, AreaDerecho.LABORAL)
+    dialog.combo_tipo_proceso.setCurrentIndex(1)
+    _seleccionar_area(dialog, AreaDerecho.HONORARIOS)
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    assert session.get(Expediente, expediente_id).tipo_proceso is None
+    session.close()
+
+
+# --- Sprint 106: datos del titulo ejecutivo, capturados una sola vez por caso ---
+
+
+def _llenar_basicos(dialog):
+    dialog.campo_radicado.setText("2026-106")
+    dialog.campo_demandante.setText("Ana")
+    dialog.campo_demandado.setText("Luis")
+
+
+def test_grupo_titulo_ejecutivo_es_opcional_y_desmarcado_por_defecto(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    _llenar_basicos(dialog)
+
+    assert dialog.grupo_titulo_ejecutivo.isCheckable() is True
+    assert dialog.grupo_titulo_ejecutivo.isChecked() is False
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    guardado = session.get(Expediente, expediente_id)
+    assert guardado.tipo_titulo is None
+    assert guardado.numero_identificador_titulo is None
+    assert guardado.fecha_exigibilidad is None
+    assert guardado.es_primera_copia_ejecutiva is None
+    assert guardado.termino_prescripcion_anos is None
+    session.close()
+
+
+def test_guarda_los_datos_del_titulo_ejecutivo(qtbot, monkeypatch):
+    from database.models import TipoTituloEjecutivo
+
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    _llenar_basicos(dialog)
+    dialog.grupo_titulo_ejecutivo.setChecked(True)
+    dialog.combo_tipo_titulo.setCurrentIndex(dialog.combo_tipo_titulo.findData("ACTA"))
+    dialog.campo_numero_titulo.setText("Acta 045 de 2020")
+    dialog.campo_fecha_expedicion.establecer_fecha(date(2020, 3, 10))
+    dialog.campo_fecha_exigibilidad.establecer_fecha(date(2021, 6, 1))
+    dialog.campo_fecha_ejecutoria.establecer_fecha(date(2020, 3, 20))
+    dialog.check_primera_copia.setChecked(True)
+    dialog.spin_termino_prescripcion.setValue(5)
+
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    guardado = session.get(Expediente, expediente_id)
+    assert guardado.tipo_titulo == TipoTituloEjecutivo.ACTA
+    assert guardado.numero_identificador_titulo == "Acta 045 de 2020"
+    assert guardado.fecha_expedicion_otorgamiento == date(2020, 3, 10)
+    assert guardado.fecha_exigibilidad == date(2021, 6, 1)
+    assert guardado.fecha_ejecutoria == date(2020, 3, 20)
+    assert guardado.es_primera_copia_ejecutiva is True
+    assert guardado.termino_prescripcion_anos == 5
+    session.close()
+
+
+def test_formulario_muestra_fecha_limite_de_prescripcion_calculada(qtbot, monkeypatch):
+    _sesion_en_memoria(monkeypatch)
+
+    dialog = ExpedienteFormDialog()
+    qtbot.addWidget(dialog)
+    dialog.grupo_titulo_ejecutivo.setChecked(True)
+    dialog.campo_fecha_exigibilidad.establecer_fecha(date(2021, 6, 1))
+    dialog.spin_termino_prescripcion.setValue(5)
+
+    assert "01/06/2026" in dialog.label_fecha_limite_prescripcion.text()
+
+    dialog.spin_termino_prescripcion.setValue(0)
+    assert "01/06/2026" not in dialog.label_fecha_limite_prescripcion.text()
+
+
+def test_editar_expediente_precarga_el_titulo_ejecutivo(qtbot, monkeypatch):
+    from database.models import TipoTituloEjecutivo
+
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-107",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
+        tipo_titulo=TipoTituloEjecutivo.SENTENCIA,
+        numero_identificador_titulo="Sentencia 12",
+        fecha_exigibilidad=date(2021, 6, 1),
+        es_primera_copia_ejecutiva=False,
+        termino_prescripcion_anos=10,
+    )
+    session.add(expediente)
+    session.commit()
+
+    dialog = ExpedienteFormDialog(expediente=expediente)
+    qtbot.addWidget(dialog)
+    session.close()
+
+    assert dialog.grupo_titulo_ejecutivo.isChecked() is True
+    assert dialog.combo_tipo_titulo.currentData() == "SENTENCIA"
+    assert dialog.campo_numero_titulo.text() == "Sentencia 12"
+    assert dialog.campo_fecha_exigibilidad.fecha() == date(2021, 6, 1)
+    assert dialog.campo_fecha_expedicion.fecha() is None
+    assert dialog.check_primera_copia.isChecked() is False
+    assert dialog.spin_termino_prescripcion.value() == 10
+
+
+def test_desmarcar_titulo_ejecutivo_al_editar_borra_sus_datos(qtbot, monkeypatch):
+    from database.models import TipoTituloEjecutivo
+
+    _sesion_en_memoria(monkeypatch)
+    session = session_module.get_session()
+    expediente = Expediente(
+        radicado="2026-108",
+        demandante="Ana",
+        demandado="Luis",
+        area_derecho=AreaDerecho.CIVIL_FAMILIA,
+        fecha_corte_default=date(2026, 6, 1),
+        tipo_titulo=TipoTituloEjecutivo.LAUDO,
+        fecha_exigibilidad=date(2021, 6, 1),
+    )
+    session.add(expediente)
+    session.commit()
+    dialog = ExpedienteFormDialog(expediente=expediente)
+    qtbot.addWidget(dialog)
+    session.close()
+
+    dialog.grupo_titulo_ejecutivo.setChecked(False)
+    expediente_id = dialog.guardar()
+
+    session = session_module.get_session()
+    guardado = session.get(Expediente, expediente_id)
+    assert guardado.tipo_titulo is None
+    assert guardado.fecha_exigibilidad is None
+    session.close()

@@ -523,3 +523,30 @@ def test_generate_no_muestra_costas_sin_costas(tmp_path, monkeypatch):
     )
 
     assert not any(fila[0].startswith("Costas Procesales") for fila in llamadas[0])
+
+
+def test_generate_muestra_fruto_civil_como_rubro_propio(tmp_path, monkeypatch):
+    # Sprint 100: total del fruto civil (Art. 964 C.C.) discriminado en el
+    # resumen, solo cuando build_summary lo agrego.
+    llamadas = _capturar_tablas(monkeypatch)
+    ruta = tmp_path / "liquidacion_fruto_civil.pdf"
+    summary = _summary()
+    summary["total_fruto_civil"] = "$2,731,013.92"
+
+    JudicialPDFGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", summary, _table_data()
+    )
+
+    filas = {fila[0]: fila[1] for fila in llamadas[0]}
+    assert filas["Fruto Civil Causado (Art. 964 C.C., sin intereses)"] == "$2,731,013.92"
+
+
+def test_generate_no_muestra_fruto_civil_sin_fruto_civil(tmp_path, monkeypatch):
+    llamadas = _capturar_tablas(monkeypatch)
+    ruta = tmp_path / "liquidacion_sin_fruto_civil.pdf"
+
+    JudicialPDFGenerator(str(ruta)).generate(
+        "LIQUIDACIÓN DE OBLIGACIONES — ÁREA CIVIL / FAMILIA", _summary(), _table_data()
+    )
+
+    assert not any(fila[0].startswith("Fruto Civil") for fila in llamadas[0])

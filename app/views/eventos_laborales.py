@@ -2,9 +2,10 @@ from datetime import date
 
 from PySide6.QtCore import QDate
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QComboBox, QDateEdit, QFormLayout, QPushButton
+from PySide6.QtWidgets import QComboBox, QFormLayout, QPushButton
 
 import database.session as session_module
+from app.views.fecha_widgets import crear_campo_fecha
 from app.views.form_utils import (
     FormDialogBase,
     guardar_o_actualizar,
@@ -32,9 +33,9 @@ class EventoLaboralFormDialog(FormDialogBase):
             "Incapacidad laboral", userData=TipoEventoLaboral.INCAPACIDAD_LABORAL
         )
 
-        self.campo_fecha_inicio = QDateEdit(QDate.currentDate())
+        self.campo_fecha_inicio = crear_campo_fecha()
         self.campo_fecha_inicio.setCalendarPopup(True)
-        self.campo_fecha_fin = QDateEdit(QDate.currentDate())
+        self.campo_fecha_fin = crear_campo_fecha()
         self.campo_fecha_fin.setCalendarPopup(True)
 
         self.combo_motivo = QComboBox()

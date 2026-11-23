@@ -1,8 +1,11 @@
 import re
+from datetime import date
 
 from PySide6.QtCore import Qt, QThreadPool, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
@@ -25,7 +28,9 @@ from app.engine.reports.table_builder import ReportTableBuilder
 from app.reports.header import build_encabezado
 from app.reports.pdf import JudicialPDFGenerator
 from app.reports.word import WordReportGenerator
+from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
 from app.views.concurrency import TareaEnHilo
+from app.views.fecha_widgets import formatear_fecha
 from app.views.icons import icon
 from app.views.toast import mostrar_toast
 from database.models import Expediente
@@ -97,12 +102,23 @@ def _generar_word_en_hilo_de_fondo(
 
 class ResultadoLiquidacionView(QWidget):
     exportacion_finalizada = Signal()
+    # Sprint 107: se emite al terminar (con exito o con error) cada recalculo de
+    # la vista de sensibilidad "Ver con/sin indexación".
+    vista_sensibilidad_actualizada = Signal()
 
     def __init__(self):
         super().__init__()
 
+        # `_resultado` es SIEMPRE la liquidacion oficial (la que se exporta y la que
+        # quedo en el AuditLog); la vista de sensibilidad (Sprint 107) nunca lo
+        # reemplaza, solo se pinta encima mientras el interruptor esta activo.
         self._resultado = None
         self._expediente_id = None
+        self._fecha_corte: date | None = None
+        self._exportando = False
+        # Contador de solicitudes de recalculo: si el usuario cambia el interruptor
+        # antes de que termine un recalculo en curso, la respuesta vieja se descarta.
+        self._solicitud_sensibilidad = 0
 
         self.tabla = QTableWidget(0, 8)
         self.tabla.setHorizontalHeaderLabels(
@@ -125,6 +141,11 @@ class ResultadoLiquidacionView(QWidget):
         # suman en seco al saldo final. Oculta cuando la liquidacion no tiene costas.
         self.etiqueta_costas = QLabel("Costas procesales (no generan interés): 0.00")
         self.etiqueta_costas.setVisible(False)
+        # Sprint 100: fruto civil (Art. 964 C.C.) como rubro propio -- ya esta
+        # dentro del capital; esta etiqueta solo lo discrimina. Oculta cuando la
+        # liquidacion no tiene obligaciones de fruto civil.
+        self.etiqueta_fruto_civil = QLabel("Fruto civil causado (sin intereses): 0.00")
+        self.etiqueta_fruto_civil.setVisible(False)
         # Sprint 46: el saldo a favor de un sobrepago (Sprint 23, ya calculado
         # correctamente por LiquidationCore) se vuelve visible aqui -- oculto por
         # completo (nada, ni una fila vacia) cuando no hay sobrepago.
@@ -173,11 +194,50 @@ class ResultadoLiquidacionView(QWidget):
         layout_botones.addWidget(self.boton_exportar_pdf)
         layout_botones.addWidget(self.boton_exportar_word)
 
+        # Sprint 107 (respuesta del despacho: implementacion hibrida): interruptor
+        # de PRESENTACION "Ver con/sin indexación". El checkbox de la obligacion
+        # (ObligacionFormDialog) sigue siendo la intencion juridica guardada; este
+        # interruptor solo recalcula en memoria la vista (analisis de sensibilidad o
+        # debate pedagogico ante el juez) para todas las obligaciones del
+        # expediente, sin escribir nada en la base de datos (ni obligaciones ni
+        # AuditLog) -- ver app/services/vista_sensibilidad_indexacion.py. Mientras
+        # esta activo, exportar a PDF/Word queda deshabilitado: solo se exporta la
+        # liquidacion oficial, nunca la vista de sensibilidad.
+        self.check_vista_sensibilidad = QCheckBox("Ver con/sin indexación")
+        self.check_vista_sensibilidad.setToolTip(
+            "Vista de sensibilidad: recalcula en memoria esta liquidación con la "
+            "indexación IPC activada o desactivada para todas las obligaciones. No "
+            "modifica las obligaciones ni la liquidación oficial guardada."
+        )
+        self.check_vista_sensibilidad.setEnabled(False)
+        self.check_vista_sensibilidad.toggled.connect(self._on_interruptor_sensibilidad)
+        self.selector_indexacion_sensibilidad = QComboBox()
+        self.selector_indexacion_sensibilidad.addItem("Sin indexación IPC", False)
+        self.selector_indexacion_sensibilidad.addItem("Con indexación IPC", True)
+        self.selector_indexacion_sensibilidad.setEnabled(False)
+        self.selector_indexacion_sensibilidad.currentIndexChanged.connect(
+            self._on_sentido_sensibilidad_cambiado
+        )
+        layout_sensibilidad = QHBoxLayout()
+        layout_sensibilidad.addWidget(self.check_vista_sensibilidad)
+        layout_sensibilidad.addWidget(self.selector_indexacion_sensibilidad)
+        layout_sensibilidad.addStretch()
+
+        self.etiqueta_vista_sensibilidad = QLabel()
+        self.etiqueta_vista_sensibilidad.setWordWrap(True)
+        self.etiqueta_vista_sensibilidad.setStyleSheet(
+            f"color: {colores.ADVERTENCIA}; font-weight: bold;"
+        )
+        self.etiqueta_vista_sensibilidad.setVisible(False)
+
         layout = QVBoxLayout()
+        layout.addLayout(layout_sensibilidad)
+        layout.addWidget(self.etiqueta_vista_sensibilidad)
         layout.addWidget(self.tabla)
         layout.addWidget(self.etiqueta_alertas)
         layout.addWidget(self.etiqueta_interes_total)
         layout.addWidget(self.etiqueta_pagos_total)
+        layout.addWidget(self.etiqueta_fruto_civil)
         layout.addWidget(self.etiqueta_costas)
         layout.addWidget(self.etiqueta_saldo_final)
         layout.addWidget(self.etiqueta_saldo_a_favor)
@@ -185,10 +245,32 @@ class ResultadoLiquidacionView(QWidget):
         layout.addLayout(layout_botones)
         self.setLayout(layout)
 
-    def mostrar(self, resultado: LiquidationResult, expediente_id: int) -> None:
+    def mostrar(
+        self,
+        resultado: LiquidationResult,
+        expediente_id: int,
+        fecha_corte: date | None = None,
+    ) -> None:
+        """Muestra la liquidacion OFICIAL. `fecha_corte` (Sprint 107) habilita el
+        interruptor "Ver con/sin indexación", que necesita recalcular con la misma
+        fecha de corte; sin ella el interruptor queda deshabilitado."""
         self._resultado = resultado
         self._expediente_id = expediente_id
+        self._fecha_corte = fecha_corte
 
+        # Un resultado nuevo siempre llega en su vista oficial.
+        self._solicitud_sensibilidad += 1
+        self.check_vista_sensibilidad.blockSignals(True)
+        self.check_vista_sensibilidad.setChecked(False)
+        self.check_vista_sensibilidad.blockSignals(False)
+        self.check_vista_sensibilidad.setEnabled(fecha_corte is not None)
+        self.selector_indexacion_sensibilidad.setEnabled(fecha_corte is not None)
+        self.etiqueta_vista_sensibilidad.setVisible(False)
+        self._actualizar_botones_exportar()
+
+        self._pintar_resultado(resultado)
+
+    def _pintar_resultado(self, resultado: LiquidationResult) -> None:
         if resultado.alertas:
             self.etiqueta_alertas.setText("\n".join(f"⚠ {alerta}" for alerta in resultado.alertas))
             self.etiqueta_alertas.setVisible(True)
@@ -208,7 +290,7 @@ class ResultadoLiquidacionView(QWidget):
                 concepto_texto = f"⚠ {concepto_texto} — Obligación prescrita, no exigible"
 
             celdas_fila = [
-                QTableWidgetItem(item.date.isoformat()),
+                QTableWidgetItem(formatear_fecha(item.date)),
                 QTableWidgetItem(concepto_texto),
                 QTableWidgetItem(str(item.capital_base)),
                 QTableWidgetItem(str(item.interest_rate)),
@@ -236,6 +318,15 @@ class ResultadoLiquidacionView(QWidget):
         else:
             self.etiqueta_costas.setVisible(False)
 
+        if any(item.balance.event_type == "FRUTO_CIVIL" for item in resultado.items):
+            self.etiqueta_fruto_civil.setText(
+                "Fruto civil causado (Art. 964 C.C., sin intereses): "
+                f"{resultado.total_fruto_civil()}"
+            )
+            self.etiqueta_fruto_civil.setVisible(True)
+        else:
+            self.etiqueta_fruto_civil.setVisible(False)
+
         total_saldo_a_favor = resultado.total_saldo_a_favor()
         if total_saldo_a_favor > 0:
             self.etiqueta_saldo_a_favor.setText(f"Saldo a favor del deudor: {total_saldo_a_favor}")
@@ -257,6 +348,87 @@ class ResultadoLiquidacionView(QWidget):
             self.grupo_renta_liquida.setVisible(True)
         else:
             self.grupo_renta_liquida.setVisible(False)
+
+    # --- Sprint 107: vista de sensibilidad "Ver con/sin indexación" ---
+
+    def _en_vista_sensibilidad(self) -> bool:
+        return self.check_vista_sensibilidad.isChecked()
+
+    def _actualizar_botones_exportar(self) -> None:
+        """Exportar solo esta disponible para la liquidacion oficial: nunca
+        mientras se ve la vista de sensibilidad ni durante otra exportacion."""
+        en_sensibilidad = self._en_vista_sensibilidad()
+        habilitado = not self._exportando and not en_sensibilidad
+        self.boton_exportar_pdf.setEnabled(habilitado)
+        self.boton_exportar_word.setEnabled(habilitado)
+        tooltip = (
+            "Desactive «Ver con/sin indexación» para exportar la liquidación oficial."
+            if en_sensibilidad
+            else ""
+        )
+        self.boton_exportar_pdf.setToolTip(tooltip)
+        self.boton_exportar_word.setToolTip(tooltip)
+
+    def _on_interruptor_sensibilidad(self, activo: bool) -> None:
+        self._actualizar_botones_exportar()
+        if activo:
+            self._recalcular_vista_sensibilidad()
+        else:
+            self._volver_a_vista_oficial()
+
+    def _on_sentido_sensibilidad_cambiado(self, _indice: int) -> None:
+        if self._en_vista_sensibilidad():
+            self._recalcular_vista_sensibilidad()
+
+    def _volver_a_vista_oficial(self) -> None:
+        self._solicitud_sensibilidad += 1  # descarta cualquier recalculo en curso
+        self.etiqueta_vista_sensibilidad.setVisible(False)
+        if self._resultado is not None:
+            self._pintar_resultado(self._resultado)
+
+    def _recalcular_vista_sensibilidad(self) -> None:
+        if self._expediente_id is None or self._fecha_corte is None:
+            return
+        self._solicitud_sensibilidad += 1
+        solicitud = self._solicitud_sensibilidad
+        con_indexacion = bool(self.selector_indexacion_sensibilidad.currentData())
+
+        self._tarea_sensibilidad = TareaEnHilo(
+            liquidar_vista_sensibilidad, self._expediente_id, self._fecha_corte, con_indexacion
+        )
+        self._tarea_sensibilidad.senales.completada.connect(
+            lambda resultado: self._on_sensibilidad_completada(
+                resultado, solicitud, con_indexacion
+            )
+        )
+        self._tarea_sensibilidad.senales.fallo.connect(
+            lambda error: self._on_sensibilidad_fallo(error, solicitud)
+        )
+        QThreadPool.globalInstance().start(self._tarea_sensibilidad)
+
+    def _on_sensibilidad_completada(
+        self, resultado: LiquidationResult, solicitud: int, con_indexacion: bool
+    ) -> None:
+        if solicitud == self._solicitud_sensibilidad and self._en_vista_sensibilidad():
+            sentido = "CON" if con_indexacion else "SIN"
+            self.etiqueta_vista_sensibilidad.setText(
+                f"VISTA DE SENSIBILIDAD — NO ES LA LIQUIDACIÓN OFICIAL: recalculada en "
+                f"memoria {sentido} indexación IPC para todas las obligaciones, con los "
+                f"datos actuales del expediente. No modifica las obligaciones ni la "
+                f"liquidación guardada. Exportar está deshabilitado en esta vista."
+            )
+            self.etiqueta_vista_sensibilidad.setVisible(True)
+            self._pintar_resultado(resultado)
+        self.vista_sensibilidad_actualizada.emit()
+
+    def _on_sensibilidad_fallo(self, error: Exception, solicitud: int) -> None:
+        if solicitud == self._solicitud_sensibilidad and self._en_vista_sensibilidad():
+            # Vuelve a la vista oficial (setChecked dispara _on_interruptor_sensibilidad).
+            self.check_vista_sensibilidad.setChecked(False)
+            QMessageBox.warning(
+                self, "No se pudo calcular la vista de sensibilidad", str(error)
+            )
+        self.vista_sensibilidad_actualizada.emit()
 
     def _obtener_radicado(self) -> str:
         session = session_module.get_session()
@@ -292,8 +464,8 @@ class ResultadoLiquidacionView(QWidget):
         self._iniciar_exportacion(_generar_word_en_hilo_de_fondo, ruta, "Word")
 
     def _iniciar_exportacion(self, funcion_generadora, ruta: str, etiqueta: str) -> None:
-        self.boton_exportar_pdf.setEnabled(False)
-        self.boton_exportar_word.setEnabled(False)
+        self._exportando = True
+        self._actualizar_botones_exportar()
 
         self._dialogo_progreso_exportar = QProgressDialog(
             f"Exportando a {etiqueta}...", None, 0, 0, self
@@ -314,8 +486,8 @@ class ResultadoLiquidacionView(QWidget):
 
     def _finalizar_exportacion_en_curso(self) -> None:
         self._dialogo_progreso_exportar.close()
-        self.boton_exportar_pdf.setEnabled(True)
-        self.boton_exportar_word.setEnabled(True)
+        self._exportando = False
+        self._actualizar_botones_exportar()
 
     def _on_exportar_completado(self, ruta: str, etiqueta: str) -> None:
         self._finalizar_exportacion_en_curso()

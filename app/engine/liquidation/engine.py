@@ -79,9 +79,19 @@ class LiquidationCore:
             # expediente. Ver LaboralStrategy.liquidar y
             # app/engine/labor/dismissal_indemnity.py.
             "INDEMNIZACION_DESPIDO",
+            # HORAS_EXTRA (Sprint 95, conexion a la UI): horas extra
+            # HED/HEN/HEFD/HEFN de un contrato Laboral, rubro propio -- ver
+            # LaboralStrategy._eventos_horas_extra.
+            "HORAS_EXTRA",
             "DANO_EMERGENTE",
             "LUCRO_CESANTE_CONSOLIDADO",
             "DANOS_MORALES",
+            # FRUTO_CIVIL (Sprint 100): un evento por mes del periodo de
+            # privacion con el fruto neto de ese mes (puede ser negativo si los
+            # gastos de conservacion superan el canon). CivilFamiliaStrategy le
+            # asigna tasa 0 -- no genera interes (decision no confirmada por el
+            # despacho, ver _eventos_fruto_civil).
+            "FRUTO_CIVIL",
             "CAPITAL_PAGARE",
             "CAPITAL_LETRA_CAMBIO",
             "CAPITAL_CHEQUE",

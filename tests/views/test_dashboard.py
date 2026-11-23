@@ -152,7 +152,7 @@ def test_dashboard_muestra_alerta_de_obligacion_proxima_a_prescribir(qtbot, monk
     assert view.tabla_alertas.rowCount() == 1
     assert view.tabla_alertas.item(0, 0).text() == "2026-010"
     assert view.tabla_alertas.item(0, 1).text() == "Capital pagare"
-    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.isoformat()
+    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.strftime("%d/%m/%Y")
     assert view.tabla_alertas.item(0, 3).text() == "Vence en 30 días"
 
 
@@ -174,7 +174,7 @@ def test_dashboard_alerta_prescripcion_ordinaria_no_solo_ejecutiva(qtbot, monkey
     view.refrescar(hoy=hoy)
 
     assert view.tabla_alertas.rowCount() == 1
-    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.isoformat()
+    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.strftime("%d/%m/%Y")
 
 
 def test_dashboard_alerta_caducidad_cheques(qtbot, monkeypatch):
@@ -197,7 +197,7 @@ def test_dashboard_alerta_caducidad_cheques(qtbot, monkeypatch):
     view.refrescar(hoy=hoy)
 
     assert view.tabla_alertas.rowCount() == 1
-    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.isoformat()
+    assert view.tabla_alertas.item(0, 2).text() == fecha_limite.strftime("%d/%m/%Y")
 
 
 def test_dashboard_marca_vencido_cuando_la_fecha_limite_ya_paso(qtbot, monkeypatch):
@@ -335,8 +335,8 @@ def test_dashboard_actividad_reciente_ordena_recientes_primero_y_recorta_a_10(
     qtbot.addWidget(view)
 
     assert view.tabla_actividad.rowCount() == 10
-    assert view.tabla_actividad.item(0, 0).text() == "2026-01-12 10:00"
-    assert view.tabla_actividad.item(9, 0).text() == "2026-01-03 10:00"
+    assert view.tabla_actividad.item(0, 0).text() == "12/01/2026 10:00"
+    assert view.tabla_actividad.item(9, 0).text() == "03/01/2026 10:00"
 
 
 # --- Sprint 50 (Tarea 3): grafica de expedientes por area ------------------

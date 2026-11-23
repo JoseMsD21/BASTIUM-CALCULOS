@@ -185,6 +185,21 @@ class TipoBeneficiario(enum.Enum):
     OTRO = "OTRO"
 
 
+class TipoTituloEjecutivo(enum.Enum):
+    """Tipo del titulo ejecutivo de un Expediente (Sprint 106). Lista
+    confirmada por el despacho (docs/Preguntas-Para-Abogado-Respondidas.md,
+    Sprint 106: "tipo_titulo (Enum: Sentencia, Acta, Laudo, etc.)") mas
+    RESOLUCION, mencionada en la misma pregunta, y OTRO para cubrir el "etc."
+    sin inventar tipos adicionales. ACTA cubre el acta de conciliacion y
+    cualquier otra acta que preste merito ejecutivo."""
+
+    SENTENCIA = "SENTENCIA"
+    ACTA = "ACTA"
+    LAUDO = "LAUDO"
+    RESOLUCION = "RESOLUCION"
+    OTRO = "OTRO"
+
+
 class Expediente(Base):
     __tablename__ = "expedientes"
 
@@ -207,6 +222,27 @@ class Expediente(Base):
         default=EstadoProcesal.EN_TRAMITE,
         server_default=EstadoProcesal.EN_TRAMITE.value,
     )
+    # tipo_proceso (Sprint 105): codigo de TipoProceso del catalogo informativo
+    # app/services/catalogo_tipos_proceso.py (ej. "FAMILIA_EJECUTIVO_ALIMENTOS").
+    # Opcional: los expedientes anteriores al sprint quedan en NULL y siguen
+    # funcionando igual. No afecta ningun calculo.
+    tipo_proceso: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
+    # Datos del titulo ejecutivo (Sprint 106): capturados UNA sola vez por
+    # expediente en vez de repetirse en cada obligacion. Todos opcionales
+    # (nullable, sin default) para no romper expedientes existentes -- NULL
+    # significa "no capturado". Campos exactos confirmados por el despacho
+    # (docs/Preguntas-Para-Abogado-Respondidas.md, Sprint 106).
+    # fecha_limite_prescripcion NO se guarda: se calcula (propiedad de abajo).
+    tipo_titulo: Mapped[TipoTituloEjecutivo | None] = mapped_column(
+        SAEnum(TipoTituloEjecutivo), nullable=True
+    )
+    numero_identificador_titulo: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fecha_expedicion_otorgamiento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    fecha_exigibilidad: Mapped[date | None] = mapped_column(Date, nullable=True)
+    es_primera_copia_ejecutiva: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    fecha_ejecutoria: Mapped[date | None] = mapped_column(Date, nullable=True)
+    termino_prescripcion_anos: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     obligaciones: Mapped[list[Obligacion]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
@@ -214,6 +250,17 @@ class Expediente(Base):
     audit_logs: Mapped[list[AuditLog]] = relationship(
         back_populates="expediente", cascade="all, delete-orphan"
     )
+
+    @property
+    def fecha_limite_prescripcion(self) -> date | None:
+        """Calculada, nunca guardada (Sprint 106): ver
+        app.services.titulo_ejecutivo.calcular_fecha_limite_prescripcion_titulo
+        para desde que fecha se cuenta y como se computa."""
+        from app.services.titulo_ejecutivo import calcular_fecha_limite_prescripcion_titulo
+
+        return calcular_fecha_limite_prescripcion_titulo(
+            self.fecha_exigibilidad, self.termino_prescripcion_anos
+        )
 
 
 class Obligacion(Base):
@@ -364,6 +411,16 @@ class Obligacion(Base):
     # despido antes de cumplirse el plazo). Nula para INDEFINIDO.
     fecha_fin_pactada: Mapped[date | None] = mapped_column(Date, nullable=True)
 
+    # fecha_admision_demanda/fecha_notificacion_sentencia (Sprint 84, seguimiento):
+    # solo relevantes en TRIBUTARIO, cuando hay demanda ante lo contencioso
+    # administrativo. Tope suspensivo del interes moratorio: el interes deja de
+    # causarse despues de fecha_tope_24m (admision + 24 meses) y se reanuda en
+    # fecha_reanudacion_interes (notificacion + 11 dias). Esas dos fechas se
+    # CALCULAN (app/engine/tax/tope_suspensivo.py), no se guardan. Nulas = sin
+    # demanda contenciosa (comportamiento identico al anterior).
+    fecha_admision_demanda: Mapped[date | None] = mapped_column(Date, nullable=True)
+    fecha_notificacion_sentencia: Mapped[date | None] = mapped_column(Date, nullable=True)
+
     # salario_diario/dias_laborados_semana (Sprint 96): captura de un salario
     # pactado por dia (trabajo domestico por dias/jornada parcial, comun con
     # 1-3 dias/semana), en vez de un salario mensual directo. Cuando ambos
@@ -383,6 +440,22 @@ class Obligacion(Base):
     # app.services.areas_parametro.opciones_tipo_accion_proceso_por_area.
     tipo_accion_proceso: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
+    # fecha_referencia_canon/gasto_conservacion_mensual (Sprint 100, wiring del
+    # motor app/engine/civil/fruto_civil.py): solo relevantes para una
+    # obligacion PUNTUAL de Civil/Familia con categoria FRUTO_CIVIL ("Fruto
+    # civil", beneficio dejado de percibir, Art. 964 C.C.). En esa categoria
+    # `valor` es el canon mensual del activo, `fecha_origen` el inicio del
+    # periodo de privacion y `fecha_fin` su final (ambas inclusive) -- ver
+    # CivilFamiliaStrategy._eventos_fruto_civil. fecha_referencia_canon es la
+    # fecha a cuyos precios esta expresado el canon (base de la indexacion IPC
+    # mes a mes); gasto_conservacion_mensual es el gasto ordinario de
+    # conservacion fijo por mes (opcional, NULL = sin gasto). Nulas para el
+    # resto de obligaciones.
+    fecha_referencia_canon: Mapped[date | None] = mapped_column(Date, nullable=True)
+    gasto_conservacion_mensual: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 2), nullable=True
+    )
+
     expediente: Mapped[Expediente] = relationship(back_populates="obligaciones")
     abonos: Mapped[list[Abono]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
@@ -391,6 +464,11 @@ class Obligacion(Base):
         back_populates="obligacion", cascade="all, delete-orphan"
     )
     descuentos_laborales: Mapped[list[DescuentoLaboral]] = relationship(
+        back_populates="obligacion", cascade="all, delete-orphan"
+    )
+    # horas_extra_laborales (Sprint 95, conexion a la UI): horas extra
+    # HED/HEN/HEFD/HEFN de un contrato Laboral -- ver HoraExtraLaboral abajo.
+    horas_extra_laborales: Mapped[list[HoraExtraLaboral]] = relationship(
         back_populates="obligacion", cascade="all, delete-orphan"
     )
     # beneficiario (Sprint 74): relacion 1:1 opcional, solo relevante para una
@@ -521,6 +599,37 @@ class DescuentoLaboral(Base):
     motivo: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     obligacion: Mapped[Obligacion] = relationship(back_populates="descuentos_laborales")
+
+
+class HoraExtraLaboral(Base):
+    """Horas extra de un contrato Laboral (Sprint 95, conexion a la UI) --
+    mismo patron que `DescuentoLaboral` (tabla propia hija de la obligacion,
+    varias filas independientes). Cada fila es un concepto (`concepto`: HED,
+    HEN, HEFD o HEFN, ver `app.engine.labor.horas_extra.ConceptoHoraExtra`),
+    una cantidad de horas, la fecha de causacion (define el tramo de la Ley
+    2466 de 2025) y el valor de la hora ordinaria digitado por el usuario.
+
+    `porcentaje_manual` solo se usa cuando el motor no tiene factor
+    confirmado por el despacho (HEFD/HEFN causadas antes del 01/07/2025): el
+    usuario lo digita y se liquida con `calcular_hora_extra`. En cualquier
+    otro caso queda en NULL y manda el factor del motor.
+
+    Tabla nueva: `Base.metadata.create_all()` (database.init_db()) la crea en
+    cualquier bastium.db, nueva o existente -- no necesita ALTER TABLE (mismo
+    criterio que `descuentos_laborales`, ver scripts/migrate_es_smmlv_laboral.py).
+    """
+
+    __tablename__ = "horas_extra_laborales"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    obligacion_id: Mapped[int] = mapped_column(ForeignKey("obligaciones.id"), index=True)
+    concepto: Mapped[str] = mapped_column(String(4))
+    fecha_causacion: Mapped[date] = mapped_column(Date)
+    numero_horas: Mapped[Decimal] = mapped_column(DecimalExacto)
+    valor_hora: Mapped[Decimal] = mapped_column(DecimalExacto)
+    porcentaje_manual: Mapped[Decimal | None] = mapped_column(DecimalExacto, nullable=True)
+
+    obligacion: Mapped[Obligacion] = relationship(back_populates="horas_extra_laborales")
 
 
 class AuditLog(Base):

@@ -749,3 +749,170 @@ def test_dashboard_no_falla_con_esquema_desactualizado_de_obligaciones(
 
     view = DashboardView()
     qtbot.addWidget(view)
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_tope_suspensivo_sprint84(tmp_path):
+    """Sprint 84 (seguimiento): una bastium.db anterior no tiene
+    fecha_admision_demanda/fecha_notificacion_sentencia -- deben agregarse al
+    arrancar y la migracion debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_tope_suspensivo_tributario_sprint84 import migrar
+
+    db_path = tmp_path / "sin_tope_suspensivo.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fecha_admision_demanda")
+    con.execute("ALTER TABLE obligaciones DROP COLUMN fecha_notificacion_sentencia")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert "fecha_admision_demanda" in columnas
+    assert "fecha_notificacion_sentencia" in columnas
+    assert migrar(db_path) is False
+
+
+def test_aplicar_migraciones_pendientes_agrega_tipo_proceso_sprint105(tmp_path):
+    """Sprint 105: una bastium.db anterior no tiene expedientes.tipo_proceso --
+    debe agregarse al arrancar (nullable: los expedientes viejos quedan sin
+    tipo de proceso) y la migracion debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_tipo_proceso_expediente import migrar
+
+    db_path = tmp_path / "sin_tipo_proceso.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    con.execute("ALTER TABLE expedientes DROP COLUMN tipo_proceso")
+    con.execute(
+        "INSERT INTO expedientes (radicado, demandante, demandado, area_derecho, "
+        "fecha_corte_default) VALUES ('viejo', 'A', 'B', 'LABORAL', '2026-01-01')"
+    )
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(expedientes)")}
+    valor = con.execute("SELECT tipo_proceso FROM expedientes WHERE radicado='viejo'").fetchone()
+    con.close()
+    assert "tipo_proceso" in columnas
+    assert valor == (None,)
+    assert migrar(db_path) is False
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_titulo_ejecutivo_sprint106(tmp_path):
+    """Sprint 106: una bastium.db anterior no tiene los datos del titulo
+    ejecutivo en expedientes -- deben agregarse al arrancar (todas NULL en los
+    expedientes existentes) y la migracion debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_titulo_ejecutivo_sprint106 import _COLUMNAS, migrar
+
+    db_path = tmp_path / "sin_titulo_ejecutivo.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    for nombre in _COLUMNAS:
+        con.execute(f"ALTER TABLE expedientes DROP COLUMN {nombre}")
+    con.execute(
+        "INSERT INTO expedientes (radicado, demandante, demandado, area_derecho, "
+        "fecha_corte_default) VALUES ('2020-001', 'A', 'B', 'CIVIL_FAMILIA', '2026-01-01')"
+    )
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(expedientes)")}
+    fila = con.execute(f"SELECT {', '.join(_COLUMNAS)} FROM expedientes").fetchone()
+    con.close()
+    assert set(_COLUMNAS) == {
+        "tipo_titulo",
+        "numero_identificador_titulo",
+        "fecha_expedicion_otorgamiento",
+        "fecha_exigibilidad",
+        "es_primera_copia_ejecutiva",
+        "fecha_ejecutoria",
+        "termino_prescripcion_anos",
+    }
+    assert set(_COLUMNAS) <= columnas
+    assert "fecha_limite_prescripcion" not in columnas  # se calcula, no se guarda
+    assert all(valor is None for valor in fila)
+    assert migrar(db_path) is False
+
+
+def test_aplicar_migraciones_pendientes_agrega_columnas_fruto_civil_sprint100(tmp_path):
+    """Sprint 100 (wiring del fruto civil): una bastium.db anterior no tiene
+    fecha_referencia_canon/gasto_conservacion_mensual en obligaciones -- deben
+    agregarse al arrancar (NULL en las obligaciones existentes) y la migracion
+    debe ser idempotente."""
+    from database.database import aplicar_migraciones_pendientes
+    from scripts.migrate_fruto_civil_sprint100 import _COLUMNAS, migrar
+
+    db_path = tmp_path / "sin_fruto_civil.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    for nombre in _COLUMNAS:
+        con.execute(f"ALTER TABLE obligaciones DROP COLUMN {nombre}")
+    con.commit()
+    con.close()
+
+    aplicar_migraciones_pendientes(db_path)
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(obligaciones)")}
+    con.close()
+    assert set(_COLUMNAS) == {"fecha_referencia_canon", "gasto_conservacion_mensual"}
+    assert set(_COLUMNAS) <= columnas
+    assert migrar(db_path) is False
+
+
+def test_init_db_crea_la_tabla_horas_extra_laborales_en_una_bd_existente(tmp_path, monkeypatch):
+    """Sprint 95 (conexion a la UI): `horas_extra_laborales` es una tabla
+    NUEVA, no una columna -- `init_db()` (Base.metadata.create_all, llamado en
+    cada arranque antes de aplicar_migraciones_pendientes, ver main.py) la crea
+    en una bastium.db anterior sin ALTER TABLE, igual que descuentos_laborales
+    (ver scripts/migrate_es_smmlv_laboral.py)."""
+    from database.database import aplicar_migraciones_pendientes, init_db
+
+    db_path = tmp_path / "sin_horas_extra.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    con = sqlite3.connect(db_path)
+    con.execute("DROP TABLE horas_extra_laborales")
+    con.commit()
+    con.close()
+
+    monkeypatch.setattr(database_module, "engine", engine)
+    init_db()
+    aplicar_migraciones_pendientes(db_path)
+    engine.dispose()
+
+    con = sqlite3.connect(db_path)
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(horas_extra_laborales)")}
+    con.close()
+    assert columnas == {
+        "id",
+        "obligacion_id",
+        "concepto",
+        "fecha_causacion",
+        "numero_horas",
+        "valor_hora",
+        "porcentaje_manual",
+    }
