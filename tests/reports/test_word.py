@@ -490,3 +490,16 @@ def test_generate_no_muestra_fruto_civil_sin_fruto_civil(tmp_path):
 
     etiquetas = [f.cells[0].text for f in Document(str(ruta)).tables[0].rows]
     assert not any(e.startswith("Fruto Civil") for e in etiquetas)
+
+
+def test_generate_pone_el_logo_en_el_encabezado_de_pagina(tmp_path):
+    # Sprint 122: membrete con el logo oficial en el encabezado del .docx.
+    ruta = tmp_path / "liquidacion_membrete.docx"
+
+    WordReportGenerator(str(ruta)).generate("LIQUIDACIÓN CON MEMBRETE", _summary(), _table_data())
+
+    documento = Document(str(ruta))
+    encabezado = documento.sections[0].header
+    assert not encabezado.is_linked_to_previous
+    dibujos = encabezado._element.findall(".//" + qn("w:drawing"))
+    assert len(dibujos) == 1

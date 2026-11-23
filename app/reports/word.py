@@ -5,6 +5,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
+from app.assets.logos import LOGO_HORIZONTAL
+
+ALTO_MEMBRETE_WORD = Cm(1.1)
+
 # Sprint 108 (pedido del despacho, 2026-08-22): mismo criterio de identidad
 # visual que app/reports/pdf.py -- encabezado de columnas en extrabold crema
 # sobre fondo negro, cuerpo crema con texto negro, fila de totales en
@@ -122,6 +126,14 @@ class WordReportGenerator:
         ancho_disponible = Cm(
             seccion.page_width.cm - seccion.left_margin.cm - seccion.right_margin.cm
         )
+
+        # Sprint 122: membrete con el logo oficial arriba a la izquierda en el
+        # encabezado de pagina (se repite en todas las hojas), igual que el PDF.
+        # Ver docs/identidad/GUIA_DE_IDENTIDAD.md, "Layout del PDF generado".
+        seccion.header_distance = Cm(0.6)
+        parrafo_membrete = seccion.header.paragraphs[0]
+        parrafo_membrete.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        parrafo_membrete.add_run().add_picture(str(LOGO_HORIZONTAL), height=ALTO_MEMBRETE_WORD)
 
         parrafo_titulo = documento.add_paragraph()
         parrafo_titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER

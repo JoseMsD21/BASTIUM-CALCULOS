@@ -270,9 +270,8 @@ Prohibir el uso de promedios anuales o proyecciones del año en curso.
 **Estado en el código:** La decisión legal quedó clara y no necesita volver a preguntarse — la función de
 interpolación mensual ya está construida y probada. Lo único pendiente es **conseguir el dato** (la serie
 real de IPC mensual del DANE), que es una solicitud de información nueva, no una re-evaluación de esta
-respuesta — ver la pregunta de seguimiento en
-[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-8-seguimiento--fuente-del-ipc-mensual-del-dane)
-y `Pendientes.md`, Sprint 8.
+respuesta. **Actualización 2026-11-23:** ese dato ya se consiguió y se cargó (serie mensual real del DANE
+2003-2026, conectada a la indexación en el Sprint 80); ver `Pendientes.md`, Sprints 8 y 80.
 
 **Respuesta a la pregunta de seguimiento (fuente del IPC mensual del DANE):**
 El motor debe operar siempre sobre el Número Índice (no variación porcentual) para evitar errores de
@@ -327,7 +326,7 @@ existentes en su fuente (base Dic-2008=100, continuidad desde antes de 2003) —
 a esos valores en ningún archivo commiteado ni en `docs/datos_publicos_fuente/` (que solo cubre 2003-2026,
 ver su README). Es un bloqueo de infraestructura (falta el archivo/dato accesible), no una decisión
 pendiente — ver la pregunta de seguimiento 3 en
-[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003)
+[Sprint 8 (seguimiento 3)](#sprint-8-seguimiento-3--tabla-real-de-ipc-mensual-anterior-a-enero-de-2003) (ya respondida, en este mismo archivo)
 y Sprint 8 en `Pendientes.md`.
 
 ---
@@ -949,7 +948,7 @@ seguimiento, no adivinados:**
    nombre.
 
 Ver la pregunta de seguimiento en
-[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición)
+[Sprint 70/91 (seguimiento)](#sprint-7091-seguimiento--fechas-exactas-de-vigencia-por-régimen-invalidez-grado-1-y-régimen-de-transición) (ya respondida, en este mismo archivo)
 y `Pendientes.md`, Sprints 70 y 91.
 
 ---

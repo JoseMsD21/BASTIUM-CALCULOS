@@ -18,7 +18,7 @@
 
 ## Entornos
 
-- Local: `python -m pytest` (Windows, Python 3.14, con display para las pruebas de GUI — es la única
+- Local: `python -m pytest` (Windows, Python 3.15 — verificado 3.15.2 el 2026-11-23 —, con display para las pruebas de GUI — es la única
   plataforma en la que el proyecto se desarrolla y se prueba, ver
   [GUIA_USUARIO.md, sección 2.1](GUIA_USUARIO.md#21-qué-necesitas-tener-instalado-antes-de-empezar)).
 - CI (GitHub Actions, `.github/workflows/ci.yml`): `windows-latest`, corre `ruff check .` y luego

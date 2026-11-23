@@ -84,17 +84,17 @@ injustificado) — más detalle en la
 ### 2.1. Qué necesitas tener instalado antes de empezar
 
 - **Windows** (el programa se desarrolló y probó en Windows).
-- **Python 3.12 o más nuevo** (recomendado 3.14, la versión con la que se prueba el proyecto). Esto
-  **no es solo una recomendación**: el código usa sintaxis de Python que no existe en 3.11 ni
-  anteriores (genéricos de función, PEP 695) — con una versión más vieja, el programa ni siquiera
-  llega a abrir, falla al instalar con un error de sintaxis. **Nota (Sprint 117):** si tu Python es
-  3.14 y la instalación de `PySide6` se queda sin avanzar, usa Python **3.13**, que es la que se
-  verificó sin problemas. Si no sabes qué versión tienes, abre una
+- **Python 3.12 o más nuevo** (recomendado **3.15**, la versión principal del proyecto desde el
+  2026-11-23; también se prueba en 3.13 y 3.14). Esto **no es solo una recomendación**: el código usa
+  sintaxis de Python que no existe en 3.11 ni anteriores (genéricos de función, PEP 695) — con una
+  versión más vieja, el programa ni siquiera llega a abrir, falla al instalar con un error de sintaxis.
+  **Nota:** si la instalación de `PySide6` se queda sin avanzar (pasó una vez con 3.14 en noviembre),
+  borra la carpeta `.venv` y vuelve a crearla con 3.15 o 3.13. Si no sabes qué versión tienes, abre una
   terminal (`PowerShell`) y escribe:
   ```
   python --version
   ```
-  Si te muestra `Python 3.12.x`, `3.13.x` o `3.14.x`, estás bien. Si te muestra una versión más vieja
+  Si te muestra `Python 3.12.x`, `3.13.x`, `3.14.x` o `3.15.x`, estás bien. Si te muestra una versión más vieja
   (3.11 o anterior) o te da un error, instala una versión reciente desde
   [python.org](https://www.python.org/downloads/) (marca la casilla "Add Python to PATH" durante la
   instalación) — no hace falta desinstalar una versión vieja que ya tengas, Windows puede tener varias
@@ -656,6 +656,11 @@ identidad visual de marca en sus tablas: encabezado de columnas en negro con tex
 crema, bordes negros y la fila de totales (o el gran total, o la renta líquida gravable, según la tabla) en
 borgoña y negrita — útil cuando necesitas editar el texto antes de presentarlo, sin perder la apariencia
 oficial del documento.
+
+**Membrete (desde el Sprint 122, 2026-11-23):** cada hoja del PDF y del Word lleva arriba a la izquierda el logo
+oficial de BASTIUM con el lema "La ciencia de resolver lo complejo", pequeño y sobrio. En el Word va en el
+encabezado de página, así que puedes quitarlo o cambiarlo desde Word (Insertar → Encabezado) si un documento
+debe salir sin marca.
 
 ### 5.9. Agregar una obligación sancionatoria
 
@@ -1632,8 +1637,9 @@ lanzador lo detecta y las instala solo la próxima vez que lo abras (la primera 
 minutos y necesita internet — deja la ventana negra abierta). Si prefieres hacerlo a mano, con la terminal
 en la carpeta del proyecto: `.venv\Scripts\python.exe -m pip install -r requirements.txt`. Si la
 instalación se queda "pegada" sin avanzar durante más de 10 minutos, lo más probable es que tu Python sea
-demasiado nuevo para `PySide6` (pasó con 3.14): borra la carpeta `.venv` y vuelve a crearla con Python
-3.13 (`py -3.13 -m venv .venv`), luego repite el comando anterior.
+un problema de descarga de `PySide6` (pasó una vez con 3.14): borra la carpeta `.venv` y vuelve a crearla
+con Python 3.15 (`py -3.15 -m venv .venv`) o 3.13, luego repite el comando anterior. Desde el Sprint 122 el
+lanzador crea el `.venv` con 3.15 si está instalado.
 
 **"Al abrir el programa sale `no such column: ...` (por ejemplo `obligaciones.salario_diario`)."**
 Tu `bastium.db` es de una versión anterior y le falta una columna. No hace falta borrarla: el programa

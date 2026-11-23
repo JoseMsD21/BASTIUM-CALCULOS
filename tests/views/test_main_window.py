@@ -545,3 +545,13 @@ def test_main_window_pasa_la_fecha_de_corte_a_la_pagina_de_resultado(qtbot):
 
     assert window.resultado_page._fecha_corte == date(2026, 2, 1)
     assert window.resultado_page.check_vista_sensibilidad.isEnabled()
+
+
+def test_sidebar_muestra_el_monograma_oficial(qtbot):
+    # Sprint 122: el monograma "B." de la guia de identidad arriba del panel lateral.
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.logo_sidebar.pixmap() is not None
+    assert not window.logo_sidebar.pixmap().isNull()
+    assert "La ciencia de resolver lo complejo" in window.logo_sidebar.toolTip()

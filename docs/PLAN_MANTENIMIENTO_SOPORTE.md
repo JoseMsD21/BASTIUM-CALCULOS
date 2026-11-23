@@ -10,7 +10,7 @@ no como issue público) en [SECURITY.md](SECURITY.md).
 
 Actualizar una instalación existente es `git pull origin main` + `pip install -r requirements.txt` +
 abrir la app — sin pasos manuales de migración, sin borrar `bastium.db` ni perder datos capturados. Detalle
-completo en [README.md](../README.md#actualizar-a-una-versión-nueva) y en la
+completo en [README.md](../README.md#para-usuarios-instalar-y-abrir) y en la
 [Guía de Usuario](GUIA_USUARIO.md#27-actualizar-a-una-versión-nueva-si-ya-tenías-bastium-instalado).
 
 Esto es posible porque las migraciones de esquema son automáticas e idempotentes en cada arranque — ver

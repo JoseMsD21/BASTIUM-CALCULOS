@@ -149,9 +149,16 @@ pruebas en verde. Sprint 120 (2026-11-22): 8 PRs más (#50-#57): Tributario prop
 "Ver con/sin indexación", tipo de proceso y título ejecutivo en el expediente, formato dd/mm/aaaa en toda la UI, y
 los motores de cálculo actuarial, retroactivo pensional, contrato realidad y fruto civil (aún sin pantalla).
 Suite: 1965 pruebas en verde. Sprint 121 (2026-11-22): horas extra en la pantalla Laboral (#59), fruto civil en
-Civil/Familia (#60) y Suma Única con abonos tramo a tramo (#61). Suite: 2045 pruebas en verde.
+Civil/Familia (#60) y Suma Única con abonos tramo a tramo (#61). Suite: 2045 pruebas en verde. Sprint 122 (2026-11-23): identidad visual oficial del equipo (logos, ícono,
+membrete en PDF/Word), guía de identidad, README reorganizado y revisión del parche de plataforma del 17-nov.
 
 ### Added
+- Identidad visual oficial (Sprint 122): logos del equipo en `app/assets/marca/` (horizontal, mascota, wordmark,
+  monograma, ícono `.png`/`.ico`) con rutas en `app/assets/logos.py`; monograma "B." en el panel lateral; membrete
+  con el logo y el lema "La ciencia de resolver lo complejo" en todas las hojas del PDF y del Word.
+- Documentación del equipo (Sprint 122): `docs/identidad/` con el documento maestro *ESTILO Y LÓGICA DE BASTIUM*,
+  su resumen operativo (`GUIA_DE_IDENTIDAD.md`) y 5 mockups de la plataforma; mapa de flujo del producto y visión
+  de plataforma en `docs/VISION_Y_ALCANCE.md`; `docs/FUNCIONALIDADES.md` con el detalle por área.
 - Horas extra en la liquidación Laboral (Sprint 95): grupo "Horas extra" en el Detalle del expediente con
   HED/HEN/HEFD/HEFN, factor por tramo de la Ley 2466 y rubro propio en resultados y PDF/Word.
 - Fruto civil en Civil/Familia (Sprint 100): categoría "Fruto civil (beneficio dejado de percibir)", canon
@@ -502,6 +509,13 @@ Civil/Familia (#60) y Suma Única con abonos tramo a tramo (#61). Suite: 2045 pr
   Sprint 50.
 
 ### Changed
+- Ícono de ventana (Sprint 122): el monograma oficial reemplaza el círculo borgoña provisional del Sprint 31
+  (`resources/icon_app.svg`, eliminado).
+- **Python 3.15 como versión principal** (Sprint 122): suite completa verificada en 3.15.2; la CI prueba 3.13,
+  3.14 y 3.15; `ruff` con `target-version = "py315"`; `Iniciar BASTIUM.bat` crea el entorno con 3.15 si está
+  instalado.
+- README reorganizado (Sprint 122) siguiendo READMEs de proyectos similares: logo, enlaces clave, qué calcula por
+  área, instalación para usuarios separada de la del equipo, tablero Kanban público y carpetas de Drive.
 - **Suma Única con abonos tramo a tramo** (Sprint 104, respuesta del despacho, patrón X9): en cada abono se
   indexa el capital, se causa el interés del tramo a la tasa pura mensual 0,0048676 y el abono se imputa costas
   → intereses → indexación → capital (Art. 1653 C.C.). Cambia el saldo de esas liquidaciones; sin abonos o sin

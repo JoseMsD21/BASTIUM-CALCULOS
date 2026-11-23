@@ -12,13 +12,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.14 es la version principal (target-version de ruff en pyproject.toml);
-        # 3.13 se agrega (Sprint 113) como piso minimo verificado en CI -- el
-        # codigo ya usa sintaxis de generics PEP 695 (ej.
-        # app/services/cascada_cuotas.py), asi que 3.12 seria el minimo real,
-        # pero 3.13 basta para confirmar que no hay una dependencia oculta en
-        # una caracteristica exclusiva de 3.14.
-        python-version: ["3.13", "3.14"]
+        # Sprint 122: 3.15 es la version principal recomendada (target-version de
+        # ruff en pyproject.toml); suite completa verificada en 3.15.2 el
+        # 2026-11-23. 3.13 sigue como piso minimo verificado (Sprint 113) -- el
+        # codigo usa generics PEP 695 (ej. app/services/cascada_cuotas.py), asi
+        # que 3.12 seria el minimo real -- y 3.14 se mantiene porque la regla de
+        # proteccion de `main` exige los checks "test (3.13)" y "test (3.14)":
+        # quitar una version de la matriz dejaria los PR bloqueados esperando un
+        # check que ya no existe.
+        python-version: ["3.13", "3.14", "3.15"]
 
     steps:
       - name: Checkout

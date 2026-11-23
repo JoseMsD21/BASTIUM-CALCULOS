@@ -1,7 +1,7 @@
 # Visión y alcance — BASTIUM
 
-> Documento de referencia rápida. Para el detalle sprint a sprint del alcance actual, ver la sección
-> "Estado actual" de [README.md](../README.md); para el alcance jurídico completo previsto, ver
+> Documento de referencia rápida. Para el detalle del alcance actual, área por área, ver
+> [FUNCIONALIDADES.md](FUNCIONALIDADES.md); para el alcance jurídico completo previsto, ver
 > `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf`.
 
 ## Objetivo del producto
@@ -32,8 +32,8 @@ se usaría en un juzgado.
 
 ## Alcance actual (lo que entra)
 
-Funcional y en producción hoy (ver el detalle exacto, con artículos y sprints, en la sección "Estado
-actual" del [README](../README.md)):
+Funcional y en producción hoy (ver el detalle exacto, con artículos y sprints, en
+[FUNCIONALIDADES.md](FUNCIONALIDADES.md)):
 
 - Liquidación real de las áreas **Civil/Familia, Comercial, Sancionatorio, Honorarios/Litigio, Laboral y
   Tributario**, cada una con sus propias reglas de intereses, topes e imputación de pagos.
@@ -67,3 +67,40 @@ actual" del [README](../README.md)):
   parámetros vigentes en el momento en que se ejecutó.
 - README y Guía de Usuario nunca quedan desactualizados respecto al código real (regla ya vigente, ver
   "Mantenimiento de esta documentación" en el [README](../README.md)).
+
+## Mapa de flujo del producto
+
+Árbol de ideas del equipo (20-nov-2026) sobre cómo va a crecer BASTIUM a partir de lo que existe hoy:
+
+![Mapa de flujo de BASTIUM](vision/mapa-flujo-bastium.jpeg)
+
+| Bloque | Qué es | Estado en el repo |
+|---|---|---|
+| **Gestor de casos** (centro) | Núcleo que conecta todo lo demás | Hoy: expedientes en la app de escritorio. Propuesta de gestor completo en el [parche de plataforma](REVISION_PLATAFORMA_2026-11-17.md) |
+| Gestor de clientes | Datos de los clientes y su relación con los casos | No existe todavía |
+| WhatsApp / Telegram | Canales por donde llega la narración del cliente | No existe todavía (fase futura) |
+| **Motor de cálculos** → documento pericial de tablas y gráficos | Liquidación determinista con su informe | ✅ Es lo que BASTIUM hace hoy (PDF/Word con tablas y gráficas) |
+| Gestor de conocimiento tipo NotebookLM → NotebookLM u otra base de conocimiento local o externa | Consultar normas, jurisprudencia y doctrina curadas por el despacho | Evaluado en [PLAN_INTEGRACION_NOVIEMBRE.md](PLAN_INTEGRACION_NOVIEMBRE.md) (sección 8); decisión del equipo pendiente (#39) |
+| ¿Es trámite o caso judicial? → **Trámite** → elaborador de PDFs automáticos → documento final automatizado | Documentos de trámite (derechos de petición, poderes, memoriales) generados solos | Parcial: memoriales PDF (Sprint 107); plantillas `.docx` en el parche de plataforma |
+| ¿Es trámite o caso judicial? → **Caso judicial** → buscador de actualizaciones de casos judiciales | Seguimiento del proceso en la Rama Judicial | No existe todavía |
+| ¿Hay radicado? Sí → consulta de radicados / No → consulta de estados | Cómo se busca el proceso según si ya tiene radicado de 23 dígitos | No existe todavía (el parche trae validación del radicado y un cliente de la Rama Judicial sin probar en real) |
+
+## Visión de plataforma a futuro
+
+El documento maestro del equipo ([Guía de identidad](identidad/GUIA_DE_IDENTIDAD.md), PDF p. 3-6) y los
+[mockups](identidad/GUIA_DE_IDENTIDAD.md#mockups-de-la-plataforma) describen un SaaS *local-first* con este flujo:
+
+1. El abogado o el cliente narra los hechos (formulario, WhatsApp o Telegram).
+2. Un orquestador (n8n) los recibe y un clasificador decide si es cálculo o redacción.
+3. Un agente extrae los datos (partes, fechas, montos) sin calcular nada; con un modelo local para no sacar datos
+   personales del equipo.
+4. Doble validación: un agente normativo (NotebookLM o base local), uno de contexto del expediente y un auditor
+   que cruza ambos y devuelve el flujo si encuentra inconsistencias.
+5. **Cálculo determinista en el motor de BASTIUM** (Decimal estricto). Regla central: **la IA jamás multiplica ni
+   suma.**
+6. Redacción jurídica asistida y documento final con membrete, tabla de liquidación y sello SHA-256.
+
+Esto **no** cambia el alcance actual: la aplicación de escritorio y su motor siguen siendo el producto. La visión
+orienta las decisiones abiertas del equipo: capa de API (#7), base de conocimiento (#39) y el
+[parche de plataforma del 17-nov](REVISION_PLATAFORMA_2026-11-17.md), que da los primeros pasos (API forense y
+gestor de casos).

@@ -7,20 +7,24 @@ otro lugar.
 
 | Fase | Documento | Propósito |
 |---|---|---|
-| Inicio | [Visión y alcance](VISION_Y_ALCANCE.md) | Objetivo del producto, público, beneficios, qué entra y qué queda fuera |
+| Inicio | [Visión y alcance](VISION_Y_ALCANCE.md) | Objetivo del producto, público, beneficios, qué entra y qué queda fuera, mapa de flujo del producto y visión de plataforma |
 | Análisis | `REQUERIMIENTOS DE CALCULO Y REGLAS LOGICAS - BASTIUM.pdf` | Requisitos funcionales: alcance jurídico completo, todas las áreas y reglas |
 | Análisis | [Requisitos no funcionales](REQUISITOS_NO_FUNCIONALES.md) | Cómo debe comportarse el sistema: plataforma, disponibilidad, integridad, seguridad |
 | Diseño | [docs/specifications/](specifications/) | Qué hace cada motor interno hoy (uno por motor: temporal, financiero, indexación, pagos, auditoría, reportes, jurídico-familia) |
 | Diseño | [Registro de Decisiones de Arquitectura (ADR)](ARQUITECTURA_ADR.md) | Por qué se tomó cada decisión de arquitectura relevante |
+| Diseño | [Guía de identidad](identidad/GUIA_DE_IDENTIDAD.md) | Identidad oficial del equipo: colores, tipografía, logos, UX, redacción, layout del PDF, mockups de la plataforma; resume `identidad/ESTILO_Y_LOGICA_DE_BASTIUM.pdf` |
 | Diseño | [Diseño UI/UX](DISENO_UI_UX.md) | Sistema de diseño visual, navegación, patrones de interacción, con enlaces a los specs de diseño puntuales |
 | Planificación | [Pendientes.md](Pendientes.md) | Plan de proyecto / backlog / cronograma: todo el trabajo organizado en sprints autocontenidos, con su propio estado |
-| Planificación | [Tablero Kanban](https://github.com/users/JoseMsD21/projects/1) | Vista viva del trabajo en curso (GitHub Projects): una tarjeta por issue/PR, con columna Bloqueado para lo que espera al despacho |
+| Planificación | [Tablero Kanban](https://github.com/users/JoseMsD21/projects/1) (público) | Vista viva del trabajo en curso (GitHub Projects): una tarjeta por issue/PR, con columna Bloqueado para lo que espera al despacho |
+| Planificación | Google Drive del equipo: [actas](https://drive.google.com/drive/project/1Vf9_sVuHZXNbO3Z8IKPsw2zZyB8jVodV) y [propuestas/mockups/auditorías](https://drive.google.com/drive/folders/1ZYauFW9pEKFfjMCC1RIHtDJ2pwrut78f) | Actas de reunión y material de trabajo (acceso solo para el equipo); lo decidido se pasa al repo |
+| Planificación | [Revisión del parche de plataforma](REVISION_PLATAFORMA_2026-11-17.md) | Qué trae el parche del 17-nov (API forense, gestor de casos), qué se puede tomar y qué necesita decisión |
 | Planificación | [Plan de integración de noviembre](PLAN_INTEGRACION_NOVIEMBRE.md) | Qué traía el paquete de cambios de noviembre, qué se integró y por qué, estimaciones, reglas Kanban y uso de Drive |
 | Planificación | [Gestión de riesgos](GESTION_RIESGOS.md) | Riesgos vigentes agrupados por tipo, con mitigación y estado |
 | Implementación | [Plan de calidad y pruebas (QA)](PLAN_CALIDAD_PRUEBAS.md) | Estrategia de pruebas, entornos, trazabilidad requisito→sprint→test, criterios de aceptación |
 | Implementación | [CONTRIBUTING.md](../CONTRIBUTING.md) | Documentación técnica de desarrollo: entorno, comandos de prueba/lint, flujo de trabajo en equipo con ramas y Pull Requests (paso a paso), convención de commits, cómo proponer un sprint |
 | Implementación | `docs/superpowers/plans/` y `docs/superpowers/specs/` | Histórico de ejecución: plan TDD tarea por tarea y diseño de cada sprint (no se edita, es un log) |
 | Entrega | [README.md](../README.md) | Instalación, actualización, estructura del proyecto, estado actual funcional |
+| Entrega | [Funcionalidades](FUNCIONALIDADES.md) | Detalle completo de lo que calcula cada área hoy (lo que antes estaba en el README) |
 | Entrega | [Guía de Usuario](GUIA_USUARIO.md) | Manual paso a paso para cualquier persona, incluye FAQ y solución de problemas |
 | Transversal | [Plan de mantenimiento y soporte](PLAN_MANTENIMIENTO_SOPORTE.md) | Versiones soportadas, proceso de actualización, backup/restauración, soporte, métricas y monitoreo |
 | Transversal | [SECURITY.md](SECURITY.md) | Aviso legal y reporte de vulnerabilidades |

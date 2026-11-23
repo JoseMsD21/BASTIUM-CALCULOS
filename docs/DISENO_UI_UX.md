@@ -5,6 +5,15 @@
 > dentro de [docs/superpowers/specs/](superpowers/specs/) — este documento no repite ese contenido, lo
 > indexa.
 
+## Guía de identidad del equipo (Sprint 122)
+
+Desde noviembre de 2026 la identidad oficial (colores, tipografía, logos, UX, redacción y layout del PDF) está en
+la [Guía de identidad](identidad/GUIA_DE_IDENTIDAD.md), resumen del documento maestro
+`identidad/ESTILO_Y_LOGICA_DE_BASTIUM.pdf`. Ya aplicado: logos oficiales en `app/assets/marca/`, ícono de ventana,
+monograma en el panel lateral y membrete con logo en PDF/Word. Pendiente de decisión del equipo: adoptar su paleta
+(`#C82E2E` frente al borgoña `#AE1C21` de hoy) y el estilo de gráficas "Human Scribble" frente al estándar del
+Sprint 109. Los mockups de la plataforma futura están en `identidad/mockups/`.
+
 ## Sistema de diseño visual (Sprint 31)
 
 Tema, color, tipografía e íconos unificados en toda la GUI, con modo oscuro/claro alternable desde

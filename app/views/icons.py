@@ -3,12 +3,13 @@ from pathlib import Path
 from PySide6 import QtSvg  # noqa: F401 - registra el icon engine de SVG en QIcon/QPixmap
 from PySide6.QtGui import QIcon
 
+from app.assets.logos import ICONO_APP_PNG
+
 ICONOS_DISPONIBLES = frozenset(
     {"home", "back", "settings", "save", "cancel", "delete", "export", "info", "warning"}
 )
 
 _ICONS_DIR = Path(__file__).resolve().parents[2] / "resources" / "icons"
-_APP_ICON_PATH = Path(__file__).resolve().parents[2] / "resources" / "icon_app.svg"
 
 
 def icon(nombre: str) -> QIcon:
@@ -30,5 +31,9 @@ def icon(nombre: str) -> QIcon:
 
 
 def icono_aplicacion() -> QIcon:
-    """Icono de marca de BASTIUM para `MainWindow.setWindowIcon()` (Sprint 31)."""
-    return QIcon(str(_APP_ICON_PATH))
+    """Icono de marca de BASTIUM para `MainWindow.setWindowIcon()`.
+
+    Sprint 31: circulo borgona con una "B" (SVG provisional). Sprint 122: el
+    monograma oficial "B." del equipo (`app/assets/marca/bastium-icono-256.png`).
+    """
+    return QIcon(str(ICONO_APP_PNG))

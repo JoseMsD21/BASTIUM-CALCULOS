@@ -9,8 +9,8 @@ nuevo.
 
 ## Levantar el entorno
 
-Requiere Python 3.13 o 3.14 (la CI corre en ambas). Si `pip install` de `PySide6` se queda sin avanzar
-con 3.14, crea el `.venv` con 3.13 (`py -3.13 -m venv .venv`).
+Requiere Python 3.12 o más nuevo; **recomendado 3.15** (`py -3.15 -m venv .venv`). La CI corre en 3.13, 3.14
+y 3.15. Si `pip install` de `PySide6` se queda sin avanzar, borra el `.venv` y créalo de nuevo con 3.15 o 3.13.
 
 ```bash
 # 1. Clona el repositorio y entra a la carpeta
@@ -48,7 +48,7 @@ correr `pytest`.
 ## Lint
 
 El repositorio usa [ruff](https://docs.astral.sh/ruff/) como linter/formatter (configurado en
-`pyproject.toml`: line-length 99, target Python 3.14, reglas `E`/`F`/`I`/`UP`/`B`):
+`pyproject.toml`: line-length 99, target Python 3.15, reglas `E`/`F`/`I`/`UP`/`B`):
 
 ```bash
 python -m ruff check .
@@ -139,6 +139,16 @@ espera algo externo (normalmente el despacho).
 - Mueve tu tarjeta a "En progreso" al crear la rama y a "En revisión" al abrir el PR.
 - Una tarjeta bloqueada dice qué espera y de quién; si es una pregunta al despacho, enlaza su sección en
   `docs/Preguntas-Para-Abogado-Abiertas.md`.
+
+El tablero es **público**: cualquier compañero puede verlo sin pedir acceso.
+
+### Google Drive del equipo
+
+- [Actas y avances](https://drive.google.com/drive/project/1Vf9_sVuHZXNbO3Z8IKPsw2zZyB8jVodV): actas de reunión, avances semanales, soporte de las respuestas del despacho.
+- [Propuestas, mockups y auditorías](https://drive.google.com/drive/folders/1ZYauFW9pEKFfjMCC1RIHtDJ2pwrut78f): material de trabajo del equipo.
+
+Drive es para conversar y proponer; **el repositorio es la fuente de verdad**. Lo que se decide en Drive se pasa a un
+issue del tablero o a la documentación del repo.
 
 Detalle y ritmo de reuniones en [docs/PLAN_INTEGRACION_NOVIEMBRE.md](docs/PLAN_INTEGRACION_NOVIEMBRE.md#5-forma-de-trabajo-kanban).
 

@@ -321,6 +321,8 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 119 — Respuestas del despacho del 16/11/2026: triaje, 6 implementaciones y repreguntas ⚠️ Parcial](#sprint-119--respuestas-del-despacho-del-16112026-triaje-6-implementaciones-y-repreguntas--parcial)
 - [Sprint 120 — Segunda y tercera tanda de implementaciones con agentes (respuestas del 16/11/2026) ⚠️ Parcial](#sprint-120--segunda-y-tercera-tanda-de-implementaciones-con-agentes-respuestas-del-16112026--parcial)
 - [Sprint 121 — Cuarta tanda: horas extra y fruto civil en la UI, Suma Única con abonos tramo a tramo ✅ Completado](#sprint-121--cuarta-tanda-horas-extra-y-fruto-civil-en-la-ui-suma-única-con-abonos-tramo-a-tramo--completado)
+- [Sprint 122 — Identidad visual oficial, guía de estilo y material del equipo ✅ Completado](#sprint-122--identidad-visual-oficial-guía-de-estilo-y-material-del-equipo--completado)
+- [Sprint 123 — Integración por fases del parche de plataforma (API forense y gestor de casos) 🔴 Bloqueado](#sprint-123--integración-por-fases-del-parche-de-plataforma-api-forense-y-gestor-de-casos--bloqueado)
 
 ---
 
@@ -3199,7 +3201,7 @@ la GUI.
 próximos a vencer (reutilizando `calcular_prescripcion` del Sprint 7 con `TipoAccion.EJECUTIVA` como
 heurística documentada — el modelo `Obligacion` no tiene un campo de tipo de acción procesal para un
 mapeo área→tipo más preciso; pregunta abierta al despacho sobre esto en
-[`Preguntas-Para-Abogado-Abiertas.md`](Preguntas-Para-Abogado-Abiertas.md#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard))
+[`Preguntas-Para-Abogado-Respondidas.md`](Preguntas-Para-Abogado-Respondidas.md#sprint-33--tipo-de-acción-procesal-para-las-alertas-de-prescripción-del-dashboard))
 y actividad reciente (reutilizando `historial_de_expediente` del Sprint 9).
 Registrada como pantalla de inicio en `MainWindow`, reemplazando al listado plano de expedientes como
 primera pantalla (accesible con un clic vía "Ver todos los expedientes"). Carga de datos síncrona, sin
@@ -8901,6 +8903,68 @@ conflicto": puede quedar en la función equivocada. `ruff` lo detectó (nombres 
 
 **Pendiente:** dudas de esta tanda en `Preguntas-Para-Abogado-Abiertas.md`, Sprint 121; conectar a la UI los
 motores de los Sprints 70/91, 85, 86/87 y 94.
+
+---
+
+## Sprint 122 — Identidad visual oficial, guía de estilo y material del equipo ✅ Completado
+
+**Tarjeta:** #63. **Origen:** el equipo entregó el 20-23/11/2026 los logos, el documento maestro *ESTILO Y LÓGICA DE BASTIUM* (131
+páginas), el mapa de flujo del producto, 5 mockups de la plataforma, una carpeta de Drive con propuestas y
+auditorías, y un parche + ZIP de plataforma del 17/11.
+
+**Hecho:**
+
+| Qué | Dónde |
+|---|---|
+| Logos oficiales recortados y optimizados (horizontal, mascota, wordmark, monograma, ícono `.png`/`.ico`), originales aparte | `app/assets/marca/`, rutas en `app/assets/logos.py` |
+| Ícono de ventana = monograma "B." (reemplaza el SVG provisional del Sprint 31) | `app/views/icons.py` |
+| Monograma en el panel lateral, con el lema en el tooltip | `app/views/main_window.py` |
+| Membrete con logo en todas las hojas del PDF y del Word | `app/reports/pdf.py` (`dibujar_membrete`), `app/reports/word.py` |
+| Documento maestro + resumen operativo + 5 mockups | `docs/identidad/` |
+| Mapa de flujo del producto y visión de plataforma | `docs/vision/`, `docs/VISION_Y_ALCANCE.md` |
+| README reorganizado (inspirado en Firefly III y Actual); detalle por área movido sin cambios | `README.md`, `docs/FUNCIONALIDADES.md` |
+| Tablero Kanban (ya público) y carpetas de Drive referenciados | README, `CONTRIBUTING.md`, `MAPA_DOCUMENTACION.md`, `PLAN_INTEGRACION_NOVIEMBRE.md` |
+| Revisión del parche de plataforma del 17/11 y fase 0 aplicada (`radicado.py`, `calculator.py`, `.gitignore`) | `docs/REVISION_PLATAFORMA_2026-11-17.md` |
+| **Python 3.15 como versión principal:** todas las dependencias tienen wheel para 3.15 (PySide6 6.12 usa `abi3`); suite completa en 3.15.2 en verde (2058 pruebas, 1 min 47 s); ruff con `target-version = "py315"` limpio; la app abre. CI con matriz 3.13 / 3.14 / 3.15 (3.13 y 3.14 se mantienen porque la regla de `main` los exige); el lanzador crea el `.venv` con 3.15 si está instalado | `.github/workflows/ci.yml`, `pyproject.toml`, `Iniciar BASTIUM.bat`, README, CONTRIBUTING, Guía de usuario |
+
+Pruebas nuevas: `tests/assets/test_logos.py`, membrete en `tests/reports/test_pdf.py` y `test_word.py`, logo del
+panel en `tests/views/test_main_window.py`, `tests/domain/test_radicado.py`.
+
+**No se aplicó (necesita decisión):**
+- **Paleta de la guía** (`#C82E2E`, `#18181B`, bordes `#E5E5E5`) frente a la del Sprint 31 (borgoña `#AE1C21`).
+  Decisión del equipo (tarjeta #65); las gráficas además dependen del despacho (Preguntas Abiertas, Sprint 122,
+  pregunta 1; tarjeta #67).
+- **Gráficas "Human Scribble"**, sello QR/SHA-256 en el PDF, estados vacíos con la mascota: sprints futuros.
+- **`normas_faltantes.py` (Z.AI, Drive):** no se integró; tiene citas y reglas que parecen incorrectas (Preguntas
+  Abiertas, Sprint 122, pregunta 3).
+
+**Hallazgo menor:** en la gráfica del Inicio, los nombres largos de área se montan entre sí en el eje X
+("Sancionatorio", "Honorarios / Litigio"). Pendiente de corregir (tarjeta #66). Además, varias pruebas dejan
+conexiones SQLite abiertas (`ResourceWarning`), sin efecto en cifras (tarjeta #68).
+
+---
+
+## Sprint 123 — Integración por fases del parche de plataforma (API forense y gestor de casos) 🔴 Bloqueado
+
+**Tarjeta:** #64. **Bloqueado por:** decisiones del equipo (#7 capa API, gestor dentro del repo o externo, sello con firma real) y
+respuestas del despacho (Sprint 118 preguntas 1, 3 y 6; Sprint 123 de Preguntas Abiertas si se adopta el gestor).
+
+El parche del 17/11 trae un gestor de casos web local (`bastium/`, ~5.800 líneas, 208 pruebas) y una API FastAPI
+con sello SHA-256 (`bastium_api/`). **No se puede aplicar tal cual:** está hecho sobre un `main` viejo y borraría
+los Sprints 79, 95, 100 y 104, y su calendario propio cambia plazos (vacancia al 10 de enero, sin Chiquinquirá).
+Detalle completo, pruebas y riesgos en [REVISION_PLATAFORMA_2026-11-17.md](REVISION_PLATAFORMA_2026-11-17.md).
+
+| Fase | Qué | Depende de | Esfuerzo |
+|---|---|---|---|
+| 0 | `.gitignore`, `calculator.py`, `radicado.py` | — | ✅ Hecho en el Sprint 122 |
+| 1 | Cortar la dependencia del motor con SQLAlchemy/`holidays` (Sprint 104) sin cambiar cifras | Nada | 1 día |
+| 2 | API `bastium_api/` con el redondeo del escritorio por defecto | Decisión #7 + fase 1 | 2-3 días |
+| 3 | Gestor `bastium/` usando `CalendarUtils` | Decisión del equipo + fase 2 | 5-8 días |
+| 4 | Calendario propio en vez de `holidays` | Despacho (Sprint 118: 1, 2, 6) | 2 días |
+| 5 | Redondeo exacto por período por defecto | Despacho (Sprint 118: 3) | 2-3 días |
+
+**Siguiente paso:** que el equipo decida la fase 2 y la 3, y pedir al autor que rebase sobre el `main` actual y
+entregue PRs separados (API, gestor).
 
 ---
 
