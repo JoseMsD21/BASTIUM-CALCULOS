@@ -30,6 +30,7 @@ from app.engine.temporal.prescripcion import (
     calcular_prescripcion,
 )
 from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
+from app.views.celdas import etiqueta_area
 from app.views.fecha_widgets import formatear_fecha
 from database.models import AuditLog, Expediente
 
@@ -37,11 +38,6 @@ DIAS_ALERTA_VENCIMIENTO = 90
 MAX_LIQUIDACIONES_RECIENTES = 10
 
 _VALORES_TIPO_ACCION = {tipo.value for tipo in TipoAccion}
-
-# Sprint 125: nombre legible de cada area ("Civil / Familia") a partir del codigo
-# del enum que guarda AuditLog.area_derecho ("CIVIL_FAMILIA").
-_ETIQUETA_POR_AREA = {codigo: etiqueta for codigo, etiqueta, _habilitada in AREAS_DERECHO}
-
 
 def _ajustar_tabla_compacta(tabla: QTableWidget, *, repartir_ancho: bool = True) -> None:
     """Sprint 125: sin columna de numeracion de filas. Con `repartir_ancho`, las
@@ -370,7 +366,5 @@ class DashboardView(QWidget):
             self.tabla_actividad.setItem(
                 fila,
                 2,
-                QTableWidgetItem(
-                    _ETIQUETA_POR_AREA.get(registro.area_derecho, registro.area_derecho)
-                ),
+                QTableWidgetItem(etiqueta_area(registro.area_derecho)),
             )

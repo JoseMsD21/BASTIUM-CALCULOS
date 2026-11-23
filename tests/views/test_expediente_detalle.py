@@ -521,7 +521,7 @@ def test_liquidar_registra_auditoria_y_refresca_historial(qtbot, monkeypatch):
         page._liquidar()
 
     assert page.tabla_historial.rowCount() == 1
-    assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
+    assert page.tabla_historial.item(0, 2).text() == "Civil / Familia"
     assert page.tabla_historial.item(0, 3).text() == "01/06/2026"
 
 
@@ -1016,7 +1016,7 @@ def test_cargar_expediente_muestra_historial_de_auditoria_existente(qtbot, monke
 
     assert page.tabla_historial.rowCount() == 1
     assert page.tabla_historial.item(0, 1).text() == "jsilva"
-    assert page.tabla_historial.item(0, 2).text() == "CIVIL_FAMILIA"
+    assert page.tabla_historial.item(0, 2).text() == "Civil / Familia"
     assert page.tabla_historial.item(0, 3).text() == "01/06/2026"
 
 
@@ -2581,3 +2581,20 @@ def test_liquidar_laboral_con_horas_extra_las_suma_como_rubro_propio(qtbot, monk
     assert len(filas) == 1
     assert filas[0].concept.startswith("Horas extra HED")
     assert resultado.final_balance().principal == Decimal("7985000.00")
+
+
+def test_monto_de_la_obligacion_se_alinea_a_la_derecha(qtbot, monkeypatch):
+    """Sprint 127: las cifras van a la derecha para leerse en columna (guia de
+    identidad); el texto no cambia."""
+    from app.views.celdas import ALINEACION_NUMERO
+
+    expediente_id = _expediente_con_obligacion(monkeypatch)
+
+    page = ExpedienteDetallePage()
+    qtbot.addWidget(page)
+    page.cargar_expediente(expediente_id)
+
+    celda = page.tabla_obligaciones.item(0, 2)
+    assert celda.text() == "427900.00"
+    assert celda.textAlignment() == ALINEACION_NUMERO
+    assert page.tabla_obligaciones.item(0, 0).textAlignment() != ALINEACION_NUMERO

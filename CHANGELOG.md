@@ -514,6 +514,8 @@ membrete en PDF/Word), guía de identidad, README reorganizado y revisión del p
   Sprint 50.
 
 ### Changed
+- Tablas de pantalla (Sprint 127): montos, tasas y cantidades alineados a la derecha (Resultado, Detalle del
+  expediente, Pago por rango); el historial del expediente muestra el nombre legible del área.
 - Ícono de ventana (Sprint 122): el monograma oficial reemplaza el círculo borgoña provisional del Sprint 31
   (`resources/icon_app.svg`, eliminado).
 - **Python 3.15 como versión principal** (Sprint 122): suite completa verificada en 3.15.2; la CI prueba 3.13,

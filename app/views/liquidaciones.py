@@ -29,6 +29,7 @@ from app.reports.header import build_encabezado
 from app.reports.pdf import JudicialPDFGenerator
 from app.reports.word import WordReportGenerator
 from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
+from app.views.celdas import celda_numero
 from app.views.concurrency import TareaEnHilo
 from app.views.fecha_widgets import formatear_fecha
 from app.views.icons import icon
@@ -292,12 +293,12 @@ class ResultadoLiquidacionView(QWidget):
             celdas_fila = [
                 QTableWidgetItem(formatear_fecha(item.date)),
                 QTableWidgetItem(concepto_texto),
-                QTableWidgetItem(str(item.capital_base)),
-                QTableWidgetItem(str(item.interest_rate)),
-                QTableWidgetItem(str(item.interest_amount)),
-                QTableWidgetItem(str(item.indexation_amount)),
-                QTableWidgetItem(str(item.payment_amount)),
-                QTableWidgetItem(str(item.balance.debt.total())),
+                celda_numero(item.capital_base),
+                celda_numero(item.interest_rate),
+                celda_numero(item.interest_amount),
+                celda_numero(item.indexation_amount),
+                celda_numero(item.payment_amount),
+                celda_numero(item.balance.debt.total()),
             ]
             if item.prescrita:
                 for celda in celdas_fila:

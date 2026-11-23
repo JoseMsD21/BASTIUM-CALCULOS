@@ -324,6 +324,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 122 — Identidad visual oficial, guía de estilo y material del equipo ✅ Completado](#sprint-122--identidad-visual-oficial-guía-de-estilo-y-material-del-equipo--completado)
 - [Sprint 123 — Integración por fases del parche de plataforma (API forense y gestor de casos) 🔴 Bloqueado](#sprint-123--integración-por-fases-del-parche-de-plataforma-api-forense-y-gestor-de-casos--bloqueado)
 - [Sprint 125 — Pantalla de Inicio: gráfica por área legible y tablas compactas ✅ Completado](#sprint-125--pantalla-de-inicio-gráfica-por-área-legible-y-tablas-compactas--completado)
+- [Sprint 127 — Cifras alineadas a la derecha y área legible en las tablas ✅ Completado](#sprint-127--cifras-alineadas-a-la-derecha-y-área-legible-en-las-tablas--completado)
 
 ---
 
@@ -8995,6 +8996,25 @@ Pruebas: 4 nuevas y 4 ajustadas en `tests/views/test_dashboard.py`. Suite comple
 
 **Pendiente (no bloquea):** si el equipo adopta la paleta de la guía de identidad (#65), la gráfica cambia de color
 junto con el resto.
+
+---
+
+## Sprint 127 — Cifras alineadas a la derecha y área legible en las tablas ✅ Completado
+
+**Origen:** la guía de identidad pide alinear las cifras en columna "como un reloj suizo" para auditar a simple
+vista (`docs/identidad/GUIA_DE_IDENTIDAD.md`, "Tipografía"). No depende de la decisión de paleta (#65).
+
+**Hecho:** nuevo `app/views/celdas.py` (`celda_numero`, `etiqueta_area`). Los montos, tasas y cantidades quedan
+alineados a la derecha en Resultado de Liquidación (capital, tasa, interés, indexación, pago, saldo), en el Detalle
+del expediente (valor de la obligación, monto del abono, descuentos laborales, horas extra) y en Pago por rango. El
+**texto no cambia** (mismo valor de siempre), solo su alineación. El historial de liquidaciones del expediente
+muestra el nombre legible del área ("Civil / Familia"), igual que el Inicio (Sprint 125).
+
+Pruebas: `tests/views/test_celdas.py` y una nueva en `test_expediente_detalle.py`; 2 aserciones del historial
+ajustadas al nombre legible.
+
+**Pendiente (otro sprint):** separador de miles en pantalla (hoy `1500000.00`). Cambia el texto que ven los
+usuarios y varias pruebas; conviene hacerlo junto con la decisión de formato de moneda del equipo.
 
 ---
 
