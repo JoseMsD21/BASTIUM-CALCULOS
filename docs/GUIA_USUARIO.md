@@ -377,9 +377,25 @@ Usa este tipo cuando la deuda es un monto único con una sola fecha (ej. "gastos
      interés del 6% se calcula sobre ese valor ya indexado, no sobre el capital histórico. Sin esta
      casilla, el interés se sigue calculando solo sobre el capital histórico (comportamiento anterior a
      este sprint). Ver [sección 7.7](#77-indexación-ipc-corrección-monetaria) para el detalle.
+     **Con abonos (desde el Sprint 104):** si la obligación tiene "Suma Única" y abonos antes de la fecha de
+     corte, el programa liquida **tramo a tramo**, como indicó el despacho (Art. 1653 C.C.): en cada abono
+     indexa el capital desde el corte anterior, causa el interés del tramo con la tasa pura mensual
+     0,48676 % (meses comerciales de 30 días), aplica el abono primero a costas, luego a intereses, luego a
+     indexación y por último a capital, y el capital que queda es la base del tramo siguiente. Si la
+     obligación tenía una tasa pactada distinta del 6 %, verás un aviso de que en este cálculo no se aplicó.
 4. Haz clic en **"Guardar"**.
 
 Si pones un valor negativo o cero, el programa te avisa "Datos inválidos" y no deja guardar.
+
+**Fruto civil (beneficio dejado de percibir, desde el Sprint 100):** en un expediente Civil/Familia, elige la
+categoría **"Fruto civil (beneficio dejado de percibir)"**. El formulario pide el **canon mensual** del bien
+(por ejemplo, el arriendo de mercado), la **fecha de referencia** del canon (a qué fecha está expresado), el
+**período de privación** (fecha inicial y final, ambas incluidas) y, opcional, el **gasto de conservación
+mensual**. El programa calcula mes a mes el canon actualizado por IPC menos los gastos de conservación (Art.
+964 C.C.), con prorrateo por días si el período empieza o termina a mitad de mes. Cada mes aparece como una
+fila en el resultado y en el PDF/Word, y el resumen muestra "Fruto Civil Causado (Art. 964 C.C., sin
+intereses)". **El fruto civil no genera intereses** (el despacho no lo ha confirmado) y si el período pasa de la
+fecha de corte, solo se liquida hasta ese día, con un aviso.
 
 ### 5.4. Agregar una obligación recurrente (una cuota que se repite cada mes)
 
@@ -813,6 +829,16 @@ liquida así (base de 360 días/año, 720 para vacaciones):
   cada una.
 - Vacaciones: `1.300.000 × 180 / 720 = $325.000`.
 - Total de prestaciones (sin mora, sin seguridad social): `$1.664.000`.
+
+**Horas extra (desde el Sprint 95, 2026-11-22):** en el Detalle de un expediente Laboral aparece el grupo
+**"Horas extra"**. Con **"Agregar"** registras cada grupo de horas: concepto (**HED** diurna, **HEN** nocturna,
+**HEFD** festiva diurna, **HEFN** festiva nocturna), fecha de causación, cantidad de horas y valor de la hora.
+El diálogo muestra el factor que aplica según la fecha (Ley 2466/2025): HED 1,25 y HEN 1,75 siempre; HEFD/HEFN
+2,05/2,55 desde el 1-jul-2025, 2,15/2,65 desde el 1-jul-2026 y 2,25/2,75 desde el 1-jul-2027. Para horas
+festivas **anteriores al 1-jul-2025** el despacho aún no confirmó el factor, así que el diálogo te pide el
+porcentaje a mano. Si un período cruza un 1 de julio, registra una fila por tramo. Las horas extra salen como
+rubro propio en el resultado y en el PDF/Word; **no** entran en la base de prestaciones ni de la sanción
+moratoria (pendiente de confirmación del despacho). La fecha debe estar dentro del contrato.
 
 **Qué NO calcula todavía esta área:** régimen pensional (IBL, densidad de semanas, tasa de reemplazo) —
 ver [sección 8](#8-funciones-pendientes-o-en-desarrollo).
