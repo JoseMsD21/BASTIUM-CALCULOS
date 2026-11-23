@@ -51,7 +51,8 @@ C.C.), Comercial, Sancionatorio, Honorarios/Litigio, Laboral y Tributario.
     (`parametro_service`, Sprint 13).
   - `LaboralStrategy`: liquidacion final (finiquito) de un contrato — cesantias, intereses a cesantias,
     prima, vacaciones e indemnizacion moratoria bifasica del Art. 65 CST, con cotizaciones de seguridad
-    social, incapacidades y suspensiones contractuales opcionales (opt-in, Sprint 16).
+    social, incapacidades y suspensiones contractuales opcionales (opt-in, Sprint 16), y horas extra
+    HED/HEN/HEFD/HEFN como rubro propio (Sprint 95, ver `09_motor_laboral_horas_extra.md`).
   - `TributarioStrategy`: impuesto a cargo, las 3 sanciones (extemporaneidad, inexactitud, error
     aritmetico, con piso legal de 10 UVT), imputacion de pagos propia via el motor generico de liquidacion,
     interes moratorio automatico del E.T. art. 635, y depuracion de Renta Liquida Gravable informativa

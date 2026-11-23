@@ -101,6 +101,7 @@ def cargar_datos_de_liquidacion(expediente_id: int) -> tuple[list, list, str]:
         for obligacion in obligaciones:
             list(obligacion.eventos_laborales)  # fuerza el lazy-load antes de session.close()
             list(obligacion.descuentos_laborales)  # idem (Sprint 44, punto 3)
+            list(obligacion.horas_extra_laborales)  # idem (Sprint 95, horas extra)
             # idem (Sprint 74): CivilFamiliaStrategy lee obligacion.beneficiario para
             # topar la vigencia de las cuotas RECURRENTE.
             _ = obligacion.beneficiario
