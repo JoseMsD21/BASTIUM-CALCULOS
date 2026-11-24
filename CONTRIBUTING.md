@@ -140,8 +140,8 @@ espera algo externo (normalmente el despacho).
 - Una tarjeta bloqueada dice qué espera y de quién; si es una pregunta al despacho, enlaza su sección en
   `docs/Preguntas-Para-Abogado-Abiertas.md`.
 
-El tablero es **público**: cualquiera puede **verlo** sin pedir acceso. Para **mover tarjetas** hace falta estar
-agregado al proyecto con rol **Write** (ver [Permisos](#permisos-y-reglas-de-main)).
+El tablero es **público**: cualquiera puede **verlo** sin pedir acceso. Los colaboradores del equipo tienen rol
+**Write** en el tablero para mover tarjetas (ver [Permisos](#permisos-y-reglas-de-main)).
 
 ### Google Drive del equipo
 
@@ -161,7 +161,7 @@ Detalle y ritmo de reuniones en [docs/PLAN_INTEGRACION_NOVIEMBRE.md](docs/PLAN_I
   `.venv` (ya están en `.gitignore`; si git te los ofrece, detente y consulta).
 - **No subas secretos** (contraseñas, tokens, claves).
 - **No reescribas el historial** de una rama ya publicada (`push --force`) sin acordarlo antes.
-- Si tu rama quedó atrás de `main` y GitHub avisa de conflictos, trae los cambios con
+- Si tu rama quedó atrás de `main` (GitHub no deja integrar hasta ponerla al día) o avisa de conflictos, trae los cambios con
   `git fetch origin` y `git merge origin/main` en tu rama, resuelve los conflictos, vuelve a correr
   los tests y haz `git push`. Si no sabes resolverlos, pide ayuda antes de forzar nada.
 - Si la CI falla, abre el detalle del check fallido en el PR, corrige en tu rama y vuelve a subir.
@@ -186,6 +186,10 @@ mismo PR.
   cambios nuevos, la última subida necesita aprobación propia y todos los comentarios deben quedar resueltos.
 - **Checks obligatorios:** `test (3.13)`, `test (3.14)` y `test (3.15)` (ruff + pytest con cobertura ≥ 90 %). El 3.15
   se agregó el 2026-11-23 al volverse la versión principal.
+- **La rama debe estar al día con `main`** antes de integrar (activado el 2026-11-23). Si `main` avanzó después de
+  abrir tu PR, GitHub muestra el botón **"Update branch"**: púlsalo (o haz `git merge origin/main` en tu rama) y
+  espera a que la CI vuelva a pasar. Así la CI prueba exactamente el código que va a quedar en `main` (evita
+  errores como el del Sprint 104, cuando una combinación "sin conflicto" dejó código en la función equivocada).
 - **Quién puede saltarse la regla:** solo el rol Admin, y solo al integrar un PR (`gh pr merge --admin`), nunca subiendo
   directo.
 
@@ -197,8 +201,9 @@ mantiene "por ahora"; para cumplir la regla de "aprobación de otra persona" sin
 compañero en `.github/CODEOWNERS` (por ejemplo `* @JoseMsD21 @usuario`).
 
 **Tablero Kanban:** que el proyecto sea público solo permite verlo. Para mover tarjetas, cada colaborador debe estar
-en *tablero → ⋯ → Settings → Manage access* con rol **Write**. GitHub no expone esta lista por su API, así que se
-revisa a mano.
+en *tablero → ⋯ → Settings → Manage access* con rol **Write**. Desde el 2026-11-23 los colaboradores del repositorio
+están agregados al tablero con **Write**. Al sumar a alguien nuevo al equipo, agrégalo en los dos lugares:
+repositorio (*Settings → Collaborators*) y tablero (*Manage access*).
 
 **Cómo verificarlo tú mismo:**
 
