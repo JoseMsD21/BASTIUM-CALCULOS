@@ -327,6 +327,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 127 — Cifras alineadas a la derecha y área legible en las tablas ✅ Completado](#sprint-127--cifras-alineadas-a-la-derecha-y-área-legible-en-las-tablas--completado)
 - [Sprint 128 — Mascota en los estados vacíos ✅ Completado](#sprint-128--mascota-en-los-estados-vacíos--completado)
 - [Sprint 129 — Separador de miles en pantalla con el mismo formato del PDF ✅ Completado](#sprint-129--separador-de-miles-en-pantalla-con-el-mismo-formato-del-pdf--completado)
+- [Sprint 130 — Fase 1 del parche de plataforma: motor sin base de datos ✅ Completado](#sprint-130--fase-1-del-parche-de-plataforma-motor-sin-base-de-datos--completado)
 
 ---
 
@@ -8962,7 +8963,7 @@ Detalle completo, pruebas y riesgos en [REVISION_PLATAFORMA_2026-11-17.md](REVIS
 | Fase | Qué | Depende de | Esfuerzo |
 |---|---|---|---|
 | 0 | `.gitignore`, `calculator.py`, `radicado.py` | — | ✅ Hecho en el Sprint 122 |
-| 1 | Cortar la dependencia del motor con SQLAlchemy/`holidays` (Sprint 104) sin cambiar cifras | Nada | 1 día |
+| 1 | Cortar la dependencia del motor con SQLAlchemy/`holidays` (Sprint 104) sin cambiar cifras | — | ✅ Hecho en el Sprint 130 |
 | 2 | API `bastium_api/` con el redondeo del escritorio por defecto | Decisión #7 + fase 1 | 2-3 días |
 | 3 | Gestor `bastium/` usando `CalendarUtils` | Decisión del equipo + fase 2 | 5-8 días |
 | 4 | Calendario propio en vez de `holidays` | Despacho (Sprint 118: 1, 2, 6) | 2 días |
@@ -9056,6 +9057,24 @@ juzgado, así que quedó como pregunta (Preguntas Abiertas, Sprint 129). Si se a
 
 Pruebas: `tests/core/test_formato.py` (4) y una en `test_celdas.py`; 19 aserciones de texto ajustadas al nuevo
 formato (las cifras son las mismas).
+
+---
+
+## Sprint 130 — Fase 1 del parche de plataforma: motor sin base de datos ✅ Completado
+
+**Tarjeta:** #64 (fase 1 de 5). **Origen:** la [revisión de plataforma](REVISION_PLATAFORMA_2026-11-17.md) encontró
+que, desde el Sprint 104, importar el motor cargaba SQLAlchemy, `database` y `holidays`, lo que impedía una API
+headless. El usuario aprobó hacer la fase 1 el 23/11/2026; no depende del despacho.
+
+**Hecho:** `app/engine/liquidation/engine.py` importa `CausacionTramoATramo` solo para el verificador de tipos
+(`TYPE_CHECKING` + `from __future__ import annotations`): el objeto ya llega creado desde `area_strategy`. Importar
+el motor ya no carga la base de datos, `holidays` ni Qt (antes: `sqlalchemy`, `database`, `holidays`).
+Decisión registrada en [ADR-008](ARQUITECTURA_ADR.md#adr-008-el-motor-de-cálculo-se-importa-sin-base-de-datos-sin-holidays-y-sin-qt).
+
+Pruebas: `tests/architecture/test_motor_sin_base_de_datos.py` (3, en proceso aparte). Suite completa: 2093 en verde,
+**ninguna cifra cambia**. Verificado también con Python 3.13.
+
+**Siguiente (fase 2):** la API `bastium_api`, solo si el equipo la adopta (#7; Preguntas Abiertas, Sprint 124).
 
 ---
 
