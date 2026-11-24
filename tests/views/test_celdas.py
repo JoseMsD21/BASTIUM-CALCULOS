@@ -24,3 +24,14 @@ def test_etiqueta_area_traduce_el_codigo_y_respeta_lo_desconocido():
     assert etiqueta_area("CIVIL_FAMILIA") == "Civil / Familia"
     assert etiqueta_area("HONORARIOS") == "Honorarios / Litigio"
     assert etiqueta_area("OTRA_COSA") == "OTRA_COSA"
+
+
+def test_celda_moneda_y_porcentaje(qtbot):
+    from decimal import Decimal
+
+    from app.views.celdas import celda_moneda, celda_porcentaje
+
+    moneda = celda_moneda(Decimal("1500000"))
+    assert moneda.text() == "$1,500,000.00"
+    assert moneda.textAlignment() == ALINEACION_NUMERO
+    assert celda_porcentaje(Decimal("6")).text() == "6.00%"

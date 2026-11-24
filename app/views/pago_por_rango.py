@@ -30,7 +30,7 @@ from app.engine.temporal.prescripcion import CLAVE_POR_TIPO_ACCION
 from app.services.area_strategy import CivilFamiliaStrategy, ComercialStrategy
 from app.services.cascada_cuotas import deuda_pendiente_cuota, distribuir_pago_en_cascada
 from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
-from app.views.celdas import celda_numero
+from app.views.celdas import celda_moneda
 from app.views.fecha_widgets import crear_campo_fecha
 from app.views.form_utils import guardar_o_actualizar, hacer_redimensionable
 from database.models import Abono
@@ -157,7 +157,7 @@ class PagoPorRangoDialog(QDialog):
         self.tabla_preview.setRowCount(len(self._asignaciones))
         for fila, (cuota, monto) in enumerate(self._asignaciones):
             self.tabla_preview.setItem(fila, 0, QTableWidgetItem(cuota.concepto))
-            self.tabla_preview.setItem(fila, 1, celda_numero(f"{monto:,.2f}"))
+            self.tabla_preview.setItem(fila, 1, celda_moneda(monto))
 
         if self._remanente > Decimal("0.00"):
             self.etiqueta_remanente.setText(

@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QTableWidgetItem
 
 from app.core.constants import AREAS_DERECHO
+from app.core.formato import formatear_moneda, formatear_porcentaje
 
 ALINEACION_NUMERO = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
@@ -22,6 +23,17 @@ def celda_numero(valor) -> QTableWidgetItem:
     celda = QTableWidgetItem(str(valor))
     celda.setTextAlignment(ALINEACION_NUMERO)
     return celda
+
+
+def celda_moneda(valor) -> QTableWidgetItem:
+    """Sprint 129: monto con separador de miles y signo peso ("$1,500,000.00"),
+    alineado a la derecha. Mismo formato que el PDF y el Word."""
+    return celda_numero(formatear_moneda(valor))
+
+
+def celda_porcentaje(valor) -> QTableWidgetItem:
+    """Sprint 129: tasa como porcentaje ("6.00%"), alineada a la derecha."""
+    return celda_numero(formatear_porcentaje(valor))
 
 
 def etiqueta_area(codigo: str) -> str:

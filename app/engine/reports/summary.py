@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from app.core.formato import formatear_moneda
 from app.engine.liquidation.result import LiquidationResult
 
 
@@ -76,4 +77,5 @@ class ReportSummaryBuilder:
         }
 
     def _format(self, value: Decimal) -> str:
-        return f"${value:,.2f}"
+        # Sprint 129: formato unico compartido con la pantalla (app/core/formato.py).
+        return formatear_moneda(value)

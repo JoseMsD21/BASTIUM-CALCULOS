@@ -112,7 +112,7 @@ def test_liquidacion_con_sobrepago_aparece_en_la_pantalla_de_resultado(qtbot):
     view.mostrar(resultado, expediente_id=1)
 
     assert view.etiqueta_saldo_a_favor.isVisible()
-    assert "3000000.00" in view.etiqueta_saldo_a_favor.text()
+    assert "$3,000,000.00" in view.etiqueta_saldo_a_favor.text()
     # El saldo final mostrado sigue siendo el correcto (cero), sin contaminarse
     # con el saldo a favor.
-    assert "Saldo final: 0.00" in view.etiqueta_saldo_final.text()
+    assert "Saldo final: $0.00" in view.etiqueta_saldo_final.text()

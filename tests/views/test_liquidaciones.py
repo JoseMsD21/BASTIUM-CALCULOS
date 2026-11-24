@@ -110,7 +110,7 @@ def test_muestra_columna_de_indexacion_sanciones(qtbot):
     assert view.tabla.columnCount() == 8
     header_indexacion = view.tabla.horizontalHeaderItem(5).text()
     assert "ndexaci" in header_indexacion or "anci" in header_indexacion
-    assert view.tabla.item(0, 5).text() == "300.00"
+    assert view.tabla.item(0, 5).text() == "$300.00"
 
 
 def test_muestra_los_totales(qtbot):
@@ -119,7 +119,7 @@ def test_muestra_los_totales(qtbot):
 
     view.mostrar(_resultado_de_prueba(), expediente_id=1)
 
-    assert "1200.50" in view.etiqueta_interes_total.text()
+    assert "$1,200.50" in view.etiqueta_interes_total.text()
     # NOTA (bug detectado durante implementación): el plan original esperaba "427900.00"
     # aquí, pero PendingDebt.total() = principal + interest + indexation, no solo el
     # principal. El saldo final correcto incluye el interés acumulado y la indexación,
@@ -127,7 +127,7 @@ def test_muestra_los_totales(qtbot):
     # matemáticamente correcto de final_balance().total(), en vez de forzar la vista a un
     # cálculo erróneo. Con indexation_amount = 300.00 (Task 6), el total pasa de
     # 429100.50 a 429400.50 (427900.00 + 1200.50 + 300.00).
-    assert "429400.50" in view.etiqueta_saldo_final.text()
+    assert "$429,400.50" in view.etiqueta_saldo_final.text()
 
 
 def _resultado_con_sobrepago() -> LiquidationResult:
@@ -164,7 +164,7 @@ def test_muestra_saldo_a_favor_cuando_hay_sobrepago(qtbot):
     view.mostrar(_resultado_con_sobrepago(), expediente_id=1)
 
     assert view.etiqueta_saldo_a_favor.isVisible()
-    assert "3000000.00" in view.etiqueta_saldo_a_favor.text()
+    assert "$3,000,000.00" in view.etiqueta_saldo_a_favor.text()
 
 
 def test_oculta_saldo_a_favor_cuando_no_hay_sobrepago(qtbot):
@@ -253,7 +253,7 @@ def test_muestra_bloque_de_renta_liquida_cuando_esta_presente(qtbot):
     view.mostrar(resultado, expediente_id=1)
 
     assert view.grupo_renta_liquida.isVisible()
-    assert "35000000.00" in view.etiqueta_renta_liquida_gravable.text()
+    assert "$35,000,000.00" in view.etiqueta_renta_liquida_gravable.text()
 
 
 def test_oculta_bloque_de_renta_liquida_cuando_no_esta_presente(qtbot):
@@ -552,9 +552,9 @@ def test_muestra_costas_como_rubro_propio_cuando_existen(qtbot):
     view.mostrar(_resultado_con_costas(), expediente_id=1)
 
     assert view.etiqueta_costas.isVisible()
-    assert "5000.00" in view.etiqueta_costas.text()
+    assert "$5,000.00" in view.etiqueta_costas.text()
     # 427900.00 + 1200.50 + 300.00 + 5000.00 (costas en seco) = 434400.50
-    assert "434400.50" in view.etiqueta_saldo_final.text()
+    assert "$434,400.50" in view.etiqueta_saldo_final.text()
 
 
 def test_oculta_costas_cuando_no_hay(qtbot):
@@ -667,7 +667,7 @@ def test_interruptor_sensibilidad_recalcula_sin_indexacion_y_vuelve_a_la_oficial
     view.mostrar(oficial, expediente_id, fecha_corte=fecha_corte)
 
     # 1.000.000 + interes Suma Unica 95.658,88 + indexacion 61.933,78.
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,157,592.66"
     assert view.check_vista_sensibilidad.isEnabled()
 
     _elegir_sentido(view, False)
@@ -675,7 +675,7 @@ def test_interruptor_sensibilidad_recalcula_sin_indexacion_y_vuelve_a_la_oficial
         view.check_vista_sensibilidad.setChecked(True)
 
     # Sin indexacion: 1.000.000 + 164,38 x 548 dias = 1.090.080,24.
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1090080.24"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,090,080.24"
     assert not view.etiqueta_vista_sensibilidad.isHidden()
     assert "SIN indexación" in view.etiqueta_vista_sensibilidad.text()
     assert not view.boton_exportar_pdf.isEnabled()
@@ -685,7 +685,7 @@ def test_interruptor_sensibilidad_recalcula_sin_indexacion_y_vuelve_a_la_oficial
 
     view.check_vista_sensibilidad.setChecked(False)
 
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,157,592.66"
     assert view.etiqueta_vista_sensibilidad.isHidden()
     assert view.boton_exportar_pdf.isEnabled()
     assert view.boton_exportar_word.isEnabled()
@@ -706,7 +706,7 @@ def test_interruptor_sensibilidad_con_indexacion_sobre_obligacion_sin_indexar(
     view = ResultadoLiquidacionView()
     qtbot.addWidget(view)
     view.mostrar(oficial, expediente_id, fecha_corte=fecha_corte)
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1090080.24"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,090,080.24"
 
     _elegir_sentido(view, True)
     with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
@@ -714,7 +714,7 @@ def test_interruptor_sensibilidad_con_indexacion_sobre_obligacion_sin_indexar(
 
     # Con IPC y sin Suma Unica guardada: el interes civil queda sobre el capital
     # historico (90.080,24) y se suma la indexacion (61.933,78).
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1152014.02"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,152,014.02"
     assert "CON indexación" in view.etiqueta_vista_sensibilidad.text()
     assert _banderas_y_auditoria(expediente_id) == ((False, False), 0)
 
@@ -732,12 +732,12 @@ def test_cambiar_el_selector_con_la_vista_activa_recalcula(qtbot, monkeypatch):
     _elegir_sentido(view, False)
     with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
         view.check_vista_sensibilidad.setChecked(True)
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1090080.24"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,090,080.24"
 
     with qtbot.waitSignal(view.vista_sensibilidad_actualizada, timeout=5000):
         _elegir_sentido(view, True)
 
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,157,592.66"
     assert not view.etiqueta_vista_sensibilidad.isHidden()
 
 
@@ -760,7 +760,7 @@ def test_mostrar_un_resultado_nuevo_apaga_la_vista_de_sensibilidad(qtbot, monkey
     assert not view.check_vista_sensibilidad.isChecked()
     assert view.etiqueta_vista_sensibilidad.isHidden()
     assert view.boton_exportar_pdf.isEnabled()
-    assert view.etiqueta_saldo_final.text() == "Saldo final: 1157592.66"
+    assert view.etiqueta_saldo_final.text() == "Saldo final: $1,157,592.66"
 
 
 def test_error_en_la_vista_de_sensibilidad_avisa_y_vuelve_a_la_oficial(qtbot, monkeypatch):
@@ -838,7 +838,7 @@ def test_muestra_fruto_civil_como_rubro_propio_cuando_existe(qtbot):
     view.mostrar(_resultado_con_fruto_civil(), expediente_id=1)
 
     assert view.etiqueta_fruto_civil.isVisible()
-    assert "1815904.58" in view.etiqueta_fruto_civil.text()
+    assert "$1,815,904.58" in view.etiqueta_fruto_civil.text()
     assert "sin intereses" in view.etiqueta_fruto_civil.text()
 
 

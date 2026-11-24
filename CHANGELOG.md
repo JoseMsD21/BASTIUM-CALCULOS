@@ -516,6 +516,8 @@ membrete en PDF/Word), guía de identidad, README reorganizado y revisión del p
   Sprint 50.
 
 ### Changed
+- Separador de miles en pantalla (Sprint 129): los montos se ven como en el PDF (`$1,500,000.00`) y las tasas
+  como porcentaje; formato único en `app/core/formato.py` para pantalla, PDF y Word (redondeo ROUND_HALF_UP).
 - Tablas de pantalla (Sprint 127): montos, tasas y cantidades alineados a la derecha (Resultado, Detalle del
   expediente, Pago por rango); el historial del expediente muestra el nombre legible del área.
 - Ícono de ventana (Sprint 122): el monograma oficial reemplaza el círculo borgoña provisional del Sprint 31

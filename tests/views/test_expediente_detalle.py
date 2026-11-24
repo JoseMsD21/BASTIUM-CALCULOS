@@ -2516,7 +2516,7 @@ def test_refrescar_horas_extra_lista_concepto_fecha_horas_y_valor(qtbot, monkeyp
     assert tabla.item(0, 0).text() == "HED"
     assert tabla.item(0, 1).text() == "15/03/2020"
     assert tabla.item(0, 2).text() == "10"
-    assert tabla.item(0, 3).text() == "10000"
+    assert tabla.item(0, 3).text() == "$10,000.00"  # Sprint 129: formato de moneda
     assert tabla.item(0, 4).text() == ""
 
 
@@ -2595,6 +2595,6 @@ def test_monto_de_la_obligacion_se_alinea_a_la_derecha(qtbot, monkeypatch):
     page.cargar_expediente(expediente_id)
 
     celda = page.tabla_obligaciones.item(0, 2)
-    assert celda.text() == "427900.00"
+    assert celda.text() == "$427,900.00"  # Sprint 129: separador de miles
     assert celda.textAlignment() == ALINEACION_NUMERO
     assert page.tabla_obligaciones.item(0, 0).textAlignment() != ALINEACION_NUMERO

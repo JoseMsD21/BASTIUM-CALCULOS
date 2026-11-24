@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 import database.session as session_module
 from app.core import theme_colors as colores
 from app.core.constants import AREAS_DERECHO
+from app.core.formato import formatear_moneda
 from app.engine.liquidation.result import LiquidationResult
 from app.engine.reports.summary import ReportSummaryBuilder
 from app.engine.reports.table_builder import ReportTableBuilder
@@ -29,7 +30,7 @@ from app.reports.header import build_encabezado
 from app.reports.pdf import JudicialPDFGenerator
 from app.reports.word import WordReportGenerator
 from app.services.vista_sensibilidad_indexacion import liquidar_vista_sensibilidad
-from app.views.celdas import celda_numero
+from app.views.celdas import celda_moneda, celda_porcentaje
 from app.views.concurrency import TareaEnHilo
 from app.views.fecha_widgets import formatear_fecha
 from app.views.icons import icon
@@ -135,22 +136,22 @@ class ResultadoLiquidacionView(QWidget):
             ]
         )
 
-        self.etiqueta_interes_total = QLabel("Interes acumulado: 0.00")
-        self.etiqueta_pagos_total = QLabel("Pagos aplicados: 0.00")
-        self.etiqueta_saldo_final = QLabel("Saldo final: 0.00")
+        self.etiqueta_interes_total = QLabel("Interes acumulado: $0.00")
+        self.etiqueta_pagos_total = QLabel("Pagos aplicados: $0.00")
+        self.etiqueta_saldo_final = QLabel("Saldo final: $0.00")
         # Sprint 79: costas procesales como rubro propio -- no generan interes y se
         # suman en seco al saldo final. Oculta cuando la liquidacion no tiene costas.
-        self.etiqueta_costas = QLabel("Costas procesales (no generan interés): 0.00")
+        self.etiqueta_costas = QLabel("Costas procesales (no generan interés): $0.00")
         self.etiqueta_costas.setVisible(False)
         # Sprint 100: fruto civil (Art. 964 C.C.) como rubro propio -- ya esta
         # dentro del capital; esta etiqueta solo lo discrimina. Oculta cuando la
         # liquidacion no tiene obligaciones de fruto civil.
-        self.etiqueta_fruto_civil = QLabel("Fruto civil causado (sin intereses): 0.00")
+        self.etiqueta_fruto_civil = QLabel("Fruto civil causado (sin intereses): $0.00")
         self.etiqueta_fruto_civil.setVisible(False)
         # Sprint 46: el saldo a favor de un sobrepago (Sprint 23, ya calculado
         # correctamente por LiquidationCore) se vuelve visible aqui -- oculto por
         # completo (nada, ni una fila vacia) cuando no hay sobrepago.
-        self.etiqueta_saldo_a_favor = QLabel("Saldo a favor del deudor: 0.00")
+        self.etiqueta_saldo_a_favor = QLabel("Saldo a favor del deudor: $0.00")
         self.etiqueta_saldo_a_favor.setVisible(False)
 
         # Alertas no bloqueantes (Sprint 43, agregado en revision de calidad):
@@ -293,12 +294,12 @@ class ResultadoLiquidacionView(QWidget):
             celdas_fila = [
                 QTableWidgetItem(formatear_fecha(item.date)),
                 QTableWidgetItem(concepto_texto),
-                celda_numero(item.capital_base),
-                celda_numero(item.interest_rate),
-                celda_numero(item.interest_amount),
-                celda_numero(item.indexation_amount),
-                celda_numero(item.payment_amount),
-                celda_numero(item.balance.debt.total()),
+                celda_moneda(item.capital_base),
+                celda_porcentaje(item.interest_rate),
+                celda_moneda(item.interest_amount),
+                celda_moneda(item.indexation_amount),
+                celda_moneda(item.payment_amount),
+                celda_moneda(item.balance.debt.total()),
             ]
             if item.prescrita:
                 for celda in celdas_fila:
@@ -307,14 +308,20 @@ class ResultadoLiquidacionView(QWidget):
                 self.tabla.setItem(fila, columna, celda)
 
         self.etiqueta_interes_total.setText(
-            f"Interes acumulado: {resultado.total_interest_accrued()}"
+            f"Interes acumulado: {formatear_moneda(resultado.total_interest_accrued())}"
         )
-        self.etiqueta_pagos_total.setText(f"Pagos aplicados: {resultado.total_payments_applied()}")
-        self.etiqueta_saldo_final.setText(f"Saldo final: {resultado.final_balance().total()}")
+        self.etiqueta_pagos_total.setText(
+            f"Pagos aplicados: {formatear_moneda(resultado.total_payments_applied())}"
+        )
+        self.etiqueta_saldo_final.setText(
+            f"Saldo final: {formatear_moneda(resultado.final_balance().total())}"
+        )
 
         costas = resultado.final_balance().costas
         if costas > 0:
-            self.etiqueta_costas.setText(f"Costas procesales (no generan interés): {costas}")
+            self.etiqueta_costas.setText(
+                f"Costas procesales (no generan interés): {formatear_moneda(costas)}"
+            )
             self.etiqueta_costas.setVisible(True)
         else:
             self.etiqueta_costas.setVisible(False)
@@ -322,7 +329,7 @@ class ResultadoLiquidacionView(QWidget):
         if any(item.balance.event_type == "FRUTO_CIVIL" for item in resultado.items):
             self.etiqueta_fruto_civil.setText(
                 "Fruto civil causado (Art. 964 C.C., sin intereses): "
-                f"{resultado.total_fruto_civil()}"
+                f"{formatear_moneda(resultado.total_fruto_civil())}"
             )
             self.etiqueta_fruto_civil.setVisible(True)
         else:
@@ -330,21 +337,27 @@ class ResultadoLiquidacionView(QWidget):
 
         total_saldo_a_favor = resultado.total_saldo_a_favor()
         if total_saldo_a_favor > 0:
-            self.etiqueta_saldo_a_favor.setText(f"Saldo a favor del deudor: {total_saldo_a_favor}")
+            self.etiqueta_saldo_a_favor.setText(
+                f"Saldo a favor del deudor: {formatear_moneda(total_saldo_a_favor)}"
+            )
             self.etiqueta_saldo_a_favor.setVisible(True)
         else:
             self.etiqueta_saldo_a_favor.setVisible(False)
 
         if resultado.renta_liquida is not None:
             rl = resultado.renta_liquida
-            self.etiqueta_ingresos_netos.setText(f"Ingresos netos: {rl.ingresos_netos}")
-            self.etiqueta_renta_bruta.setText(f"Renta bruta: {rl.renta_bruta}")
-            self.etiqueta_renta_liquida.setText(f"Renta líquida: {rl.renta_liquida}")
+            self.etiqueta_ingresos_netos.setText(
+                f"Ingresos netos: {formatear_moneda(rl.ingresos_netos)}"
+            )
+            self.etiqueta_renta_bruta.setText(f"Renta bruta: {formatear_moneda(rl.renta_bruta)}")
+            self.etiqueta_renta_liquida.setText(
+                f"Renta líquida: {formatear_moneda(rl.renta_liquida)}"
+            )
             self.etiqueta_hubo_perdida.setText(
                 f"¿Hubo pérdida líquida?: {'Sí' if rl.hubo_perdida_liquida else 'No'}"
             )
             self.etiqueta_renta_liquida_gravable.setText(
-                f"Renta líquida gravable: {rl.renta_liquida_gravable}"
+                f"Renta líquida gravable: {formatear_moneda(rl.renta_liquida_gravable)}"
             )
             self.grupo_renta_liquida.setVisible(True)
         else:
