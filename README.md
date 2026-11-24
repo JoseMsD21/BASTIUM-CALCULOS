@@ -87,8 +87,9 @@ python -m ruff check .                              # estilo (la CI lo exige)
 ```
 
 **Cómo trabajamos:**
-- `main` está protegida: cada cambio va en su rama y entra por Pull Request con la CI en verde y la aprobación del
-  responsable. Paso a paso en [CONTRIBUTING.md](CONTRIBUTING.md).
+- `main` está protegida: cada cambio va en su rama y entra por Pull Request con la CI en verde (Python 3.13, 3.14 y
+  3.15) y la aprobación del responsable. Paso a paso en [CONTRIBUTING.md](CONTRIBUTING.md); roles, reglas y la
+  excepción vigente en [Permisos y reglas de `main`](CONTRIBUTING.md#permisos-y-reglas-de-main).
 - **Tablero Kanban público:** [BASTIUM - Kanban](https://github.com/users/JoseMsD21/projects/1). Una tarjeta = un
   issue = una rama = un PR. Columnas Backlog → Listo → En progreso → En revisión → Hecho, más **Bloqueado** para lo
   que espera respuesta del despacho.

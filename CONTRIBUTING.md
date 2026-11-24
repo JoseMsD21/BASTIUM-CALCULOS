@@ -140,7 +140,8 @@ espera algo externo (normalmente el despacho).
 - Una tarjeta bloqueada dice qué espera y de quién; si es una pregunta al despacho, enlaza su sección en
   `docs/Preguntas-Para-Abogado-Abiertas.md`.
 
-El tablero es **público**: cualquier compañero puede verlo sin pedir acceso.
+El tablero es **público**: cualquiera puede **verlo** sin pedir acceso. Para **mover tarjetas** hace falta estar
+agregado al proyecto con rol **Write** (ver [Permisos](#permisos-y-reglas-de-main)).
 
 ### Google Drive del equipo
 
@@ -164,6 +165,47 @@ Detalle y ritmo de reuniones en [docs/PLAN_INTEGRACION_NOVIEMBRE.md](docs/PLAN_I
   `git fetch origin` y `git merge origin/main` en tu rama, resuelve los conflictos, vuelve a correr
   los tests y haz `git push`. Si no sabes resolverlos, pide ayuda antes de forzar nada.
 - Si la CI falla, abre el detalle del check fallido en el PR, corrige en tu rama y vuelve a subir.
+
+### Permisos y reglas de `main`
+
+Configuración real en GitHub, verificada el 2026-11-23. Si cambias algo en *Settings*, actualiza esta sección en el
+mismo PR.
+
+**Roles en el repositorio:**
+
+| Persona | Rol | Puede | No puede |
+|---|---|---|---|
+| @JoseMsD21 | Admin (responsable del proyecto) | Todo, incluida la configuración | — |
+| Colaboradores del equipo | **Write** | Crear ramas, subir a sus ramas, abrir y comentar PR, gestionar issues | Subir a `main`, cambiar la configuración, saltarse las reglas |
+
+**Regla "Main"** (*Settings → Rules → Rulesets → Main*), activa sobre la rama principal:
+
+- Todo cambio entra por **Pull Request**; nadie sube directo a `main`.
+- No se puede borrar `main` ni reescribir su historia (`push --force`).
+- **1 aprobación del dueño del código** (`.github/CODEOWNERS`: @JoseMsD21). La aprobación se invalida si se suben
+  cambios nuevos, la última subida necesita aprobación propia y todos los comentarios deben quedar resueltos.
+- **Checks obligatorios:** `test (3.13)`, `test (3.14)` y `test (3.15)` (ruff + pytest con cobertura ≥ 90 %). El 3.15
+  se agregó el 2026-11-23 al volverse la versión principal.
+- **Quién puede saltarse la regla:** solo el rol Admin, y solo al integrar un PR (`gh pr merge --admin`), nunca subiendo
+  directo.
+
+**Excepción vigente — "opción B" para los PR del responsable:** como @JoseMsD21 es el único dueño del código y
+GitHub no deja aprobar el PR propio, sus PR se integran con `--admin` **después de que la CI esté en verde**. Así se
+integraron sus PR desde noviembre de 2026. Condiciones: la CI completa en verde (las tres versiones), el PR documenta qué cambia y
+por qué, y nunca se usa para PR de otras personas (esos esperan la aprobación normal). Decisión del 2026-11-23: se
+mantiene "por ahora"; para cumplir la regla de "aprobación de otra persona" sin excepción, basta agregar un
+compañero en `.github/CODEOWNERS` (por ejemplo `* @JoseMsD21 @usuario`).
+
+**Tablero Kanban:** que el proyecto sea público solo permite verlo. Para mover tarjetas, cada colaborador debe estar
+en *tablero → ⋯ → Settings → Manage access* con rol **Write**. GitHub no expone esta lista por su API, así que se
+revisa a mano.
+
+**Cómo verificarlo tú mismo:**
+
+```bash
+gh api repos/JoseMsD21/BASTIUM-CALCULOS/collaborators --jq '.[] | {login, role_name}'
+gh api repos/JoseMsD21/BASTIUM-CALCULOS/rulesets/27289585 --jq '.rules'
+```
 
 ## Convención de commits
 

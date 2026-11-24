@@ -21,7 +21,7 @@ otro lugar.
 | Planificación | [Plan de integración de noviembre](PLAN_INTEGRACION_NOVIEMBRE.md) | Qué traía el paquete de cambios de noviembre, qué se integró y por qué, estimaciones, reglas Kanban y uso de Drive |
 | Planificación | [Gestión de riesgos](GESTION_RIESGOS.md) | Riesgos vigentes agrupados por tipo, con mitigación y estado |
 | Implementación | [Plan de calidad y pruebas (QA)](PLAN_CALIDAD_PRUEBAS.md) | Estrategia de pruebas, entornos, trazabilidad requisito→sprint→test, criterios de aceptación |
-| Implementación | [CONTRIBUTING.md](../CONTRIBUTING.md) | Documentación técnica de desarrollo: entorno, comandos de prueba/lint, flujo de trabajo en equipo con ramas y Pull Requests (paso a paso), convención de commits, cómo proponer un sprint |
+| Implementación | [CONTRIBUTING.md](../CONTRIBUTING.md) | Documentación técnica de desarrollo: entorno, comandos de prueba/lint, flujo de trabajo en equipo con ramas y Pull Requests (paso a paso), **permisos y reglas de `main`** (roles, checks obligatorios, excepción "opción B", acceso al tablero), convención de commits, cómo proponer un sprint |
 | Implementación | `docs/superpowers/plans/` y `docs/superpowers/specs/` | Histórico de ejecución: plan TDD tarea por tarea y diseño de cada sprint (no se edita, es un log) |
 | Entrega | [README.md](../README.md) | Instalación, actualización, estructura del proyecto, estado actual funcional |
 | Entrega | [Funcionalidades](FUNCIONALIDADES.md) | Detalle completo de lo que calcula cada área hoy (lo que antes estaba en el README) |
