@@ -26,6 +26,7 @@ from app.core.exceptions import (
     TRMNoDisponibleError,
     UVTNoDisponibleError,
 )
+from app.core.formato import formatear_moneda
 from app.engine.audit.service import (
     historial_de_expediente,
     reconstruir_liquidacion,
@@ -38,7 +39,7 @@ from app.services.recurrencia_fechas_fijas import generar_cuotas_fechas_fijas
 from app.services.titulo_ejecutivo import ETIQUETAS_TIPO_TITULO
 from app.services.vista_sensibilidad_indexacion import cargar_datos_de_liquidacion
 from app.views.abonos import AbonoFormDialog
-from app.views.celdas import celda_numero, etiqueta_area
+from app.views.celdas import celda_moneda, celda_numero, etiqueta_area
 from app.views.concurrency import TareaEnHilo
 from app.views.descuentos_laborales import DescuentoLaboralFormDialog
 from app.views.eventos_laborales import EventoLaboralFormDialog
@@ -443,7 +444,7 @@ class ExpedienteDetallePage(QWidget):
         for fila, obligacion in enumerate(obligaciones):
             self.tabla_obligaciones.setItem(fila, 0, QTableWidgetItem(obligacion.concepto))
             self.tabla_obligaciones.setItem(fila, 1, QTableWidgetItem(obligacion.tipo.value))
-            self.tabla_obligaciones.setItem(fila, 2, celda_numero(obligacion.valor))
+            self.tabla_obligaciones.setItem(fila, 2, celda_moneda(obligacion.valor))
 
             boton_editar = QPushButton("Editar")
             boton_editar.setProperty("class", "secondary")
@@ -471,7 +472,7 @@ class ExpedienteDetallePage(QWidget):
         self.tabla_abonos.setRowCount(len(abonos))
         for fila, abono in enumerate(abonos):
             self.tabla_abonos.setItem(fila, 0, QTableWidgetItem(formatear_fecha(abono.fecha)))
-            self.tabla_abonos.setItem(fila, 1, celda_numero(abono.monto))
+            self.tabla_abonos.setItem(fila, 1, celda_moneda(abono.monto))
             self.tabla_abonos.setItem(fila, 2, QTableWidgetItem(abono.referencia or ""))
 
             boton_editar = QPushButton("Editar")
@@ -540,7 +541,7 @@ class ExpedienteDetallePage(QWidget):
                 fila, 0, QTableWidgetItem(formatear_fecha(descuento.fecha))
             )
             self.tabla_descuentos_laborales.setItem(
-                fila, 1, celda_numero(descuento.monto)
+                fila, 1, celda_moneda(descuento.monto)
             )
             self.tabla_descuentos_laborales.setItem(
                 fila, 2, QTableWidgetItem("Legal" if descuento.es_legal else "Ilegal")
@@ -569,7 +570,7 @@ class ExpedienteDetallePage(QWidget):
                 hora_extra.concepto,
                 formatear_fecha(hora_extra.fecha_causacion),
                 str(hora_extra.numero_horas),
-                str(hora_extra.valor_hora),
+                formatear_moneda(hora_extra.valor_hora),
                 "" if porcentaje is None else str(porcentaje),
             ]
             for columna, texto in enumerate(textos):

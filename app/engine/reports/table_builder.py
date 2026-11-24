@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from app.core.formato import formatear_moneda, formatear_porcentaje
 from app.engine.liquidation.result import LiquidationResult
 
 
@@ -45,8 +46,8 @@ class ReportTableBuilder:
         return matrix
 
     def _format_currency(self, value: Decimal) -> str:
-        # Formatea agregando comas de miles y dos decimales fijos
-        return f"${value:,.2f}"
+        # Sprint 129: formato unico compartido con la pantalla (app/core/formato.py).
+        return formatear_moneda(value)
 
     def _format_percent(self, value: Decimal) -> str:
-        return f"{value:,.2f}%"
+        return formatear_porcentaje(value)

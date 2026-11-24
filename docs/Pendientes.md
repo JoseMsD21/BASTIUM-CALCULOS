@@ -326,6 +326,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 125 — Pantalla de Inicio: gráfica por área legible y tablas compactas ✅ Completado](#sprint-125--pantalla-de-inicio-gráfica-por-área-legible-y-tablas-compactas--completado)
 - [Sprint 127 — Cifras alineadas a la derecha y área legible en las tablas ✅ Completado](#sprint-127--cifras-alineadas-a-la-derecha-y-área-legible-en-las-tablas--completado)
 - [Sprint 128 — Mascota en los estados vacíos ✅ Completado](#sprint-128--mascota-en-los-estados-vacíos--completado)
+- [Sprint 129 — Separador de miles en pantalla con el mismo formato del PDF ✅ Completado](#sprint-129--separador-de-miles-en-pantalla-con-el-mismo-formato-del-pdf--completado)
 
 ---
 
@@ -9014,8 +9015,7 @@ muestra el nombre legible del área ("Civil / Familia"), igual que el Inicio (Sp
 Pruebas: `tests/views/test_celdas.py` y una nueva en `test_expediente_detalle.py`; 2 aserciones del historial
 ajustadas al nombre legible.
 
-**Pendiente (otro sprint):** separador de miles en pantalla (hoy `1500000.00`). Cambia el texto que ven los
-usuarios y varias pruebas; conviene hacerlo junto con la decisión de formato de moneda del equipo.
+**Actualización:** el separador de miles en pantalla se hizo en el Sprint 129.
 
 ---
 
@@ -9035,6 +9035,27 @@ aprobó el 23/11/2026. No depende de la paleta (#65).
 - Listado de expedientes: el estado vacío que ya existía (Sprint 35) lleva ahora la mascota encima del mensaje.
 
 Pruebas: `tests/views/test_estado_vacio.py` (4).
+
+---
+
+## Sprint 129 — Separador de miles en pantalla con el mismo formato del PDF ✅ Completado
+
+**Origen:** en pantalla los montos se veían sin separador (`1500000.00`), mientras el PDF y el Word ya mostraban
+`$1,500,000.00`. El usuario lo aprobó el 23/11/2026.
+
+**Decisión:** usar en pantalla **el mismo formato del PDF y el Word** (`$1,500,000.00`), para que la misma cifra no
+se vea de dos formas distintas. Pasar todo al formato colombiano (`$1.500.000,00`) cambia los documentos que van al
+juzgado, así que quedó como pregunta (Preguntas Abiertas, Sprint 129). Si se aprueba, se cambia en un solo lugar.
+
+**Hecho:**
+- `app/core/formato.py`: `formatear_moneda` y `formatear_porcentaje`, **única fuente** del formato para pantalla,
+  PDF y Word (`ReportTableBuilder` y `ReportSummaryBuilder` ahora lo usan; su salida no cambia). Redondeo a 2
+  decimales siempre `ROUND_HALF_UP`, explícito (antes el formateo de Python redondeaba 0.125 a 0.12).
+- Pantalla: Resultado de Liquidación (tabla con montos y tasa en %, totales, costas, fruto civil, saldo a favor,
+  renta líquida), Detalle del expediente (obligaciones, abonos, descuentos, valor de la hora extra) y Pago por rango.
+
+Pruebas: `tests/core/test_formato.py` (4) y una en `test_celdas.py`; 19 aserciones de texto ajustadas al nuevo
+formato (las cifras son las mismas).
 
 ---
 

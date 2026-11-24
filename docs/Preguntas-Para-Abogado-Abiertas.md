@@ -89,6 +89,7 @@ antes de que quede incorporada de forma definitiva — no se publica sola apenas
 - [Sprint 122 — Guía de identidad y material del equipo: tres confirmaciones](#sprint-122--guía-de-identidad-y-material-del-equipo-tres-confirmaciones)
 - [Sprint 123 — Gestor de casos propuesto: ocho decisiones (solo si el equipo lo adopta)](#sprint-123--gestor-de-casos-propuesto-ocho-decisiones-solo-si-el-equipo-lo-adopta)
 - [Sprint 124 — Cuatro decisiones de identidad, plataforma y publicación](#sprint-124--cuatro-decisiones-de-identidad-plataforma-y-publicación)
+- [Sprint 129 — Formato de las cifras: ¿estilo colombiano?](#sprint-129--formato-de-las-cifras-estilo-colombiano)
 - [Plantilla para sprints futuros](#plantilla-para-sprints-futuros)
 
 ---
@@ -509,6 +510,27 @@ inspiración. ¿Se dejan publicadas o se reemplaza el PDF por una versión sin e
 
 **Qué necesito exactamente:** en la 1, el color; en la 2, sí/no a la API y "dentro" o "externo" para el gestor; en
 la 3, "huella" o "firma real"; en la 4, "dejar" o "quitar".
+
+**Respuesta del despacho:**
+
+
+**Fecha:**
+
+---
+
+## Sprint 129 — Formato de las cifras: ¿estilo colombiano?
+
+**Contexto:** desde el Sprint 129 la pantalla, el PDF y el Word muestran los montos con el mismo formato:
+`$1,500,000.00` (coma de miles, punto decimal), que es el que el PDF usaba desde el principio. En Colombia lo
+habitual en documentos judiciales es `$1.500.000,00` (punto de miles, coma decimal).
+
+**Pregunta 1 — Formato de miles y decimales.** *Por qué:* cambia cómo se leen todas las cifras de la pantalla y de
+los documentos que van al juzgado. ¿Se pasa al formato colombiano `$1.500.000,00`? (Técnicamente es un cambio en un
+solo archivo, `app/core/formato.py`.)
+
+**Pregunta 2 — Porcentajes.** Hoy las tasas se muestran como `6.00%`. ¿Se prefiere `6,00 %`?
+
+**Qué necesito exactamente:** sí/no en cada una.
 
 **Respuesta del despacho:**
 
