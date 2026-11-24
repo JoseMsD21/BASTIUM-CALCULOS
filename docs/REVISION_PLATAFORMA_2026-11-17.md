@@ -5,6 +5,9 @@ Material revisado: `bastium_plataforma_2026-11-17.patch` (154 archivos, ~15.000 
 mismos archivos ya aplicados. No se modificó el repositorio; las pruebas se corrieron en dos copias
 temporales (worktrees) que ya se borraron.
 
+> **Estado (Sprint 130, 2026-11-23):** fases **0 y 1** hechas. La fase 1 (Sprint 130, ADR-008) dejó el motor
+> importable sin base de datos, `holidays` ni Qt, sin cambiar cifras.
+>
 > **Estado (Sprint 122, 2026-11-23):** la **fase 0** ya se aplicó (`.gitignore`, `calculator.py` y
 > `app/domain/radicado.py` con sus pruebas). El parche y el ZIP eran archivos temporales y se borraron de la raíz
 > del repositorio; el material original sigue en la
@@ -258,7 +261,7 @@ despacho.
 | Fase | Qué entra | Depende de | Esfuerzo (1 persona) |
 |---|---|---|---|
 | **0. Ya** | `.gitignore` (5 líneas), `calculator.py` (cierra la tarjeta #10; Sprint 76 ya respondido), `app/domain/radicado.py` + `tests/domain/test_radicado.py` (puro, útil también para el escritorio). | Nada | 0,5 día |
-| **1. Preparar `main`** | Cortar la dependencia `engine.py` → `suma_unica_con_abonos` → SQLAlchemy/`holidays` (import perezoso o proveedor de IPC inyectado), sin cambiar ninguna cifra (las 2045 pruebas deben seguir iguales). | Nada | 1 día |
+| **1. Preparar `main`** ✅ Hecho (Sprint 130) | Cortar la dependencia `engine.py` → `suma_unica_con_abonos` → SQLAlchemy/`holidays` (import perezoso o proveedor de IPC inyectado), sin cambiar ninguna cifra (las 2045 pruebas deben seguir iguales). | Nada | 1 día |
 | **2. API (`bastium_api/`)** | Paquete nuevo + `tests/api`, `test_api_sin_ui_ni_base_de_datos`, `requirements-api*.txt`, `scripts/exportar_contrato_api.py`, `verificar_sello.py`, `docs/API_CONTRATO.md`, `docs/api/`, `ci-core.yml`, Docker. **Condiciones:** `politica_causacion` por defecto = `LEGADA_DIARIA_REDONDEADA` (igual al escritorio) hasta la respuesta 3; arreglar la escritura concurrente en Windows y la reproducibilidad del `.docx`; ruff limpio; ADR renumerado; no decir "firmado". | **Decisión #7 del equipo** + fase 1 | 2-3 días |
 | **3. Gestor (`bastium/`)** | Paquete nuevo + `tests/bastium` + plantillas `.docx` + lanzadores + docs `GESTOR_*`. **Condiciones:** que el gestor use `CalendarUtils` (o un calendario propio que pase la validación contra `holidays` 1984-2100 y use la regla de vacancia que diga el despacho); redondeo igual al escritorio; arreglar las pruebas de Windows; quitar la excepción `E501` y formatear; no tocar `requirements.txt` del escritorio; renombrar sus "Sprint 117-B/118" a números libres. | Decisión del equipo (es un producto nuevo: ¿gestor dentro del repo en Python, o gestor externo Laravel/Vue + n8n como dice `INTEGRACION_GESTOR_CASOS.md`?) + fase 2 + respuestas del despacho para usarlo con casos reales | 5-8 días (más la prueba en Windows y el empaquetado, que nunca se ejecutaron) |
 | **4. Calendario propio** | `calendario_procesal.py` como reemplazo de `holidays` en el escritorio. | Respuestas 1, 2 y 6 del Sprint 118 + agregar Chiquinquirá | 2 días + validación |

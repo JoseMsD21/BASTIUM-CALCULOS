@@ -158,3 +158,26 @@ misma operación dependía del hilo en que corriera.
 **Consecuencias:** Ninguna cifra cambia hoy. El cambio futuro de política es un solo parámetro, visible en el
 código y en las pruebas (`tests/liquidation/test_politica_causacion.py`), en vez de una reescritura del motor.
 
+
+---
+
+### ADR-008: El motor de cálculo se importa sin base de datos, sin `holidays` y sin Qt
+
+**Contexto:** El parche de plataforma del 17-nov (API `bastium_api` y gestor de casos) usa el motor de
+liquidación desde programas sin interfaz y sin la base de datos del escritorio. Desde el Sprint 104,
+`app/engine/liquidation/engine.py` importaba la causación tramo a tramo de Suma Única al inicio del archivo, y con
+ella `historical_index` (SQLAlchemy + `database`) y `calendar` (`holidays`): importar el motor cargaba toda la capa
+de datos aunque el cálculo no la usara ([revisión de plataforma](REVISION_PLATAFORMA_2026-11-17.md), §3.1).
+
+**Decisión:** El motor (`app.engine.liquidation.engine`, `politica`, `result`) no importa en tiempo de ejecución
+nada de la base de datos, de `holidays` ni de Qt. Las dependencias que sí necesitan datos (como
+`CausacionTramoATramo`, que consulta el IPC) las crea quien llama (`area_strategy`) y se inyectan; en el motor se
+importan solo para el verificador de tipos (`TYPE_CHECKING`). Una prueba de arquitectura lo exige
+(`tests/architecture/test_motor_sin_base_de_datos.py`, en un proceso aparte).
+
+**Alternativas consideradas:** Import perezoso dentro de la función — descartada: el motor no necesita la clase
+en ejecución, basta con la inyección. Mover `historical_index` a un proveedor abstracto de IPC — queda para la
+fase 2 si la API lo necesita.
+
+**Consecuencias:** Ninguna cifra cambia (Sprint 130, suite completa igual). Es la fase 1 del plan de plataforma
+(tarjeta #64): habilita una API headless sin arrastrar la aplicación de escritorio, si el equipo la adopta (#7).

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from collections.abc import Callable
 from datetime import date, timedelta
 from decimal import Decimal, localcontext
+from typing import TYPE_CHECKING
 
 from app.engine.financial.rate import Rate
-from app.engine.indexation.suma_unica_con_abonos import CausacionTramoATramo
 from app.engine.interest.daily_interest import DailyInterest
 from app.engine.interest.provider import RateProvider
 from app.engine.liquidation.allocation import AllocationEngine
@@ -19,6 +21,15 @@ from app.engine.liquidation.result import LiquidationResult
 from app.engine.math.rounding import Rounding
 from app.engine.temporal.schedulers.base import Event
 from config.decimal_config import CONTEXTO_FORENSE
+
+if TYPE_CHECKING:
+    # Sprint 130 (fase 1 del parche de plataforma, #64): solo para el verificador de
+    # tipos. Importarlo en tiempo de ejecucion arrastraba `historical_index`
+    # (SQLAlchemy + database) y `calendar` (holidays) a cualquiera que importara el
+    # motor, aunque no usara Suma Unica. El objeto ya llega creado desde
+    # `area_strategy`; el motor solo llama a sus metodos. Ver
+    # tests/architecture/test_motor_sin_base_de_datos.py.
+    from app.engine.indexation.suma_unica_con_abonos import CausacionTramoATramo
 
 # Singleton de modulo (Sprint 48, B008): evita instanciar Rate(Decimal("0.0")) en cada
 # definicion de LiquidationCore.__init__ -- Rate es inmutable, asi que reusar la misma
