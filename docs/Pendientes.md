@@ -325,6 +325,7 @@ plantillas resultó ser el mismo "Radicado 2224" ya usado en el Sprint 76, no un
 - [Sprint 123 — Integración por fases del parche de plataforma (API forense y gestor de casos) 🔴 Bloqueado](#sprint-123--integración-por-fases-del-parche-de-plataforma-api-forense-y-gestor-de-casos--bloqueado)
 - [Sprint 125 — Pantalla de Inicio: gráfica por área legible y tablas compactas ✅ Completado](#sprint-125--pantalla-de-inicio-gráfica-por-área-legible-y-tablas-compactas--completado)
 - [Sprint 127 — Cifras alineadas a la derecha y área legible en las tablas ✅ Completado](#sprint-127--cifras-alineadas-a-la-derecha-y-área-legible-en-las-tablas--completado)
+- [Sprint 128 — Mascota en los estados vacíos ✅ Completado](#sprint-128--mascota-en-los-estados-vacíos--completado)
 
 ---
 
@@ -9015,6 +9016,25 @@ ajustadas al nombre legible.
 
 **Pendiente (otro sprint):** separador de miles en pantalla (hoy `1500000.00`). Cambia el texto que ven los
 usuarios y varias pruebas; conviene hacerlo junto con la decisión de formato de moneda del equipo.
+
+---
+
+## Sprint 128 — Mascota en los estados vacíos ✅ Completado
+
+**Origen:** guía de identidad ("Estados vacíos: ilustración de trazo a mano, no íconos genéricos"). El usuario lo
+aprobó el 23/11/2026. No depende de la paleta (#65).
+
+**Hecho:**
+- `app/views/estado_vacio.py`: componente `EstadoVacio` (mascota pequeña con opacidad 55 % + mensaje centrado) y
+  `crear_etiqueta_mascota()`.
+- `app/assets/marca/bastium-mascota-transparente.png`: la mascota con el fondo exterior transparente (los blancos de
+  la cara y el sombrero se conservan), para verse bien sobre el fondo crema.
+- Inicio: si no hay plazos por vencer o no hay liquidaciones recientes, se muestra la mascota con un mensaje
+  ("No hay plazos de prescripción o caducidad por vencer en los próximos 90 días", "Todavía no se ha liquidado
+  ningún expediente...") en vez de una tabla en blanco.
+- Listado de expedientes: el estado vacío que ya existía (Sprint 35) lleva ahora la mascota encima del mensaje.
+
+Pruebas: `tests/views/test_estado_vacio.py` (4).
 
 ---
 

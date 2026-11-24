@@ -77,7 +77,8 @@ Carpeta: [`app/assets/marca/`](../../app/assets/marca/). Rutas en código:
 | `bastium-monograma.png` | "B." con punto rojo, fondo blanco | **Panel lateral** de la aplicación |
 | `bastium-monograma-transparente.png` | El mismo monograma sin fondo | Fondos que no son blancos |
 | `bastium-icono-256.png` / `bastium-icono.ico` | Monograma cuadrado | **Ícono de la ventana**; el `.ico` queda listo para el instalador |
-| `bastium-mascota.png` | El oso con sombrero y corbata roja | Estados vacíos e ilustraciones (pendiente) |
+| `bastium-mascota.png` | El oso con sombrero y corbata roja | Ilustraciones |
+| `bastium-mascota-transparente.png` | La mascota sin fondo exterior | **Estados vacíos** (Inicio, listado de expedientes) |
 | `bastium-wordmark.png` | Solo "Bastium" en serif | Portadas y encabezados sin mascota |
 | `originales/bastium-logo-horizontal-v1-punto-rojo.png` | Versión anterior del logo horizontal (punto rojo, no borgoña) | Histórico |
 
@@ -96,7 +97,8 @@ Reglas:
   de Familia y cuotas; Civil muestra la liquidación de intereses). La app ya lo hace en parte con `AreaRegistry`.
 - **Calendario de precisión:** alertas tipo semáforo. Rojo: crítico / vencimiento inminente. Amarillo: traslado en
   curso. Verde: informativo. Antelación base 10, 5, 3 y 1 día (escala única hasta que el despacho la diferencie).
-- **Estados vacíos:** ilustración de trazo a mano (no íconos genéricos).
+- **Estados vacíos:** ilustración de trazo a mano (no íconos genéricos). **Hecho** (Sprint 128): la mascota con un
+  mensaje en el Inicio y en el listado de expedientes (`app/views/estado_vacio.py`).
 - **Gráficos:** precisión exacta en las alturas pero con aspecto dibujado a mano (bordes irregulares, sombreado
   cruzado). **Choca** con el estándar que pidió el despacho en el Sprint 109 (ejes negros, curva borgoña con
   degradado). Hasta que el despacho decida, se mantiene el estándar del Sprint 109.

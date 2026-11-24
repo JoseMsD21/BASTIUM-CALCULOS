@@ -32,6 +32,7 @@ from app.services.titulo_ejecutivo import (
     ETIQUETAS_TIPO_TITULO,
     calcular_fecha_limite_prescripcion_titulo,
 )
+from app.views.estado_vacio import crear_etiqueta_mascota
 from app.views.fecha_widgets import CampoFechaOpcional, crear_campo_fecha, formatear_fecha
 from app.views.form_utils import FormDialogBase, agregar_ayuda, hacer_redimensionable
 from app.views.icons import icon
@@ -443,7 +444,10 @@ class ExpedientesListView(QWidget):
         self.boton_accion_estado_vacio.setProperty("class", "primary")
         self.boton_accion_estado_vacio.clicked.connect(self._accion_estado_vacio)
 
+        # Sprint 128: la mascota encima del mensaje (guia de identidad).
+        self.etiqueta_mascota_estado_vacio = crear_etiqueta_mascota()
         layout_estado_vacio = QVBoxLayout()
+        layout_estado_vacio.addWidget(self.etiqueta_mascota_estado_vacio)
         layout_estado_vacio.addWidget(self.etiqueta_estado_vacio)
         layout_estado_vacio.addWidget(
             self.boton_accion_estado_vacio, alignment=Qt.AlignmentFlag.AlignCenter

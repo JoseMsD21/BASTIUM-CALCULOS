@@ -19,6 +19,8 @@ LEMA = "La ciencia de resolver lo complejo"
 LOGO_HORIZONTAL = DIRECTORIO_MARCA / "bastium-logo-horizontal.png"
 # Solo la mascota (oso con sombrero). Estados vacios / ilustracion.
 MASCOTA = DIRECTORIO_MARCA / "bastium-mascota.png"
+# Mascota con el fondo exterior transparente (interior blanco conservado). Estados vacios.
+MASCOTA_TRANSPARENTE = DIRECTORIO_MARCA / "bastium-mascota-transparente.png"
 # Solo la palabra "Bastium" en serif. Portadas y encabezados sin mascota.
 WORDMARK = DIRECTORIO_MARCA / "bastium-wordmark.png"
 # Monograma "B." con el punto rojo, fondo blanco. Panel lateral de la app.
@@ -32,6 +34,7 @@ ICONO_APP_ICO = DIRECTORIO_MARCA / "bastium-icono.ico"
 TODOS_LOS_LOGOS = (
     LOGO_HORIZONTAL,
     MASCOTA,
+    MASCOTA_TRANSPARENTE,
     WORDMARK,
     MONOGRAMA,
     MONOGRAMA_TRANSPARENTE,
