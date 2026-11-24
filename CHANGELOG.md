@@ -516,6 +516,8 @@ membrete en PDF/Word), guía de identidad, README reorganizado y revisión del p
   Sprint 50.
 
 ### Changed
+- Regla de `main` (2026-11-23): `test (3.15)` pasa a ser check obligatorio junto a 3.13 y 3.14. Roles, reglas y la
+  excepción "opción B" documentados en `CONTRIBUTING.md` y `.github/CODEOWNERS`; riesgo R15.
 - Motor sin base de datos (Sprint 130, fase 1 del parche de plataforma, ADR-008): importar el motor de
   liquidación ya no carga SQLAlchemy, `database`, `holidays` ni Qt. Ninguna cifra cambia.
 - Separador de miles en pantalla (Sprint 129): los montos se ven como en el PDF (`$1,500,000.00`) y las tasas

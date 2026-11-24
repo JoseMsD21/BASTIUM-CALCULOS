@@ -1,2 +1,7 @@
 # Responsable del proyecto: GitHub lo pide automaticamente como revisor de todo Pull Request.
+# La regla "Main" exige 1 aprobacion de un dueño de este archivo.
+# Excepcion vigente ("opcion B", decidida el 2026-11-23): los PR del propio responsable se
+# integran con `gh pr merge --admin` despues de la CI en verde, porque GitHub no deja aprobar
+# el PR propio. Para quitar la excepcion, agrega un compañero aqui (ej. `* @JoseMsD21 @usuario`).
+# Detalle: CONTRIBUTING.md, seccion "Permisos y reglas de main".
 * @JoseMsD21
