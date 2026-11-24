@@ -31,6 +31,7 @@ from app.engine.temporal.prescripcion import (
 )
 from app.services.parametro_service import cache_de_liquidacion, precargar_parametro
 from app.views.celdas import etiqueta_area
+from app.views.estado_vacio import EstadoVacio
 from app.views.fecha_widgets import formatear_fecha
 from database.models import AuditLog, Expediente
 
@@ -162,9 +163,16 @@ class DashboardView(QWidget):
         _ajustar_tabla_compacta(self.tabla_alertas)
         self._expediente_ids_por_fila_alerta: list[int] = []
 
+        # Sprint 128: sin plazos por vencer, la mascota y un mensaje en vez de
+        # una tabla en blanco.
+        self.estado_vacio_alertas = EstadoVacio(
+            f"No hay plazos de prescripción o caducidad por vencer en los próximos "
+            f"{DIAS_ALERTA_VENCIMIENTO} días."
+        )
         grupo_alertas = QGroupBox("Plazos próximos a vencer")
         layout_alertas = QVBoxLayout()
         layout_alertas.addWidget(self.tabla_alertas)
+        layout_alertas.addWidget(self.estado_vacio_alertas)
         grupo_alertas.setLayout(layout_alertas)
 
         self.tabla_actividad = QTableWidget(0, 3)
@@ -172,9 +180,14 @@ class DashboardView(QWidget):
         self.tabla_actividad.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         _ajustar_tabla_compacta(self.tabla_actividad)
 
+        self.estado_vacio_actividad = EstadoVacio(
+            "Todavía no se ha liquidado ningún expediente. Las liquidaciones que hagas "
+            "aparecerán aquí."
+        )
         grupo_actividad = QGroupBox("Actividad reciente")
         layout_actividad = QVBoxLayout()
         layout_actividad.addWidget(self.tabla_actividad)
+        layout_actividad.addWidget(self.estado_vacio_actividad)
         grupo_actividad.setLayout(layout_actividad)
 
         layout_cta = QHBoxLayout()
@@ -189,6 +202,13 @@ class DashboardView(QWidget):
         self.setLayout(layout_principal)
 
         self.refrescar()
+
+    @staticmethod
+    def _mostrar_estado_vacio(tabla: QTableWidget, estado_vacio: EstadoVacio) -> None:
+        """Sprint 128: tabla si tiene filas; si no, la mascota con su mensaje."""
+        hay_filas = tabla.rowCount() > 0
+        tabla.setVisible(hay_filas)
+        estado_vacio.setVisible(not hay_filas)
 
     def _emitir_ver_expedientes(self) -> None:
         if self._on_ver_expedientes:
@@ -207,6 +227,8 @@ class DashboardView(QWidget):
         self._refrescar_grafica_por_area(expedientes)
         self._refrescar_alertas_vencimiento(expedientes, hoy)
         self._refrescar_actividad_reciente(session, expedientes)
+        self._mostrar_estado_vacio(self.tabla_alertas, self.estado_vacio_alertas)
+        self._mostrar_estado_vacio(self.tabla_actividad, self.estado_vacio_actividad)
 
         session.close()
 

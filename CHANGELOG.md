@@ -153,6 +153,8 @@ Civil/Familia (#60) y Suma Única con abonos tramo a tramo (#61). Suite: 2045 pr
 membrete en PDF/Word), guía de identidad, README reorganizado y revisión del parche de plataforma del 17-nov.
 
 ### Added
+- Estados vacíos con la mascota (Sprint 128): el Inicio y el listado de expedientes muestran la mascota y un mensaje
+  claro cuando no hay datos, en vez de tablas en blanco.
 - Identidad visual oficial (Sprint 122): logos del equipo en `app/assets/marca/` (horizontal, mascota, wordmark,
   monograma, ícono `.png`/`.ico`) con rutas en `app/assets/logos.py`; monograma "B." en el panel lateral; membrete
   con el logo y el lema "La ciencia de resolver lo complejo" en todas las hojas del PDF y del Word.
